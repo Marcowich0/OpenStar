@@ -1,6 +1,10 @@
 # OpenStar
 🎤 OpenStar is an open-source, self-hosted, SingStar-style karaoke game for your home server. Uses your existing UltraStar song library, runs in any browser, and turns phones into microphones and remotes. Real-time pitch scoring, duets, profiles and leaderboards. No installs needed.
 
+
+
+I would like to create a project similar to that of ultrastar deluxe. Here is my initial requirements. 
+
 see the ultrastar project for context on a similar project and for reference on the structure of the files
 
 1) backend and songs should be hosted on a server through docker
