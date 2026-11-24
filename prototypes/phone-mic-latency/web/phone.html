@@ -116,7 +116,7 @@ function onReading(m) {
   $("cl").firstChild.style.width = `${Math.max(0, m.clarity) * 100}%`;
   $("lvl").firstChild.style.width = `${Math.max(0, Math.min(1, (m.db + 70) / 70)) * 100}%`;
   const wallPerf = m.wall - performance.timeOrigin;
-  st.local.push([endPerf - halfWin, wallPerf - halfWin, m.hz, m.clarity]);
+  st.local.push([endPerf - halfWin, wallPerf - halfWin, m.hz, m.clarity, ((m.endFrame - 1024) / st.sr) * 1000]);
   if (st.local.length > 3000) st.local.shift();
   if (st.offset === null) return;
   const te = endPerf + st.offset;
@@ -141,17 +141,19 @@ function selfBeep() {
     e.gain.setValueAtTime(0.9, when + 0.145); e.gain.linearRampToValueAtTime(0, when + 0.15);
     o.start(when); o.stop(when + 0.16);
     const ts = ctx.getOutputTimestamp();
-    tones.push(ts.performanceTime + (when - ts.contextTime) * 1000);
+    tones.push({ perf: ts.performanceTime + (when - ts.contextTime) * 1000, frameMs: when * 1000 });
   }
   $("self").disabled = true;
   setTimeout(() => {
     const fold = (hz) => { const c = (69 + 12 * Math.log2(hz / 440) - 81) * 100; return (((c + 600) % 1200) + 1200) % 1200 - 600; };
-    const one = (k) => tones.map((t) => {
-      const h = st.local.filter((r) => r[k] >= t - 100 && r[k] <= t + 600 && r[3] >= 0.8 && Math.abs(fold(r[2])) < 50).sort((a, b) => a[k] - b[k]);
+    // k 0/1: reading stamps vs Android's output timestamp; k 4: audio frames in, minus frames out (round trip in the context's own clock)
+    const one = (k) => tones.map((tone) => {
+      const t = k === 4 ? tone.frameMs : tone.perf;
+      const h = st.local.filter((r) => r[k] >= t - 100 && r[k] <= t + 800 && r[3] >= 0.8 && Math.abs(fold(r[2])) < 50).sort((a, b) => a[k] - b[k]);
       return h.length ? +(h[0][k] - t).toFixed(1) : null;
     });
     const sum = (a) => { const v = a.filter((x) => x !== null).sort((x, y) => x - y); return { detected: `${v.length}/${a.length}`, median: v[v.length >> 1] ?? null, min: v[0] ?? null, max: v[v.length - 1] ?? null, per: a }; };
-    st.selfLoop = { audioClock: sum(one(0)), wallClock: sum(one(1)), outputLatency: ctx.outputLatency, baseLatency: ctx.baseLatency };
+    st.selfLoop = { audioClock: sum(one(0)), wallClock: sum(one(1)), frames: sum(one(4)), outputLatency: ctx.outputLatency, baseLatency: ctx.baseLatency };
     $("self").disabled = false;
   }, 7500);
 }
@@ -232,7 +234,7 @@ readings sent: ${st.sent} (${st.rate}/s)
 MPM cost (main-thread bench): p50 ${st.bench.p50} ms, p95 ${st.bench.p95} ms
 MPM cost (in worklet): ${st.cost ? fmt(st.cost.avg, 3) + " avg, " + fmt(st.cost.max, 3) + " max ms" : "not measurable here"}
 audio clock vs real time (last): ${st.clock.slice(-3).join(", ") || "–"}  (1 = keeping up)
-self beep loop: ${st.selfLoop ? JSON.stringify({ audio: st.selfLoop.audioClock, wall: st.selfLoop.wallClock }) : "not run"}
+self beep loop: ${st.selfLoop ? JSON.stringify({ frames: st.selfLoop.frames, wall: st.selfLoop.wallClock.median }) : "not run"}
 buffer: ${st.settings.latencyHint}  detector: ${st.settings.detect ? "on" : "off"}
 wake lock: ${st.wake}   audio: ${st.ctx.state}   track: ${st.trackEnded ? "ENDED" : "live"}
 mic: ${JSON.stringify(st.settings)}`;
