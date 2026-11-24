@@ -214,7 +214,7 @@ ${s ? `rate ${s.rate}/s  sr ${s.sr}  baseLatency ${fmt(s.baseLatency * 1000)} ms
 clock offset ${fmt(s.offset)} ms  RTT now ${fmt(s.rtt)} / best ${fmt(s.minRtt)} ms  drift ${JSON.stringify(drift(p))}
 MPM bench p50 ${s.bench?.p50} p95 ${s.bench?.p95} ms   in worklet ${s.cost ? fmt(s.cost.avg, 3) + " avg / " + fmt(s.cost.max, 3) + " max" : "n/a"}
 self beep (phone speaker → phone mic) ${s.selfLoop ? JSON.stringify({ frames: s.selfLoop.frames?.median, framesPer: s.selfLoop.frames?.per, audio: s.selfLoop.audioClock.median, wall: s.selfLoop.wallClock.median, detected: s.selfLoop.audioClock.detected, phoneOutputLatency: s.selfLoop.outputLatency }) : "not run"}
-audio clock vs real time ${JSON.stringify(s.clock)}  buffer ${s.settings?.latencyHint} detector ${s.settings?.detect ? "on" : "off"}
+audio clock vs real time ${JSON.stringify(s.clock)}  buffer ${s.settings?.latencyHint} processing ${JSON.stringify(s.settings?.processing)} detector ${s.settings?.detect ? "on" : "off"}
 wake ${s.wake}  hidden ${s.hidden}x  reconnects ${s.reconnects}  track ${s.trackEnded ? "ENDED" : s.trackMuted ? "muted once" : "live"}
 mic ${JSON.stringify(s.settings)}` : "waiting for stats"}
 

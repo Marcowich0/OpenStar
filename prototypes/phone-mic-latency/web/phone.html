@@ -25,7 +25,10 @@
 <div class="proto">PROTOTYPE for “Phone mic end-to-end latency”. Throwaway.</div>
 <div id="setup">
   <label>Name <input id="name" type="text"></label>
-  <label><input id="proc" type="checkbox"> Browser voice processing on (echo cancel, noise suppression, auto gain)</label>
+  <div>Browser voice processing:</div>
+  <label><input id="ec" type="checkbox"> Echo cancellation</label>
+  <label><input id="ns" type="checkbox"> Noise suppression</label>
+  <label><input id="agc" type="checkbox"> Auto gain</label>
   <label>Audio buffer <select id="lat" style="font:inherit"><option value="interactive">interactive (smallest)</option><option value="playback">playback (large)</option><option value="0.02">20 ms</option></select></label>
   <label><input id="det" type="checkbox" checked> Run pitch detector</label>
   <button id="start">Start mic</button>
@@ -182,9 +185,9 @@ document.addEventListener("visibilitychange", () => {
 $("start").onclick = async () => {
   $("start").disabled = true;
   try {
-    const proc = $("proc").checked;
+    const proc = { ec: $("ec").checked, ns: $("ns").checked, agc: $("agc").checked };
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: proc, noiseSuppression: proc, autoGainControl: proc },
+      audio: { echoCancellation: proc.ec, noiseSuppression: proc.ns, autoGainControl: proc.agc },
     });
     const lat = $("lat").value;
     const ctx = new AudioContext({ latencyHint: lat === "0.02" ? 0.02 : lat });
