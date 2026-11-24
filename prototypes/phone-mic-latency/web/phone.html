@@ -30,6 +30,7 @@
   <label><input id="det" type="checkbox" checked> Run pitch detector</label>
   <button id="start">Start mic</button>
 </div>
+<button id="self" style="display:none;background:#b9e8ff">Self beep test (phone speaker → phone mic)</button>
 <div id="note">–</div>
 <div id="hz">&nbsp;</div>
 <div>Clarity</div><div class="bar" id="cl"><div></div></div>
@@ -49,7 +50,7 @@ const st = {
   id: null, ws: null, ctx: null, sr: 0, seq: 0, sent: 0, sentWindow: 0, rate: 0,
   k: [], // sliding window of (arrival perf - frame time) for the frame→perf mapping
   pings: [], offset: null, rtt: null, minRtt: null, pingN: 0,
-  cost: null, bench: null, epoch: null, clock: [], settings: null, wake: "none", hiddenCount: 0, reconnects: 0,
+  cost: null, bench: null, epoch: null, clock: [], local: [], selfLoop: null, settings: null, wake: "none", hiddenCount: 0, reconnects: 0,
   startedAt: 0,
 };
 
@@ -114,6 +115,9 @@ function onReading(m) {
   }
   $("cl").firstChild.style.width = `${Math.max(0, m.clarity) * 100}%`;
   $("lvl").firstChild.style.width = `${Math.max(0, Math.min(1, (m.db + 70) / 70)) * 100}%`;
+  const wallPerf = m.wall - performance.timeOrigin;
+  st.local.push([endPerf - halfWin, wallPerf - halfWin, m.hz, m.clarity]);
+  if (st.local.length > 3000) st.local.shift();
   if (st.offset === null) return;
   const te = endPerf + st.offset;
   const tw = m.wall - performance.timeOrigin + st.offset; // worklet wall-clock stamp at processing time
@@ -125,6 +129,33 @@ function onReading(m) {
   });
   if (ok) { st.sent++; st.sentWindow++; }
 }
+
+// Phone plays beeps on its own speaker and hears them on its own mic: Phone output + input delay.
+function selfBeep() {
+  const ctx = st.ctx, g = ctx.createGain(); g.connect(ctx.destination);
+  const t0 = ctx.currentTime + 0.5, tones = [];
+  for (let i = 0; i < 10; i++) {
+    const when = t0 + i * 0.6, o = ctx.createOscillator(), e = ctx.createGain();
+    o.frequency.value = 880; o.connect(e).connect(g);
+    e.gain.setValueAtTime(0, when); e.gain.linearRampToValueAtTime(0.9, when + 0.005);
+    e.gain.setValueAtTime(0.9, when + 0.145); e.gain.linearRampToValueAtTime(0, when + 0.15);
+    o.start(when); o.stop(when + 0.16);
+    const ts = ctx.getOutputTimestamp();
+    tones.push(ts.performanceTime + (when - ts.contextTime) * 1000);
+  }
+  $("self").disabled = true;
+  setTimeout(() => {
+    const fold = (hz) => { const c = (69 + 12 * Math.log2(hz / 440) - 81) * 100; return (((c + 600) % 1200) + 1200) % 1200 - 600; };
+    const one = (k) => tones.map((t) => {
+      const h = st.local.filter((r) => r[k] >= t - 100 && r[k] <= t + 600 && r[3] >= 0.8 && Math.abs(fold(r[2])) < 50).sort((a, b) => a[k] - b[k]);
+      return h.length ? +(h[0][k] - t).toFixed(1) : null;
+    });
+    const sum = (a) => { const v = a.filter((x) => x !== null).sort((x, y) => x - y); return { detected: `${v.length}/${a.length}`, median: v[v.length >> 1] ?? null, min: v[0] ?? null, max: v[v.length - 1] ?? null, per: a }; };
+    st.selfLoop = { audioClock: sum(one(0)), wallClock: sum(one(1)), outputLatency: ctx.outputLatency, baseLatency: ctx.baseLatency };
+    $("self").disabled = false;
+  }, 7500);
+}
+$("self").onclick = selfBeep;
 
 function bench() {
   // Main-thread cost of one 2048-sample MPM frame on this Phone's CPU.
@@ -168,6 +199,7 @@ $("start").onclick = async () => {
     track.onmute = () => { st.trackMuted = true; };
     st.bench = bench();
     $("setup").style.display = "none";
+    $("self").style.display = "block";
     st.startedAt = performance.now();
     wakeLock();
     connect();
@@ -188,7 +220,7 @@ function tick() {
     offset: st.offset, rtt: st.rtt, minRtt: st.minRtt, rate: st.rate,
     cost: st.cost, bench: st.bench, settings: st.settings, wake: st.wake,
     hidden: st.hiddenCount, reconnects: st.reconnects, trackEnded: !!st.trackEnded, trackMuted: !!st.trackMuted,
-    ctxState: st.ctx.state, clock: st.clock.slice(-5),
+    ctxState: st.ctx.state, clock: st.clock.slice(-5), selfLoop: st.selfLoop,
   };
   send(info);
   $("status").textContent =
@@ -200,6 +232,7 @@ readings sent: ${st.sent} (${st.rate}/s)
 MPM cost (main-thread bench): p50 ${st.bench.p50} ms, p95 ${st.bench.p95} ms
 MPM cost (in worklet): ${st.cost ? fmt(st.cost.avg, 3) + " avg, " + fmt(st.cost.max, 3) + " max ms" : "not measurable here"}
 audio clock vs real time (last): ${st.clock.slice(-3).join(", ") || "–"}  (1 = keeping up)
+self beep loop: ${st.selfLoop ? JSON.stringify({ audio: st.selfLoop.audioClock, wall: st.selfLoop.wallClock }) : "not run"}
 buffer: ${st.settings.latencyHint}  detector: ${st.settings.detect ? "on" : "off"}
 wake lock: ${st.wake}   audio: ${st.ctx.state}   track: ${st.trackEnded ? "ENDED" : "live"}
 mic: ${JSON.stringify(st.settings)}`;
