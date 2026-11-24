@@ -26,6 +26,8 @@
 <div id="setup">
   <label>Name <input id="name" type="text"></label>
   <label><input id="proc" type="checkbox"> Browser voice processing on (echo cancel, noise suppression, auto gain)</label>
+  <label>Audio buffer <select id="lat" style="font:inherit"><option value="interactive">interactive (smallest)</option><option value="playback">playback (large)</option><option value="0.02">20 ms</option></select></label>
+  <label><input id="det" type="checkbox" checked> Run pitch detector</label>
   <button id="start">Start mic</button>
 </div>
 <div id="note">–</div>
@@ -47,7 +49,7 @@ const st = {
   id: null, ws: null, ctx: null, sr: 0, seq: 0, sent: 0, sentWindow: 0, rate: 0,
   k: [], // sliding window of (arrival perf - frame time) for the frame→perf mapping
   pings: [], offset: null, rtt: null, minRtt: null, pingN: 0,
-  cost: null, bench: null, settings: null, wake: "none", hiddenCount: 0, reconnects: 0,
+  cost: null, bench: null, epoch: null, clock: [], settings: null, wake: "none", hiddenCount: 0, reconnects: 0,
   startedAt: 0,
 };
 
@@ -76,6 +78,7 @@ function ping() {
 }
 function onPong(m) {
   const t1 = performance.now();
+  if (m.epoch !== st.epoch) { st.epoch = m.epoch; st.pings = []; st.k = []; } // a new Stage page has a new clock
   const rtt = t1 - m.t0;
   const off = m.ts - (m.t0 + t1) / 2;
   st.pings.push({ rtt, off, at: t1 });
@@ -90,7 +93,7 @@ function mapFrame(endFrame, arrival) {
   // from the audio clock to performance.now(), tracking slow drift between the two clocks.
   const ft = (endFrame / st.sr) * 1000;
   st.k.push(arrival - ft);
-  if (st.k.length > 300) st.k.shift();
+  if (st.k.length > 100) st.k.shift(); // ~1 s: the audio clock can fall behind real time
   let k = Infinity;
   for (const v of st.k) if (v < k) k = v;
   return ft + k;
@@ -99,6 +102,7 @@ function mapFrame(endFrame, arrival) {
 function onReading(m) {
   const arrival = performance.now();
   if (m.cost) st.cost = m.cost;
+  if (m.clock) { st.clock.push(+m.clock.ratio.toFixed(4)); if (st.clock.length > 30) st.clock.shift(); }
   const endPerf = mapFrame(m.endFrame, arrival);
   const halfWin = (1024 / st.sr) * 1000;
   // UI
@@ -112,9 +116,10 @@ function onReading(m) {
   $("lvl").firstChild.style.width = `${Math.max(0, Math.min(1, (m.db + 70) / 70)) * 100}%`;
   if (st.offset === null) return;
   const te = endPerf + st.offset;
+  const tw = m.wall - performance.timeOrigin + st.offset; // worklet wall-clock stamp at processing time
   const ok = send({
     t: "r", id: st.id, s: st.seq++,
-    tc: +(te - halfWin).toFixed(2), te: +te.toFixed(2),
+    tc: +(te - halfWin).toFixed(2), te: +te.toFixed(2), tw: +tw.toFixed(2),
     hz: +m.hz.toFixed(2), cl: +m.clarity.toFixed(3), db: +m.db.toFixed(1),
     lag: +(arrival - endPerf).toFixed(2), // worklet → main thread slack on the Phone
   });
@@ -148,16 +153,17 @@ $("start").onclick = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: proc, noiseSuppression: proc, autoGainControl: proc },
     });
-    const ctx = new AudioContext({ latencyHint: "interactive" });
+    const lat = $("lat").value;
+    const ctx = new AudioContext({ latencyHint: lat === "0.02" ? 0.02 : lat });
     await ctx.resume();
     st.ctx = ctx; st.sr = ctx.sampleRate;
     await ctx.audioWorklet.addModule("pitch-worklet.js");
-    const node = new AudioWorkletNode(ctx, "pitch-processor", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
+    const node = new AudioWorkletNode(ctx, "pitch-processor", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, processorOptions: { detect: $("det").checked } });
     const mute = ctx.createGain(); mute.gain.value = 0;
     ctx.createMediaStreamSource(stream).connect(node).connect(mute).connect(ctx.destination);
     node.port.onmessage = (e) => onReading(e.data);
     const track = stream.getAudioTracks()[0];
-    st.settings = { ...track.getSettings(), label: track.label, processing: proc };
+    st.settings = { ...track.getSettings(), label: track.label, processing: proc, latencyHint: lat, detect: $("det").checked };
     track.onended = () => { st.trackEnded = true; };
     track.onmute = () => { st.trackMuted = true; };
     st.bench = bench();
@@ -182,7 +188,7 @@ function tick() {
     offset: st.offset, rtt: st.rtt, minRtt: st.minRtt, rate: st.rate,
     cost: st.cost, bench: st.bench, settings: st.settings, wake: st.wake,
     hidden: st.hiddenCount, reconnects: st.reconnects, trackEnded: !!st.trackEnded, trackMuted: !!st.trackMuted,
-    ctxState: st.ctx.state,
+    ctxState: st.ctx.state, clock: st.clock.slice(-5),
   };
   send(info);
   $("status").textContent =
@@ -193,6 +199,8 @@ RTT now / best: ${fmt(st.rtt)} / ${fmt(st.minRtt)} ms
 readings sent: ${st.sent} (${st.rate}/s)
 MPM cost (main-thread bench): p50 ${st.bench.p50} ms, p95 ${st.bench.p95} ms
 MPM cost (in worklet): ${st.cost ? fmt(st.cost.avg, 3) + " avg, " + fmt(st.cost.max, 3) + " max ms" : "not measurable here"}
+audio clock vs real time (last): ${st.clock.slice(-3).join(", ") || "–"}  (1 = keeping up)
+buffer: ${st.settings.latencyHint}  detector: ${st.settings.detect ? "on" : "off"}
 wake lock: ${st.wake}   audio: ${st.ctx.state}   track: ${st.trackEnded ? "ENDED" : "live"}
 mic: ${JSON.stringify(st.settings)}`;
 }

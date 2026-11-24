@@ -5,8 +5,11 @@ import { PitchDetector } from "pitchy";
 const WINDOW = 2048;
 
 class PitchProcessor extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
+    this.detect = options?.processorOptions?.detect !== false;
+    this.clockF0 = null; // audio frames vs wall time, to see the audio clock fall behind
+    this.clockD0 = 0;
     this.ring = new Float32Array(WINDOW);
     this.win = new Float32Array(WINDOW);
     this.pos = 0; // next write index in ring
@@ -45,7 +48,7 @@ class PitchProcessor extends AudioWorkletProcessor {
     const rms = Math.sqrt(sq / WINDOW);
 
     const t0 = this.hasPerf ? performance.now() : 0;
-    const [hz, clarity] = this.detector.findPitch(this.win, sampleRate);
+    const [hz, clarity] = this.detect ? this.detector.findPitch(this.win, sampleRate) : [0, 0];
     if (this.hasPerf) {
       const c = performance.now() - t0;
       this.costSum += c;
@@ -55,8 +58,10 @@ class PitchProcessor extends AudioWorkletProcessor {
 
     // Frame index just after the newest sample in the window.
     const endFrame = currentFrame + ch.length;
+    const wall = Date.now();
     const msg = {
       endFrame,
+      wall,
       hz,
       clarity,
       db: rms > 0 ? 20 * Math.log10(rms) : -120,
@@ -66,6 +71,12 @@ class PitchProcessor extends AudioWorkletProcessor {
       this.costSum = 0;
       this.costN = 0;
       this.costMax = 0;
+    }
+    if (this.clockF0 === null) { this.clockF0 = endFrame; this.clockD0 = wall; }
+    else if (wall - this.clockD0 >= 2000) {
+      const audioMs = ((endFrame - this.clockF0) / sampleRate) * 1000;
+      msg.clock = { ratio: audioMs / (wall - this.clockD0), spanMs: wall - this.clockD0 };
+      this.clockF0 = endFrame; this.clockD0 = wall;
     }
     this.port.postMessage(msg);
     return true;

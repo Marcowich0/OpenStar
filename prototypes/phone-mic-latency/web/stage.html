@@ -48,8 +48,8 @@ function connect() {
   ws.onmessage = (e) => {
     const arr = performance.now();
     const m = JSON.parse(e.data);
-    if (m.t === "ping") { ws.send(JSON.stringify({ to: m.id, t: "pong", n: m.n, t0: m.t0, ts: performance.now() })); return; }
-    if (m.t === "r") { const p = phone(m.id); p.readings.push([m.s, m.tc, m.te, m.hz, m.cl, m.db, arr, m.lag]); return; }
+    if (m.t === "ping") { ws.send(JSON.stringify({ to: m.id, t: "pong", n: m.n, t0: m.t0, ts: performance.now(), epoch: performance.timeOrigin })); return; }
+    if (m.t === "r") { const p = phone(m.id); p.readings.push([m.s, m.tc, m.te, m.hz, m.cl, m.db, arr, m.lag, m.tw]); return; }
     if (m.t === "join") { phone(m.id, m.name); return; }
     if (m.t === "leave") { const p = phones.get(m.id); if (p) p.left = arr; return; }
     if (m.t === "stat") { const p = phone(m.id); p.stat = m; p.statHist.push({ at: arr, offset: m.offset, minRtt: m.minRtt, rtt: m.rtt }); return; }
@@ -114,7 +114,7 @@ $("bleed").onclick = () => runTest("bleed");
 $("sing").onclick = () => runTest("sing");
 
 // ---------- analysis ----------
-const R = { s: 0, tc: 1, te: 2, hz: 3, cl: 4, db: 5, arr: 6, lag: 7 };
+const R = { s: 0, tc: 1, te: 2, hz: 3, cl: 4, db: 5, arr: 6, lag: 7, tw: 8 };
 const midiOf = (hz) => 69 + 12 * Math.log2(hz / 440);
 function foldCents(hz, midi) { const c = (midiOf(hz) - midi) * 100; return (((c + 600) % 1200) + 1200) % 1200 - 600; }
 function q(arr, p) { if (!arr.length) return NaN; const s = [...arr].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; }
@@ -126,22 +126,28 @@ function analyse(test) {
   for (const p of phones.values()) {
     const rs = p.readings;
     if (test.kind === "beep") {
-      const per = test.tones.map((t) => {
-        const hit = rs.filter((r) => r[R.tc] >= t.start - 150 && r[R.tc] <= t.start + 600 && r[R.cl] >= 0.8 && Math.abs(foldCents(r[R.hz], 69)) < 50);
-        if (!hit.length) return null;
-        hit.sort((a, b) => a[R.tc] - b[R.tc]);
-        const first = hit[0], last = hit[hit.length - 1];
-        return { onset: first[R.tc] - t.start, onsetNaive: first[R.tc] - t.startNaive, release: last[R.tc] - t.end, seen: first[R.arr] - t.start, n: hit.length };
-      });
-      const ok = per.filter(Boolean), on = ok.map((x) => x.onset);
-      test.results[p.name] = {
-        detected: `${ok.length}/${per.length}`,
-        loopMs: { median: r1(q(on, 0.5)), min: r1(Math.min(...on)), max: r1(Math.max(...on)), sd: r1(sd(on)) },
-        loopNaiveMedian: r1(q(ok.map((x) => x.onsetNaive), 0.5)),
-        releaseMedian: r1(q(ok.map((x) => x.release), 0.5)),
-        seenOnStageMs: { median: r1(q(ok.map((x) => x.seen), 0.5)), max: r1(Math.max(...ok.map((x) => x.seen))) },
-        perBeep: per.map((x) => x && { onset: r1(x.onset), seen: r1(x.seen), n: x.n }),
+      const one = (stamp) => {
+        // stamp(r): the reading's window-centre time on the Stage clock
+        const per = test.tones.map((t) => {
+          const hit = rs.filter((r) => stamp(r) >= t.start - 150 && stamp(r) <= t.start + 700 && r[R.cl] >= 0.8 && Math.abs(foldCents(r[R.hz], 69)) < 50);
+          if (!hit.length) return null;
+          hit.sort((a, b) => stamp(a) - stamp(b));
+          const first = hit[0], last = hit[hit.length - 1];
+          return { onset: stamp(first) - t.start, onsetNaive: stamp(first) - t.startNaive, release: stamp(last) - t.end, seen: first[R.arr] - t.start, n: hit.length };
+        });
+        const ok = per.filter(Boolean), on = ok.map((x) => x.onset);
+        return {
+          detected: `${ok.length}/${per.length}`,
+          loopMs: { median: r1(q(on, 0.5)), min: r1(Math.min(...on)), max: r1(Math.max(...on)), sd: r1(sd(on)) },
+          loopNaiveMedian: r1(q(ok.map((x) => x.onsetNaive), 0.5)),
+          releaseMedian: r1(q(ok.map((x) => x.release), 0.5)),
+          seenOnStageMs: { median: r1(q(ok.map((x) => x.seen), 0.5)), max: r1(Math.max(...ok.map((x) => x.seen))) },
+          perBeep: per.map((x) => x && { onset: r1(x.onset), seen: r1(x.seen), n: x.n }),
+        };
       };
+      const audioClock = one((r) => r[R.tc]);
+      const wallClock = one((r) => r[R.tw] - (r[R.te] - r[R.tc]));
+      test.results[p.name] = { ...audioClock, wallClock };
     } else {
       const lastBeep = [...tests].reverse().find((t) => t.kind === "beep" && t.results && t.results[p.name] && t.results[p.name].loopMs.median !== null);
       const shift = lastBeep ? lastBeep.results[p.name].loopMs.median : 0;
@@ -174,6 +180,7 @@ function transportStats(p, sinceMs) {
   const rs = sinceMs ? p.readings.filter((r) => r[R.arr] >= performance.now() - sinceMs) : p.readings;
   if (rs.length < 10) return null;
   const d = rs.map((r) => r[R.arr] - r[R.te]);
+  const dw = rs.filter((r) => r[R.tw] !== undefined).map((r) => r[R.arr] - r[R.tw]);
   const lag = rs.map((r) => r[R.lag]);
   const byArr = [...rs].sort((a, b) => a[R.arr] - b[R.arr]);
   const gaps = []; for (let i = 1; i < byArr.length; i++) gaps.push(byArr[i][R.arr] - byArr[i - 1][R.arr]);
@@ -183,6 +190,7 @@ function transportStats(p, sinceMs) {
   return {
     n: rs.length, seconds: r1(dur), rate: r1(rs.length / dur),
     delayMs: { p50: r1(q(d, 0.5)), p95: r1(q(d, 0.95)), p99: r1(q(d, 0.99)), max: r1(Math.max(...d)), min: r1(Math.min(...d)), sd: r1(sd(d)) },
+    delayWallStampMs: { p50: r1(q(dw, 0.5)), p95: r1(q(dw, 0.95)), p99: r1(q(dw, 0.99)), max: r1(Math.max(...dw)), min: r1(Math.min(...dw)), sd: r1(sd(dw)) },
     phoneWorkletToMainMs: { p50: r1(q(lag, 0.5)), p95: r1(q(lag, 0.95)), max: r1(Math.max(...lag)) },
     lost: expected - rs.length, reordered: reorder,
     gapsOver50: gaps.filter((g) => g > 50).length, gapsOver100: gaps.filter((g) => g > 100).length, maxGap: r1(Math.max(...gaps)),
@@ -205,6 +213,7 @@ function renderPanels() {
 ${s ? `rate ${s.rate}/s  sr ${s.sr}  baseLatency ${fmt(s.baseLatency * 1000)} ms  ctx ${s.ctxState}
 clock offset ${fmt(s.offset)} ms  RTT now ${fmt(s.rtt)} / best ${fmt(s.minRtt)} ms  drift ${JSON.stringify(drift(p))}
 MPM bench p50 ${s.bench?.p50} p95 ${s.bench?.p95} ms   in worklet ${s.cost ? fmt(s.cost.avg, 3) + " avg / " + fmt(s.cost.max, 3) + " max" : "n/a"}
+audio clock vs real time ${JSON.stringify(s.clock)}  buffer ${s.settings?.latencyHint} detector ${s.settings?.detect ? "on" : "off"}
 wake ${s.wake}  hidden ${s.hidden}x  reconnects ${s.reconnects}  track ${s.trackEnded ? "ENDED" : s.trackMuted ? "muted once" : "live"}
 mic ${JSON.stringify(s.settings)}` : "waiting for stats"}
 

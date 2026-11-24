@@ -754,8 +754,11 @@ function ceilPow2(v) {
 // pitch-worklet.js
 var WINDOW = 2048;
 var PitchProcessor = class extends AudioWorkletProcessor {
-  constructor() {
+  constructor(options) {
     super();
+    this.detect = options?.processorOptions?.detect !== false;
+    this.clockF0 = null;
+    this.clockD0 = 0;
     this.ring = new Float32Array(WINDOW);
     this.win = new Float32Array(WINDOW);
     this.pos = 0;
@@ -789,7 +792,7 @@ var PitchProcessor = class extends AudioWorkletProcessor {
     for (let i = 0; i < WINDOW; i++) sq += this.win[i] * this.win[i];
     const rms = Math.sqrt(sq / WINDOW);
     const t0 = this.hasPerf ? performance.now() : 0;
-    const [hz, clarity] = this.detector.findPitch(this.win, sampleRate);
+    const [hz, clarity] = this.detect ? this.detector.findPitch(this.win, sampleRate) : [0, 0];
     if (this.hasPerf) {
       const c = performance.now() - t0;
       this.costSum += c;
@@ -797,8 +800,10 @@ var PitchProcessor = class extends AudioWorkletProcessor {
       if (c > this.costMax) this.costMax = c;
     }
     const endFrame = currentFrame + ch.length;
+    const wall = Date.now();
     const msg = {
       endFrame,
+      wall,
       hz,
       clarity,
       db: rms > 0 ? 20 * Math.log10(rms) : -120
@@ -808,6 +813,15 @@ var PitchProcessor = class extends AudioWorkletProcessor {
       this.costSum = 0;
       this.costN = 0;
       this.costMax = 0;
+    }
+    if (this.clockF0 === null) {
+      this.clockF0 = endFrame;
+      this.clockD0 = wall;
+    } else if (wall - this.clockD0 >= 2e3) {
+      const audioMs = (endFrame - this.clockF0) / sampleRate * 1e3;
+      msg.clock = { ratio: audioMs / (wall - this.clockD0), spanMs: wall - this.clockD0 };
+      this.clockF0 = endFrame;
+      this.clockD0 = wall;
     }
     this.port.postMessage(msg);
     return true;
