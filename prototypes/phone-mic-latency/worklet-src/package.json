@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "name": "pitch-worklet-src",
+  "scripts": {
+    "build": "esbuild pitch-worklet.js --bundle --format=esm --target=es2020 --outfile=../web/pitch-worklet.js && esbuild pitchy-main.js --bundle --format=esm --target=es2020 --outfile=../web/pitchy.js"
+  },
+  "dependencies": { "esbuild": "^0.25.0", "pitchy": "^4.1.0" }
+}

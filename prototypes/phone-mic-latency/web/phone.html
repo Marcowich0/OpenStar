@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PROTOTYPE Phone mic</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; font: 16px/1.35 system-ui, sans-serif; background: #fff8ec; color: #1d1b2f; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .proto { font-size: 12px; color: #a33; margin-bottom: 12px; }
+  label { display: block; margin: 8px 0; }
+  input[type=text] { font: inherit; padding: 8px; width: 100%; box-sizing: border-box; border: 2px solid #1d1b2f; border-radius: 10px; }
+  button { font: 600 20px system-ui; padding: 16px; width: 100%; border: 3px solid #1d1b2f; border-radius: 999px; background: #ffcf3f; margin: 8px 0; }
+  #note { font: 700 72px system-ui; text-align: center; margin: 8px 0 0; }
+  #hz { text-align: center; color: #555; }
+  .bar { height: 14px; border: 2px solid #1d1b2f; border-radius: 8px; overflow: hidden; margin: 6px 0; background: #fff; }
+  .bar > div { height: 100%; width: 0; background: #4bc6a0; }
+  #lvl > div { background: #6a8cff; }
+  pre { font: 12px/1.4 ui-monospace, monospace; background: #fff; border: 2px solid #1d1b2f; border-radius: 10px; padding: 8px; white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<h1>Phone mic</h1>
+<div class="proto">PROTOTYPE for “Phone mic end-to-end latency”. Throwaway.</div>
+<div id="setup">
+  <label>Name <input id="name" type="text"></label>
+  <label><input id="proc" type="checkbox"> Browser voice processing on (echo cancel, noise suppression, auto gain)</label>
+  <button id="start">Start mic</button>
+</div>
+<div id="note">–</div>
+<div id="hz">&nbsp;</div>
+<div>Clarity</div><div class="bar" id="cl"><div></div></div>
+<div>Level</div><div class="bar" id="lvl"><div></div></div>
+<pre id="status">Not started. Keep this page open and the screen on while testing.</pre>
+
+<script type="module">
+import { PitchDetector } from "./pitchy.js";
+
+const $ = (id) => document.getElementById(id);
+const ua = navigator.userAgent;
+$("name").value = (/iPhone|iPad/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : "Phone") +
+  (/CriOS|Chrome/.test(ua) ? " Chrome" : /Safari/.test(ua) ? " Safari" : "");
+
+const NOTE = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const st = {
+  id: null, ws: null, ctx: null, sr: 0, seq: 0, sent: 0, sentWindow: 0, rate: 0,
+  k: [], // sliding window of (arrival perf - frame time) for the frame→perf mapping
+  pings: [], offset: null, rtt: null, minRtt: null, pingN: 0,
+  cost: null, bench: null, settings: null, wake: "none", hiddenCount: 0, reconnects: 0,
+  startedAt: 0,
+};
+
+function connect() {
+  const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?role=phone&name=${encodeURIComponent($("name").value)}`;
+  const ws = new WebSocket(url);
+  st.ws = ws;
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.t === "hello") { st.id = m.id; st.pings = []; st.offset = null; }
+    else if (m.t === "pong") onPong(m);
+  };
+  ws.onclose = () => { st.ws = null; st.id = null; st.reconnects++; setTimeout(connect, 1000); };
+}
+
+function send(obj) {
+  if (st.ws && st.ws.readyState === 1 && st.id !== null) { st.ws.send(JSON.stringify(obj)); return true; }
+  return false;
+}
+
+// Clock sync against the Stage: NTP-style, keep the lowest-RTT sample of the last 30.
+function ping() {
+  send({ t: "ping", id: st.id, n: st.pingN++, t0: performance.now() });
+  const fast = performance.now() - st.startedAt < 5000;
+  setTimeout(ping, fast ? 200 : 1000);
+}
+function onPong(m) {
+  const t1 = performance.now();
+  const rtt = t1 - m.t0;
+  const off = m.ts - (m.t0 + t1) / 2;
+  st.pings.push({ rtt, off, at: t1 });
+  if (st.pings.length > 30) st.pings.shift();
+  let best = st.pings[0];
+  for (const p of st.pings) if (p.rtt < best.rtt) best = p;
+  st.offset = best.off; st.minRtt = best.rtt; st.rtt = rtt;
+}
+
+function mapFrame(endFrame, arrival) {
+  // Lower envelope of (arrival - frame time) over the last ~3 s gives a stable mapping
+  // from the audio clock to performance.now(), tracking slow drift between the two clocks.
+  const ft = (endFrame / st.sr) * 1000;
+  st.k.push(arrival - ft);
+  if (st.k.length > 300) st.k.shift();
+  let k = Infinity;
+  for (const v of st.k) if (v < k) k = v;
+  return ft + k;
+}
+
+function onReading(m) {
+  const arrival = performance.now();
+  if (m.cost) st.cost = m.cost;
+  const endPerf = mapFrame(m.endFrame, arrival);
+  const halfWin = (1024 / st.sr) * 1000;
+  // UI
+  const midi = m.hz > 0 ? 69 + 12 * Math.log2(m.hz / 440) : null;
+  if (m.clarity > 0.8 && midi) {
+    const r = Math.round(midi);
+    $("note").textContent = NOTE[((r % 12) + 12) % 12] + (Math.floor(r / 12) - 1);
+    $("hz").textContent = `${m.hz.toFixed(1)} Hz  ${((midi - r) * 100).toFixed(0)} cents`;
+  }
+  $("cl").firstChild.style.width = `${Math.max(0, m.clarity) * 100}%`;
+  $("lvl").firstChild.style.width = `${Math.max(0, Math.min(1, (m.db + 70) / 70)) * 100}%`;
+  if (st.offset === null) return;
+  const te = endPerf + st.offset;
+  const ok = send({
+    t: "r", id: st.id, s: st.seq++,
+    tc: +(te - halfWin).toFixed(2), te: +te.toFixed(2),
+    hz: +m.hz.toFixed(2), cl: +m.clarity.toFixed(3), db: +m.db.toFixed(1),
+    lag: +(arrival - endPerf).toFixed(2), // worklet → main thread slack on the Phone
+  });
+  if (ok) { st.sent++; st.sentWindow++; }
+}
+
+function bench() {
+  // Main-thread cost of one 2048-sample MPM frame on this Phone's CPU.
+  const n = 2048, d = PitchDetector.forFloat32Array(n), buf = new Float32Array(n), times = [];
+  for (let i = 0; i < 400; i++) {
+    for (let j = 0; j < n; j++) buf[j] = Math.sin((2 * Math.PI * 220 * (i * n + j)) / 48000) + (Math.random() - 0.5) * 0.2;
+    const t0 = performance.now(); d.findPitch(buf, 48000); times.push(performance.now() - t0);
+  }
+  times.sort((a, b) => a - b);
+  return { p50: +times[200].toFixed(3), p95: +times[380].toFixed(3), max: +times[399].toFixed(3) };
+}
+
+async function wakeLock() {
+  try { await navigator.wakeLock.request("screen"); st.wake = "held"; }
+  catch (e) { st.wake = "failed: " + e.name; }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") wakeLock(); else st.hiddenCount++;
+  send({ t: "vis", id: st.id, v: document.visibilityState, at: performance.now() + (st.offset ?? 0) });
+});
+
+$("start").onclick = async () => {
+  $("start").disabled = true;
+  try {
+    const proc = $("proc").checked;
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: proc, noiseSuppression: proc, autoGainControl: proc },
+    });
+    const ctx = new AudioContext({ latencyHint: "interactive" });
+    await ctx.resume();
+    st.ctx = ctx; st.sr = ctx.sampleRate;
+    await ctx.audioWorklet.addModule("pitch-worklet.js");
+    const node = new AudioWorkletNode(ctx, "pitch-processor", { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1 });
+    const mute = ctx.createGain(); mute.gain.value = 0;
+    ctx.createMediaStreamSource(stream).connect(node).connect(mute).connect(ctx.destination);
+    node.port.onmessage = (e) => onReading(e.data);
+    const track = stream.getAudioTracks()[0];
+    st.settings = { ...track.getSettings(), label: track.label, processing: proc };
+    track.onended = () => { st.trackEnded = true; };
+    track.onmute = () => { st.trackMuted = true; };
+    st.bench = bench();
+    $("setup").style.display = "none";
+    st.startedAt = performance.now();
+    wakeLock();
+    connect();
+    ping();
+    setInterval(tick, 1000);
+  } catch (e) {
+    $("status").textContent = "Failed: " + e.name + " " + e.message +
+      (window.isSecureContext ? "" : "\nThis page is not a secure context (needs HTTPS).");
+    $("start").disabled = false;
+  }
+};
+
+function tick() {
+  st.rate = st.sentWindow; st.sentWindow = 0;
+  const info = {
+    t: "stat", id: st.id, ua, sr: st.sr,
+    baseLatency: st.ctx.baseLatency, outputLatency: st.ctx.outputLatency,
+    offset: st.offset, rtt: st.rtt, minRtt: st.minRtt, rate: st.rate,
+    cost: st.cost, bench: st.bench, settings: st.settings, wake: st.wake,
+    hidden: st.hiddenCount, reconnects: st.reconnects, trackEnded: !!st.trackEnded, trackMuted: !!st.trackMuted,
+    ctxState: st.ctx.state,
+  };
+  send(info);
+  $("status").textContent =
+`connected: ${st.id !== null ? "yes (id " + st.id + ")" : "no"}   reconnects: ${st.reconnects}
+sample rate: ${st.sr}   base latency: ${fmt(st.ctx.baseLatency * 1000)} ms
+clock offset to Stage: ${fmt(st.offset)} ms
+RTT now / best: ${fmt(st.rtt)} / ${fmt(st.minRtt)} ms
+readings sent: ${st.sent} (${st.rate}/s)
+MPM cost (main-thread bench): p50 ${st.bench.p50} ms, p95 ${st.bench.p95} ms
+MPM cost (in worklet): ${st.cost ? fmt(st.cost.avg, 3) + " avg, " + fmt(st.cost.max, 3) + " max ms" : "not measurable here"}
+wake lock: ${st.wake}   audio: ${st.ctx.state}   track: ${st.trackEnded ? "ENDED" : "live"}
+mic: ${JSON.stringify(st.settings)}`;
+}
+const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? "–" : (+v).toFixed(d));
+</script>
+</body>
+</html>

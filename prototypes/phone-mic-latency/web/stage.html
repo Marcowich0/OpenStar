@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE Stage</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; background: #fff8ec; color: #1d1b2f; padding: 16px; }
+  h1 { font-size: 20px; margin: 0; }
+  .proto { font-size: 12px; color: #a33; margin-bottom: 10px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+  button { font: 600 14px system-ui; padding: 8px 14px; border: 2px solid #1d1b2f; border-radius: 999px; background: #ffcf3f; cursor: pointer; }
+  button:disabled { opacity: .4; }
+  canvas { width: 100%; height: 320px; display: block; background: #fff; border: 2px solid #1d1b2f; border-radius: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 12px; margin-top: 12px; }
+  pre { font: 12px/1.45 ui-monospace, monospace; background: #fff; border: 2px solid #1d1b2f; border-radius: 12px; padding: 10px; margin: 0; white-space: pre-wrap; }
+  .hint { color: #555; max-width: 900px; }
+</style>
+</head>
+<body>
+<h1>Stage</h1>
+<div class="proto">PROTOTYPE for “Phone mic end-to-end latency”. Throwaway.</div>
+<div class="bar">
+  <button id="audio">Start Stage audio</button>
+  <button id="beep" disabled>Beep test (12 beeps)</button>
+  <button id="bleed" disabled>Melody: stay silent (bleed)</button>
+  <button id="sing" disabled>Melody: sing along</button>
+  <label>Volume <input id="vol" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+  <button id="clear">Clear readings</button>
+  <button id="save">Save results</button>
+  <span id="saved"></span>
+</div>
+<div class="hint">Open <b>/phone.html</b> on the phone, tap Start mic, put the phone where a singer would hold it, about 2 m from the Stage speakers.
+Run the beep test first (it measures the acoustic loop), then the bleed melody with nobody singing, then sing along. Save results after each run.</div>
+<canvas id="cv"></canvas>
+<div class="grid" id="panels"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const phones = new Map();
+const tones = []; // {start, end, midi, test} in Stage performance.now() ms
+const tests = [];
+let ws = null, ctx = null, master = null;
+
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?role=stage`);
+  ws.onmessage = (e) => {
+    const arr = performance.now();
+    const m = JSON.parse(e.data);
+    if (m.t === "ping") { ws.send(JSON.stringify({ to: m.id, t: "pong", n: m.n, t0: m.t0, ts: performance.now() })); return; }
+    if (m.t === "r") { const p = phone(m.id); p.readings.push([m.s, m.tc, m.te, m.hz, m.cl, m.db, arr, m.lag]); return; }
+    if (m.t === "join") { phone(m.id, m.name); return; }
+    if (m.t === "leave") { const p = phones.get(m.id); if (p) p.left = arr; return; }
+    if (m.t === "stat") { const p = phone(m.id); p.stat = m; p.statHist.push({ at: arr, offset: m.offset, minRtt: m.minRtt, rtt: m.rtt }); return; }
+    if (m.t === "vis") { phone(m.id).vis.push({ at: arr, v: m.v }); }
+  };
+  ws.onclose = () => setTimeout(connect, 1000);
+}
+function phone(id, name) {
+  if (!phones.has(id)) phones.set(id, { id, name: name || "phone " + id, readings: [], stat: null, statHist: [], vis: [], joined: performance.now() });
+  return phones.get(id);
+}
+connect();
+
+// ---------- audio ----------
+$("audio").onclick = async () => {
+  ctx = new AudioContext({ latencyHint: "interactive" });
+  await ctx.resume();
+  master = ctx.createGain(); master.gain.value = +$("vol").value; master.connect(ctx.destination);
+  $("vol").oninput = () => (master.gain.value = +$("vol").value);
+  for (const b of ["beep", "bleed", "sing"]) $(b).disabled = false;
+  $("audio").disabled = true;
+};
+function ctxToPerf(when) {
+  // When a context time is heard at the output, as the browser reports it.
+  const ts = ctx.getOutputTimestamp();
+  return ts.performanceTime + (when - ts.contextTime) * 1000;
+}
+function ctxToPerfNaive(when) {
+  return performance.now() + (when - ctx.currentTime) * 1000 + (ctx.outputLatency || 0) * 1000;
+}
+function tone(when, dur, midi, type, test) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.value = 440 * 2 ** ((midi - 69) / 12);
+  let out = g;
+  if (type === "sawtooth") { const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 2500; g.connect(f); out = f; }
+  out.connect(master);
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(type === "sine" ? 0.9 : 0.5, when + 0.005);
+  g.gain.setValueAtTime(type === "sine" ? 0.9 : 0.5, when + dur - 0.005);
+  g.gain.linearRampToValueAtTime(0, when + dur);
+  o.connect(g); o.start(when); o.stop(when + dur + 0.01);
+  const t = { start: ctxToPerf(when), end: ctxToPerf(when + dur), startNaive: ctxToPerfNaive(when), midi, test };
+  tones.push(t);
+  return t;
+}
+
+function runTest(kind) {
+  const t0 = ctx.currentTime + 1.0;
+  const test = { kind, at: new Date().toISOString(), outputLatency: ctx.outputLatency, baseLatency: ctx.baseLatency, tones: [] };
+  if (kind === "beep") {
+    for (let i = 0; i < 12; i++) test.tones.push(tone(t0 + i, 0.2, 69, "sine", test));
+  } else {
+    const mel = [60, 62, 64, 65, 67, 65, 64, 62, 60, 64, 67, 72, 67, 64, 60, 60];
+    mel.forEach((m, i) => test.tones.push(tone(t0 + i * 1.0, 0.9, m, "sawtooth", test)));
+  }
+  tests.push(test);
+  const endMs = test.tones[test.tones.length - 1].end + 1500;
+  setTimeout(() => analyse(test), endMs - performance.now());
+}
+$("beep").onclick = () => runTest("beep");
+$("bleed").onclick = () => runTest("bleed");
+$("sing").onclick = () => runTest("sing");
+
+// ---------- analysis ----------
+const R = { s: 0, tc: 1, te: 2, hz: 3, cl: 4, db: 5, arr: 6, lag: 7 };
+const midiOf = (hz) => 69 + 12 * Math.log2(hz / 440);
+function foldCents(hz, midi) { const c = (midiOf(hz) - midi) * 100; return (((c + 600) % 1200) + 1200) % 1200 - 600; }
+function q(arr, p) { if (!arr.length) return NaN; const s = [...arr].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; }
+function sd(arr) { if (arr.length < 2) return NaN; const m = arr.reduce((a, b) => a + b, 0) / arr.length; return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / (arr.length - 1)); }
+const r1 = (v) => (Number.isFinite(v) ? +v.toFixed(1) : null);
+
+function analyse(test) {
+  test.results = {};
+  for (const p of phones.values()) {
+    const rs = p.readings;
+    if (test.kind === "beep") {
+      const per = test.tones.map((t) => {
+        const hit = rs.filter((r) => r[R.tc] >= t.start - 150 && r[R.tc] <= t.start + 600 && r[R.cl] >= 0.8 && Math.abs(foldCents(r[R.hz], 69)) < 50);
+        if (!hit.length) return null;
+        hit.sort((a, b) => a[R.tc] - b[R.tc]);
+        const first = hit[0], last = hit[hit.length - 1];
+        return { onset: first[R.tc] - t.start, onsetNaive: first[R.tc] - t.startNaive, release: last[R.tc] - t.end, seen: first[R.arr] - t.start, n: hit.length };
+      });
+      const ok = per.filter(Boolean), on = ok.map((x) => x.onset);
+      test.results[p.name] = {
+        detected: `${ok.length}/${per.length}`,
+        loopMs: { median: r1(q(on, 0.5)), min: r1(Math.min(...on)), max: r1(Math.max(...on)), sd: r1(sd(on)) },
+        loopNaiveMedian: r1(q(ok.map((x) => x.onsetNaive), 0.5)),
+        releaseMedian: r1(q(ok.map((x) => x.release), 0.5)),
+        seenOnStageMs: { median: r1(q(ok.map((x) => x.seen), 0.5)), max: r1(Math.max(...ok.map((x) => x.seen))) },
+        perBeep: per.map((x) => x && { onset: r1(x.onset), seen: r1(x.seen), n: x.n }),
+      };
+    } else {
+      const lastBeep = [...tests].reverse().find((t) => t.kind === "beep" && t.results && t.results[p.name] && t.results[p.name].loopMs.median !== null);
+      const shift = lastBeep ? lastBeep.results[p.name].loopMs.median : 0;
+      const inNotes = [];
+      for (const t of test.tones) for (const r of rs) {
+        const tt = r[R.tc] - shift;
+        if (tt >= t.start + 100 && tt <= t.end) inNotes.push({ r, midi: t.midi });
+      }
+      const pre = rs.filter((r) => r[R.tc] >= test.tones[0].start - 1000 && r[R.tc] < test.tones[0].start - 100);
+      const byTh = {};
+      for (const th of [0.5, 0.7, 0.8, 0.9, 0.95]) {
+        const voiced = inNotes.filter((x) => x.r[R.cl] >= th);
+        const hits = voiced.filter((x) => Math.abs(foldCents(x.r[R.hz], x.midi)) <= 150);
+        byTh[th] = { voicedPct: r1((100 * voiced.length) / inNotes.length), hitPct: r1((100 * hits.length) / inNotes.length) };
+      }
+      const hitsAt8 = inNotes.filter((x) => x.r[R.cl] >= 0.8 && Math.abs(foldCents(x.r[R.hz], x.midi)) <= 150);
+      test.results[p.name] = {
+        shiftMs: shift, readingsInNotes: inNotes.length,
+        byClarity: byTh,
+        centsErrAbsMedianAt0_8: r1(q(hitsAt8.map((x) => Math.abs(foldCents(x.r[R.hz], x.midi))), 0.5)),
+        dbInNotesMedian: r1(q(inNotes.map((x) => x.r[R.db]), 0.5)),
+        dbBeforeMedian: r1(q(pre.map((r) => r[R.db]), 0.5)),
+      };
+    }
+  }
+  renderPanels();
+}
+
+function transportStats(p, sinceMs) {
+  const rs = sinceMs ? p.readings.filter((r) => r[R.arr] >= performance.now() - sinceMs) : p.readings;
+  if (rs.length < 10) return null;
+  const d = rs.map((r) => r[R.arr] - r[R.te]);
+  const lag = rs.map((r) => r[R.lag]);
+  const byArr = [...rs].sort((a, b) => a[R.arr] - b[R.arr]);
+  const gaps = []; for (let i = 1; i < byArr.length; i++) gaps.push(byArr[i][R.arr] - byArr[i - 1][R.arr]);
+  let reorder = 0, maxS = -1; for (const r of byArr) { if (r[R.s] < maxS) reorder++; maxS = Math.max(maxS, r[R.s]); }
+  const seqs = rs.map((r) => r[R.s]); const expected = Math.max(...seqs) - Math.min(...seqs) + 1;
+  const dur = (byArr[byArr.length - 1][R.arr] - byArr[0][R.arr]) / 1000;
+  return {
+    n: rs.length, seconds: r1(dur), rate: r1(rs.length / dur),
+    delayMs: { p50: r1(q(d, 0.5)), p95: r1(q(d, 0.95)), p99: r1(q(d, 0.99)), max: r1(Math.max(...d)), min: r1(Math.min(...d)), sd: r1(sd(d)) },
+    phoneWorkletToMainMs: { p50: r1(q(lag, 0.5)), p95: r1(q(lag, 0.95)), max: r1(Math.max(...lag)) },
+    lost: expected - rs.length, reordered: reorder,
+    gapsOver50: gaps.filter((g) => g > 50).length, gapsOver100: gaps.filter((g) => g > 100).length, maxGap: r1(Math.max(...gaps)),
+  };
+}
+function drift(p) {
+  const h = p.statHist.filter((x) => x.offset !== null);
+  if (h.length < 20) return null;
+  const a = h[5], b = h[h.length - 1]; // skip the fast-ping start
+  return { ppm: r1(((b.offset - a.offset) / (b.at - a.at)) * 1e6), offsetSpanMs: r1(Math.max(...h.slice(5).map((x) => x.offset)) - Math.min(...h.slice(5).map((x) => x.offset))) };
+}
+
+function renderPanels() {
+  const out = [];
+  for (const p of phones.values()) {
+    const s = p.stat;
+    const last30 = transportStats(p, 30000), all = transportStats(p, 0);
+    const myTests = tests.filter((t) => t.results && t.results[p.name]).slice(-4).map((t) => `${t.kind}: ${JSON.stringify(t.results[p.name], null, 1)}`);
+    out.push(`<pre><b>${p.name}</b> (id ${p.id})${p.left ? "  LEFT" : ""}
+${s ? `rate ${s.rate}/s  sr ${s.sr}  baseLatency ${fmt(s.baseLatency * 1000)} ms  ctx ${s.ctxState}
+clock offset ${fmt(s.offset)} ms  RTT now ${fmt(s.rtt)} / best ${fmt(s.minRtt)} ms  drift ${JSON.stringify(drift(p))}
+MPM bench p50 ${s.bench?.p50} p95 ${s.bench?.p95} ms   in worklet ${s.cost ? fmt(s.cost.avg, 3) + " avg / " + fmt(s.cost.max, 3) + " max" : "n/a"}
+wake ${s.wake}  hidden ${s.hidden}x  reconnects ${s.reconnects}  track ${s.trackEnded ? "ENDED" : s.trackMuted ? "muted once" : "live"}
+mic ${JSON.stringify(s.settings)}` : "waiting for stats"}
+
+<b>Transport</b> (arrival on Stage − window end, Stage clock)
+last 30 s: ${JSON.stringify(last30)}
+whole run: ${JSON.stringify(all)}
+
+<b>Tests</b>
+${myTests.join("\n") || "none yet"}</pre>`);
+  }
+  $("panels").innerHTML = out.join("") || "<pre>No phone connected. Open /phone.html on a phone.</pre>";
+}
+const fmt = (v, d = 1) => (v === null || v === undefined || Number.isNaN(v) ? "–" : (+v).toFixed(d));
+setInterval(renderPanels, 1000);
+
+// ---------- drawing ----------
+const cv = $("cv"), g = cv.getContext("2d");
+const SPAN = 6000, LO = 40, HI = 84;
+function draw() {
+  const dpr = devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, W, H);
+  const now = performance.now();
+  const x = (t) => W - ((now - t) / SPAN) * W;
+  const y = (m) => H - ((m - LO) / (HI - LO)) * H;
+  g.strokeStyle = "#eee";
+  for (let m = LO; m <= HI; m += 12) { g.beginPath(); g.moveTo(0, y(m)); g.lineTo(W, y(m)); g.stroke(); }
+  for (const t of tones) {
+    if (t.end < now - SPAN) continue;
+    g.fillStyle = t.test.kind === "beep" ? "#ffcf3f" : "#b9a6ff";
+    g.fillRect(x(t.start), y(t.midi + 0.5), x(t.end) - x(t.start), y(t.midi - 0.5) - y(t.midi + 0.5));
+    // octave-folded copies so a sung line an octave off still lines up
+    g.globalAlpha = 0.25;
+    for (const o of [-12, 12]) g.fillRect(x(t.start), y(t.midi + o + 0.5), x(t.end) - x(t.start), y(t.midi + o - 0.5) - y(t.midi + o + 0.5));
+    g.globalAlpha = 1;
+  }
+  const colours = ["#e8436b", "#1fa77a", "#3a6cf0", "#f08a1f"];
+  let i = 0;
+  for (const p of phones.values()) {
+    const col = colours[i++ % colours.length];
+    const rs = p.readings;
+    for (let k = rs.length - 1; k >= 0; k--) {
+      const r = rs[k];
+      if (r[R.tc] < now - SPAN) break;
+      if (r[R.cl] < 0.5 || r[R.hz] <= 0) continue;
+      g.fillStyle = col; g.globalAlpha = r[R.cl] >= 0.8 ? 1 : 0.3;
+      g.fillRect(x(r[R.tc]) - 1.5, y(midiOf(r[R.hz])) - 1.5, 3, 3);
+    }
+    g.globalAlpha = 1;
+    const last = rs[rs.length - 1];
+    if (last) {
+      g.fillStyle = col; g.font = "12px system-ui";
+      g.fillText(`${p.name}: newest reading ${fmt(now - last[R.te], 0)} ms old`, 8, 16 + 16 * (i - 1));
+    }
+  }
+  g.strokeStyle = "#1d1b2f"; g.beginPath(); g.moveTo(W - 1, 0); g.lineTo(W - 1, H); g.stroke();
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+// ---------- save / clear ----------
+$("clear").onclick = () => { for (const p of phones.values()) p.readings = []; };
+$("save").onclick = async () => {
+  const body = {
+    savedAt: new Date().toISOString(),
+    stage: { ua: navigator.userAgent, sr: ctx?.sampleRate, baseLatency: ctx?.baseLatency, outputLatency: ctx?.outputLatency },
+    readingColumns: Object.keys(R),
+    phones: [...phones.values()].map((p) => ({
+      name: p.name, id: p.id, stat: p.stat, statHist: p.statHist, vis: p.vis,
+      transport: transportStats(p, 0), drift: drift(p), readings: p.readings,
+    })),
+    tests: tests.map((t) => ({ kind: t.kind, at: t.at, outputLatency: t.outputLatency, baseLatency: t.baseLatency, results: t.results,
+      tones: t.tones.map(({ test, ...rest }) => rest) })),
+  };
+  const res = await fetch("/api/results", { method: "POST", body: JSON.stringify(body) });
+  $("saved").textContent = await res.text();
+};
+</script>
+</body>
+</html>
