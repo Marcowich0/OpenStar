@@ -51,3 +51,19 @@ cd ab/relay && BIND=0.0.0.0 cargo run --release   # :8787, also serves trace.htm
   address, as in the latency runs; or HTTPS via `tailscale serve --bg --https=8443 http://127.0.0.1:8787`).
   Tap **Start**, keep the screen on, wait a few minutes, then **Save results** on the Stage
   (written to `ab/results/`).
+
+## Verdict (2026-11-24)
+
+**Drawing: B, hold to the playhead, for every Mic** (Phones and Local mics alike). The owner
+picked it over C, D and E after watching all five with the recorded Wi-Fi.
+
+**Transport: keep the WebSocket.** A/B run `ab/results/run-1795542815837.json` (OnePlus 12,
+Android Chrome, home Wi-Fi, about 25 s, 2328 readings): the holds come from the radio, not
+from TCP. 161 of the 164 readings held over 50 ms on the WebSocket were held on the data
+channel too, and only 2 arrived on time there. 108 of the 112 WebSocket holds overlapped a
+data channel hold. The two copies of a reading arrived a median 0.1 ms apart. Both channels
+held about 4.5 times a second, at the same lateness (p95 66–68 ms, p99 123–125 ms, max
+168 ms). The data channel lost nothing once it was open; the 20 readings it "lost" (seq 4–23)
+were sent before it opened.
+
+Full resolution: https://github.com/Marcowich0/OpenStar/issues/29
