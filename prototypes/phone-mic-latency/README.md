@@ -41,3 +41,10 @@ Rebuild the worklet bundle after editing `worklet-src/`: `cd worklet-src && npm 
 - `web/phone.html`, `web/stage.html`: the two pages.
 - `worklet-src/`: the AudioWorklet source, bundled with `pitchy` into `web/pitch-worklet.js`.
 - `results/`: saved runs.
+
+## Verdict
+
+Android only (OnePlus 12, Chrome 157); the iPhone was deferred. The pipeline works. Open the Phone mic with echo cancellation on: it cuts the input delay from about 330 ms to about 100 ms. Bleed is the main risk and needs a per-Mic loudness gate. Full resolution:
+https://github.com/Marcowich0/OpenStar/issues/10#issuecomment-7138854113
+
+Restart for the iPhone rerun: `cd relay && BIND=0.0.0.0 cargo run --release`, then `tailscale serve --bg --https=8443 http://127.0.0.1:8787` (iPhones need trusted HTTPS; the Chrome insecure-origin flag is Android only).
