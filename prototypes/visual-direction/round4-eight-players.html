@@ -1,0 +1,422 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. "Visual direction" wayfinder ticket, round 4.
+  Round 3 picked "Lower third": continuous scrolling, one track per Player, docked above the lyrics, video on top.
+  New constraint: the layout must hold 8 or more Players, not just 4. Round 4 = three more takes on separate
+  tracks plus three where all Players share one field, all docked in the lower part of the screen.
+  1 Lower third (round 3) · 2 Two columns · 3 Scoreboard + tracks · 4 Shared notes + tuning strips
+  5 Shared field, filled notes · 6 Shared field, thin lines
+  ?variant=1..6&screen=sing|browser&players=1-8&duet=0|1&seek=<beats>
+  Keys: ←/→ variant · Esc browser · i info · h hide bar. "video…" plays a real file behind the sing screen.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenStar Visual Direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--page:#0d0d12;--bar:#111;--bar-fg:#fff;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--page)}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;overflow:hidden;transform-origin:center center}
+#stage>div{position:absolute;inset:0}
+canvas{position:absolute;left:0;top:0}
+.cover{position:relative;border-radius:24px;background:linear-gradient(135deg,var(--c1),var(--c2));overflow:hidden;display:flex;align-items:center;justify-content:center}
+.cover svg{width:62%;height:62%}
+.lyr span{display:inline-block;background:linear-gradient(90deg,var(--fill) calc(var(--p,0)*100%),var(--ink) 0);-webkit-background-clip:text;background-clip:text;color:transparent;transition:transform .15s cubic-bezier(.34,1.56,.64,1)}
+.lyr .cur.in{animation:lyin .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes lyin{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+
+/* ---- A · Bubble Pop browser (unchanged from round 1) ---- */
+.vA{background:radial-gradient(circle at 20% 10%,#fff 0,#FFF6E9 40%,#FFE7CC 100%);font-family:'Fredoka',system-ui,sans-serif;color:#2B2D42}
+.vA .blobs i{position:absolute;border-radius:50%;opacity:.55;animation:floaty 9s ease-in-out infinite}
+.vA .blobs i:nth-child(1){width:560px;height:560px;background:#CDEBFF;left:-140px;top:-180px}
+.vA .blobs i:nth-child(2){width:440px;height:440px;background:#FFD6DC;right:-90px;top:140px;animation-delay:-3s}
+.vA .blobs i:nth-child(3){width:380px;height:380px;background:#D9F7E6;left:42%;bottom:-200px;animation-delay:-6s}
+@keyframes floaty{50%{transform:translate(30px,-26px) scale(1.06)}}
+.vA .topbar{position:absolute;left:60px;right:60px;top:40px;display:flex;align-items:center;gap:24px}
+.vA .logo{font-weight:700;font-size:64px;display:flex;align-items:center;gap:10px}
+.vA .logo svg{width:72px;height:72px;animation:bob 3s ease-in-out infinite}
+@keyframes bob{50%{transform:rotate(14deg) scale(1.1)}}
+.vA .tabs{display:flex;gap:12px;margin-left:24px}
+.vA .tabs b{font-weight:600;font-size:30px;padding:12px 26px;border-radius:999px;background:#fff;box-shadow:0 6px 0 rgba(43,45,66,.12)}
+.vA .tabs b.on{background:#FF4B5C;color:#fff;box-shadow:0 6px 0 #C7303F}
+.vA .search{margin-left:auto;font-size:28px;padding:14px 32px;border-radius:999px;background:#fff;color:#8a8ca0;box-shadow:inset 0 3px 0 rgba(0,0,0,.06)}
+.vA .carousel{position:absolute;left:0;right:0;top:190px;height:460px}
+.vA .item{position:absolute;left:50%;top:50%;width:340px;height:340px;margin:-170px 0 0 -170px;transition:transform .6s cubic-bezier(.34,1.56,.64,1),opacity .35s;cursor:pointer}
+.vA .item .cover{width:100%;height:100%;border-radius:52px;border:9px solid #fff;box-shadow:0 18px 0 rgba(43,45,66,.12),0 26px 40px rgba(43,45,66,.18)}
+.vA .item.sel .cover{animation:squish .65s cubic-bezier(.34,1.56,.64,1)}
+@keyframes squish{0%{transform:scale(.88,1.12)}45%{transform:scale(1.08,.92)}100%{transform:none}}
+.vA .meta{position:absolute;left:0;right:0;top:690px;text-align:center}
+.vA .meta h1{font-size:92px;font-weight:700;margin:0;line-height:1}
+.vA .meta p{font-size:40px;margin:10px 0 18px;color:#6b6d85;font-weight:500}
+.vA .chips{display:flex;gap:14px;justify-content:center}
+.vA .chips b{font-weight:600;font-size:28px;padding:8px 22px;border-radius:999px;background:#fff;box-shadow:0 5px 0 rgba(43,45,66,.1)}
+.vA .chips b.duet{background:#9B5CFF;color:#fff}
+.vA .chips b.best{background:#FFC93C}
+.vA .pop{animation:popin .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popin{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}
+.vA .sing-btn{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);font-size:56px;font-weight:700;color:#fff;background:#3DDC84;padding:18px 84px;border-radius:999px;box-shadow:0 10px 0 #24A862;animation:breathe 1.4s ease-in-out infinite;cursor:pointer}
+@keyframes breathe{50%{transform:translateX(-50%) scale(1.07)}}
+.vA .card{position:absolute;bottom:48px;background:#fff;border-radius:36px;padding:22px 30px;box-shadow:0 10px 0 rgba(43,45,66,.1)}
+.vA .queue{left:60px;width:460px}
+.vA .queue h3{margin:0 0 8px;font-size:30px}
+.vA .queue .q{display:flex;align-items:center;gap:14px;font-size:24px;margin:8px 0;font-weight:500}
+.vA .queue .q .cover{width:50px;height:50px;border-radius:16px;flex:none}
+.vA .queue .q i{margin-left:auto;font-style:normal;width:40px;height:40px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.vA .join{right:60px;display:flex;align-items:center;gap:20px;font-size:30px;font-weight:600;line-height:1.15}
+.vA .join svg{width:130px;height:130px;color:#2B2D42}
+.vA .join small{font-size:22px;color:#8a8ca0;font-weight:500}
+
+/* ---- sing screen over video ---- */
+.vA.sing{background:#2B2D42}
+.vid{position:absolute;inset:0;overflow:hidden}
+.vid canvas,.vid video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.vid video{display:none}
+.vid.real video{display:block}.vid.real canvas{display:none}
+.vtag{position:absolute;right:28px;top:20px;font-size:20px;font-weight:600;color:#fff;background:rgba(0,0,0,.35);padding:4px 14px;border-radius:999px}
+.vid.real .vtag{display:none}
+.panel{position:absolute;border-radius:var(--r,40px);background:rgba(255,255,255,.66);-webkit-backdrop-filter:blur(16px) saturate(1.3);backdrop-filter:blur(16px) saturate(1.3);box-shadow:0 10px 0 rgba(43,45,66,.18),0 20px 40px rgba(0,0,0,.18)}
+.vA .av{width:var(--avs,72px);height:var(--avs,72px);border-radius:50%;background:var(--pc);color:#fff;font-size:calc(var(--avs,72px)*.52);font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;border:4px solid #fff;box-shadow:0 4px 0 rgba(43,45,66,.15)}
+.vA .nm{font-size:24px;font-weight:600;line-height:1.1;white-space:nowrap}
+.vA .nm i{font-style:normal;font-size:.75em;color:#6b6d85}
+.vA .sc{font-size:44px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;min-width:110px}
+.vA .rating{position:absolute;font-size:40px;font-weight:700;color:var(--pc);opacity:0;white-space:nowrap;text-shadow:0 4px 0 #fff,0 -4px 0 #fff,4px 0 0 #fff,-4px 0 0 #fff,0 10px 0 rgba(43,45,66,.2);z-index:3;transform:translate(-50%,-50%);pointer-events:none}
+.vA .rating.show{animation:rate 1.3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes rate{0%{opacity:0;transform:translate(-50%,-50%) scale(.3)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.2)}35%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-60%) scale(1)}}
+.vA .lanebadge{position:absolute;display:flex;align-items:center;gap:12px}
+.vA .lanebadge .rating{left:calc(100% + 110px);top:50%}
+.vA .chiprow{position:absolute;left:40px;right:40px;display:flex;justify-content:center;gap:12px}
+.vA .chip{position:relative;display:flex;align-items:center;gap:10px;background:#fff;border-radius:999px;padding:5px 18px 5px 5px;border:4px solid var(--pc);box-shadow:0 6px 0 rgba(43,45,66,.18);--avs:50px}
+.vA .chip .av{border-width:3px}
+.vA .chip .nm{font-size:19px}
+.vA .chip .sc{font-size:30px;min-width:80px}
+.vA .chip .rating{left:50%;top:-30px;font-size:34px}
+.vA .prog{position:absolute;left:80px;right:80px;top:20px;height:10px;border-radius:9px;background:rgba(255,255,255,.5);box-shadow:0 3px 0 rgba(43,45,66,.15)}
+.vA .prog i{display:block;height:100%;border-radius:9px;background:#FFC93C}
+.vA.sing .lyrics{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);text-align:center;white-space:nowrap;background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-radius:52px;padding:10px 60px 16px;box-shadow:0 10px 0 rgba(43,45,66,.2),0 20px 40px rgba(0,0,0,.2)}
+.vA .lyr .cur{font-size:78px;font-weight:700;--ink:#2B2D42;--fill:#FF4B5C;line-height:1.12}
+.vA .lyr span.g{--ink:#E09A00}
+.vA .lyr span.now{transform:translateY(-6px)}
+.vA .lyr .nxt{font-size:36px;color:#8a8ca0;font-weight:600}
+.vA.duet .lyr .cur{font-size:60px}
+.vA.duet .lyr .nxt{display:none}
+
+/* ---- prototype switcher (not part of the design) ---- */
+#bar{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px;padding:6px;background:var(--bar);color:var(--bar-fg);border-radius:22px;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 6px 24px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.18);z-index:10;user-select:none;max-width:calc(100vw - 32px)}
+#bar button,#bar label{all:unset;cursor:pointer;padding:8px 10px;border-radius:999px}
+#bar button:hover,#bar label:hover{background:#2a2a2a}
+#bar button.on{background:#fff;color:#111}
+#bar input{display:none}
+#bar .lbl{padding:0 6px;min-width:250px;text-align:center}
+#bar .sep{width:1px;height:20px;background:#3a3a3a;margin:0 2px}
+#bar .dim{opacity:.5;padding:0 2px}
+#info{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);width:min(580px,calc(100vw - 32px));background:var(--bar);color:#eee;border-radius:16px;padding:14px 18px;font:13px/1.5 ui-sans-serif,system-ui,sans-serif;display:none;z-index:10;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+#info.open{display:block}
+#info h4{margin:0 0 6px;font-size:15px}
+#info p{margin:4px 0}
+#info b{color:#fff}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="bar">
+  <button id="prev" title="Previous variant (←)">‹</button><span class="lbl" id="vl"></span><button id="next" title="Next variant (→)">›</button>
+  <span class="sep"></span><button data-scr="browser">Browser</button><button data-scr="sing">Sing</button>
+  <span class="sep"></span><span class="dim">players</span><button data-pl="1">1</button><button data-pl="2">2</button><button data-pl="4">4</button><button data-pl="6">6</button><button data-pl="8">8</button><button id="duet">Duet</button>
+  <span class="sep"></span><label title="Play a real video file behind the sing screen">video…<input id="vf" type="file" accept="video/*"></label><button id="ib" title="What this take does (i)">info</button>
+</div>
+<div id="info"></div>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const stage=$('#stage');
+const P=new URLSearchParams(location.search);
+const KEYS=['1','2','3','4','5','6'];
+const pv=(P.get('variant')||'');
+const state={variant:KEYS.includes(pv)?pv:'1',screen:P.get('screen')==='browser'?'browser':'sing',players:Math.min(8,Math.max(1,+(P.get('players')||8))),duet:P.get('duet')==='1',sel:0};
+let videoURL=null;
+const NAMES=['Sofie','Alex','Jonas'];
+const SONGS=[
+ {t:'Neon Summer',a:'Moonlit Arcade',y:2019,g:'Pop',len:'3:42',c:['#FF4B5C','#FFC93C'],sh:'star'},
+ {t:'Paper Planes at Dawn',a:'The Lanterns',y:2008,g:'Indie',len:'4:05',c:['#2EA8FF','#9BE7FF'],sh:'tri'},
+ {t:'Holiday Rocket',a:'Pixel Parade',y:2015,g:'Pop',len:'3:18',c:['#9B5CFF','#FF7AD9'],sh:'bolt'},
+ {t:'Cherry Soda Heart',a:'Mina Vale',y:2021,g:'Pop',len:'2:58',c:['#FF5A8A','#FFB3C7'],sh:'heart'},
+ {t:'Thunder in My Shoes',a:'Big Kettle',y:1997,g:'Rock',len:'4:31',c:['#FF9F1C','#FF4B5C'],sh:'bolt'},
+ {t:'Starlight Duet',a:'Ola & Ben',y:2012,g:'Ballad',len:'3:55',c:['#3D5AFE','#22E4FF'],sh:'star',d:1},
+ {t:'Disco Lighthouse',a:'Salt & Sugar',y:1979,g:'Disco',len:'5:02',c:['#FFC93C','#FF9F1C'],sh:'circle'},
+ {t:'Gold Ring Road',a:'The Velvet Owls',y:1984,g:'Rock',len:'3:47',c:['#00B8A9','#B6FF3B'],sh:'wave'},
+ {t:'Slow Motion Rain',a:'Ivy Hart',y:2005,g:'Ballad',len:'4:20',c:['#5C7CFA','#A5D8FF'],sh:'wave'},
+ {t:'Rollerblade Queen',a:'Kiki Sunset',y:1992,g:'Pop',len:'3:33',c:['#FF3EA5','#FFC93C'],sh:'circle'},
+ {t:'Kitchen Floor Tango',a:'Los Tranquilos',y:2001,g:'Latin',len:'3:12',c:['#E8590C','#FFD23F'],sh:'heart',d:1},
+ {t:'Fireworks Over the Fjord',a:'Nordlys',y:2017,g:'Pop',len:'3:49',c:['#7048E8','#3DDC84'],sh:'star'},
+];
+SONGS.forEach((s,i)=>{s.best=[[NAMES[i%3],9480-i*173],[NAMES[(i+1)%3],8120-i*141],[NAMES[(i+2)%3],6900-i*97]]});
+const N=SONGS.length,INK='#2B2D42';
+const COL=['#FF4B5C','#2EA8FF','#3DDC84','#FFB020','#9B5CFF','#FF6FB5','#12BFC4','#FF7A1A'];
+const FX=['#FF4B5C','#2EA8FF','#3DDC84','#FFC93C','#9B5CFF'];
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const rr=(c,x,y,w,h,r)=>{c.beginPath();c.roundRect(x,y,Math.max(1,w),Math.max(1,h),Math.max(0,Math.min(r,h/2,w/2)))};
+function glyph(sh){return{
+ star:'<polygon points="50,6 62,37 95,38 69,58 78,91 50,72 22,91 31,58 5,38 38,37"/>',
+ circle:'<circle cx="50" cy="50" r="34"/><circle cx="50" cy="50" r="12" fill="rgba(0,0,0,.15)"/>',
+ wave:'<path d="M0 55 Q25 25 50 55 T100 55 V100 H0Z"/><circle cx="72" cy="26" r="12"/>',
+ tri:'<polygon points="50,10 93,88 7,88"/>',
+ heart:'<path d="M50 88 L13 51 A21 21 0 0 1 50 22 A21 21 0 0 1 87 51 Z"/>',
+ bolt:'<polygon points="58,4 18,58 46,58 36,96 82,38 54,38"/>'}[sh]}
+const cover=s=>`<div class="cover" style="--c1:${s.c[0]};--c2:${s.c[1]}"><svg viewBox="0 0 100 100"><g fill="rgba(255,255,255,.88)">${glyph(s.sh)}</g></svg></div>`;
+const STAR='<svg viewBox="0 0 100 100"><polygon fill="#FFC93C" stroke="#2B2D42" stroke-width="7" stroke-linejoin="round" points="50,6 62,37 95,38 69,58 78,91 50,72 22,91 31,58 5,38 38,37"/></svg>';
+function qrSvg(){let seed=11;const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;let s='';
+ const inF=(x,y)=>(x<8&&y<8)||(x>12&&y<8)||(x<8&&y>12);
+ for(let y=0;y<21;y++)for(let x=0;x<21;x++)if(!inF(x,y)&&rnd()<.5)s+=`<rect x="${x}" y="${y}" width="1" height="1"/>`;
+ const f=(x,y)=>`<rect x="${x}" y="${y}" width="7" height="7"/><rect x="${x+1}" y="${y+1}" width="5" height="5" fill="#fff"/><rect x="${x+2}" y="${y+2}" width="3" height="3"/>`;
+ return `<svg viewBox="-1.5 -1.5 24 24"><rect x="-1.5" y="-1.5" width="24" height="24" rx="2" fill="#fff"/><g fill="currentColor">${s}${f(0,0)}${f(14,0)}${f(0,14)}</g></svg>`}
+function starPath(c,x,y,r,rot=0){c.beginPath();for(let i=0;i<10;i++){const a=rot+i*Math.PI/5-Math.PI/2,R=i%2?r*.45:r;c.lineTo(x+Math.cos(a)*R,y+Math.sin(a)*R)}c.closePath()}
+
+/* ---------- demo song (original lyrics) and simulated singers ---------- */
+const BEAT=0.16,LEAD=6;
+const V1T=[["Turn ","the ","lights ","up, ","sing ","it ","loud ","to","night"],["E","very ","voice ","is ","shi","ning ","like ","a ","kite"],["Hold ","the ","note ","and ","let ","it ","fly"],["We're ","the ","stars ","a","cross ","the ","sky"]];
+const V2T=[["Call ","the ","e","cho, ","sing ","it ","back ","to ","me"],["Ev","ery ","heart","beat ","drum","ming ","in ","the ","sea"],["Reach ","the ","high ","and ","let ","it ","go"],["We ","will ","shine ","be","fore ","the ","dawn"]];
+const PITCH=[[62,62,64,65,67,65,64,62,60],[64,65,67,67,69,67,65,64,62],[67,67,72,71,69,67,69],[65,65,67,69,67,65,64]];
+const DUR=[[2,1,2,3,2,1,2,2,5],[2,1,3,1,2,2,2,1,5],[2,1,6,1,2,1,6],[2,1,3,2,2,1,7]];
+const GOLD=[[6],[8],[2,6],[6]];
+function buildVoice(text,tr){const lines=[];let b=LEAD,w=0,mn=99,mx=0;
+ text.forEach((syl,li)=>{const notes=[],start=b;syl.forEach((tx,si)=>{const n={start:b,len:DUR[li][si],pitch:PITCH[li][si]+tr,text:tx,gold:GOLD[li].includes(si)};notes.push(n);w+=n.len*(n.gold?2:1);mn=Math.min(mn,n.pitch);mx=Math.max(mx,n.pitch);b+=n.len});lines.push({start,end:b,notes});b+=4});
+ return {lines,total:b+4,K:10000/w,min:mn-2,max:mx+2}}
+const VOICES=[buildVoice(V1T,0),buildVoice(V2T,-5)];
+const SONG_BEATS=VOICES[0].total;
+const PLAYERS=[{name:'Alex',skill:.93},{name:'Sofie',skill:.82},{name:'Jonas',skill:.66},{name:'Ida',guest:true,skill:.86},{name:'Mia',skill:.75},{name:'Noah',skill:.9},{name:'Liv',skill:.7},{name:'Emil',guest:true,skill:.8}];
+function makeSession(n,duet){return PLAYERS.slice(0,n).map((p,i)=>resetP({...p,i,voice:duet?i%2:0}))}
+function resetP(p){return Object.assign(p,{trail:[],score:0,shown:0,cur:null,lastPitch:null,missT:0,missOff:0,lastNote:null,nH:0,nS:0,lineH:{},lineS:{},rated:{},head:null,hit:false})}
+const label=r=>r>=.9?'Perfect!':r>=.75?'Great!':r>=.55?'Good':r>=.3?'OK':'Oops';
+function simulate(sess,beat,dtb,t,H){
+ for(const p of sess){const v=VOICES[p.voice];let note=null,li=-1;
+  v.lines.forEach((L,idx)=>{if(beat>=L.start&&beat<L.end){li=idx;note=L.notes.find(n=>beat>=n.start&&beat<n.start+n.len)}
+   if(beat>=L.end&&!p.rated[idx]&&p.lineS[idx]){p.rated[idx]=1;H.rating(p,label(p.lineH[idx]/p.lineS[idx]))}});
+  if(p.lastNote&&p.lastNote!==note){H.noteDone(p,p.lastNote,p.nH/Math.max(1,p.nS));p.nH=p.nS=0}
+  p.lastNote=note;
+  if(p.missT>0)p.missT-=dtb;else if(Math.random()<(1-p.skill)*.05){p.missT=.8+Math.random()*2.2;p.missOff=(Math.random()<.5?-1:1)*(1.8+Math.random()*2.5)}
+  if(note&&beat>note.start+.2){
+   const target=note.pitch+(p.missT>0?p.missOff:0)+Math.sin(t*28+p.i*2)*.22+(Math.random()-.5)*.25;
+   p.cur=p.cur==null?target-1.2:p.cur+(target-p.cur)*.3;
+   const hit=Math.abs(p.cur-note.pitch)<=1;
+   p.trail.push({b:beat,p:p.cur,hit,tp:note.pitch});p.hit=hit;p.nS++;if(hit)p.nH++;
+   p.lineS[li]=(p.lineS[li]||0)+1;if(hit)p.lineH[li]=(p.lineH[li]||0)+1;
+   if(hit){p.score+=dtb*(note.gold?2:1)*v.K;if(note.gold)H.gold(p)}
+   p.lastPitch=p.cur;
+  }else{if(p.cur!=null)p.trail.push({b:beat,p:null});p.cur=null;p.hit=false}
+  while(p.trail.length&&p.trail[0].b<beat-60)p.trail.shift();
+ }}
+function makeLyrics(el,duet){const vs=duet?[0,1]:[0];
+ el.innerHTML=vs.map(v=>`<div class="lyr v${v}"><div class="cur" ${duet?`style="--fill:${COL[v]}"`:''}></div><div class="nxt"></div></div>`).join('');
+ const S=vs.map(v=>({v,idx:-1,cur:el.querySelector(`.v${v} .cur`),nxt:el.querySelector(`.v${v} .nxt`),spans:[]}));
+ return {update(beat){for(const s of S){const lines=VOICES[s.v].lines;let idx=lines.findIndex(L=>L.end+1>beat);if(idx<0)idx=lines.length-1;
+  if(idx!==s.idx){s.idx=idx;s.cur.innerHTML=lines[idx].notes.map(n=>`<span${n.gold?' class="g"':''}>${n.text.trimEnd()}</span>${/\s$/.test(n.text)?' ':''}`).join('');s.spans=[...s.cur.children];
+   s.nxt.textContent=lines[idx+1]?lines[idx+1].notes.map(n=>n.text).join(''):'';s.cur.classList.remove('in');void s.cur.offsetWidth;s.cur.classList.add('in')}
+  lines[idx].notes.forEach((n,i)=>{const sp=s.spans[i],q=clamp((beat-n.start)/n.len,0,1);sp.style.setProperty('--p',q);sp.classList.toggle('now',q>0&&q<1)})}}}}
+function spawn(parts,x,y,colors,n,power=1){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,sp=(1.5+Math.random()*5)*power;
+ parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2.5*power,life:0,max:.6+Math.random()*.7,size:8+Math.random()*12,color:colors[Math.floor(Math.random()*colors.length)],rot:Math.random()*6,vr:(Math.random()-.5)*.4,kind:Math.random()<.35?'star':'dot'})}}
+function drawParticle(c,q,a){c.globalAlpha=a;c.fillStyle=q.color;if(q.kind==='star'){starPath(c,q.x,q.y,q.size*.7,q.rot);c.fill()}else{c.beginPath();c.arc(q.x,q.y,q.size*.42,0,7);c.fill()}}
+function stagePos(el){const r=el.getBoundingClientRect(),s=stage.getBoundingClientRect(),k=s.width/1920;return{x:(r.left+r.width/2-s.left)/k,y:(r.top+r.height/2-s.top)/k}}
+
+/* ---------- placeholder music video: cuts between a mid, a dark and a bright scene ---------- */
+const SCENES=[
+ {sky:['#5B8DEF','#F27BA8','#FFB36B'],sun:'rgba(255,236,190,.9)',h1:'rgba(90,40,120,.6)',h2:'rgba(50,20,80,.85)',orb:'rgba(255,255,255,.45)'},
+ {sky:['#0B0620','#24104F','#3A0F4A'],sun:'rgba(255,62,165,.55)',h1:'rgba(20,10,40,.9)',h2:'rgba(5,0,15,.95)',orb:'rgba(34,228,255,.55)'},
+ {sky:['#BFE6FF','#F4FBFF','#FFF4D6'],sun:'rgba(255,255,255,.95)',h1:'rgba(150,215,170,.8)',h2:'rgba(90,180,120,.9)',orb:'rgba(255,255,255,.7)'}];
+function hill(c,off,base,col,amp,f){c.fillStyle=col;c.beginPath();c.moveTo(0,540);for(let x=0;x<=960;x+=16)c.lineTo(x,base+Math.sin((x+off)*f)*amp+Math.sin((x+off)*f*2.3)*amp*.4);c.lineTo(960,540);c.fill()}
+function fakeVideo(c,t){const sc=SCENES[Math.floor(t/6)%3],W=960,H=540,z=1+(t%6)*.02;
+ c.save();c.translate(W/2,H/2);c.scale(z,z);c.translate(-W/2,-H/2);
+ const g=c.createLinearGradient(0,0,0,H);sc.sky.forEach((s,i)=>g.addColorStop(i/2,s));c.fillStyle=g;c.fillRect(-50,-50,W+100,H+100);
+ c.fillStyle=sc.sun;c.beginPath();c.arc(W*.68,H*.36+Math.sin(t*.4)*12,85,0,7);c.fill();
+ for(let i=0;i<8;i++){const x=(i*173+t*18*(1+i%3))%(W+200)-100,y=50+((i*97)%220)+Math.sin(t+i)*20,r=36+i*9,rg=c.createRadialGradient(x,y,0,x,y,r);rg.addColorStop(0,sc.orb);rg.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=rg;c.fillRect(x-r,y-r,2*r,2*r)}
+ hill(c,t*14,H*.5,sc.h1,45,.004);hill(c,t*34,H*.62,sc.h2,30,.007);
+ const bx=W*.38+Math.sin(t*1.3)*30,by=H*.46;c.fillStyle=sc.h2;c.beginPath();c.ellipse(bx,by-70,18,22,0,0,7);c.fill();rr(c,bx-30,by-48,60,110,26);c.fill();
+ c.restore()}
+
+/* ---------- drawing helpers ---------- */
+const BOTTOM=872;
+const Y=(f,p)=>f.y+f.pad+(1-(p-f.min)/(f.max-f.min))*(f.h-2*f.pad);
+function field(v,x,y,w,h,o={}){const V=VOICES[v];const f={v,x,y,w,h,fx:x+270,playX:x+540,ppb:44,min:V.min,max:V.max,pad:h<80?8:h<150?12:22,clipR:x+w,sep:true,...o};f.nh=clamp((f.h-2*f.pad)/(f.max-f.min)*1.5,8,42);return f}
+function lane(p,x,y,w,h,o={}){const f=field(p.voice,x,y,w,h,o);f.p=p;f.players=[p];return f}
+function pill(c,f,n,x0,w,gone,post){if(x0>f.clipR||x0+w<f.fx)return;const nh=f.nh,y=Y(f,n.pitch);
+ if(n.gold){const g=c.createLinearGradient(0,y-nh/2,0,y+nh/2);g.addColorStop(0,'#FFE58A');g.addColorStop(1,'#FFB020');c.fillStyle=g}else c.fillStyle=gone?'#ECEDF5':'#fff';
+ rr(c,x0,y-nh/2,w,nh,nh/2);c.fill();if(post)post(n,x0,y,w,nh);
+ c.lineWidth=nh<14?2.5:nh<20?3.5:4.5;c.strokeStyle=INK;rr(c,x0,y-nh/2,w,nh,nh/2);c.stroke();
+ if(n.gold&&nh>=18){c.fillStyle='#fff';starPath(c,x0+nh/2,y,nh*.28,0);c.fill()}}
+function clipBase(c,f,lines=true){c.save();c.beginPath();c.rect(f.fx,f.y,f.clipR-f.fx,f.h);c.clip();
+ if(lines){c.strokeStyle='rgba(43,45,66,.07)';c.lineWidth=2;for(let p=Math.ceil(f.min);p<=f.max;p+=2){const y=Y(f,p);c.beginPath();c.moveTo(f.fx,y);c.lineTo(f.clipR,y);c.stroke()}}}
+function notesScroll(c,f,S,post){const X=b=>f.playX+(b-S.beat)*f.ppb;for(const Ln of VOICES[f.v].lines)for(const n of Ln.notes)pill(c,f,n,X(n.start),(n.len-.2)*f.ppb,X(n.start+n.len)<f.playX,post);return X}
+function pitchLine(c,p,pt,keep,w,col=COL[p.i]){c.lineCap='round';c.lineJoin='round';let prev=null,st=null;const fl=()=>{if(st)c.stroke();st=null};
+ for(const q of p.trail){if(q.p==null||!keep(q.b)){fl();prev=null;continue}
+  if(prev){const s=q.hit?'h':'m';if(s!==st){fl();st=s;c.strokeStyle=q.hit?col:'rgba(43,45,66,.22)';c.lineWidth=q.hit?w:w*.55;c.beginPath();c.moveTo(...pt(prev))}c.lineTo(...pt(q))}prev=q}fl()}
+function playheadV(c,f,x){c.strokeStyle='rgba(43,45,66,.3)';c.lineWidth=4;c.lineCap='round';c.setLineDash([1,12]);c.beginPath();c.moveTo(x,f.y+8);c.lineTo(x,f.y+f.h-8);c.stroke();c.setLineDash([])}
+function ball(c,x,y,r,col,letter,s=1){c.save();c.translate(x,y);c.scale(s,1/s);c.fillStyle=col;c.strokeStyle='#fff';c.lineWidth=r<12?3:5;c.beginPath();c.arc(0,0,r,0,7);c.fill();c.stroke();
+ if(letter){c.fillStyle='#fff';c.font=`700 ${Math.round(r*1.15)}px Fredoka, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(letter,0,1.5)}c.restore()}
+const bounce=(S,p)=>1+.14*Math.abs(Math.sin(S.t*9+p.i));
+function sep(c,f){if(!f.sep)return;c.strokeStyle='rgba(43,45,66,.12)';c.lineWidth=3;c.beginPath();c.moveTo(f.fx-6,f.y+10);c.lineTo(f.fx-6,f.y+f.h-10);c.stroke()}
+/* one scrolling lane per Player (round 3 renderer) */
+function drawLane(c,f,S,tab){const p=f.p;clipBase(c,f);const X=notesScroll(c,f,S);
+ pitchLine(c,p,q=>[X(q.b),Y(f,q.p)],b=>X(b)>=f.fx-20,f.h<80?7:f.h<130?9:12);playheadV(c,f,f.playX);
+ const pp=p.cur??p.lastPitch;if(pp!=null){const y=Y(f,pp);if(p.cur!=null)ball(c,f.playX,y,f.h<80?8:f.h<130?11:14,COL[p.i],'',bounce(S,p));p.head={x:f.playX,y}}
+ c.restore();sep(c,f);
+ if(tab){const r=Math.min(22,f.h/2-6);ball(c,f.x+r+16,f.y+f.h/2,r,COL[p.i],p.name[0])}}
+
+/* ---------- HUD builders ---------- */
+function laneBadges(L,root,duet,avs){const fx=$('#fx',root);return L.fields.map(f=>{const p=f.p,el=document.createElement('div');el.className='lanebadge';
+ const a=Math.min(avs,f.h-14),small=f.h<90;
+ el.style.cssText=`left:${f.x+12}px;top:${f.y}px;height:${f.h}px;width:${f.fx-f.x-24}px;--pc:${COL[p.i]};--avs:${a}px`;
+ el.innerHTML=`<div class="av" style="border-width:${small?3:4}px">${p.name[0]}</div><div><div class="nm" style="font-size:${small?17:22}px">${p.name}${p.guest?' <i>guest</i>':''}${duet?` <i>· V${p.voice+1}</i>`:''}</div><div class="sc" style="font-size:${small?28:f.h<130?36:44}px">0</div></div><div class="rating" style="font-size:${small?30:40}px"></div>`;
+ root.insertBefore(el,fx);return{el,sc:el.querySelector('.sc'),rating:el.querySelector('.rating')}})}
+function chipRow(sess,root,y,duet){const h=document.createElement('div');h.className='chiprow';h.style.top=y+'px';
+ h.innerHTML=sess.map(p=>`<div class="chip" style="--pc:${COL[p.i]}"><div class="av">${p.name[0]}</div><div><div class="nm">${p.name}${p.guest?' <i>guest</i>':''}${duet?` <i>· V${p.voice+1}</i>`:''}</div><div class="sc">0</div></div><div class="rating"></div></div>`).join('');
+ root.insertBefore(h,$('#fx',root));return[...h.children].map(el=>({el,sc:el.querySelector('.sc'),rating:el.querySelector('.rating')}))}
+const CHIP_H=72;
+
+/* ---------- the takes ---------- */
+const laneH=n=>n<=4?{1:170,2:140,3:120,4:110}[n]:Math.floor((620-(n-1)*8)/n);
+const VARIANTS={
+'1':{name:'Lower third (round 3)',
+ info:'Round 3\'s pick, now stretched to 8 Players: one scrolling track per Player, stacked above the lyrics, name and score at the start of each track. Tracks get thinner as Players join, about 70 px each at 8 Players, and the block grows up into the video.',
+ layout(S){const n=S.sess.length,h=laneH(n),gap=n>4?8:10,top=BOTTOM-n*h-(n-1)*gap;
+  return{fields:S.sess.map((p,i)=>lane(p,60,top+i*(h+gap),1800,h,{fx:320,playX:600}))}},
+ hud:(S,L,root)=>laneBadges(L,root,S.duet,70),draw(c,S,L){L.fields.forEach(f=>drawLane(c,f,S))}},
+'2':{name:'Two columns',
+ info:'Separate tracks again, but past 4 Players they wrap into two columns side by side (Players 1–4 left, 5–8 right). Tracks stay as tall as at 4 Players, so notes stay readable; each track is half as wide, so you see about half as far ahead.',
+ layout(S){const n=S.sess.length,cols=n>4?2:1,rows=Math.ceil(n/cols),h={1:170,2:140,3:120,4:110}[rows],gap=10,top=BOTTOM-rows*h-(rows-1)*gap,cw=cols===2?890:1800;
+  return{fields:S.sess.map((p,i)=>{const col=Math.floor(i/rows),row=i%rows,x=60+col*(cw+20);
+   return lane(p,x,top+row*(h+gap),cw,h,cols===2?{fx:x+210,playX:x+380,ppb:34}:{fx:320,playX:600})})}},
+ hud:(S,L,root)=>laneBadges(L,root,S.duet,70),draw(c,S,L){L.fields.forEach(f=>drawLane(c,f,S))}},
+'3':{name:'Scoreboard + tracks',
+ info:'Names and scores move out of the tracks into one scoreboard row of chips above them. Each track keeps only a coloured initial at its start, so the tracks run almost the full width and can be thin: about 60 px each at 8 Players. The scoreboard wraps to a second row past about 8.',
+ layout(S){const n=S.sess.length,gap=n>4?8:10,h=n<=4?110:Math.floor((560-(n-1)*gap)/n),top=BOTTOM-n*h-(n-1)*gap;
+  return{fields:S.sess.map((p,i)=>lane(p,60,top+i*(h+gap),1800,h,{fx:130,playX:430,sep:false})),chipY:top-CHIP_H-16}},
+ hud:(S,L,root)=>chipRow(S.sess,root,L.chipY,S.duet),draw(c,S,L){L.fields.forEach(f=>drawLane(c,f,S,true))}},
+'4':{name:'Shared notes + tuning strips',
+ info:'One shared note field per Voice shows the melody once, big. Under it every Player gets a thin strip that shows only how far off they are: the line runs along the middle when on pitch, rises when sharp and drops when flat, and is coloured while it counts as a hit. Strips line up with the notes above, and an 8-Player strip needs only about 40 px.',
+ layout(S){const n=S.sess.length,vs=S.duet?[0,1]:[0],fh=S.duet?150:200,sh=n>4?40:n>2?52:64,gap=6,gg=14;
+  let total=0;vs.forEach(v=>{const k=S.sess.filter(p=>p.voice===v).length;total+=fh+gap+k*(sh+gap)});total+=gg*(vs.length-1);
+  let y=BOTTOM-total;const fields=[],strips=[];
+  vs.forEach(v=>{const F=field(v,60,y,1800,fh,{fx:270,playX:560});F.nh=clamp((fh-2*F.pad)/(F.max-F.min)*1.7,22,40);fields.push(F);y+=fh+gap;
+   S.sess.filter(p=>p.voice===v).forEach(p=>{const s=lane(p,60,y,1800,sh,{fx:270,playX:560});s.strip=true;strips.push(s);y+=sh+gap});y+=gg-gap});
+  return{fields:strips,notes:fields,panels:[...fields,...strips.map(s=>({x:s.x,y:s.y,w:s.w,h:s.h,r:Math.min(40,s.h/2)}))]}},
+ hud:(S,L,root)=>laneBadges(L,root,S.duet,46),
+ draw(c,S,L){for(const F of L.notes){clipBase(c,F);notesScroll(c,F,S);playheadV(c,F,F.playX);c.restore();sep(c,F)}
+  for(const s of L.fields){const p=s.p,X=b=>s.playX+(b-S.beat)*s.ppb,cy=s.y+s.h/2,k=(s.h/2-5)/2.5,dy=d=>cy-clamp(d,-2.5,2.5)*k;
+   c.save();c.beginPath();c.rect(s.fx,s.y,s.clipR-s.fx,s.h);c.clip();
+   c.fillStyle=hexA(COL[p.i],.1);c.fillRect(s.fx,cy-k,s.clipR-s.fx,2*k);
+   for(const Ln of VOICES[s.v].lines)for(const n of Ln.notes){const x0=X(n.start),w=(n.len-.2)*s.ppb;if(x0>s.clipR||x0+w<s.fx)continue;c.fillStyle='rgba(255,255,255,.85)';rr(c,x0,cy-k,w,2*k,k);c.fill()}
+   c.strokeStyle='rgba(43,45,66,.25)';c.lineWidth=2;c.beginPath();c.moveTo(s.fx,cy);c.lineTo(s.clipR,cy);c.stroke();
+   pitchLine(c,p,q=>[X(q.b),dy(q.p-q.tp)],b=>X(b)>=s.fx-20,s.h<50?6:8);playheadV(c,s,s.playX);
+   if(p.cur!=null&&p.lastNote){const y=dy(p.cur-p.lastNote.pitch);ball(c,s.playX,y,s.h<50?8:10,COL[p.i],'',bounce(S,p));p.head={x:s.playX,y}}else p.head={x:s.playX,y:cy};
+   c.restore();sep(c,s)}}},
+'5':{name:'Shared field, filled notes',
+ info:'Round 2\'s A2, docked at the bottom: everyone shares one note field per Voice and there are no pitch lines. Each Player is a ball with their initial at the playhead; a hit fills that Player\'s stripe inside the note, a miss fades the ball and shows an arrow towards the note. At 8 Players each stripe is a thin sliver, which is the thing to judge here.',
+ layout:S=>sharedLayout(S),hud:(S,L,root)=>chipRow(S.sess,root,L.chipY,S.duet),
+ draw(c,S,L){for(const f of L.fields){clipBase(c,f);const m=f.players.length,X=b=>f.playX+(b-S.beat)*f.ppb;
+  notesScroll(c,f,S,(n,x0,y,w,nh)=>{if(n.start>S.beat)return;const bh=nh/m;c.save();rr(c,x0,y-nh/2,w,nh,nh/2);c.clip();
+   f.players.forEach((p,k)=>{c.fillStyle=COL[p.i];let prev=null;for(const q of p.trail){if(q.b<n.start||q.p==null){prev=null;continue}if(q.b>n.start+n.len)break;
+    if(prev&&q.hit){const a=X(prev.b),b=X(q.b);c.fillRect(a,y-nh/2+k*bh,b-a+1,bh)}prev=q}});c.restore()});
+  playheadV(c,f,f.playX);
+  f.players.forEach((p,k)=>{if(p.cur==null)return;const x=f.playX+(k-(m-1)/2)*(m>4?24:34),y=Y(f,p.cur);c.globalAlpha=p.hit?1:.5;
+   ball(c,x,y,m>4?14:18,COL[p.i],p.name[0],p.hit?bounce(S,p):1);p.head={x,y};
+   if(!p.hit&&p.lastNote){const up=p.lastNote.pitch>p.cur,ty=y+(up?-28:28),d=up?-1:1;c.fillStyle=COL[p.i];c.globalAlpha=.9;c.beginPath();c.moveTo(x-9,ty);c.lineTo(x+9,ty);c.lineTo(x,ty+d*11);c.fill()}
+   c.globalAlpha=1});
+  c.restore()}}},
+'6':{name:'Shared field, thin lines',
+ info:'Back to round 1: everyone sings in one shared note field per Voice with their own pitch line, but the lines are thin (6 px instead of 13) and each ends in a ball with the Player\'s initial, so you can tell whose line is whose. Fine at 2–4 Players; at 8 it shows how busy a shared field gets.',
+ layout:S=>sharedLayout(S),hud:(S,L,root)=>chipRow(S.sess,root,L.chipY,S.duet),
+ draw(c,S,L){for(const f of L.fields){clipBase(c,f);const m=f.players.length,X=notesScroll(c,f,S),off=k=>(k-(m-1)/2)*2.5;
+  f.players.forEach((p,k)=>pitchLine(c,p,q=>[X(q.b),Y(f,q.p)+off(k)],b=>X(b)>=f.fx-20,6));
+  playheadV(c,f,f.playX);
+  f.players.forEach((p,k)=>{const pp=p.cur??p.lastPitch;if(pp==null)return;const y=Y(f,pp)+off(k);if(p.cur!=null)ball(c,f.playX,y,m>4?13:16,COL[p.i],p.name[0]);p.head={x:f.playX,y}});
+  c.restore()}}},
+};
+function hexA(h,a){return`rgba(${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)},${a})`}
+function sharedLayout(S){const fs=S.duet?[[0,250],[1,250]]:[[0,400]],gap=14;let total=fs.reduce((a,[,h])=>a+h,0)+gap*(fs.length-1),y=BOTTOM-total;
+ const fields=fs.map(([v,h])=>{const f=field(v,60,y,1800,h,{fx:80,playX:520,sep:false,nh:0});f.nh=clamp((h-2*f.pad)/(f.max-f.min)*1.6,24,44);f.players=S.sess.filter(p=>p.voice===v);y+=h+gap;return f});
+ return{fields,chipY:BOTTOM-total-CHIP_H-16}}
+
+/* ---------- A browser (unchanged from round 1) ---------- */
+const sel=()=>SONGS[state.sel];
+const queueSongs=[[3,'Sofie'],[6,'Jonas'],[9,'Ida']];
+function browser(){stage.innerHTML=`<div class="vA"><div class="blobs"><i></i><i></i><i></i></div>
+ <div class="topbar"><div class="logo">${STAR}OpenStar</div><nav class="tabs"><b class="on">All</b><b>Duets</b><b>Pop</b><b>Rock</b><b>Ballads</b><b>Recent</b></nav><div class="search">Search songs…</div></div>
+ <div class="carousel">${SONGS.map((s,i)=>`<div class="item" data-i="${i}">${cover(s)}</div>`).join('')}</div>
+ <div class="meta"><h1></h1><p></p><div class="chips"></div></div>
+ <div class="sing-btn" data-go>Sing!</div>
+ <div class="card queue"><h3>Up next</h3>${queueSongs.map(([i,n],k)=>`<div class="q">${cover(SONGS[i])}<span>${SONGS[i].t}</span><i style="background:${COL[k+1]}">${n[0]}</i></div>`).join('')}</div>
+ <div class="card join">${qrSvg()}<div>Scan to join<br><small>openstar.local</small></div></div></div>`;
+ const items=[...stage.querySelectorAll('.item')],meta=$('.meta',stage);
+ return{render(){items.forEach((el,i)=>{let k=i-state.sel;if(k>N/2)k-=N;if(k<-N/2)k+=N;const a=Math.abs(k);
+   el.style.transform=`translateX(${k*300+Math.sign(k)*90}px) translateY(${a*26}px) scale(${k===0?1.22:Math.max(.5,.82-a*.08)}) rotate(${k*5}deg)`;
+   el.style.zIndex=100-a;el.style.opacity=a>3?0:1;el.classList.toggle('sel',k===0)});
+  const s=sel();meta.querySelector('h1').textContent=s.t;meta.querySelector('p').textContent=s.a;
+  meta.querySelector('.chips').innerHTML=`${s.d?'<b class="duet">Duet</b>':''}<b>${s.g}</b><b>${s.y}</b><b>${s.len}</b><b class="best">Best ${fmt(s.best[0][1])} · ${s.best[0][0]}</b>`;
+  meta.classList.remove('pop');void meta.offsetWidth;meta.classList.add('pop')}}}
+
+/* ---------- sing runner ---------- */
+function startSing(){const V=VARIANTS[state.variant],duet=state.duet,n=duet?Math.max(2,state.players):state.players;
+ const sess=makeSession(n,duet),S={sess,duet,beat:0,t:0},L=V.layout(S);
+ stage.innerHTML=`<div class="vA sing ${duet?'duet':''}"><div class="vid"><canvas id="fv" width="960" height="540"></canvas><video id="rv" muted loop playsinline autoplay></video><span class="vtag">music video (placeholder)</span></div><div class="panels"></div><canvas id="cv" width="1920" height="1080"></canvas><div class="prog"><i></i></div><div class="lyrics"></div><canvas id="fx" width="1920" height="1080"></canvas></div>`;
+ const root=stage.firstElementChild,vid=$('.vid',root),fv=$('#fv',root).getContext('2d');
+ if(videoURL){const rv=$('#rv',root);rv.src=videoURL;vid.classList.add('real');rv.play().catch(()=>{})}
+ const c=$('#cv',root).getContext('2d'),f=$('#fx',root).getContext('2d');
+ $('.panels',root).innerHTML=(L.panels||L.fields).map(F=>`<div class="panel" style="left:${F.x}px;top:${F.y}px;width:${F.w}px;height:${F.h}px;--r:${F.r??Math.min(40,F.h/2)}px"></div>`).join('');
+ const hud=V.hud(S,L,root),ly=makeLyrics($('.lyrics',root),duet),prog=$('.prog i',root),parts=[];
+ const H={gold(p){if(p.head&&Math.random()<.45)spawn(parts,p.head.x,p.head.y,FX,1,.6)},
+  noteDone(p,n,r){if(r>.85&&p.head)spawn(parts,p.head.x,p.head.y,[COL[p.i],...FX],n.gold?22:8,n.gold?1.2:.7)},
+  rating(p,lab){const h=hud[p.i];h.rating.textContent=lab;h.rating.classList.remove('show');void h.rating.offsetWidth;h.rating.classList.add('show');
+   if(lab==='Perfect!'){const q=stagePos(h.el);spawn(parts,q.x,q.y,[COL[p.i],...FX],30,1.3)}}};
+ const ctl={tick(dt){S.beat+=dt/BEAT;S.t+=dt;if(S.beat>SONG_BEATS){S.beat=0;sess.forEach(resetP)}
+  if(!videoURL)fakeVideo(fv,S.t);
+  simulate(sess,S.beat,dt/BEAT,S.t,H);
+  c.clearRect(0,0,1920,1080);V.draw(c,S,L);
+  f.clearRect(0,0,1920,1080);for(let i=parts.length-1;i>=0;i--){const q=parts[i];q.life+=dt;if(q.life>q.max){parts.splice(i,1);continue}
+   q.x+=q.vx*60*dt;q.y+=q.vy*60*dt;q.vy+=.28*60*dt;q.vx*=.99;q.rot+=q.vr;f.save();drawParticle(f,q,1-q.life/q.max);f.restore()}
+  ly.update(S.beat);prog.style.width=(S.beat/SONG_BEATS*100)+'%';
+  sess.forEach((p,i)=>{p.shown+=(p.score-p.shown)*.12;hud[i].sc.textContent=fmt(p.shown)})}};
+ const seek=+(P.get('seek')||0);for(let k=0;k<seek*BEAT*60;k++)ctl.tick(1/60);return ctl}
+
+/* ---------- shell ---------- */
+let ctrl=null,lastInput=0,lastAuto=0;
+function mount(){ctrl=state.screen==='sing'?startSing():browser();ctrl.render&&ctrl.render();syncURL();renderBar()}
+function syncURL(){const q=new URLSearchParams({variant:state.variant,screen:state.screen,players:state.players,duet:state.duet?1:0});try{history.replaceState(null,'','?'+q)}catch(e){}}
+function select(i){state.sel=(i+N)%N;ctrl.render&&ctrl.render()}
+function goSing(){state.screen='sing';state.duet=!!sel().d;if(state.duet&&state.players<2)state.players=2;mount()}
+function cycle(d){state.variant=KEYS[(KEYS.indexOf(state.variant)+d+KEYS.length)%KEYS.length];if(state.screen==='browser')state.screen='sing';mount()}
+function renderBar(){const V=VARIANTS[state.variant];$('#vl').textContent=`${state.variant} · ${V.name}`;
+ document.querySelectorAll('[data-scr]').forEach(b=>b.classList.toggle('on',b.dataset.scr===state.screen));
+ document.querySelectorAll('[data-pl]').forEach(b=>b.classList.toggle('on',+b.dataset.pl===(state.duet?Math.max(2,state.players):state.players)));
+ $('#duet').classList.toggle('on',state.duet);
+ $('#info').innerHTML=`<h4>${state.variant} · ${V.name}</h4><p>${V.info}</p>
+  <p style="opacity:.6">Round 4: everything is docked above the lyrics so the top of the screen stays video. Invented songs and simulated singers; the placeholder video cuts between a sunset, a dark club and daylight. ←/→ take · players 1–8 · Duet · Esc browser · h hide this bar.</p>`}
+$('#prev').onclick=()=>cycle(-1);$('#next').onclick=()=>cycle(1);
+document.querySelectorAll('[data-scr]').forEach(b=>b.onclick=()=>{state.screen=b.dataset.scr;mount()});
+document.querySelectorAll('[data-pl]').forEach(b=>b.onclick=()=>{state.players=+b.dataset.pl;if(state.players<2)state.duet=false;state.screen='sing';mount()});
+$('#duet').onclick=()=>{state.duet=!state.duet;if(state.duet&&state.players<2)state.players=2;state.screen='sing';mount()};
+$('#ib').onclick=()=>$('#info').classList.toggle('open');
+$('#vf').onchange=e=>{const file=e.target.files[0];if(!file)return;if(videoURL)URL.revokeObjectURL(videoURL);videoURL=URL.createObjectURL(file);state.screen='sing';mount()};
+stage.addEventListener('click',e=>{lastInput=performance.now();if(state.screen!=='browser')return;
+ if(e.target.closest('[data-go]'))return goSing();const it=e.target.closest('[data-i]');if(!it)return;const i=+it.dataset.i;i===state.sel?goSing():select(i)});
+addEventListener('keydown',e=>{if(e.target.closest('input,textarea,[contenteditable]'))return;lastInput=performance.now();
+ if(e.key==='ArrowLeft')cycle(-1);else if(e.key==='ArrowRight')cycle(1);
+ else if(e.key==='ArrowUp'&&state.screen==='browser'){e.preventDefault();select(state.sel-1)}
+ else if(e.key==='ArrowDown'&&state.screen==='browser'){e.preventDefault();select(state.sel+1)}
+ else if(e.key==='Enter'&&state.screen==='browser')goSing();
+ else if(e.key==='Escape'&&state.screen==='sing'){state.screen='browser';mount()}
+ else if(e.key==='i')$('#info').classList.toggle('open');
+ else if(e.key==='h'){$('#bar').hidden=!$('#bar').hidden;$('#info').classList.remove('open')}});
+function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(-50%,-50%) scale(${s})`}
+addEventListener('resize',fit);fit();
+let last=performance.now();
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;ctrl.tick&&ctrl.tick(dt);
+ if(state.screen==='browser'&&now-lastInput>6000&&now-lastAuto>2400){lastAuto=now;select(state.sel+1)}
+ requestAnimationFrame(loop)}
+mount();requestAnimationFrame(loop);
+</script>
+</body>
+</html>

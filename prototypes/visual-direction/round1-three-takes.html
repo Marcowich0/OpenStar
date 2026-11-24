@@ -1,0 +1,535 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Answers the "Visual direction" wayfinder ticket (OpenStar v1 spec map).
+  Plan: three radically different visual takes (A Bubble Pop, B Stage Night, C Sticker Book) on the
+  song browser and the sing screen, switchable via ?variant=A|B|C&screen=browser|sing&players=1-4&duet=0|1
+  and the floating bottom bar. Songs, lyrics, players and singing are all invented and simulated; no audio.
+  Keys: ←/→ variant · ↑/↓ pick song · Enter sing · Esc back to browser · i info · h hide bar.
+  Debug: &seek=<beats> fast-forwards the sing screen.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenStar Visual Direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Lilita+One&family=Nunito:wght@700;800;900&family=Bagel+Fat+One&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--page:#0d0d12;--bar:#111;--bar-fg:#fff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--page:#0d0d12}}
+:root[data-theme="dark"]{--page:#0d0d12}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--page)}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;overflow:hidden;transform-origin:center center}
+#stage>div{position:absolute;inset:0}
+canvas{position:absolute;left:0;top:0}
+.cover{position:relative;border-radius:24px;background:linear-gradient(135deg,var(--c1),var(--c2));overflow:hidden;display:flex;align-items:center;justify-content:center}
+.cover svg{width:62%;height:62%}
+.lyr span{display:inline-block;background:linear-gradient(90deg,var(--fill) calc(var(--p,0)*100%),var(--ink) 0);-webkit-background-clip:text;background-clip:text;color:transparent;transition:transform .15s cubic-bezier(.34,1.56,.64,1)}
+.lyr .cur.in{animation:lyin .35s cubic-bezier(.34,1.56,.64,1)}
+@keyframes lyin{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+
+/* ============ A · BUBBLE POP ============ */
+.vA{background:radial-gradient(circle at 20% 10%,#fff 0,#FFF6E9 40%,#FFE7CC 100%);font-family:'Fredoka',sans-serif;color:#2B2D42}
+.vA .blobs i{position:absolute;border-radius:50%;opacity:.55;animation:floaty 9s ease-in-out infinite}
+.vA .blobs i:nth-child(1){width:560px;height:560px;background:#CDEBFF;left:-140px;top:-180px}
+.vA .blobs i:nth-child(2){width:440px;height:440px;background:#FFD6DC;right:-90px;top:140px;animation-delay:-3s}
+.vA .blobs i:nth-child(3){width:380px;height:380px;background:#D9F7E6;left:42%;bottom:-200px;animation-delay:-6s}
+@keyframes floaty{50%{transform:translate(30px,-26px) scale(1.06)}}
+.vA .topbar{position:absolute;left:60px;right:60px;top:40px;display:flex;align-items:center;gap:24px}
+.vA .logo{font-weight:700;font-size:64px;display:flex;align-items:center;gap:10px}
+.vA .logo svg{width:72px;height:72px;animation:bob 3s ease-in-out infinite}
+@keyframes bob{50%{transform:rotate(14deg) scale(1.1)}}
+.vA .tabs{display:flex;gap:12px;margin-left:24px}
+.vA .tabs b{font-weight:600;font-size:30px;padding:12px 26px;border-radius:999px;background:#fff;box-shadow:0 6px 0 rgba(43,45,66,.12)}
+.vA .tabs b.on{background:#FF4B5C;color:#fff;box-shadow:0 6px 0 #C7303F}
+.vA .search{margin-left:auto;font-size:28px;padding:14px 32px;border-radius:999px;background:#fff;color:#8a8ca0;box-shadow:inset 0 3px 0 rgba(0,0,0,.06)}
+.vA .carousel{position:absolute;left:0;right:0;top:190px;height:460px}
+.vA .item{position:absolute;left:50%;top:50%;width:340px;height:340px;margin:-170px 0 0 -170px;transition:transform .6s cubic-bezier(.34,1.56,.64,1),opacity .35s;cursor:pointer}
+.vA .item .cover{width:100%;height:100%;border-radius:52px;border:9px solid #fff;box-shadow:0 18px 0 rgba(43,45,66,.12),0 26px 40px rgba(43,45,66,.18)}
+.vA .item.sel .cover{animation:squish .65s cubic-bezier(.34,1.56,.64,1)}
+@keyframes squish{0%{transform:scale(.88,1.12)}45%{transform:scale(1.08,.92)}100%{transform:none}}
+.vA .meta{position:absolute;left:0;right:0;top:690px;text-align:center}
+.vA .meta h1{font-size:92px;font-weight:700;margin:0;line-height:1}
+.vA .meta p{font-size:40px;margin:10px 0 18px;color:#6b6d85;font-weight:500}
+.vA .chips{display:flex;gap:14px;justify-content:center}
+.vA .chips b{font-weight:600;font-size:28px;padding:8px 22px;border-radius:999px;background:#fff;box-shadow:0 5px 0 rgba(43,45,66,.1)}
+.vA .chips b.duet{background:#9B5CFF;color:#fff}
+.vA .chips b.best{background:#FFC93C}
+.vA .pop{animation:popin .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popin{0%{transform:scale(.6);opacity:0}100%{transform:none;opacity:1}}
+.vA .sing-btn{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);font-size:56px;font-weight:700;color:#fff;background:#3DDC84;padding:18px 84px;border-radius:999px;box-shadow:0 10px 0 #24A862;animation:breathe 1.4s ease-in-out infinite;cursor:pointer}
+@keyframes breathe{50%{transform:translateX(-50%) scale(1.07)}}
+.vA .card{position:absolute;bottom:48px;background:#fff;border-radius:36px;padding:22px 30px;box-shadow:0 10px 0 rgba(43,45,66,.1)}
+.vA .queue{left:60px;width:460px}
+.vA .queue h3{margin:0 0 8px;font-size:30px}
+.vA .queue .q{display:flex;align-items:center;gap:14px;font-size:24px;margin:8px 0;font-weight:500}
+.vA .queue .q .cover{width:50px;height:50px;border-radius:16px;flex:none}
+.vA .queue .q i{margin-left:auto;font-style:normal;width:40px;height:40px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.vA .join{right:60px;display:flex;align-items:center;gap:20px;font-size:30px;font-weight:600;line-height:1.15}
+.vA .join svg{width:130px;height:130px;color:#2B2D42}
+.vA .join small{font-size:22px;color:#8a8ca0;font-weight:500}
+.vA .hud{position:absolute;top:34px;left:0;right:0;display:flex;justify-content:center;gap:28px}
+.vA .badge{position:relative;display:flex;align-items:center;gap:16px;background:#fff;border-radius:999px;padding:8px 34px 8px 8px;box-shadow:0 8px 0 rgba(43,45,66,.12);border:5px solid var(--pc)}
+.vA .badge .av{width:72px;height:72px;border-radius:50%;background:var(--pc);color:#fff;font-size:40px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.vA .badge .nm{font-size:24px;font-weight:600;line-height:1.1}
+.vA .badge .nm i{font-style:normal;font-size:18px;color:#8a8ca0}
+.vA .badge .sc{font-size:44px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;min-width:130px}
+.vA .rating{position:absolute;left:50%;top:100%;font-size:44px;font-weight:700;color:var(--pc);opacity:0;white-space:nowrap;text-shadow:0 4px 0 #fff,0 -4px 0 #fff,4px 0 0 #fff,-4px 0 0 #fff,0 10px 0 rgba(43,45,66,.12)}
+.vA .rating.show{animation:rateA 1.3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes rateA{0%{opacity:0;transform:translate(-50%,-20px) scale(.3)}20%{opacity:1;transform:translate(-50%,12px) scale(1.2)}35%{transform:translate(-50%,8px) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-6px) scale(1)}}
+.vA .prog{position:absolute;left:80px;right:80px;top:154px;height:10px;border-radius:9px;background:rgba(43,45,66,.08)}
+.vA .prog i{display:block;height:100%;border-radius:9px;background:#FFC93C}
+.vA .lyrics{position:absolute;left:0;right:0;bottom:40px;text-align:center}
+.vA .lyr .cur{font-size:84px;font-weight:700;--ink:#2B2D42;--fill:#FF4B5C;line-height:1.1}
+.vA .lyr span.g{--ink:#E09A00}
+.vA .lyr span.now{transform:translateY(-10px) scale(1.06)}
+.vA .lyr .nxt{font-size:40px;color:#9a9cb0;font-weight:600;margin-top:4px}
+.vA.duet .lyr .cur{font-size:62px}
+.vA.duet .lyr .nxt{display:none}
+
+/* ============ B · STAGE NIGHT ============ */
+.vB{background:radial-gradient(ellipse at 50% -10%,#5B1AA8 0,#2A0B5E 45%,#14062E 100%);font-family:'Nunito',sans-serif;font-weight:800;color:#fff}
+.vB .bokeh i{position:absolute;border-radius:50%;animation:drift 14s ease-in-out infinite;filter:blur(6px)}
+@keyframes drift{50%{transform:translate(60px,-40px) scale(1.15)}}
+.vB .beams{position:absolute;inset:-200px;background:conic-gradient(from 160deg at 50% 0%,transparent 0 8deg,rgba(34,228,255,.10) 12deg,transparent 18deg 26deg,rgba(255,62,165,.10) 32deg,transparent 38deg 46deg,rgba(182,255,59,.07) 50deg,transparent 56deg);animation:sway 7s ease-in-out infinite alternate;transform-origin:50% 0}
+@keyframes sway{from{transform:rotate(-5deg)}to{transform:rotate(5deg)}}
+.vB header{position:absolute;left:60px;right:60px;top:34px;display:flex;align-items:center;gap:28px}
+.vB .logo{font-family:'Lilita One';font-size:72px;letter-spacing:2px;transform:rotate(-3deg);text-shadow:0 6px 0 #FF3EA5}
+.vB .logo span{color:#22E4FF}
+.vB .tabs{display:flex;gap:10px}
+.vB .tabs b{font-size:28px;padding:12px 24px;border-radius:18px;background:rgba(255,255,255,.08)}
+.vB .tabs b.on{background:#22E4FF;color:#14062E}
+.vB .qchips{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:24px}
+.vB .qchips .cover{width:58px;height:58px;border-radius:14px;border:3px solid rgba(255,255,255,.7)}
+.vB .list{position:absolute;left:60px;top:160px;width:1010px;bottom:40px;overflow:hidden;-webkit-mask-image:linear-gradient(transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(transparent,#000 12%,#000 88%,transparent)}
+.vB .rows{padding:0 20px;transition:transform .5s cubic-bezier(.34,1.56,.64,1)}
+.vB .row{height:112px;margin-bottom:14px;display:flex;align-items:center;gap:24px;padding:0 24px;border-radius:24px;background:rgba(255,255,255,.06);transition:transform .4s cubic-bezier(.34,1.56,.64,1),background .2s,box-shadow .2s;cursor:pointer;transform-origin:left center}
+.vB .row .cover{width:80px;height:80px;border-radius:18px;flex:none}
+.vB .row b{font-family:'Lilita One';font-weight:400;font-size:44px;display:block;line-height:1.05}
+.vB .row span{font-size:24px;opacity:.7}
+.vB .row .tag{margin-left:auto;font-size:22px;padding:6px 16px;border-radius:12px;background:#FF9F1C;color:#14062E;opacity:1}
+.vB .row.sel{background:linear-gradient(90deg,#FF3EA5,#9B3CFF);transform:scale(1.05);box-shadow:0 0 0 4px #fff,0 0 calc(30px + var(--pulse,0)*40px) rgba(255,62,165,.8)}
+.vB .detail{position:absolute;right:60px;top:160px;width:740px;bottom:40px;border-radius:40px;background:rgba(10,0,30,.5);border:3px solid rgba(255,255,255,.12);padding:36px 40px;text-align:center}
+.vB .rec{position:relative;height:330px;width:540px;margin:0 auto}
+.vB .vinyl{position:absolute;left:190px;top:10px;width:310px;height:310px;border-radius:50%;background:repeating-radial-gradient(#111 0 3px,#262626 3px 6px);animation:spin 2.4s linear infinite;box-shadow:0 0 40px rgba(0,0,0,.6)}
+.vB .vinyl.slide{animation:spin 2.4s linear infinite,slideout .6s cubic-bezier(.34,1.56,.64,1)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes slideout{from{left:20px}to{left:190px}}
+.vB .vinyl i{position:absolute;inset:105px;border-radius:50%;background:var(--c1);border:6px solid var(--c2)}
+.vB .sleeve{position:absolute;left:0;top:0;width:330px;height:330px;z-index:1}
+.vB .sleeve .cover{width:100%;height:100%;border-radius:28px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.vB .detail h1{font-family:'Lilita One';font-weight:400;font-size:64px;margin:22px 0 0;line-height:1}
+.vB .detail p{font-size:30px;opacity:.75;margin:8px 0 18px}
+.vB .diff{display:flex;justify-content:center;gap:12px}
+.vB .diff b{font-size:26px;padding:10px 26px;border-radius:16px;background:rgba(255,255,255,.1)}
+.vB .diff b.on{background:#B6FF3B;color:#14062E}
+.vB .podium{display:flex;justify-content:center;align-items:flex-end;gap:14px;margin:22px 0}
+.vB .podium div{width:190px;border-radius:18px 18px 6px 6px;background:rgba(255,255,255,.1);padding:10px;font-size:22px;display:flex;flex-direction:column;justify-content:flex-end}
+.vB .podium div b{font-size:30px}
+.vB .podium .p1{height:150px;background:linear-gradient(#FFD84D,#FF9F1C);color:#14062E}
+.vB .podium .p2{height:115px}.vB .podium .p3{height:90px}
+.vB .sing{font-family:'Lilita One';font-size:64px;padding:12px 0;border-radius:28px;background:#22E4FF;color:#14062E;box-shadow:0 8px 0 #0A8FA8,0 0 calc(16px + var(--pulse,0)*44px) rgba(34,228,255,.85);cursor:pointer}
+.vB .songtag{position:absolute;left:60px;top:34px;font-family:'Lilita One';font-size:44px}
+.vB .songtag span{color:#22E4FF}
+.vB .prog{position:absolute;left:60px;right:60px;top:104px;height:8px;border-radius:8px;background:rgba(255,255,255,.12)}
+.vB .prog i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,#FF3EA5,#22E4FF);box-shadow:0 0 16px #22E4FF}
+.vB .tagp{position:absolute;left:62px;width:230px;display:flex;flex-direction:column;justify-content:center;padding-left:22px}
+.vB .tagp .nm{font-family:'Lilita One';font-weight:400;font-size:38px;color:var(--pc);line-height:1;text-shadow:0 0 18px var(--pc)}
+.vB .tagp .sc{font-size:44px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1}
+.vB .tagp .vt{font-size:17px;opacity:.65}
+.vB .rating{position:absolute;right:90px;font-family:'Lilita One';font-size:60px;color:#fff;text-shadow:0 0 18px var(--pc),0 0 40px var(--pc);opacity:0;transform:translateY(-50%)}
+.vB .rating.show{animation:flashB 1.2s ease-out}
+@keyframes flashB{0%{opacity:0;transform:translateY(-50%) scale(2.2)}14%{opacity:1;transform:translateY(-50%) scale(1)}75%{opacity:1}100%{opacity:0;transform:translateY(-50%) scale(1.05)}}
+.vB .lyrics{position:absolute;left:0;right:0;bottom:34px;text-align:center}
+.vB .lyr .cur{font-family:'Lilita One';font-size:78px;--ink:rgba(255,255,255,.5);--fill:#22E4FF;line-height:1.1}
+.vB .lyr span.g{--ink:#FFD84D}
+.vB .lyr span.now{transform:scale(1.06)}
+.vB .lyr .nxt{font-size:34px;opacity:.45}
+.vB.duet .lyr .cur{font-size:58px}
+.vB.duet .lyr .nxt{display:none}
+
+/* ============ C · STICKER BOOK ============ */
+.vC{background-color:#FFF3D6;background-image:radial-gradient(rgba(27,27,27,.13) 2px,transparent 2.6px);background-size:36px 36px;font-family:'Baloo 2',sans-serif;font-weight:800;color:#1B1B1B}
+.vC .stk{border:5px solid #1B1B1B;box-shadow:8px 8px 0 #1B1B1B;border-radius:26px;background:#fff}
+.vC header{position:absolute;left:60px;right:60px;top:34px;display:flex;align-items:center;gap:30px}
+.vC .ttl{font-family:'Bagel Fat One';font-weight:400;font-size:72px;padding:4px 36px;background:#FFD23F;transform:rotate(-3deg);animation:wob 3s ease-in-out infinite}
+@keyframes wob{50%{transform:rotate(-1deg) translateY(-5px)}}
+.vC .tapes{display:flex;gap:16px}
+.vC .tapes b{font-size:30px;padding:4px 22px;background:rgba(255,255,255,.75);border:3px dashed #1B1B1B;transform:rotate(var(--r))}
+.vC .tapes b.on{background:#00B8A9;color:#fff;border-style:solid}
+.vC .qrs{margin-left:auto;display:flex;align-items:center;gap:14px;padding:10px 22px 10px 10px;transform:rotate(3deg);font-size:28px;line-height:1.05}
+.vC .qrs svg{width:104px;height:104px}
+.vC .qrs small{font-size:20px;opacity:.6}
+.vC .grid{position:absolute;left:60px;top:218px;width:1690px;display:grid;grid-template-columns:repeat(6,1fr);gap:34px 30px}
+.vC .card{min-width:0;position:relative;padding:12px 12px 6px;transform:rotate(var(--r));transition:transform .35s cubic-bezier(.34,1.56,.64,1),background .2s;cursor:pointer}
+.vC .card .cover{height:214px;border-radius:16px;border:4px solid #1B1B1B}
+.vC .card b{display:block;font-size:28px;line-height:1.1;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vC .card span{font-size:20px;opacity:.6;font-weight:700}
+.vC .card.sel{z-index:2;background:#FFD23F;animation:wiggle .9s ease-in-out infinite;box-shadow:12px 14px 0 #1B1B1B}
+@keyframes wiggle{0%,100%{transform:translateY(-18px) rotate(-2deg) scale(1.1)}50%{transform:translateY(-24px) rotate(2deg) scale(1.1)}}
+.vC .card .bub{position:absolute;right:-26px;top:-36px;font-family:'Bagel Fat One';font-weight:400;font-size:32px;background:#FF5A36;color:#fff;padding:2px 18px;border:4px solid #1B1B1B;border-radius:18px;transform:rotate(8deg);display:none}
+.vC .card.sel .bub{display:block;animation:stamp .45s cubic-bezier(.34,1.56,.64,1)}
+@keyframes stamp{0%{transform:rotate(30deg) scale(2.4);opacity:0}100%{transform:rotate(8deg) scale(1);opacity:1}}
+.vC .rail{position:absolute;right:36px;top:218px;height:690px;display:flex;flex-direction:column;justify-content:space-between}
+.vC .rail b{width:46px;height:24px;font-size:19px;line-height:24px;text-align:center;border-radius:12px;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.vC .rail b.on{background:#FF5A36;color:#fff;border:3px solid #1B1B1B;transform:scale(1.5);line-height:18px}
+.vC .bottom{position:absolute;left:60px;right:60px;bottom:40px;display:flex;align-items:center;gap:34px}
+.vC .nowc{padding:10px 30px 12px;transform:rotate(-1deg);max-width:820px}
+.vC .nowc big{font-family:'Bagel Fat One';font-weight:400;font-size:54px;display:block;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vC .nowc small{font-size:28px;opacity:.7}
+.vC .nowc em{font-style:normal;font-size:22px;background:#8E5CF7;color:#fff;padding:0 12px;border-radius:10px;margin-left:10px}
+.vC .tix{display:flex;flex-direction:column;gap:8px}
+.vC .tk{font-size:22px;padding:2px 16px;border:3px solid #1B1B1B;border-radius:8px;background:#fff;border-left:14px solid var(--pc);transform:rotate(var(--r))}
+.vC .singbtn{margin-left:auto;width:170px;height:170px;border-radius:50%;background:#FF5A36;color:#fff;font-family:'Bagel Fat One';font-weight:400;font-size:48px;display:flex;align-items:center;justify-content:center;border:6px solid #1B1B1B;box-shadow:8px 8px 0 #1B1B1B;animation:wob2 1.6s ease-in-out infinite;cursor:pointer}
+@keyframes wob2{50%{transform:rotate(10deg) scale(1.06)}}
+.vC .hudC{position:absolute;top:28px;left:60px;right:60px;display:flex;gap:28px;align-items:center}
+.vC .songst{font-family:'Bagel Fat One';font-weight:400;font-size:36px;padding:4px 24px;background:#FFD23F;transform:rotate(-2deg);max-width:440px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vC .pl{position:relative;display:flex;align-items:center;gap:10px;transform:rotate(var(--r))}
+.vC .pl .av{width:88px;height:88px;border-radius:50%;background:var(--pc);border:5px solid #1B1B1B;box-shadow:5px 5px 0 #1B1B1B;color:#fff;font-family:'Bagel Fat One';font-size:44px;display:flex;align-items:center;justify-content:center}
+.vC .pl .box{padding:0 18px 2px;background:#fff;border:4px solid #1B1B1B;border-radius:16px;box-shadow:5px 5px 0 #1B1B1B}
+.vC .pl .nm{font-size:22px;line-height:1.2}
+.vC .pl .sc{font-size:38px;line-height:1;font-variant-numeric:tabular-nums;min-width:110px}
+.vC .rating{position:absolute;left:30px;top:76px;font-family:'Bagel Fat One';font-weight:400;font-size:34px;padding:0 16px;background:var(--pc);color:#fff;border:4px solid #1B1B1B;border-radius:14px;opacity:0;white-space:nowrap;z-index:3}
+.vC .rating.show{animation:stampC 1.4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes stampC{0%{opacity:0;transform:rotate(-30deg) scale(2.5)}15%{opacity:1;transform:rotate(-8deg) scale(1)}80%{opacity:1}100%{opacity:0;transform:rotate(-8deg) scale(1)}}
+.vC .prog{position:absolute;left:100px;right:100px;top:150px;height:8px;border-radius:8px;background:repeating-linear-gradient(90deg,#1B1B1B 0 14px,transparent 14px 24px);opacity:.25}
+.vC .prog i{display:block;height:100%;background:#1B1B1B}
+.vC .lyrics{position:absolute;left:100px;right:100px;bottom:36px;text-align:center}
+.vC .lyr .cur{font-size:82px;--ink:#1B1B1B;--fill:#FF5A36;line-height:1.1}
+.vC .lyr span.g{--ink:#D99A00}
+.vC .lyr span.now{transform:translateY(-8px) scale(1.06)}
+.vC .lyr .nxt{font-size:36px;opacity:.45}
+.vC.duet .lyr .cur{font-size:58px}
+.vC.duet .lyr .nxt{display:none}
+
+/* ============ prototype switcher (not part of the design) ============ */
+#bar{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px;padding:6px;background:var(--bar);color:var(--bar-fg);border-radius:22px;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 6px 24px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.18);z-index:10;user-select:none;max-width:calc(100vw - 32px)}
+#bar button{all:unset;cursor:pointer;padding:8px 11px;border-radius:999px}
+#bar button:hover{background:#2a2a2a}
+#bar button.on{background:#fff;color:#111}
+#bar .lbl{padding:0 6px;min-width:150px;text-align:center}
+#bar .sep{width:1px;height:20px;background:#3a3a3a;margin:0 2px}
+#bar .dim{opacity:.5;padding:0 2px}
+#info{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);width:min(560px,calc(100vw - 32px));background:var(--bar);color:#eee;border-radius:16px;padding:14px 18px;font:13px/1.5 ui-sans-serif,system-ui,sans-serif;display:none;z-index:10;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+#info.open{display:block}
+#info h4{margin:0 0 4px;font-size:15px}
+#info .sw{display:flex;gap:6px;margin:6px 0 10px;flex-wrap:wrap}
+#info .sw i{width:34px;height:34px;border-radius:8px;display:block;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
+#info p{margin:4px 0}
+#info b{color:#fff}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="bar">
+  <button id="prev" title="Previous variant (←)">‹</button><span class="lbl" id="vl"></span><button id="next" title="Next variant (→)">›</button>
+  <span class="sep"></span><button data-scr="browser">Browser</button><button data-scr="sing">Sing</button>
+  <span class="sep"></span><span class="dim">players</span><button data-pl="1">1</button><button data-pl="2">2</button><button data-pl="3">3</button><button data-pl="4">4</button><button id="duet">Duet</button>
+  <span class="sep"></span><button id="ib" title="Palette, type, shapes, motion (i)">info</button>
+</div>
+<div id="info"></div>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const stage=$('#stage');
+const P=new URLSearchParams(location.search);
+const state={variant:(P.get('variant')||'A').toUpperCase(),screen:P.get('screen')==='sing'?'sing':'browser',players:Math.min(4,Math.max(1,+(P.get('players')||2))),duet:P.get('duet')==='1',sel:0};
+if(!'ABC'.includes(state.variant))state.variant='A';
+const NAMES=['Sofie','Alex','Jonas'];
+const SONGS=[
+ {t:'Neon Summer',a:'Moonlit Arcade',y:2019,g:'Pop',len:'3:42',c:['#FF4B5C','#FFC93C'],sh:'star'},
+ {t:'Paper Planes at Dawn',a:'The Lanterns',y:2008,g:'Indie',len:'4:05',c:['#2EA8FF','#9BE7FF'],sh:'tri'},
+ {t:'Holiday Rocket',a:'Pixel Parade',y:2015,g:'Pop',len:'3:18',c:['#9B5CFF','#FF7AD9'],sh:'bolt'},
+ {t:'Cherry Soda Heart',a:'Mina Vale',y:2021,g:'Pop',len:'2:58',c:['#FF5A8A','#FFB3C7'],sh:'heart'},
+ {t:'Thunder in My Shoes',a:'Big Kettle',y:1997,g:'Rock',len:'4:31',c:['#FF9F1C','#FF4B5C'],sh:'bolt'},
+ {t:'Starlight Duet',a:'Ola & Ben',y:2012,g:'Ballad',len:'3:55',c:['#3D5AFE','#22E4FF'],sh:'star',d:1},
+ {t:'Disco Lighthouse',a:'Salt & Sugar',y:1979,g:'Disco',len:'5:02',c:['#FFC93C','#FF9F1C'],sh:'circle'},
+ {t:'Gold Ring Road',a:'The Velvet Owls',y:1984,g:'Rock',len:'3:47',c:['#00B8A9','#B6FF3B'],sh:'wave'},
+ {t:'Slow Motion Rain',a:'Ivy Hart',y:2005,g:'Ballad',len:'4:20',c:['#5C7CFA','#A5D8FF'],sh:'wave'},
+ {t:'Rollerblade Queen',a:'Kiki Sunset',y:1992,g:'Pop',len:'3:33',c:['#FF3EA5','#FFC93C'],sh:'circle'},
+ {t:'Kitchen Floor Tango',a:'Los Tranquilos',y:2001,g:'Latin',len:'3:12',c:['#E8590C','#FFD23F'],sh:'heart',d:1},
+ {t:'Fireworks Over the Fjord',a:'Nordlys',y:2017,g:'Pop',len:'3:49',c:['#7048E8','#3DDC84'],sh:'star'},
+];
+SONGS.forEach((s,i)=>{s.best=[[NAMES[i%3],9480-i*173],[NAMES[(i+1)%3],8120-i*141],[NAMES[(i+2)%3],6900-i*97]]});
+const N=SONGS.length;
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const hexA=(h,a)=>`rgba(${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)},${a})`;
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const rr=(c,x,y,w,h,r)=>{c.beginPath();c.roundRect(x,y,w,Math.max(1,h),Math.min(r,h/2,w/2))};
+function glyph(sh){return{
+ star:'<polygon points="50,6 62,37 95,38 69,58 78,91 50,72 22,91 31,58 5,38 38,37"/>',
+ circle:'<circle cx="50" cy="50" r="34"/><circle cx="50" cy="50" r="12" fill="rgba(0,0,0,.15)"/>',
+ wave:'<path d="M0 55 Q25 25 50 55 T100 55 V100 H0Z"/><circle cx="72" cy="26" r="12"/>',
+ tri:'<polygon points="50,10 93,88 7,88"/>',
+ heart:'<path d="M50 88 L13 51 A21 21 0 0 1 50 22 A21 21 0 0 1 87 51 Z"/>',
+ bolt:'<polygon points="58,4 18,58 46,58 36,96 82,38 54,38"/>'}[sh]}
+const cover=(s,cls='')=>`<div class="cover ${cls}" style="--c1:${s.c[0]};--c2:${s.c[1]}"><svg viewBox="0 0 100 100"><g fill="rgba(255,255,255,.88)">${glyph(s.sh)}</g></svg></div>`;
+const STAR='<svg viewBox="0 0 100 100"><polygon fill="#FFC93C" stroke="#2B2D42" stroke-width="7" stroke-linejoin="round" points="50,6 62,37 95,38 69,58 78,91 50,72 22,91 31,58 5,38 38,37"/></svg>';
+function qrSvg(){let seed=11;const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;let s='';
+ const inF=(x,y)=>(x<8&&y<8)||(x>12&&y<8)||(x<8&&y>12);
+ for(let y=0;y<21;y++)for(let x=0;x<21;x++)if(!inF(x,y)&&rnd()<.5)s+=`<rect x="${x}" y="${y}" width="1" height="1"/>`;
+ const f=(x,y)=>`<rect x="${x}" y="${y}" width="7" height="7"/><rect x="${x+1}" y="${y+1}" width="5" height="5" fill="#fff"/><rect x="${x+2}" y="${y+2}" width="3" height="3"/>`;
+ return `<svg viewBox="-1.5 -1.5 24 24"><rect x="-1.5" y="-1.5" width="24" height="24" rx="2" fill="#fff"/><g fill="currentColor">${s}${f(0,0)}${f(14,0)}${f(0,14)}</g></svg>`}
+function starPath(c,x,y,r,rot=0){c.beginPath();for(let i=0;i<10;i++){const a=rot+i*Math.PI/5-Math.PI/2,R=i%2?r*.45:r;c.lineTo(x+Math.cos(a)*R,y+Math.sin(a)*R)}c.closePath()}
+
+/* ---------- the demo song (original lyrics) ---------- */
+const BEAT=0.16,LEAD=6;
+const V1T=[["Turn ","the ","lights ","up, ","sing ","it ","loud ","to","night"],["E","very ","voice ","is ","shi","ning ","like ","a ","kite"],["Hold ","the ","note ","and ","let ","it ","fly"],["We're ","the ","stars ","a","cross ","the ","sky"]];
+const V2T=[["Call ","the ","e","cho, ","sing ","it ","back ","to ","me"],["Ev","ery ","heart","beat ","drum","ming ","in ","the ","sea"],["Reach ","the ","high ","and ","let ","it ","go"],["We ","will ","shine ","be","fore ","the ","dawn"]];
+const PITCH=[[62,62,64,65,67,65,64,62,60],[64,65,67,67,69,67,65,64,62],[67,67,72,71,69,67,69],[65,65,67,69,67,65,64]];
+const DUR=[[2,1,2,3,2,1,2,2,5],[2,1,3,1,2,2,2,1,5],[2,1,6,1,2,1,6],[2,1,3,2,2,1,7]];
+const GOLD=[[6],[8],[2,6],[6]];
+function buildVoice(text,tr){const lines=[];let b=LEAD,w=0,mn=99,mx=0;
+ text.forEach((syl,li)=>{const notes=[],start=b;syl.forEach((tx,si)=>{const n={start:b,len:DUR[li][si],pitch:PITCH[li][si]+tr,text:tx,gold:GOLD[li].includes(si)};notes.push(n);w+=n.len*(n.gold?2:1);mn=Math.min(mn,n.pitch);mx=Math.max(mx,n.pitch);b+=n.len});lines.push({start,end:b,notes});b+=4});
+ return {lines,total:b+4,K:10000/w,min:mn-2,max:mx+2}}
+const VOICES=[buildVoice(V1T,0),buildVoice(V2T,-5)];
+const SONG_BEATS=VOICES[0].total;
+const PLAYERS=[{name:'Alex',skill:.93},{name:'Sofie',skill:.82},{name:'Jonas',skill:.66},{name:'Ida',guest:true,skill:.86}];
+function makeSession(n,duet){return PLAYERS.slice(0,n).map((p,i)=>resetP({...p,i,voice:duet?i%2:0}))}
+function resetP(p){return Object.assign(p,{trail:[],score:0,shown:0,cur:null,lastPitch:null,missT:0,missOff:0,lastNote:null,nH:0,nS:0,lineH:{},lineS:{},rated:{}})}
+const label=r=>r>=.9?'Perfect!':r>=.75?'Great!':r>=.55?'Good':r>=.3?'OK':'Oops';
+function simulate(sess,beat,dtb,t,H){
+ for(const p of sess){const v=VOICES[p.voice];let note=null,li=-1;
+  v.lines.forEach((L,idx)=>{if(beat>=L.start&&beat<L.end){li=idx;note=L.notes.find(n=>beat>=n.start&&beat<n.start+n.len)}
+   if(beat>=L.end&&!p.rated[idx]&&p.lineS[idx]){p.rated[idx]=1;H.rating(p,label(p.lineH[idx]/p.lineS[idx]))}});
+  if(p.lastNote&&p.lastNote!==note){H.noteDone(p,p.lastNote,p.nH/Math.max(1,p.nS));p.nH=p.nS=0}
+  p.lastNote=note;
+  if(p.missT>0)p.missT-=dtb;else if(Math.random()<(1-p.skill)*.05){p.missT=.8+Math.random()*2.2;p.missOff=(Math.random()<.5?-1:1)*(1.8+Math.random()*2.5)}
+  if(note&&beat>note.start+.2){
+   const target=note.pitch+(p.missT>0?p.missOff:0)+Math.sin(t*28+p.i*2)*.22+(Math.random()-.5)*.25;
+   p.cur=p.cur==null?target-1.2:p.cur+(target-p.cur)*.3;
+   const hit=Math.abs(p.cur-note.pitch)<=1;
+   p.trail.push({b:beat,p:p.cur,hit});p.nS++;if(hit)p.nH++;
+   p.lineS[li]=(p.lineS[li]||0)+1;if(hit)p.lineH[li]=(p.lineH[li]||0)+1;
+   if(hit){p.score+=dtb*(note.gold?2:1)*v.K;if(note.gold)H.gold(p)}
+   p.lastPitch=p.cur;
+  }else{if(p.cur!=null)p.trail.push({b:beat,p:null});p.cur=null}
+  while(p.trail.length&&p.trail[0].b<beat-60)p.trail.shift();
+ }}
+function drawTrail(c,p,X,Y,o){c.lineCap='round';c.lineJoin='round';let prev=null,st=null;
+ const flush=()=>{if(st)c.stroke();st=null};
+ for(const q of p.trail){
+  if(q.p==null){flush();prev=null;continue}
+  if(o.from!=null&&q.b<o.from){prev=q;continue}
+  if(o.to!=null&&q.b>o.to)break;
+  if(prev){const s=q.hit?'h':'m';
+   if(s!==st){flush();st=s;c.strokeStyle=q.hit?o.hit:o.miss;c.lineWidth=q.hit?o.w:o.mw;c.shadowBlur=(o.glow&&q.hit)?o.glow:0;c.shadowColor=o.hit;c.beginPath();c.moveTo(X(prev.b),Y(prev.p))}
+   c.lineTo(X(q.b),Y(q.p))}
+  prev=q}
+ flush();c.shadowBlur=0}
+function makeLyrics(el,duet,fills){const vs=duet?[0,1]:[0];
+ el.innerHTML=vs.map(v=>`<div class="lyr v${v}" ${fills?`style="--fill:${fills[v]}"`:''}><div class="cur"></div><div class="nxt"></div></div>`).join('');
+ const S=vs.map(v=>({v,idx:-1,cur:el.querySelector(`.v${v} .cur`),nxt:el.querySelector(`.v${v} .nxt`),spans:[]}));
+ return {update(beat){for(const s of S){const lines=VOICES[s.v].lines;let idx=lines.findIndex(L=>L.end+1>beat);if(idx<0)idx=lines.length-1;
+  if(idx!==s.idx){s.idx=idx;s.cur.innerHTML=lines[idx].notes.map(n=>`<span${n.gold?' class="g"':''}>${n.text.trimEnd()}</span>${/\s$/.test(n.text)?' ':''}`).join('');s.spans=[...s.cur.children];
+   s.nxt.textContent=lines[idx+1]?lines[idx+1].notes.map(n=>n.text).join(''):'';s.cur.classList.remove('in');void s.cur.offsetWidth;s.cur.classList.add('in')}
+  lines[idx].notes.forEach((n,i)=>{const sp=s.spans[i],q=clamp((beat-n.start)/n.len,0,1);sp.style.setProperty('--p',q);sp.classList.toggle('now',q>0&&q<1)})}}}}
+function spawn(parts,x,y,colors,n,power=1){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,sp=(1.5+Math.random()*5)*power;
+ parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2.5*power,life:0,max:.6+Math.random()*.7,size:8+Math.random()*12,color:colors[Math.floor(Math.random()*colors.length)],rot:Math.random()*6,vr:(Math.random()-.5)*.4,kind:Math.random()<.35?'star':'dot'})}}
+function stagePos(el){const r=el.getBoundingClientRect(),s=stage.getBoundingClientRect(),k=s.width/1920;return{x:(r.left+r.width/2-s.left)/k,y:(r.top+r.height/2-s.top)/k}}
+
+/* ---------- variants ---------- */
+const COL={A:['#FF4B5C','#2EA8FF','#3DDC84','#FFB020'],B:['#FF3EA5','#22E4FF','#B6FF3B','#FF9F1C'],C:['#FF5A36','#00B8A9','#8E5CF7','#E8A600']};
+const sel=()=>SONGS[state.sel];
+const queueSongs=[[3,'Sofie'],[6,'Jonas'],[9,'Ida']];
+const VARIANTS={
+/* ================= A ================= */
+A:{name:'Bubble Pop',
+ info:{sw:['#FFF6E9','#2B2D42','#FF4B5C','#2EA8FF','#3DDC84','#FFC93C','#9B5CFF'],
+  type:'Fredoka 600/700, one rounded family for everything.',
+  shapes:'Soft pills and bubbles (full radius / 40–52px), thick white rims, chunky 6–10px drop "ledges", pastel background blobs.',
+  motion:'Springy back-out easing on everything; squash-and-stretch on the selected cover; breathing Sing button; round confetti and stars on hits.',
+  layout:'Browser: one big cover carousel, a song at a time. Sing: one shared note field per Voice, continuous scroll, Player badges across the top.'},
+ browser(){stage.innerHTML=`<div class="vA"><div class="blobs"><i></i><i></i><i></i></div>
+  <div class="topbar"><div class="logo">${STAR}OpenStar</div><nav class="tabs"><b class="on">All</b><b>Duets</b><b>Pop</b><b>Rock</b><b>Ballads</b><b>Recent</b></nav><div class="search">Search songs…</div></div>
+  <div class="carousel">${SONGS.map((s,i)=>`<div class="item" data-i="${i}">${cover(s)}</div>`).join('')}</div>
+  <div class="meta"><h1></h1><p></p><div class="chips"></div></div>
+  <div class="sing-btn" data-go>Sing!</div>
+  <div class="card queue"><h3>Up next</h3>${queueSongs.map(([i,n],k)=>`<div class="q">${cover(SONGS[i])}<span>${SONGS[i].t}</span><i style="background:${COL.A[k+1]}">${n[0]}</i></div>`).join('')}</div>
+  <div class="card join">${qrSvg()}<div>Scan to join<br><small>openstar.local</small></div></div></div>`;
+  const items=[...stage.querySelectorAll('.item')],meta=$('.meta',stage);
+  return{render(){items.forEach((el,i)=>{let k=i-state.sel;if(k>N/2)k-=N;if(k<-N/2)k+=N;const a=Math.abs(k);
+    el.style.transform=`translateX(${k*300+Math.sign(k)*90}px) translateY(${a*26}px) scale(${k===0?1.22:Math.max(.5,.82-a*.08)}) rotate(${k*5}deg)`;
+    el.style.zIndex=100-a;el.style.opacity=a>3?0:1;el.classList.toggle('sel',k===0)});
+   const s=sel();meta.querySelector('h1').textContent=s.t;meta.querySelector('p').textContent=s.a;
+   meta.querySelector('.chips').innerHTML=`${s.d?'<b class="duet">Duet</b>':''}<b>${s.g}</b><b>${s.y}</b><b>${s.len}</b><b class="best">Best ${fmt(s.best[0][1])} · ${s.best[0][0]}</b>`;
+   meta.classList.remove('pop');void meta.offsetWidth;meta.classList.add('pop')}}},
+ singHTML:d=>`<div class="vA ${d?'duet':''}"><div class="blobs"><i></i><i></i><i></i></div><canvas id="cv" width="1920" height="1080"></canvas><div class="prog"><i></i></div><div class="lyrics"></div><canvas id="fx" width="1920" height="1080"></canvas></div>`,
+ layout(S){const fs=S.duet?[{v:0,y:184,h:296},{v:1,y:500,h:296}]:[{v:0,y:184,h:612}];
+  return{fields:fs.map(f=>{const v=VOICES[f.v],F={...f,x:80,w:1760,playX:470,ppb:44,min:v.min,max:v.max,players:S.sess.filter(p=>p.voice===f.v)};F.nh=clamp((F.h-56)/(F.max-F.min)*1.5,20,46);return F})}},
+ Y:(f,p)=>f.y+28+(1-(p-f.min)/(f.max-f.min))*(f.h-56),
+ hud(sess,L,root,duet){const h=document.createElement('div');h.className='hud';
+  h.innerHTML=sess.map(p=>`<div class="badge" style="--pc:${COL.A[p.i]}"><div class="av">${p.name[0]}</div><div><div class="nm">${p.name}${p.guest?' <i>guest</i>':''}${duet?` <i>· voice ${p.voice+1}</i>`:''}</div><div class="sc">0</div></div><div class="rating"></div></div>`).join('');
+  root.insertBefore(h,$('#fx',root));return[...h.children].map(el=>({el,sc:el.querySelector('.sc'),rating:el.querySelector('.rating')}))},
+ head(p,S,L){const f=L.fields.find(f=>f.v===p.voice),pp=p.cur??p.lastPitch;if(pp==null)return null;const k=f.players.indexOf(p);return{x:f.playX,y:this.Y(f,pp)+(k-(f.players.length-1)/2)*7}},
+ draw(c,S,L){for(const f of L.fields){const v=VOICES[f.v];
+  c.save();c.fillStyle='rgba(255,255,255,.74)';c.shadowColor='rgba(43,45,66,.13)';c.shadowOffsetY=12;rr(c,f.x,f.y,f.w,f.h,46);c.fill();c.restore();
+  c.save();rr(c,f.x,f.y,f.w,f.h,46);c.clip();
+  c.strokeStyle='rgba(43,45,66,.06)';c.lineWidth=2;for(let p=Math.ceil(f.min);p<=f.max;p+=2){const y=this.Y(f,p);c.beginPath();c.moveTo(f.x,y);c.lineTo(f.x+f.w,y);c.stroke()}
+  for(const Ln of v.lines)for(const n of Ln.notes){const x0=f.playX+(n.start-S.beat)*f.ppb,w=(n.len-.2)*f.ppb;if(x0>f.x+f.w||x0+w<f.x)continue;
+   const y=this.Y(f,n.pitch),nh=f.nh;
+   if(n.gold){const g=c.createLinearGradient(0,y-nh/2,0,y+nh/2);g.addColorStop(0,'#FFE58A');g.addColorStop(1,'#FFB020');c.fillStyle=g}else c.fillStyle=x0+w<f.playX?'#ECEDF5':'#fff';
+   c.lineWidth=5;c.strokeStyle='#2B2D42';rr(c,x0,y-nh/2,w,nh,nh/2);c.fill();c.stroke();
+   if(n.gold){c.fillStyle='#fff';starPath(c,x0+nh/2,y,nh*.28,S.t*2);c.fill()}}
+  f.players.forEach((p,k)=>{const off=(k-(f.players.length-1)/2)*7;
+   drawTrail(c,p,b=>f.playX+(b-S.beat)*f.ppb,pp=>this.Y(f,pp)+off,{hit:COL.A[p.i],miss:'rgba(43,45,66,.16)',w:13,mw:8,from:S.beat-(f.playX-f.x)/f.ppb})});
+  c.strokeStyle='rgba(43,45,66,.28)';c.lineWidth=5;c.lineCap='round';c.setLineDash([1,14]);c.beginPath();c.moveTo(f.playX,f.y+18);c.lineTo(f.playX,f.y+f.h-18);c.stroke();c.setLineDash([]);
+  f.players.forEach((p,k)=>{if(p.cur==null)return;const y=this.Y(f,p.cur)+(k-(f.players.length-1)/2)*7,s=1+.18*Math.abs(Math.sin(S.t*9+k));
+   c.fillStyle=COL.A[p.i];c.strokeStyle='#fff';c.lineWidth=5;c.beginPath();c.ellipse(f.playX,y,15*s,15/s,0,0,7);c.fill();c.stroke()});
+  c.restore()}},
+ particle(c,q,a){c.globalAlpha=a;c.fillStyle=q.color;if(q.kind==='star'){starPath(c,q.x,q.y,q.size*.7,q.rot);c.fill()}else{c.beginPath();c.arc(q.x,q.y,q.size*.42,0,7);c.fill()}},
+ fx:['#FF4B5C','#2EA8FF','#3DDC84','#FFC93C','#9B5CFF']},
+/* ================= B ================= */
+B:{name:'Stage Night',
+ info:{sw:['#14062E','#3B1170','#FF3EA5','#22E4FF','#B6FF3B','#FF9F1C','#FFD84D'],
+  type:'Lilita One for titles, names and lyrics; Nunito 800–900 for everything else.',
+  shapes:'Chunky rounded rectangles (radius 18–40px) on a dark stage, neon outlines that glow in the Player\'s colour, spotlight beams and bokeh behind.',
+  motion:'Everything pulses on the beat; glow trails behind the pitch line; additive spark showers on golden notes; spinning record and slide-out on select.',
+  layout:'Browser: long list on the left, detail panel on the right with high-score podium and Difficulty. Sing: one horizontal strip per Player, stacked.'},
+ browser(){stage.innerHTML=`<div class="vB"><div class="beams"></div><div class="bokeh">${[[200,700,260,'#FF3EA5'],[1500,140,300,'#22E4FF'],[900,880,220,'#B6FF3B'],[1650,780,180,'#FF9F1C'],[620,240,160,'#22E4FF']].map(([x,y,s,c],i)=>`<i style="left:${x}px;top:${y}px;width:${s}px;height:${s}px;background:radial-gradient(circle,${hexA(c,.35)},transparent 70%);animation-delay:-${i*2.5}s"></i>`).join('')}</div>
+  <header><div class="logo">OPEN<span>STAR</span></div><nav class="tabs"><b class="on">A–Z</b><b>Artist</b><b>Year</b><b>Duets</b><b>Search</b></nav>
+   <div class="qchips">Up next ${queueSongs.map(([i])=>cover(SONGS[i])).join('')}</div></header>
+  <div class="list"><div class="rows">${SONGS.map((s,i)=>`<div class="row" data-i="${i}">${cover(s)}<div><b>${s.t}</b><span>${s.a} · ${s.y}</span></div>${s.d?'<span class="tag">DUET</span>':''}</div>`).join('')}</div></div>
+  <aside class="detail"><div class="rec"><div class="sleeve"></div><div class="vinyl"><i></i></div></div><h1></h1><p></p>
+   <div class="diff"><b>Easy</b><b class="on">Medium</b><b>Hard</b></div><div class="podium"></div><div class="sing" data-go>SING!</div></aside></div>`;
+  const root=stage.firstElementChild,rows=[...stage.querySelectorAll('.row')];
+  return{render(){rows.forEach((r,i)=>r.classList.toggle('sel',i===state.sel));$('.rows',root).style.transform=`translateY(${Math.min(20,440-56-state.sel*126)}px)`;
+   const s=sel(),d=$('.detail',root);$('.sleeve',d).innerHTML=cover(s);const vy=$('.vinyl',d);vy.style.setProperty('--c1',s.c[0]);vy.style.setProperty('--c2',s.c[1]);vy.classList.remove('slide');void vy.offsetWidth;vy.classList.add('slide');
+   $('h1',d).textContent=s.t;$('p',d).textContent=`${s.a} · ${s.g} · ${s.len}`;
+   $('.podium',d).innerHTML=[1,0,2].map(k=>`<div class="p${k+1}"><b>${k+1}</b>${s.best[k][0]}<br>${fmt(s.best[k][1])}</div>`).join('')},
+   tick(dt,t){root.style.setProperty('--pulse',Math.pow(1-((t*2)%1),3))}}},
+ singHTML:d=>`<div class="vB ${d?'duet':''}"><div class="beams"></div><canvas id="cv" width="1920" height="1080"></canvas><div class="songtag">${sel().t} <span>· ${sel().a}</span></div><div class="prog"><i></i></div><div class="lyrics"></div><canvas id="fx" width="1920" height="1080"></canvas></div>`,
+ layout(S){const n=S.sess.length,top=130,bot=878,gap=16,h=(bot-top-gap*(n-1))/n;
+  return{strips:S.sess.map((p,i)=>{const v=VOICES[p.voice];return{p,x:40,y:top+i*(h+gap),w:1840,h,fx:300,fw:1580,playX:600,ppb:50,min:v.min,max:v.max,nh:clamp((h-28)/(v.max-v.min)*1.4,10,34)}})}},
+ Y:(s,p)=>s.y+14+(1-(p-s.min)/(s.max-s.min))*(s.h-28),
+ hud(sess,L,root,duet){const fx=$('#fx',root);return L.strips.map(st=>{const p=st.p,el=document.createElement('div');el.className='tagp';el.style.cssText=`top:${st.y}px;height:${st.h}px;--pc:${COL.B[p.i]}`;
+  el.innerHTML=`<div class="nm">${p.name}</div><div class="sc">0</div><div class="vt">${p.guest?'Guest':'Profile'}${duet?' · Voice '+(p.voice+1):''} · Medium</div>`;
+  const r=document.createElement('div');r.className='rating';r.style.cssText=`top:${st.y+st.h/2}px;--pc:${COL.B[p.i]}`;root.insertBefore(el,fx);root.insertBefore(r,fx);return{el:r,sc:el.querySelector('.sc'),rating:r}})},
+ head(p,S,L){const s=L.strips.find(s=>s.p===p),pp=p.cur??p.lastPitch;return pp==null?null:{x:s.playX,y:this.Y(s,pp)}},
+ draw(c,S,L){const pulse=Math.pow(1-(S.beat%2)/2,4);
+  for(const s of L.strips){const p=s.p,col=COL.B[p.i],v=VOICES[p.voice];
+  c.save();c.shadowColor=col;c.shadowBlur=18+pulse*20;c.fillStyle='rgba(12,2,34,.66)';rr(c,s.x,s.y,s.w,s.h,26);c.fill();c.shadowBlur=0;c.lineWidth=3+pulse*2;c.strokeStyle=hexA(col,.45+pulse*.4);c.stroke();c.restore();
+  c.save();c.beginPath();c.rect(s.fx,s.y,s.fw,s.h);c.clip();
+  for(const Ln of v.lines)for(const n of Ln.notes){const x0=s.playX+(n.start-S.beat)*s.ppb,w=(n.len-.2)*s.ppb;if(x0>s.fx+s.fw||x0+w<s.fx)continue;
+   const y=this.Y(s,n.pitch),gone=x0+w<s.playX,cl=n.gold?'#FFD84D':col;
+   c.globalAlpha=gone?.45:1;c.fillStyle=hexA(cl,n.gold?.28:.14);c.strokeStyle=cl;c.lineWidth=4;if(n.gold){c.shadowColor=cl;c.shadowBlur=14}
+   rr(c,x0,y-s.nh/2,w,s.nh,12);c.fill();c.stroke();c.shadowBlur=0;c.globalAlpha=1}
+  drawTrail(c,p,b=>s.playX+(b-S.beat)*s.ppb,pp=>this.Y(s,pp),{hit:col,miss:'rgba(255,255,255,.2)',w:10,mw:6,glow:22,from:S.beat-(s.playX-s.fx)/s.ppb});
+  const g=c.createLinearGradient(0,s.y,0,s.y+s.h);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,'rgba(255,255,255,.7)');g.addColorStop(1,'rgba(255,255,255,0)');
+  c.fillStyle=g;c.fillRect(s.playX-2,s.y,4,s.h);
+  if(p.cur!=null){const y=this.Y(s,p.cur);c.fillStyle='#fff';c.shadowColor=col;c.shadowBlur=30;c.beginPath();c.arc(s.playX,y,10,0,7);c.fill();c.shadowBlur=0}
+  c.restore()}},
+ particle(c,q,a){c.globalCompositeOperation='lighter';c.globalAlpha=a;c.strokeStyle=q.color;c.lineWidth=q.size*.3;c.lineCap='round';c.beginPath();c.moveTo(q.x-q.vx*3,q.y-q.vy*3);c.lineTo(q.x,q.y);c.stroke();c.fillStyle='#fff';c.beginPath();c.arc(q.x,q.y,q.size*.18,0,7);c.fill()},
+ fx:['#FF3EA5','#22E4FF','#B6FF3B','#FFD84D','#ffffff']},
+/* ================= C ================= */
+C:{name:'Sticker Book',
+ info:{sw:['#FFF3D6','#1B1B1B','#FF5A36','#00B8A9','#FFD23F','#8E5CF7','#FFFFFF'],
+  type:'Bagel Fat One for titles, ratings and the Sing button; Baloo 2 800 for body and lyrics.',
+  shapes:'Die-cut stickers: 4–6px ink outline, hard offset shadow (no blur), small random tilt, dotted-paper background, dashed "tape" labels.',
+  motion:'Wiggle on the selected card; ratings stamp in at an angle; a bouncing ball hops along the notes; paper confetti; page flip between lines.',
+  layout:'Browser: a wall of song cards with an A–Z rail. Sing: one line at a time as a fixed page (no scrolling), with a bouncing ball.'},
+ browser(){const R=[-3,2,-1,3,-2,1,2,-3,1,-2,3,-1];
+  stage.innerHTML=`<div class="vC"><header><div class="ttl stk">Pick a song!</div><div class="tapes">${['All','Duets','Pop','Rock','Ballads'].map((t,i)=>`<b class="${i?'':'on'}" style="--r:${[-2,1,-1,2,-2][i]}deg">${t}</b>`).join('')}</div>
+   <div class="qrs stk">${qrSvg()}<div>Join with<br>your phone<br><small>openstar.local</small></div></div></header>
+   <div class="grid">${SONGS.map((s,i)=>`<div class="card stk" data-i="${i}" style="--r:${R[i]}deg">${cover(s)}<b>${s.t}</b><span>${s.a}</span><div class="bub">Sing!</div></div>`).join('')}</div>
+   <div class="rail">${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(l=>`<b>${l}</b>`).join('')}</div>
+   <div class="bottom"><div class="nowc stk"><big></big><small></small></div>
+    <div class="tix">${queueSongs.map(([i,n],k)=>`<div class="tk" style="--pc:${COL.C[k+1]};--r:${[-1,1,-.5][k]}deg">${k+1}. ${SONGS[i].t} — ${n}</div>`).join('')}</div>
+    <div class="singbtn" data-go>SING!</div></div></div>`;
+  const root=stage.firstElementChild,cards=[...root.querySelectorAll('.card')],rail=[...root.querySelectorAll('.rail b')];
+  return{render(){cards.forEach((c,i)=>c.classList.toggle('sel',i===state.sel));const s=sel();rail.forEach(b=>b.classList.toggle('on',b.textContent===s.t[0]));
+   $('.nowc big',root).textContent=s.t;$('.nowc small',root).innerHTML=`${s.a} · best ${fmt(s.best[0][1])} by ${s.best[0][0]}${s.d?'<em>duet</em>':''}`}}},
+ singHTML:d=>`<div class="vC ${d?'duet':''}"><canvas id="cv" width="1920" height="1080"></canvas><div class="prog"><i></i></div><div class="lyrics"></div><canvas id="fx" width="1920" height="1080"></canvas></div>`,
+ layout(S){const ps=S.duet?[{v:0,y:178,h:290},{v:1,y:498,h:290}]:[{v:0,y:184,h:584}];
+  return{pages:ps.map(pg=>{const v=VOICES[pg.v],P={...pg,x:100,w:1720,min:v.min,max:v.max,idx:-1,flipT:-9,players:S.sess.filter(p=>p.voice===pg.v)};P.nh=clamp((P.h-80)/(P.max-P.min)*1.5,18,48);P.Y=p=>P.y+40+(1-(p-P.min)/(P.max-P.min))*(P.h-80);return P})}},
+ hud(sess,L,root,duet){const h=document.createElement('div');h.className='hudC';
+  h.innerHTML=`<div class="songst stk">${sel().t}</div>`+sess.map((p,i)=>`<div class="pl" style="--pc:${COL.C[p.i]};--r:${[-3,2,-2,3][i]}deg"><div class="av">${p.name[0]}</div><div class="box"><div class="nm">${p.name}${p.guest?' (guest)':''}${duet?' · V'+(p.voice+1):''}</div><div class="sc">0</div></div><div class="rating"></div></div>`).join('');
+  root.insertBefore(h,$('#fx',root));return[...h.querySelectorAll('.pl')].map(el=>({el:el.querySelector('.av'),sc:el.querySelector('.sc'),rating:el.querySelector('.rating')}))},
+ head(p,S,L){const pg=L.pages.find(g=>g.v===p.voice),pp=p.cur??p.lastPitch;if(!pg.X||pp==null)return null;return{x:pg.X(S.beat),y:pg.Y(pp)}},
+ draw(c,S,L){const PAST=['#FF9A85','#7FE0D6','#C3A6FF','#9ED8FF'];
+  for(const pg of L.pages){const v=VOICES[pg.v];let idx=v.lines.findIndex(l=>l.end+1.2>S.beat);if(idx<0)idx=v.lines.length-1;const Ln=v.lines[idx];
+  if(pg.idx!==idx){pg.idx=idx;pg.flipT=S.t}
+  const k=clamp((S.t-pg.flipT)/.4,0,1),e=1-Math.pow(1-k,3);
+  c.save();c.globalAlpha=.2+.8*e;c.translate(pg.x+pg.w/2,pg.y+pg.h/2);c.rotate((1-e)*.05);c.translate(-(pg.x+pg.w/2)+(1-e)*120,-(pg.y+pg.h/2));
+  c.fillStyle='#1B1B1B';rr(c,pg.x+10,pg.y+10,pg.w,pg.h,30);c.fill();c.fillStyle='#fff';rr(c,pg.x,pg.y,pg.w,pg.h,30);c.fill();c.lineWidth=5;c.strokeStyle='#1B1B1B';c.stroke();
+  c.strokeStyle='rgba(0,184,169,.2)';c.lineWidth=2;for(let p=Math.ceil(pg.min);p<=pg.max;p+=2){const y=pg.Y(p);c.beginPath();c.moveTo(pg.x+30,y);c.lineTo(pg.x+pg.w-30,y);c.stroke()}
+  c.fillStyle='#1B1B1B';c.font="800 26px 'Baloo 2'";c.globalAlpha*=.5;c.fillText(`line ${idx+1}/${v.lines.length}`,pg.x+30,pg.y+36);c.globalAlpha=.2+.8*e;
+  const X=b=>pg.x+80+(b-Ln.start)/(Ln.end-Ln.start)*(pg.w-160);pg.X=X;
+  Ln.notes.forEach((n,i)=>{const x0=X(n.start)+5,w=X(n.start+n.len)-X(n.start)-10,y=pg.Y(n.pitch);
+   c.fillStyle='#1B1B1B';rr(c,x0+5,y-pg.nh/2+5,w,pg.nh,14);c.fill();
+   c.fillStyle=n.gold?'#FFD23F':PAST[i%4];rr(c,x0,y-pg.nh/2,w,pg.nh,14);c.fill();c.lineWidth=4;c.stroke();
+   if(n.gold){c.fillStyle='#fff';starPath(c,x0+pg.nh/2+2,y,pg.nh*.3,0);c.fill();c.lineWidth=3;c.stroke()}});
+  pg.players.forEach(p=>drawTrail(c,p,X,pg.Y,{hit:COL.C[p.i],miss:'rgba(27,27,27,.18)',w:11,mw:7,from:Ln.start-.5,to:Ln.end+1.2}));
+  // bouncing ball
+  const b=S.beat,ns=Ln.notes,top=n=>pg.Y(n.pitch)-pg.nh/2-20;let bx,by,sq=false,cur=ns.findIndex(n=>b>=n.start&&b<n.start+n.len);
+  if(cur>=0){const n=ns[cur],f=(b-n.start)/n.len,from=cur?top(ns[cur-1]):top(n);bx=X(b);by=from+(top(n)-from)*f-Math.sin(Math.PI*f)*Math.min(110,34+n.len*16);sq=f<.07||f>.95}
+  else if(b<Ln.start){bx=X(Ln.start);by=top(ns[0])-Math.abs(Math.sin(b*Math.PI))*46;sq=Math.abs(Math.sin(b*Math.PI))<.12}
+  else{bx=X(Ln.end);by=top(ns[ns.length-1])}
+  c.save();c.translate(bx,by+(sq?6:0));if(sq)c.scale(1.3,.72);c.fillStyle='#FF5A36';c.strokeStyle='#1B1B1B';c.lineWidth=5;c.beginPath();c.arc(0,0,18,0,7);c.fill();c.stroke();c.fillStyle='#fff';c.beginPath();c.arc(-6,-6,5,0,7);c.fill();c.restore();
+  c.restore()}},
+ particle(c,q,a){c.globalAlpha=a;c.save();c.translate(q.x,q.y);c.rotate(q.rot);c.fillStyle=q.color;c.strokeStyle='#1B1B1B';c.lineWidth=2.5;
+  if(q.kind==='star'){starPath(c,0,0,q.size*.75,0);c.fill();c.stroke()}else{c.fillRect(-q.size/2,-q.size/3,q.size,q.size*.66);c.strokeRect(-q.size/2,-q.size/3,q.size,q.size*.66)}c.restore()},
+ fx:['#FF5A36','#00B8A9','#FFD23F','#8E5CF7','#ffffff']},
+};
+
+/* ---------- sing screen runner (shared engine, per-variant rendering) ---------- */
+function startSing(){const V=VARIANTS[state.variant],duet=state.duet,n=duet?Math.max(2,state.players):state.players;
+ const sess=makeSession(n,duet);stage.innerHTML=V.singHTML(duet);const root=stage.firstElementChild;
+ const c=$('#cv',root).getContext('2d'),f=$('#fx',root).getContext('2d');
+ const S={sess,duet,beat:0,t:0},L=V.layout(S),hud=V.hud(sess,L,root,duet);
+ const ly=makeLyrics($('.lyrics',root),duet,duet?[COL[state.variant][0],COL[state.variant][1]]:null);
+ const prog=$('.prog i',root),parts=[];
+ const H={gold(p){if(Math.random()<.45){const h=V.head(p,S,L);if(h)spawn(parts,h.x,h.y,V.fx,1,.6)}},
+  noteDone(p,n,r){if(r>.85){const h=V.head(p,S,L);if(h)spawn(parts,h.x,h.y,[COL[state.variant][p.i],...V.fx],n.gold?26:10,n.gold?1.3:.8)}},
+  rating(p,lab){const h=hud[p.i];h.rating.textContent=lab;h.rating.classList.remove('show');void h.rating.offsetWidth;h.rating.classList.add('show');
+   if(lab==='Perfect!'||lab==='Great!'){const q=stagePos(h.el);spawn(parts,q.x,q.y,[COL[state.variant][p.i],...V.fx],lab==='Perfect!'?40:20,1.4)}}};
+ const ctl={tick(dt){S.beat+=dt/BEAT;S.t+=dt;if(S.beat>SONG_BEATS){S.beat=0;sess.forEach(resetP)}
+  simulate(sess,S.beat,dt/BEAT,S.t,H);
+  c.clearRect(0,0,1920,1080);V.draw(c,S,L);
+  f.clearRect(0,0,1920,1080);for(let i=parts.length-1;i>=0;i--){const q=parts[i];q.life+=dt;if(q.life>q.max){parts.splice(i,1);continue}
+   q.x+=q.vx*60*dt;q.y+=q.vy*60*dt;q.vy+=.28*60*dt;q.vx*=.99;q.rot+=q.vr;f.save();V.particle(f,q,1-q.life/q.max);f.restore()}
+  ly.update(S.beat);prog.style.width=(S.beat/SONG_BEATS*100)+'%';
+  sess.forEach((p,i)=>{p.shown+=(p.score-p.shown)*.12;hud[i].sc.textContent=fmt(p.shown)});
+  if(V.name==='Stage Night')root.style.setProperty('--pulse',Math.pow(1-(S.beat%2)/2,4))}};
+ const seek=+(P.get('seek')||0);for(let k=0;k<seek*BEAT*60;k++)ctl.tick(1/60,k/60);return ctl}
+
+/* ---------- shell ---------- */
+let ctrl=null,lastInput=0,lastAuto=0;
+function mount(){ctrl=state.screen==='sing'?startSing():VARIANTS[state.variant].browser();ctrl.render&&ctrl.render();syncURL();renderBar()}
+function syncURL(){const q=new URLSearchParams({variant:state.variant,screen:state.screen,players:state.players,duet:state.duet?1:0});history.replaceState(null,'','?'+q)}
+function select(i){state.sel=(i+N)%N;ctrl.render&&ctrl.render()}
+function goSing(){state.screen='sing';state.duet=!!sel().d;if(state.duet&&state.players<2)state.players=2;mount()}
+function cycle(d){const k='ABC';state.variant=k[(k.indexOf(state.variant)+d+3)%3];mount()}
+function renderBar(){const V=VARIANTS[state.variant];$('#vl').textContent=`${state.variant} · ${V.name}`;
+ document.querySelectorAll('[data-scr]').forEach(b=>b.classList.toggle('on',b.dataset.scr===state.screen));
+ document.querySelectorAll('[data-pl]').forEach(b=>b.classList.toggle('on',+b.dataset.pl===(state.duet?Math.max(2,state.players):state.players)));
+ $('#duet').classList.toggle('on',state.duet);
+ const I=V.info;$('#info').innerHTML=`<h4>${state.variant} · ${V.name}</h4><div class="sw">${I.sw.map(c=>`<i style="background:${c}" title="${c}"></i>`).join('')}</div>
+  <p><b>Type.</b> ${I.type}</p><p><b>Shapes.</b> ${I.shapes}</p><p><b>Motion.</b> ${I.motion}</p><p><b>Structure.</b> ${I.layout}</p>
+  <p style="opacity:.6">Prototype: invented songs and simulated singers. ←/→ variant · ↑/↓ song · Enter sing · Esc back · h hide this bar.</p>`}
+$('#prev').onclick=()=>cycle(-1);$('#next').onclick=()=>cycle(1);
+document.querySelectorAll('[data-scr]').forEach(b=>b.onclick=()=>{state.screen=b.dataset.scr;mount()});
+document.querySelectorAll('[data-pl]').forEach(b=>b.onclick=()=>{state.players=+b.dataset.pl;if(state.players<2)state.duet=false;state.screen='sing';mount()});
+$('#duet').onclick=()=>{state.duet=!state.duet;if(state.duet&&state.players<2)state.players=2;state.screen='sing';mount()};
+$('#ib').onclick=()=>$('#info').classList.toggle('open');
+stage.addEventListener('click',e=>{lastInput=performance.now();if(state.screen!=='browser')return;
+ if(e.target.closest('[data-go]'))return goSing();const it=e.target.closest('[data-i]');if(!it)return;const i=+it.dataset.i;i===state.sel?goSing():select(i)});
+addEventListener('keydown',e=>{if(e.target.closest('input,textarea,[contenteditable]'))return;lastInput=performance.now();
+ if(e.key==='ArrowLeft')cycle(-1);else if(e.key==='ArrowRight')cycle(1);
+ else if(e.key==='ArrowUp'&&state.screen==='browser'){e.preventDefault();select(state.sel-1)}
+ else if(e.key==='ArrowDown'&&state.screen==='browser'){e.preventDefault();select(state.sel+1)}
+ else if(e.key==='Enter'&&state.screen==='browser')goSing();
+ else if(e.key==='Escape'&&state.screen==='sing'){state.screen='browser';mount()}
+ else if(e.key==='i')$('#info').classList.toggle('open');
+ else if(e.key==='h'){$('#bar').hidden=!$('#bar').hidden;$('#info').classList.remove('open')}});
+function fit(){const s=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(-50%,-50%) scale(${s})`}
+addEventListener('resize',fit);fit();
+let last=performance.now();
+function loop(now){const dt=Math.min(.05,(now-last)/1000);last=now;ctrl.tick&&ctrl.tick(dt,now/1000);
+ if(state.screen==='browser'&&now-lastInput>6000&&now-lastAuto>2400){lastAuto=now;select(state.sel+1)}
+ requestAnimationFrame(loop)}
+mount();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
