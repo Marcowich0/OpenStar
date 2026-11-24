@@ -1,0 +1,828 @@
+<title>OpenStar Phone Screens</title>
+<!--
+  PROTOTYPE, throwaway. Wayfinder ticket "Phone screens" (Marcowich0/OpenStar#21).
+  Three takes on everything a Phone shows: joining, the Remote, and the mic screen while in the Line-up.
+    A  Tabs         : bottom tab bar (Songs, Queue, Stage, People); the mic takes over the whole screen.
+    B  One scroll   : one home page ordered by urgency, a thumb-height "Add a song" button; the mic is a bar.
+    C  Thumb deck   : a Stage mirror on top, a cover carousel and a dock at the bottom; the mic is a dark pocket screen.
+  Location: #<variant>-<scene>, e.g. #b-mic-singing. Keys (desktop): left/right arrow switches the take.
+  All data is invented and in memory. No real mic, no server. Palette colours 9-12 are placeholders
+  until the "Twelve-colour palette" ticket settles them.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a 390x844 Phone on a desk (wide), or the Phone UI filling the screen (narrow, on a real phone). Single light look by choice: Bubble Pop. */
+:root{
+  --cream:#FFF6E9;--cream2:#FFE7CC;--ink:#2B2D42;--ink2:#5d6079;--mute:#8a8ca0;--white:#fff;
+  --line:rgba(43,45,66,.12);--ledge:rgba(43,45,66,.14);--desk:#EADFCF;
+  --red:#FF4B5C;--blue:#2EA8FF;--green:#3DDC84;--yellow:#FFC93C;--purple:#9B5CFF;
+  --pocket:#16161f;
+  --spring:cubic-bezier(.34,1.56,.64,1);
+  --font:'Fredoka',ui-rounded,'SF Pro Rounded',system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:var(--desk);color:var(--ink);font-family:var(--font);overflow:hidden}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ---------- desk + device ---------- */
+#desk{height:100%;display:grid;grid-template-columns:300px auto;justify-content:center;align-items:center;gap:40px;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:16px 76px}
+#device{position:relative;width:390px;height:min(844px,calc(100vh - 110px));border-radius:56px;border:12px solid #1d1e2c;box-shadow:0 24px 60px rgba(43,45,66,.35);overflow:hidden;background:var(--cream)}
+#app{position:absolute;inset:0;overflow:hidden;background:var(--cream)}
+@media (max-width:760px){
+  body{background:var(--cream)}
+  #desk{display:block;padding:0}
+  #device{width:100%;height:100%;border:0;border-radius:0;box-shadow:none}
+  #panel{display:none}
+  #panel.open{display:block;position:fixed;inset:auto 0 0 0;max-height:75%;overflow:auto;z-index:60;border-radius:24px 24px 0 0;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+  #bar{display:none}
+  #protoBtn{display:flex}
+}
+
+/* ---------- prototype chrome (not part of the design) ---------- */
+#panel{background:#16161f;color:#e9e9f2;border-radius:20px;padding:16px;font:13px/1.45 system-ui,sans-serif;max-height:calc(100vh - 120px);overflow:auto}
+#panel h2{font:600 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#9a9ab0;margin:14px 0 6px}
+#panel h2:first-child{margin-top:0}
+#panel .vrow{display:flex;gap:6px}
+#panel .vrow button{flex:1;padding:8px 4px;border-radius:10px;background:#262634;font:600 12px/1.2 system-ui;color:#e9e9f2}
+#panel .vrow button.on{background:#fff;color:#111}
+#panel .scenes{display:flex;flex-direction:column;gap:2px}
+#panel .scenes button{text-align:left;padding:5px 8px;border-radius:8px;color:#cfcfe0;font:13px/1.3 system-ui}
+#panel .scenes button:hover{background:#262634}
+#panel .scenes button.on{background:#2EA8FF;color:#fff}
+#panel .ev{display:flex;flex-wrap:wrap;gap:6px}
+#panel .ev button{padding:6px 9px;border-radius:8px;background:#262634;color:#e9e9f2;font:12px/1.2 system-ui}
+#panel .ev button:hover{background:#34344a}
+#panel p.note{margin:6px 0 0;color:#b9b9cc}
+#panel .state{font:11px/1.45 var(--mono);color:#9fe3b9;white-space:pre-wrap;background:#0d0d13;border-radius:10px;padding:8px;margin-top:6px}
+#bar{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:6px;background:#111;color:#fff;border-radius:999px;font:600 13px/1 var(--mono);box-shadow:0 6px 24px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.15);z-index:50}
+#bar button{color:#fff;padding:9px 12px;border-radius:999px}
+#bar button:hover{background:#2a2a2a}
+#bar .lbl{min-width:190px;text-align:center}
+#protoBtn{display:none;position:fixed;right:calc(10px + env(safe-area-inset-right,0px));top:calc(10px + env(safe-area-inset-top,0px));z-index:55;align-items:center;gap:6px;background:#111;color:#fff;font:600 11px/1 var(--mono);padding:7px 10px;border-radius:999px;opacity:.8}
+
+/* ---------- shared Bubble Pop parts ---------- */
+.scr{position:absolute;inset:0;display:flex;flex-direction:column;background:radial-gradient(circle at 15% 0%,#fff 0,var(--cream) 45%,var(--cream2) 100%)}
+.scroll{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.pad{padding:0 18px}
+.top{display:flex;align-items:center;gap:10px;padding:calc(14px + env(safe-area-inset-top,0px)) 18px 10px}
+@media (min-width:761px){.top{padding-top:44px}}
+.logo{display:flex;align-items:center;gap:6px;font-weight:700;font-size:22px}
+.logo svg{width:26px;height:26px}
+.sub{font-size:13px;color:var(--mute);font-weight:500}
+.h1{font-size:30px;font-weight:700;line-height:1.05;margin:0;text-wrap:balance}
+.h2{font-size:20px;font-weight:700;margin:0}
+.muted{color:var(--ink2)}
+.av{--s:44px;width:var(--s);height:var(--s);flex:none;border-radius:50%;background:var(--pc);display:inline-flex;align-items:center;justify-content:center;border:calc(var(--s)*.07) solid #fff;box-shadow:0 3px 0 var(--ledge)}
+.av svg{width:56%;height:56%;fill:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:56px;padding:0 26px;border-radius:999px;font-weight:600;font-size:19px;background:var(--white);box-shadow:0 6px 0 var(--ledge);transition:transform .2s var(--spring)}
+.btn:active{transform:translateY(4px);box-shadow:0 2px 0 var(--ledge)}
+.btn.go{background:var(--green);color:#fff;box-shadow:0 6px 0 #24A862}
+.btn.blue{background:var(--blue);color:#fff;box-shadow:0 6px 0 #1b7fc4}
+.btn.red{background:var(--red);color:#fff;box-shadow:0 6px 0 #C7303F}
+.btn.ink{background:var(--ink);color:#fff;box-shadow:0 6px 0 #14151f}
+.btn.wide{width:100%}
+.btn.sm{min-height:44px;font-size:16px;padding:0 18px}
+.btn.breathe{animation:breathe 1.5s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.05)}}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:#fff;font-size:14px;font-weight:600;box-shadow:0 3px 0 var(--ledge);white-space:nowrap}
+.chip.duet{background:var(--purple);color:#fff}
+.chip.best{background:var(--yellow)}
+.chip.on{background:var(--ink);color:#fff}
+.card{background:#fff;border-radius:28px;box-shadow:0 7px 0 var(--ledge);padding:16px}
+.cover{flex:none;border-radius:16px;border:3px solid #fff;box-shadow:0 4px 0 var(--ledge);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;background:linear-gradient(135deg,var(--c1),var(--c2));text-shadow:0 2px 0 rgba(0,0,0,.15)}
+.row{display:flex;align-items:center;gap:12px}
+.grow{flex:1;min-width:0}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t{font-weight:600;font-size:17px;line-height:1.2}
+.a{font-size:14px;color:var(--ink2);line-height:1.2}
+.round{width:48px;height:48px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 4px 0 var(--ledge);flex:none}
+.round svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.round.go{background:var(--green);color:#fff;box-shadow:0 4px 0 #24A862}
+.ico{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.avs{display:flex}.avs .av{margin-left:-8px}.avs .av:first-child{margin-left:0}
+.pop{animation:pop .45s var(--spring)}
+@keyframes pop{from{transform:scale(.7);opacity:0}to{transform:none;opacity:1}}
+.slideup{animation:slideup .45s var(--spring)}
+@keyframes slideup{from{transform:translateY(40%);opacity:0}to{transform:none;opacity:1}}
+.sec{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:18px 0 8px}
+.search{display:flex;align-items:center;gap:10px;background:#fff;border-radius:999px;padding:0 18px;height:52px;box-shadow:inset 0 3px 0 rgba(0,0,0,.05),0 0 0 2px var(--line)}
+.search input{border:0;outline:0;background:none;flex:1;min-width:0;font-size:17px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 18px 10px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.hold{position:relative;overflow:hidden}
+.hold::after{content:"";position:absolute;inset:0;background:rgba(255,255,255,.35);transform:scaleX(0);transform-origin:left}
+.hold.holding::after{transform:scaleX(1);transition:transform .7s linear}
+.holdhint{font-size:12px;color:var(--mute);text-align:center;margin-top:6px}
+.lv{height:12px;border-radius:9px;background:rgba(43,45,66,.12);overflow:hidden}
+.lv i{display:block;height:100%;width:calc(var(--lv,0)*100%);background:var(--pc,var(--green));border-radius:9px;transition:width .12s}
+.prog{height:8px;border-radius:9px;background:rgba(43,45,66,.12);overflow:hidden}
+.prog i{display:block;height:100%;background:var(--yellow);border-radius:9px}
+.tag{font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--cream2);color:var(--ink2)}
+.tag.warn{background:#FFE1E4;color:#B3192B}
+
+/* sheet */
+.veil{position:absolute;inset:0;background:rgba(43,45,66,.35);z-index:20;animation:fade .25s}
+@keyframes fade{from{opacity:0}}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:21;background:var(--cream);border-radius:32px 32px 0 0;box-shadow:0 -6px 0 var(--ledge);max-height:88%;display:flex;flex-direction:column;animation:sheetin .45s var(--spring)}
+@keyframes sheetin{from{transform:translateY(100%)}}
+.sheet .grab{width:44px;height:5px;border-radius:9px;background:rgba(43,45,66,.2);margin:10px auto 4px}
+.sheet .body{padding:8px 18px calc(20px + env(safe-area-inset-bottom,0px));overflow-y:auto}
+.opt{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:20px;background:#fff;box-shadow:0 4px 0 var(--ledge);font-size:17px;font-weight:600;text-align:left;margin-bottom:10px;min-height:56px}
+.opt.on{box-shadow:0 0 0 3px var(--ink),0 4px 0 var(--ledge)}
+.opt.off{opacity:.45}
+.opt .ico{color:var(--ink2)}
+.seg{display:flex;background:rgba(43,45,66,.08);border-radius:999px;padding:4px;gap:4px}
+.seg button{flex:1;min-height:44px;border-radius:999px;font-weight:600;font-size:15px}
+.seg button.on{background:#fff;box-shadow:0 3px 0 var(--ledge)}
+
+/* toast */
+#toasts{position:absolute;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top,0px));z-index:40;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+@media (min-width:761px){#toasts{top:40px}}
+.toast{background:var(--ink);color:#fff;border-radius:999px;padding:10px 16px;font-weight:500;font-size:15px;display:flex;align-items:center;gap:8px;animation:pop .4s var(--spring);box-shadow:0 5px 0 rgba(0,0,0,.2)}
+.toast .av{--s:24px;box-shadow:none}
+
+/* numpad */
+.code{display:flex;gap:10px;justify-content:center}
+.code b{width:62px;height:76px;border-radius:22px;background:#fff;box-shadow:0 5px 0 var(--ledge);display:flex;align-items:center;justify-content:center;font-size:42px;font-weight:700}
+.code b.cur{box-shadow:0 0 0 3px var(--blue),0 5px 0 var(--ledge)}
+.code.bad b{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pad3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pad3 button{height:64px;border-radius:22px;background:#fff;box-shadow:0 5px 0 var(--ledge);font-size:28px;font-weight:600}
+.pad3 button:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ledge)}
+
+/* colour + avatar grids */
+.cgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.cdot{aspect-ratio:1;max-width:100%;border-radius:50%;background:var(--pc);border:4px solid #fff;box-shadow:0 3px 0 var(--ledge);position:relative}
+.cdot.on{box-shadow:0 0 0 3px var(--ink),0 3px 0 var(--ledge)}
+.cdot.taken{opacity:.28}
+.cdot.taken::after{content:"";position:absolute;left:50%;top:10%;bottom:10%;width:3px;background:var(--ink);transform:rotate(45deg)}
+.agrid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.agrid button{aspect-ratio:1;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#fff;box-shadow:0 3px 0 var(--ledge)}
+.agrid button svg{width:55%;height:55%;fill:var(--ink)}
+.agrid button.on{background:var(--pc)}
+.agrid button.on svg{fill:#fff}
+.field{width:100%;height:56px;border-radius:20px;border:0;background:#fff;padding:0 18px;font-size:19px;box-shadow:inset 0 3px 0 rgba(0,0,0,.05),0 0 0 2px var(--line);outline:0}
+.field:focus{box-shadow:0 0 0 3px var(--blue)}
+
+/* ---------- A: tabs ---------- */
+.tabbar{display:flex;background:#fff;box-shadow:0 -4px 0 var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+@media (min-width:761px){.tabbar{padding-bottom:22px}}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:12px;font-weight:600;color:var(--mute);border-radius:18px;position:relative}
+.tabbar button.on{color:var(--ink)}
+.tabbar button.on .ico{color:var(--red);transform:scale(1.15)}
+.tabbar .ico{width:26px;height:26px;transition:transform .3s var(--spring)}
+.tabbar .badge{position:absolute;top:0;left:56%;background:var(--red);color:#fff;font-size:11px;border-radius:999px;padding:1px 6px}
+.mini{margin:0 10px 8px;background:var(--ink);color:#fff;border-radius:22px;padding:8px 8px 8px 12px;display:flex;align-items:center;gap:10px}
+.mini .round{width:44px;height:44px;background:#fff;color:var(--ink);box-shadow:none}
+.qcard{display:flex;align-items:center;gap:12px;padding:12px;border-radius:24px;background:#fff;box-shadow:0 5px 0 var(--ledge);margin-bottom:12px;width:100%;text-align:left}
+.qcard.head{box-shadow:0 0 0 3px var(--yellow),0 5px 0 var(--ledge)}
+.qnum{width:28px;font-weight:700;font-size:20px;color:var(--mute);text-align:center;flex:none}
+
+/* mic takeover (A) */
+.mic{position:absolute;inset:0;z-index:15;background:var(--pc);color:#fff;display:flex;flex-direction:column;align-items:center;text-align:center;padding:calc(30px + env(safe-area-inset-top,0px)) 22px calc(18px + env(safe-area-inset-bottom,0px))}
+@media (min-width:761px){.mic{padding-top:56px;padding-bottom:26px}}
+.mic::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,rgba(255,255,255,.35),transparent 60%);pointer-events:none}
+.mic>*{position:relative}
+.ring{position:relative;width:200px;height:200px;margin:18px 0 10px;display:flex;align-items:center;justify-content:center}
+.ring::before{content:"";position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,.28);transform:scale(calc(.72 + var(--lv,0)*.4));transition:transform .12s}
+.ring .av{--s:150px;box-shadow:0 8px 0 rgba(0,0,0,.15)}
+.mic .h1{color:#fff}
+.mic .wpill{display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.mic .wpill .chip{background:rgba(255,255,255,.25);color:#fff;box-shadow:none;font-size:15px;padding:7px 14px}
+.mic .note{font-size:15px;opacity:.92;max-width:300px;line-height:1.35}
+.mic .prog{background:rgba(255,255,255,.3);width:100%}.mic .prog i{background:#fff}
+.mic .btn{color:var(--ink)}
+.backbar{display:flex;align-items:center;gap:10px;background:var(--pc);color:#fff;padding:10px 14px;border-radius:22px;margin:0 10px 6px;font-weight:600}
+
+/* ---------- B: one scroll ---------- */
+.fab{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:12}
+@media (min-width:761px){.fab{bottom:28px}}
+.fab .btn{white-space:nowrap;min-height:64px;font-size:21px;padding:0 30px;background:var(--red);color:#fff;box-shadow:0 7px 0 #C7303F}
+.now{border-radius:32px;padding:18px;color:#fff;background:var(--ink);box-shadow:0 8px 0 rgba(43,45,66,.25)}
+.now .a{color:rgba(255,255,255,.7)}
+.now .prog{background:rgba(255,255,255,.2)}
+.now .btn{color:var(--ink)}
+.ctl{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ctl button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0;border-radius:20px;background:rgba(255,255,255,.12);font-size:12px;font-weight:600;color:#fff}
+.ctl button .ico{width:26px;height:26px}
+.ctl button.big{background:#fff;color:var(--ink)}
+.slot{display:flex;align-items:center;gap:10px;padding:10px;border-radius:20px;background:rgba(255,255,255,.1);width:100%;text-align:left;margin-bottom:8px;color:inherit}
+.slot .tag{background:rgba(255,255,255,.18);color:#fff}
+.slot .tag.warn{background:#FFE1E4;color:#B3192B}
+.lrow{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:2px solid var(--line);width:100%;text-align:left}
+.lrow:last-child{border-bottom:0}
+.micbar{position:absolute;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:13;border-radius:28px;background:var(--pc);color:#fff;padding:10px 12px;display:flex;align-items:center;gap:12px;box-shadow:0 7px 0 rgba(43,45,66,.25);text-align:left;width:auto}
+@media (min-width:761px){.micbar{bottom:22px}}
+.micbar .lv{background:rgba(255,255,255,.3);flex:1}.micbar .lv i{background:#fff}
+.micbar .av{--s:46px}
+.lib{position:absolute;inset:0;z-index:18;background:var(--cream);display:flex;flex-direction:column;animation:sheetin .4s var(--spring)}
+.lib .foot{padding:10px 14px calc(12px + env(safe-area-inset-bottom,0px));background:#fff;box-shadow:0 -4px 0 var(--line)}
+@media (min-width:761px){.lib .foot{padding-bottom:24px}}
+.scrub{position:absolute;right:4px;top:120px;bottom:150px;display:flex;flex-direction:column;justify-content:space-between;font-size:11px;font-weight:700;color:var(--mute);text-align:center;width:18px}
+
+/* ---------- C: thumb deck ---------- */
+.mirror{margin:0 14px;border-radius:30px;background:var(--ink);color:#fff;padding:16px;position:relative;overflow:hidden}
+.mirror::after{content:"";position:absolute;right:-40px;top:-40px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.06)}
+.mirror .a{color:rgba(255,255,255,.7)}
+.mirror .prog{background:rgba(255,255,255,.2)}
+.dock{display:flex;gap:8px;padding:8px 14px calc(10px + env(safe-area-inset-bottom,0px));background:#fff;box-shadow:0 -4px 0 var(--line)}
+@media (min-width:761px){.dock{padding-bottom:24px}}
+.dock button{flex:1;min-height:56px;border-radius:20px;font-weight:600;font-size:16px;display:flex;align-items:center;justify-content:center;gap:6px;color:var(--mute)}
+.dock button.on{background:var(--ink);color:#fff}
+.carousel{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;padding:16px calc(50% - 105px);scrollbar-width:none}
+.carousel::-webkit-scrollbar{display:none}
+.carousel .cover{width:210px;height:210px;border-radius:40px;border-width:7px;font-size:64px;scroll-snap-align:center;transition:transform .4s var(--spring)}
+.carousel .cover:not(.sel){transform:scale(.82);opacity:.75}
+.carousel .cover.sel{animation:squish .6s var(--spring)}
+@keyframes squish{0%{transform:scale(.88,1.1)}45%{transform:scale(1.06,.94)}100%{transform:none}}
+.pocket{position:absolute;inset:0;z-index:15;background:var(--pocket);color:#fff;display:flex;flex-direction:column;padding:calc(20px + env(safe-area-inset-top,0px)) 22px calc(20px + env(safe-area-inset-bottom,0px))}
+@media (min-width:761px){.pocket{padding-top:50px;padding-bottom:30px}}
+.pocket .glow{position:absolute;left:50%;top:44%;width:320px;height:320px;margin:-160px;border-radius:50%;background:radial-gradient(circle,var(--pc),transparent 68%);opacity:calc(.25 + var(--lv,0)*.6);transition:opacity .12s;pointer-events:none}
+.pocket>*{position:relative}
+.pocket .lyric{font-size:34px;font-weight:700;line-height:1.15;text-wrap:balance}
+.pocket .lyric span{color:var(--pc)}
+.pocket .next{font-size:20px;color:rgba(255,255,255,.45);font-weight:600;margin-top:10px}
+.pocket .prog{background:rgba(255,255,255,.15)}.pocket .prog i{background:var(--pc)}
+</style>
+
+<div id="desk">
+  <aside id="panel" aria-label="Prototype controls"></aside>
+  <div id="device"><div id="app"></div></div>
+</div>
+<div id="bar"><button data-proto="prev" aria-label="Previous take">&larr;</button><span class="lbl" id="barLbl"></span><button data-proto="next" aria-label="Next take">&rarr;</button></div>
+<button id="protoBtn" data-proto="panel">PROTO <span id="protoLbl"></span></button>
+
+<script>
+/* ================= data ================= */
+const PAL=[['red','#FF4B5C'],['blue','#2EA8FF'],['green','#3DDC84'],['amber','#FFB020'],['purple','#9B5CFF'],['pink','#FF6FB5'],['teal','#12BFC4'],['orange','#FF7A1A'],['lime','#8FCB3F'],['indigo','#4F5BD5'],['brown','#B0703C'],['magenta','#C9359B']];
+const HEX=Object.fromEntries(PAL);
+const AVS={star:'M12 2l3 6.5 7 .9-5.1 4.8 1.3 7L12 17.8 5.8 21.2l1.3-7L2 9.4l7-.9z',heart:'M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z',moon:'M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z',bolt:'M13 2L4 14h7l-1 8 9-12h-7z',note:'M9 18a3 3 0 1 1-2-2.8V5l11-2v11a3 3 0 1 1-2-2.8V6.4l-7 1.3z',crown:'M3 18l-1-11 6 5 4-8 4 8 6-5-1 11z',drop:'M12 2s7 8 7 13a7 7 0 0 1-14 0c0-5 7-13 7-13z',leaf:'M20 4C9 4 4 9 4 16c0 1.5.3 3 1 4 1-5 4-8 9-10-4 3-6 6-7 10 9 1 13-7 13-16z',diamond:'M12 2l9 10-9 10-9-10z',cloud:'M7 19a5 5 0 0 1-.6-10A6 6 0 0 1 18 8.5 4.5 4.5 0 0 1 17.5 19z',flame:'M12 2c1 4 6 6 6 12a6 6 0 0 1-12 0c0-3 2-5 3-6 0 2 1 3 2 3 0-3-1-6 1-9z',ghost:'M5 21V11a7 7 0 0 1 14 0v10l-2.3-2-2.3 2-2.4-2-2.3 2-2.4-2z'};
+const PROFILES=[
+ {id:'bo',name:'Bo',av:'star',fav:'red'},{id:'sara',name:'Sara',av:'ghost',fav:'purple'},{id:'jonas',name:'Jonas',av:'bolt',fav:'green'},
+ {id:'mia',name:'Mia',av:'moon',fav:'red'},{id:'emil',name:'Emil',av:'crown',fav:'amber'},{id:'freja',name:'Freja',av:'leaf',fav:'teal'},
+ {id:'ida',name:'Ida',av:'heart',fav:'pink'},{id:'noah',name:'Noah',av:'note',fav:'indigo'}];
+const SONGS=[
+ ['africa','Africa','Toto',1982,0,'Pop rock','4:55',8120],['dq','Dancing Queen','ABBA',1976,0,'Disco','3:51',9010],
+ ['shallow','Shallow','Lady Gaga & Bradley Cooper',2018,1,'Ballad','3:36',0],['brightside','Mr. Brightside','The Killers',2004,0,'Rock','3:43',6540],
+ ['valerie','Valerie','Amy Winehouse',2007,0,'Soul','3:53',0],['islands','Islands in the Stream','Dolly Parton & Kenny Rogers',1983,1,'Country','4:10',7300],
+ ['wannabe','Wannabe','Spice Girls',1996,0,'Pop','2:53',0],['takeonme','Take On Me','a-ha',1985,0,'Synth-pop','3:46',5980],
+ ['rolling','Rolling in the Deep','Adele',2010,0,'Soul','3:48',0],['dgbmh',"Don't Go Breaking My Heart",'Elton John & Kiki Dee',1976,1,'Pop','4:33',0],
+ ['prayer',"Livin' on a Prayer",'Bon Jovi',1986,0,'Rock','4:09',7710],['eclipse','Total Eclipse of the Heart','Bonnie Tyler',1983,0,'Ballad','4:29',0],
+ ['bohemian','Bohemian Rhapsody','Queen',1975,0,'Rock','5:55',6020],['iwiitw','I Want It That Way','Backstreet Boys',1999,0,'Pop','3:33',0],
+ ['somebody','Somebody That I Used to Know','Gotye & Kimbra',2011,1,'Indie','4:04',0],['dsmn',"Don't Stop Me Now",'Queen',1978,0,'Rock','3:29',8800]
+].map(([id,title,artist,year,duet,genre,len,best],i)=>({id,title,artist,year,duet:!!duet,genre,len,best,c1:PAL[i%12][1],c2:PAL[(i*5+3)%12][1]}));
+const SONG=Object.fromEntries(SONGS.map(s=>[s.id,s]));
+const LYR=[['Sing the ','words',' that scroll'],['along the ','bottom',' of the screen'],['and hold the ','long',' notes out'],['until the ','line',' turns gold']];
+
+/* ================= state ================= */
+let S;
+const ME_PHONE='phone:me';
+function base(){
+  return {
+    variant:S?S.variant:'a', scene:'remote-library',
+    joined:true, joinVia:'qr', joinStep:null, code:'', codeBad:false, remembered:'bo',
+    pickIdx:0, guest:{name:'',color:null,av:'cloud'}, takenNote:null,
+    me:'bo',
+    members:[
+      {id:'bo',kind:'profile',color:'red',phone:true},
+      {id:'sara',kind:'profile',color:'purple',phone:true},
+      {id:'jonas',kind:'profile',color:'green',phone:true},
+      {id:'g-lukas',kind:'guest',name:'Lukas',av:'flame',color:'orange',phone:true},
+      {id:'mia',kind:'profile',color:'blue',phone:false}],
+    queue:[
+      {id:1,song:'africa',singers:['bo','mia'],by:'bo'},
+      {id:2,song:'shallow',singers:['sara','jonas'],by:'sara'},
+      {id:3,song:'brightside',singers:['g-lukas'],by:'g-lukas'},
+      {id:4,song:'dq',singers:[],by:null}],
+    stage:'lineup', /* idle | lineup | playing | paused | results */
+    lineup:[{who:'bo',mic:ME_PHONE,voice:1,diff:'Medium'},{who:'mia',mic:'local:1',voice:1,diff:'Easy'}],
+    t:0, score:0, lv:0,
+    mic:'off', /* off | needs-tap | ready | singing | lost | done */
+    micRemote:false, pocketCtl:false,
+    tab:'songs', q:'', filter:'All', sheet:null, libOpen:false, deck:'pick', sel:0,
+    nextId:5, toasts:[]
+  };
+}
+const member=id=>S.members.find(m=>m.id===id);
+function person(id){
+  const m=member(id);const p=PROFILES.find(p=>p.id===id);
+  if(m&&m.kind==='guest')return {id,name:m.name,av:m.av,color:m.color,guest:true};
+  if(p)return {id,name:p.name,av:p.av,color:m?m.color:p.fav,fav:p.fav};
+  return {id,name:'?',av:'cloud',color:'brown'};
+}
+const meP=()=>person(S.me);
+const head=()=>S.queue[0];
+const seatedMe=()=>S.lineup.some(s=>s.mic===ME_PHONE)&&['lineup','playing','paused'].includes(S.stage);
+const freeColors=()=>PAL.map(p=>p[0]).filter(c=>!S.members.some(m=>m.color===c));
+
+const SCENES=[
+ ['Join',[
+  ['join-qr','Scanned the QR, Phone remembers Bo'],['join-code','Typed the address: enter join code'],['join-who','Pick a Profile (nothing remembered)'],
+  ['join-guest','Join as a Guest'],['join-taken','Favourite colour taken (Mia)'],['join-full','Party is full'],['join-removed','Removed from the Party']]],
+ ['Remote',[
+  ['remote-library','Browse the Library'],['remote-song','Add a Request with singers'],['remote-queue','The Queue'],
+  ['remote-lineup','Line-up for the next Song'],['remote-playing','Song playing (I am not singing)'],['remote-idle','Empty Queue'],['remote-people','Party people, Leave party']]],
+ ['Mic',[
+  ['mic-turnon','Seated: tap to turn on the mic'],['mic-ready','Mic on, waiting for Start'],['mic-singing','Singing'],
+  ['mic-lost','Back after the screen locked'],['mic-done','Song over, results']]]
+];
+const VARS={a:'Tabs',b:'One scroll',c:'Thumb deck'};
+const VNOTES={
+ a:'A familiar app: four tabs at the bottom (Songs, Queue, Stage, People). Joining is a step-by-step wizard. While in the Line-up the mic takes over the whole screen in the Player colour; the Remote opens on top of it.',
+ b:'One home page ordered by urgency: what the Stage is doing now, then the Queue, then the people. A big "Add a song" button sits at thumb height and the Library search box is at the bottom of the screen. Joining is one screen. The mic is a coloured bar along the bottom; the Remote stays usable underneath.',
+ c:'Everything is in the bottom half. The top is a small mirror of the Stage; below it a cover carousel like the Stage\'s browser, and a dock (Pick, Queue, People). Joining is an avatar carousel. While singing, the Phone goes dark (pocket screen) and shows the current line; tap for controls.'
+};
+
+function preset(scene){
+  const v=S?S.variant:'a';S=base();S.variant=v;S.scene=scene;
+  const P={
+   'join-qr':()=>{P['remote-library']();S.joined=false;S.joinStep='who';S.joinVia='qr';S.members=S.members.filter(m=>m.id!=='bo');},
+   'join-code':()=>{P['remote-library']();S.joined=false;S.joinStep='code';S.joinVia='typed';S.remembered=null;S.members=S.members.filter(m=>m.id!=='bo');},
+   'join-who':()=>{P['remote-library']();S.joined=false;S.joinStep='who';S.remembered=null;S.members=S.members.filter(m=>m.id!=='bo');},
+   'join-guest':()=>{P['remote-library']();S.joined=false;S.joinStep='guest';S.remembered=null;S.members=S.members.filter(m=>m.id!=='bo');S.guest={name:'',color:freeColorsAfter(['bo'])[0],av:'cloud'};},
+   'join-taken':()=>{P['remote-library']();S.joined=false;S.joinStep='who';S.remembered='mia';S.me='mia';S.members=S.members.filter(m=>m.id!=='mia');S.members.find(m=>m.id==='bo').color='red';},
+   'join-full':()=>{P['remote-library']();S.joined=false;S.joinStep='full';S.remembered=null;},
+   'join-removed':()=>{P['remote-library']();S.joined=false;S.joinStep='removed';},
+   'remote-library':()=>{S.stage='playing';S.t=38;S.lineup=[{who:'sara',mic:'phone:sara',voice:1,diff:'Hard'},{who:'jonas',mic:'phone:jonas',voice:2,diff:'Medium'}];S.queue=[{id:9,song:'shallow',singers:['sara','jonas'],by:'sara'},{id:1,song:'africa',singers:['bo','mia'],by:'bo'},{id:3,song:'brightside',singers:['g-lukas'],by:'g-lukas'},{id:4,song:'dq',singers:[],by:null}];S.tab='songs';},
+   'remote-song':()=>{P['remote-library']();S.sheet={k:'song',song:'valerie',singers:['bo']};},
+   'remote-queue':()=>{P['remote-library']();S.tab='queue';S.deck='queue';S.queue.push({id:7,song:'takeonme',singers:['bo','g-lukas'],by:'g-lukas'});},
+   'remote-lineup':()=>{S.stage='lineup';S.queue[0]={id:1,song:'shallow',singers:['sara','jonas'],by:'sara'};S.queue[1]={id:2,song:'africa',singers:['bo','mia'],by:'bo'};S.lineup=[{who:'sara',mic:'phone:sara',voice:1,diff:'Hard'},{who:'jonas',mic:null,voice:2,diff:'Medium'}];S.tab='stage';},
+   'remote-playing':()=>{P['remote-library']();S.tab='stage';},
+   'remote-idle':()=>{S.stage='idle';S.queue=[];S.lineup=[];S.tab='stage';},
+   'remote-people':()=>{P['remote-library']();S.tab='people';S.deck='people';S.sheet=v==='b'?{k:'people'}:null;},
+   'mic-turnon':()=>{S.stage='lineup';S.mic='needs-tap';S.tab='stage';},
+   'mic-ready':()=>{S.stage='lineup';S.mic='ready';S.tab='stage';},
+   'mic-singing':()=>{S.stage='playing';S.mic='singing';S.t=72;S.score=2140;},
+   'mic-lost':()=>{S.stage='playing';S.mic='lost';S.t=131;S.score=3810;},
+   'mic-done':()=>{S.stage='results';S.mic='done';S.t=295;S.score=7460;},
+  };
+  (P[scene]||P['remote-library'])();
+  S.sel=Math.max(0,SONGS.findIndex(s=>s.id==='valerie'));
+}
+function freeColorsAfter(skip){return PAL.map(p=>p[0]).filter(c=>!S.members.some(m=>m.color===c&&!skip.includes(m.id)));}
+
+/* ================= helpers ================= */
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const glyph=n=>`<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${AVS[n]}"/></svg>`;
+const av=(p,s=44)=>`<span class="av" style="--pc:${HEX[p.color]};--s:${s}px" title="${esc(p.name)}">${glyph(p.av)}</span>`;
+const avId=(id,s)=>av(person(id),s);
+const cover=(song,s=56,fs)=>`<span class="cover" style="--c1:${song.c1};--c2:${song.c2};width:${s}px;height:${s}px;font-size:${fs||Math.round(s*.36)}px;border-radius:${Math.round(s*.28)}px">${esc(song.title.replace(/[^A-Za-z ]/g,'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join(''))}</span>`;
+const I={
+ search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',plus:'<path d="M12 5v14M5 12h14"/>',music:'<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+ list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',tv:'<rect x="3" y="5" width="18" height="12" rx="3"/><path d="M8 21h8"/>',people:'<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6"/><path d="M16 4a4 4 0 0 1 0 8M22 21c0-3-2-5-4-5.5"/>',
+ pause:'<path d="M8 5v14M16 5v14"/>',play:'<path d="M7 4l13 8-13 8z"/>',skip:'<path d="M5 4l10 8-10 8zM19 5v14"/>',restart:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',stop:'<rect x="5" y="5" width="14" height="14" rx="3"/>',
+ up:'<path d="M12 19V5M5 12l7-7 7 7"/>',down:'<path d="M12 5v14M5 12l7 7 7-7"/>',x:'<path d="M6 6l12 12M18 6L6 18"/>',chev:'<path d="M9 6l6 6-6 6"/>',back:'<path d="M15 6l-6 6 6 6"/>',
+ mic:'<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/>',phone:'<rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/>',check:'<path d="M5 12l5 5 9-10"/>',
+ lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',door:'<path d="M14 3h5v18h-5M10 8l-4 4 4 4M6 12h10"/>',edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/>',top:'<path d="M5 4h14M12 20V9M6 14l6-6 6 6"/>'
+};
+const ico=(n,cls='ico')=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
+const fmt=t=>`${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,'0')}`;
+const len=s=>{const [m,x]=s.len.split(':');return +m*60+ +x};
+const micName=m=>!m?'No mic':m===ME_PHONE?'This phone':m.startsWith('phone:')?`${person(m.slice(6)).name}'s phone`:`Local mic ${m.slice(6)}`;
+function toast(text,who){S.toasts.push({id:Math.random(),text,who});const id=S.toasts.at(-1).id;setTimeout(()=>{S.toasts=S.toasts.filter(t=>t.id!==id);drawToasts();},2600);drawToasts();}
+function drawToasts(){const el=document.getElementById('toasts');if(el)el.innerHTML=S.toasts.map(t=>`<div class="toast">${t.who?avId(t.who,24):''}${esc(t.text)}</div>`).join('');}
+const nowSong=()=>S.stage==='idle'?null:SONG[head()?.song];
+const logo=`<span class="logo"><svg viewBox="0 0 24 24"><path fill="#FFC93C" stroke="#2B2D42" stroke-width="1.6" stroke-linejoin="round" d="${AVS.star}"/></svg>OpenStar</span>`;
+const holdBtn=(act,label,icon,cls='btn')=>`<button class="${cls} hold" data-hold="${act}">${icon?ico(icon):''}${label}</button>`;
+
+/* ================= shared sheets ================= */
+function sheetSong(){
+  const sh=S.sheet,s=SONG[sh.song];
+  const opts=S.members.map(m=>{const p=person(m.id),on=sh.singers.includes(m.id);return `<button class="opt ${on?'on':''}" data-act="toggleSinger" data-arg="${m.id}">${av(p,36)}<span class="grow">${esc(p.name)}${m.id===S.me?' <span class="tag">me</span>':''}${p.guest?' <span class="tag">guest</span>':''}</span>${on?ico('check'):''}</button>`}).join('');
+  return `<div class="row" style="gap:14px">${cover(s,84)}<div class="grow"><p class="h2" style="font-size:24px">${esc(s.title)}</p><div class="a">${esc(s.artist)}</div>
+   <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap">${s.duet?'<span class="chip duet">Duet</span>':''}<span class="chip">${s.year}</span><span class="chip">${s.len}</span>${s.best?`<span class="chip best">Best ${s.best.toLocaleString('en')}</span>`:''}</div></div></div>
+   <div class="sec">Who sings it? <span style="text-transform:none;letter-spacing:0;font-weight:500">(optional${s.duet?', a duet needs two':''})</span></div>${opts}
+   <button class="btn go wide" data-act="addRequest" style="margin-top:6px">${sh.edit?"Save singers":ico("plus")+"Add to the Queue"}</button>
+   <p class="sub" style="text-align:center;margin:10px 0 0">${S.queue.length} Requests ahead</p>`;
+}
+function sheetReq(){
+  const r=S.queue.find(q=>q.id===S.sheet.id);if(!r)return '';const s=SONG[r.song],i=S.queue.indexOf(r);
+  return `<div class="row">${cover(s,56)}<div class="grow"><div class="t ell">${esc(s.title)}</div><div class="a ell">${esc(s.artist)}</div></div></div>
+  <div class="sec">${i===0?'Up next on the Stage':`Number ${i+1} in the Queue`}</div>
+  ${i>1?`<button class="opt" data-act="reqMove" data-arg="top">${ico('top')}Play next</button>`:''}
+  ${i>1?`<button class="opt" data-act="reqMove" data-arg="up">${ico('up')}Move up</button>`:''}
+  ${i>0&&i<S.queue.length-1?`<button class="opt" data-act="reqMove" data-arg="down">${ico('down')}Move down</button>`:''}
+  <button class="opt" data-act="reqSingers">${ico('people')}Change singers</button>
+  ${i===0&&S.stage!=='lineup'?'':`<button class="opt" data-act="reqRemove" style="color:var(--red)">${ico('x')}Remove from the Queue</button>`}
+  ${i===0&&S.stage!=='lineup'?'<p class="sub">It is playing now. Use Skip or End on the Stage controls.</p>':''}`;
+}
+function sheetSlot(){
+  const i=S.sheet.i,sl=S.lineup[i],s=nowSong();
+  const usedMic=S.lineup.filter((x,j)=>j!==i).map(x=>x.mic);
+  const mics=[...S.members.filter(m=>m.phone).map(m=>m.id==='bo'||m.id===S.me?ME_PHONE:'phone:'+m.id),'local:1','local:2'];
+  return `<div class="row">${avId(sl.who,52)}<div class="grow"><div class="h2">${esc(person(sl.who).name)}</div><div class="a">Seat ${i+1} for ${esc(s.title)}</div></div></div>
+   <div class="sec">Who</div><div class="row" style="flex-wrap:wrap;gap:8px">${S.members.map(m=>`<button data-act="slotWho" data-arg="${m.id}" style="border-radius:50%;${m.id===sl.who?'outline:3px solid var(--ink);outline-offset:2px':''}">${avId(m.id,46)}</button>`).join('')}</div>
+   <div class="sec">Mic</div>${mics.map(m=>`<button class="opt ${m===sl.mic?'on':''} ${usedMic.includes(m)?'off':''}" data-act="slotMic" data-arg="${m}">${ico(m.startsWith('local')?'mic':'phone')}<span class="grow">${micName(m)}</span>${usedMic.includes(m)?'<span class="tag">in use</span>':''}</button>`).join('')}
+   ${s.duet?`<div class="sec">Voice</div><div class="seg">${[1,2].map(v=>`<button class="${sl.voice===v?'on':''}" data-act="slotVoice" data-arg="${v}">Voice ${v}</button>`).join('')}</div>`:''}
+   <div class="sec">Difficulty</div><div class="seg">${['Easy','Medium','Hard'].map(d=>`<button class="${sl.diff===d?'on':''}" data-act="slotDiff" data-arg="${d}">${d}</button>`).join('')}</div>
+   <button class="btn wide" style="margin-top:18px;color:var(--red)" data-act="slotRemove">Take ${esc(person(sl.who).name)} off this Song</button>`;
+}
+function sheetPeople(){
+  const seated=S.lineup.map(l=>l.who);
+  return `<div class="h2">Party people <span class="sub">${S.members.length} of 12</span></div><p class="sub" style="margin:4px 0 12px">Removing someone frees their colour. Join code <b>4821</b>.</p>
+  ${S.members.map(m=>{const p=person(m.id);const inL=seated.includes(m.id)&&S.stage!=='idle';return `<div class="opt">${av(p,40)}<span class="grow">${esc(p.name)} ${m.id===S.me?'<span class="tag">me</span>':''}${p.guest?'<span class="tag">guest</span>':''}<br><span class="sub">${m.phone?'On a Phone':'Local mic only'}${p.fav&&p.fav!==p.color?` · favourite ${p.fav} is taken`:''}</span></span>${m.id===S.me?'':inL?'<span class="tag">singing</span>':`<button class="round" style="width:40px;height:40px" data-act="removeMember" data-arg="${m.id}" aria-label="Remove ${esc(p.name)}">${ico('x')}</button>`}</div>`}).join('')}
+  <button class="btn wide" style="margin-top:8px" data-act="leave">${ico('door')}Leave party</button>`;
+}
+function sheetMe(){
+  const p=meP();
+  return `<div class="row">${av(p,64)}<div class="grow"><div class="h2" style="font-size:26px">${esc(p.name)}</div><div class="a">${p.guest?'Guest for tonight':'Profile'} · ${p.color}</div></div></div>
+  <div class="sec">My Difficulty for the next Song</div><div class="seg">${['Easy','Medium','Hard'].map(d=>`<button class="${d==='Medium'?'on':''}">${d}</button>`).join('')}</div>
+  <div class="sec">This phone</div>
+  <button class="opt" data-act="switchMe">${ico('people')}Someone else is using this phone</button>
+  <button class="opt" data-act="editMe">${ico('edit')}Change name, look or colour</button>
+  <button class="opt" data-act="leave">${ico('door')}Leave party</button>`;
+}
+function sheets(){
+  if(!S.sheet)return '';
+  const k=S.sheet.k;
+  const body=k==='song'?sheetSong():k==='req'?sheetReq():k==='slot'?sheetSlot():k==='people'?sheetPeople():k==='me'?sheetMe():k==='confirm'?sheetConfirm():'';
+  return `<div class="veil" data-act="closeSheet"></div><div class="sheet" role="dialog"><div class="grab"></div><div class="body" data-scroll="sheet">${body}</div></div>`;
+}
+function sheetConfirm(){const a=S.sheet.a;const L={skip:'Skip this Song?',end:'End this Song now?',restart:'Restart from the top?'};const D={skip:'No results. The next Request comes up.',end:'Results show, marked unfinished. No high scores.',restart:'Scores start again from zero.'};
+ return `<div class="h2" style="font-size:24px">${L[a]}</div><p class="muted">${D[a]}</p><div class="row" style="gap:10px;margin-top:14px"><button class="btn grow" data-act="closeSheet">Cancel</button><button class="btn red grow" data-act="ctl" data-arg="${a}">${a[0].toUpperCase()+a.slice(1)}</button></div>`;}
+
+/* ================= shared blocks ================= */
+function lineupBlock(dark){
+  const s=nowSong();if(!s)return '';
+  const need1=s.duet&&!S.lineup.some(l=>l.voice===1),need2=s.duet&&!S.lineup.some(l=>l.voice===2);
+  const noMic=S.lineup.some(l=>!l.mic);
+  const can=S.lineup.length&&!need1&&!need2&&!noMic;
+  return `${S.lineup.map((l,i)=>{const p=person(l.who);return `<button class="slot" ${dark?'':'style="background:#fff;box-shadow:0 4px 0 var(--ledge)"'} data-act="openSlot" data-arg="${i}">${av(p,42)}<span class="grow"><span class="t">${esc(p.name)}</span><br><span class="a" ${dark?'style="color:rgba(255,255,255,.7)"':''}>${l.mic?micName(l.mic):''}${s.duet?` · Voice ${l.voice}`:''} · ${l.diff}</span></span>${!l.mic?'<span class="tag warn">no mic</span>':''}${ico('chev')}</button>`}).join('')}
+   ${S.lineup.length<4?`<button class="slot" style="justify-content:center;${dark?'':'background:#fff;box-shadow:0 4px 0 var(--ledge)'}" data-act="addSeat">${ico('plus')}Add a singer</button>`:''}
+   ${need1||need2?`<p class="sub" style="color:${dark?'#FFC93C':'#B3192B'}">A duet needs someone on Voice ${need1?1:2}.</p>`:''}
+   ${noMic?`<p class="sub" style="color:${dark?'#FFC93C':'#B3192B'}">${esc(person(S.lineup.find(l=>!l.mic).who).name)} has no mic. Tap to pick one.</p>`:''}
+   <button class="btn go wide ${can?'breathe':''}" data-act="start" ${can?'':'disabled'}>${ico('play')}Start</button>`;
+}
+function controls(){
+  const p=S.stage==='paused';
+  return `<div class="ctl">
+   <button class="big" data-act="ctl" data-arg="${p?'resume':'pause'}">${ico(p?'play':'pause')}${p?'Resume':'Pause'}</button>
+   ${['restart','skip','end'].map(a=>`<button class="hold" data-hold="ctl:${a}">${ico(a==='end'?'stop':a)}${a[0].toUpperCase()+a.slice(1)}</button>`).join('')}
+  </div><p class="holdhint" style="color:rgba(255,255,255,.6)">Hold Restart, Skip or End for a moment</p>`;
+}
+function nowCard(){
+  const s=nowSong();
+  if(S.stage==='idle')return `<div class="now"><div class="h2" style="font-size:24px">The Stage is waiting</div><p class="a" style="margin:6px 0 14px">The Queue is empty. Pick a song.</p></div>`;
+  if(S.stage==='results')return `<div class="now"><div class="sub" style="color:rgba(255,255,255,.7)">Results on the Stage</div><div class="h2" style="font-size:24px">${esc(s.title)}</div><button class="btn wide" style="margin-top:14px" data-act="nextUp">Next Song</button></div>`;
+  if(S.stage==='lineup')return `<div class="now"><div class="row">${cover(s,52)}<div class="grow"><div class="sub" style="color:var(--yellow)">Up next: who sings?</div><div class="t ell">${esc(s.title)}</div><div class="a ell">${esc(s.artist)}</div></div></div><div style="margin-top:14px">${lineupBlock(true)}</div></div>`;
+  return `<div class="now"><div class="row">${cover(s,52)}<div class="grow"><div class="sub" style="color:var(--green)">${S.stage==='paused'?'Paused':'Playing now'}</div><div class="t ell">${esc(s.title)}</div><div class="a ell">${S.lineup.map(l=>esc(person(l.who).name)).join(' & ')}</div></div><div class="avs">${S.lineup.map(l=>avId(l.who,32)).join('')}</div></div>
+   <div class="row" style="margin:14px 0 4px;gap:10px"><span class="sub js-time" style="color:rgba(255,255,255,.7)">${fmt(S.t)}</span><div class="prog grow"><i class="js-prog" style="width:${S.t/len(s)*100}%"></i></div><span class="sub" style="color:rgba(255,255,255,.7)">${s.len}</span></div>
+   <div style="margin-top:10px">${controls()}</div></div>`;
+}
+function songRow(s){
+  return `<div class="lrow">${cover(s,56)}<button class="grow" style="text-align:left;min-width:0" data-act="openSong" data-arg="${s.id}"><div class="t ell">${esc(s.title)}</div><div class="a ell">${esc(s.artist)}</div><div class="row" style="gap:6px;margin-top:4px">${s.duet?'<span class="tag" style="background:var(--purple);color:#fff">Duet</span>':''}<span class="tag">${s.year}</span>${s.best?`<span class="tag" style="background:var(--yellow);color:var(--ink)">${s.best.toLocaleString('en')}</span>`:''}</div></button><button class="round go" data-act="quickAdd" data-arg="${s.id}" aria-label="Add ${esc(s.title)}">${ico('plus')}</button></div>`;
+}
+function filtered(){
+  const q=S.q.trim().toLowerCase();
+  return SONGS.filter(s=>(!q||(s.title+' '+s.artist).toLowerCase().includes(q))&&(S.filter==='All'||(S.filter==='Duets'&&s.duet)||(S.filter==='Never sung'&&!s.best)||(S.filter==='80s'&&s.year>=1980&&s.year<1990)||(S.filter==='Rock'&&s.genre==='Rock')));
+}
+const filterChips=()=>`<div class="chips">${['All','Duets','Never sung','80s','Rock'].map(f=>`<button class="chip ${S.filter===f?'on':''}" data-act="filter" data-arg="${f}">${f}</button>`).join('')}</div>`;
+function qRow(r,i){
+  const s=SONG[r.song];
+  return `<button class="qcard ${i===0?'head':''}" data-act="openReq" data-arg="${r.id}"><span class="qnum">${i+1}</span>${cover(s,52)}<span class="grow"><span class="t ell" style="display:block">${esc(s.title)}</span><span class="a ell" style="display:block">${r.singers.length?r.singers.map(x=>esc(person(x).name)).join(', '):'Anyone'}${r.by?` · added by ${esc(person(r.by).name)}`:' · from the Stage'}</span></span><span class="avs">${r.singers.slice(0,3).map(x=>avId(x,28)).join('')}</span></button>`;
+}
+const queueList=()=>S.queue.length?S.queue.map(qRow).join(''):`<div class="card" style="text-align:center"><div class="h2">Nothing queued</div><p class="muted">Add a song and it shows up on the Stage.</p></div>`;
+
+/* ================= JOIN ================= */
+function numpad(){
+  const code=S.code.padEnd(4,' ').split('');
+  return `<div class="code ${S.codeBad?'bad':''}">${code.map((c,i)=>`<b class="${i===S.code.length?'cur':''}">${c.trim()}</b>`).join('')}</div>
+  ${S.codeBad?'<p style="text-align:center;color:#B3192B;font-weight:600">That code is not on the Stage. Check the corner of the TV.</p>':''}
+  <div class="pad3" style="margin-top:18px">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-act="digit" data-arg="${n}">${n}</button>`).join('')}<span></span><button data-act="digit" data-arg="0">0</button><button data-act="digit" data-arg="del" aria-label="Delete">${ico('back')}</button></div>`;
+}
+function guestForm(){
+  const g=S.guest,free=freeColorsAfter(['bo']);
+  return `<input class="field" id="guestName" placeholder="Your name for tonight" value="${esc(g.name)}" maxlength="16" autocomplete="off">
+   <div class="sec">Colour <span style="text-transform:none;letter-spacing:0;font-weight:500">(crossed out ones are taken tonight)</span></div>
+   <div class="cgrid">${PAL.map(([n,h])=>`<button class="cdot ${g.color===n?'on':''} ${free.includes(n)?'':'taken'}" style="--pc:${h}" ${free.includes(n)?`data-act="gColor" data-arg="${n}"`:'disabled'} aria-label="${n}"></button>`).join('')}</div>
+   <div class="sec">Picture</div>
+   <div class="agrid" style="--pc:${HEX[g.color]||'#999'}">${Object.keys(AVS).map(a=>`<button class="${g.av===a?'on':''}" data-act="gAv" data-arg="${a}" aria-label="${a}">${glyph(a)}</button>`).join('')}</div>`;
+}
+const guestWarn=()=>{const n=S.guest.name.trim().toLowerCase();if(!n)return '';const p=PROFILES.find(p=>p.name.toLowerCase()===n);if(p)return `<div class="card" style="margin-top:12px;display:flex;gap:10px;align-items:center">${av({...p,color:p.fav},40)}<span class="grow"><b>Are you ${esc(p.name)}?</b><br><span class="sub">That name belongs to a Profile.</span></span><button class="btn sm blue" data-act="pickProfile" data-arg="${p.id}">Yes</button></div>`;if(S.members.some(m=>m.kind==='guest'&&m.name.toLowerCase()===n))return '<p style="color:#B3192B;font-weight:600">Someone already has that name tonight.</p>';return '';};
+function joinFull(){return `<div class="scr"><div class="top">${logo}</div><div class="scroll pad" style="display:flex;flex-direction:column;justify-content:center;text-align:center;gap:12px">
+  <div class="avs" style="justify-content:center">${S.members.slice(0,5).map(m=>avId(m.id,54)).join('')}</div><p class="h1">The Party is full</p>
+  <p class="muted">All 12 colours are taken tonight. Someone who is done singing can tap <b>Leave party</b> on their phone, or be removed from the Party people list.</p>
+  <button class="btn blue" data-act="retryFull">Try again</button></div></div>`;}
+function joinRemoved(){return `<div class="scr"><div class="top">${logo}</div><div class="scroll pad" style="display:flex;flex-direction:column;justify-content:center;text-align:center;gap:12px">
+  <p class="h1">You left the Party</p><p class="muted">Someone removed this phone from the Party, so your colour went back to the pool. You need the join code to come back.</p>
+  <button class="btn blue" data-act="toCode">Join again</button></div></div>`;}
+function takenNote(){const t=S.takenNote;if(!t)return '';return `<div class="scr"><div class="scroll pad" style="display:flex;flex-direction:column;justify-content:center;text-align:center;gap:14px;align-items:center">
+  ${avId(S.me,120)}<p class="h1">You're ${t.got} tonight</p><p class="muted" style="max-width:300px">${esc(person(t.holder).name)} already has ${t.fav}, your usual colour. You get it back at the next Party.</p>
+  <button class="btn go wide" data-act="takenOk">Let's go</button><button class="btn sm" data-act="editMe">Pick another colour</button></div></div>`;}
+
+function joinA(){
+  const st=S.joinStep;
+  if(st==='full')return joinFull();if(st==='removed')return joinRemoved();if(st==='taken')return takenNote();
+  if(st==='code')return `<div class="scr"><div class="top">${logo}</div><div class="scroll pad"><p class="h1" style="margin-top:10px">Join the Party</p><p class="muted">Type the 4 numbers shown on the Stage, under the QR code.</p><div style="margin-top:24px">${numpad()}</div></div></div>`;
+  if(st==='guest')return `<div class="scr"><div class="top"><button class="round" data-act="joinBack" aria-label="Back">${ico('back')}</button><span class="h2">New Guest</span></div><div class="scroll pad" data-scroll="guest">${guestForm()}${guestWarn()}<div style="height:90px"></div></div><div class="pad" style="padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));padding-top:10px"><button class="btn go wide" data-act="joinGuest">Join as ${esc(S.guest.name.trim()||'Guest')}</button></div></div>`;
+  // who
+  const rem=S.remembered&&PROFILES.find(p=>p.id===S.remembered);
+  if(rem&&!S.showAll)return `<div class="scr"><div class="top">${logo}</div><div class="scroll pad" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:10px">
+   <p class="sub">Joining the Party · 4821</p>${av({...rem,color:rem.fav},150)}<p class="h1">Hi ${esc(rem.name)}!</p><p class="muted">This phone remembers you.</p></div>
+   <div class="pad" style="display:flex;flex-direction:column;gap:12px;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))"><button class="btn go wide breathe" data-act="pickProfile" data-arg="${rem.id}">I'm ${esc(rem.name)}</button><button class="btn wide" data-act="showAll">Someone else</button></div></div>`;
+  return `<div class="scr"><div class="top">${logo}</div><div class="scroll pad" data-scroll="who"><p class="h1">Who's singing?</p><p class="muted">Tap your Profile. You can change it later.</p>
+   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px">${PROFILES.map(p=>{const m=member(p.id);const col=m?m.color:p.fav;return `<button data-act="pickProfile" data-arg="${p.id}" style="display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:600">${av({...p,color:col},78)}${esc(p.name)}${m?'<span class="tag">here</span>':''}</button>`}).join('')}</div>
+   <div style="height:100px"></div></div><div class="pad" style="padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-top:8px"><button class="btn wide" data-act="toGuest">${ico('plus')}I'm a Guest</button></div></div>`;
+}
+function joinB(){
+  const st=S.joinStep;
+  if(st==='full')return joinFull();if(st==='removed')return joinRemoved();
+  const rem=S.remembered&&PROFILES.find(p=>p.id===S.remembered);
+  const codeOk=S.joinVia==='qr'||S.code.length===4&&!S.codeBad;
+  const row=p=>{const m=member(p.id);const col=m?m.color:p.fav;return `<button class="opt" data-act="pickProfile" data-arg="${p.id}" ${codeOk?'':'disabled style="opacity:.4"'}>${av({...p,color:col},44)}<span class="grow">${esc(p.name)}${p.id===S.remembered?' <span class="tag">this phone</span>':''}${m?' <span class="tag">here</span>':''}</span>${ico('chev')}</button>`};
+  return `<div class="scr"><div class="top">${logo}<span class="grow"></span>${S.joinVia==='qr'?'<span class="chip">Party 4821</span>':''}</div><div class="scroll pad" data-scroll="joinb">
+   ${S.joinVia==='typed'?`<div class="card" style="margin-bottom:14px"><label class="t" for="codeIn">Join code from the Stage</label><input class="field" id="codeIn" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4 numbers" value="${esc(S.code)}" style="margin-top:8px;font-size:28px;letter-spacing:.3em;text-align:center">${S.codeBad?'<p style="color:#B3192B;font-weight:600;margin:8px 0 0">That code is not on the Stage.</p>':''}</div>`:''}
+   <p class="h1">Who's singing?</p>
+   ${rem?`<div class="sec">This phone</div>${row(rem)}`:''}
+   <div class="sec">Profiles</div>${PROFILES.filter(p=>p.id!==S.remembered).map(row).join('')}
+   <div class="sec">New tonight</div>
+   ${st==='guest'?`<div class="card">${guestForm()}${guestWarn()}<button class="btn go wide" style="margin-top:16px" data-act="joinGuest">Join as ${esc(S.guest.name.trim()||'Guest')}</button></div>`:`<button class="opt" data-act="toGuest" ${codeOk?'':'disabled style="opacity:.4"'}>${ico('plus')}<span class="grow">Join as a Guest</span>${ico('chev')}</button>`}
+   <div style="height:30px"></div></div></div>`;
+}
+function joinC(){
+  const st=S.joinStep;
+  if(st==='full')return joinFull();if(st==='removed')return joinRemoved();if(st==='taken')return takenNote();
+  if(st==='code')return `<div class="scr"><div class="top">${logo}</div><div class="scroll pad" style="display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))"><p class="h1" style="text-align:center">Code on the Stage</p><p class="muted" style="text-align:center">Under the QR code, bottom right of the TV.</p><div style="margin-top:18px">${numpad()}</div></div></div>`;
+  if(st==='guest')return `<div class="scr"><div class="top"><button class="round" data-act="joinBack" aria-label="Back">${ico('back')}</button><span class="h2">New Guest</span></div><div class="scroll pad" data-scroll="guest">${guestForm()}${guestWarn()}<div style="height:20px"></div></div><div class="pad" style="padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));padding-top:10px"><button class="btn go wide" data-act="joinGuest">Join as ${esc(S.guest.name.trim()||'Guest')}</button></div></div>`;
+  const list=[...PROFILES].sort((a,b)=>(b.id===S.remembered)-(a.id===S.remembered));
+  const cards=list.map((p,i)=>{const m=member(p.id);const col=m?m.color:p.fav;return `<div data-idx="${i}" style="flex:none;width:210px;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;${i===S.pickIdx?'':'opacity:.55;transform:scale(.85)'};transition:transform .35s var(--spring)">${av({...p,color:col},190)}<span class="h2" style="font-size:26px">${esc(p.name)}</span>${p.id===S.remembered?'<span class="tag">this phone</span>':m?'<span class="tag">here</span>':'<span class="tag" style="visibility:hidden">.</span>'}</div>`}).join('');
+  const guestCard=`<div data-idx="${list.length}" style="flex:none;width:210px;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;${S.pickIdx===list.length?'':'opacity:.55;transform:scale(.85)'}"><span class="av" style="--pc:#cfd0dc;--s:190px">${ico('plus')}</span><span class="h2" style="font-size:26px">Guest</span><span class="tag">new tonight</span></div>`;
+  const cur=list[S.pickIdx];
+  return `<div class="scr"><div class="top">${logo}<span class="grow"></span><span class="chip">Party 4821</span></div>
+   <div class="scroll" style="display:flex;flex-direction:column;justify-content:center"><p class="h1" style="text-align:center">Who's singing?</p><p class="muted" style="text-align:center;margin-top:4px">Swipe to find yourself</p>
+   <div class="carousel" id="pickCar" style="padding-inline:calc(50% - 105px)">${cards}${guestCard}</div></div>
+   <div class="pad" style="padding-bottom:calc(18px + env(safe-area-inset-bottom,0px));padding-top:8px">${cur?`<button class="btn go wide breathe" data-act="pickProfile" data-arg="${cur.id}">That's me, ${esc(cur.name)}</button>`:`<button class="btn blue wide" data-act="toGuest">Join as a Guest</button>`}</div></div>`;
+}
+
+/* ================= REMOTE A: tabs ================= */
+function remoteA(){
+  const p=meP();
+  const t=S.tab;
+  let body='';
+  if(t==='songs')body=`<div class="pad" style="padding-top:4px"><div class="search">${ico('search')}<input id="q" placeholder="Search songs or artists" value="${esc(S.q)}" autocomplete="off"></div></div>${filterChips()}<div class="pad" id="songlist">${filtered().map(songRow).join('')||'<p class="muted">No songs match.</p>'}</div>`;
+  if(t==='queue')body=`<div class="pad"><p class="h1" style="margin-bottom:12px">Queue</p>${queueList()}<p class="sub">Tap a Request to move it, change singers or remove it. Anyone can.</p></div>`;
+  if(t==='stage')body=`<div class="pad"><p class="h1" style="margin-bottom:12px">On the Stage</p>${nowCard()}</div>`;
+  if(t==='people')body=`<div class="pad">${sheetPeople()}</div>`;
+  const s=nowSong();
+  const mini=(S.stage==='playing'||S.stage==='paused')&&t!=='stage'?`<div class="mini"><button class="row grow" style="min-width:0;color:#fff;text-align:left" data-act="tab" data-arg="stage">${cover(s,38)}<span class="grow ell" style="min-width:0"><span class="t ell" style="display:block;font-size:15px">${esc(s.title)}</span><span class="sub ell" style="display:block;color:rgba(255,255,255,.6)">${S.lineup.map(l=>esc(person(l.who).name)).join(' & ')}</span></span></button><button class="round" data-act="ctl" data-arg="${S.stage==='paused'?'resume':'pause'}" aria-label="Pause or resume">${ico(S.stage==='paused'?'play':'pause')}</button></div>`
+    :S.stage==='lineup'&&t!=='stage'?`<button class="mini" style="width:calc(100% - 20px);text-align:left" data-act="tab" data-arg="stage">${cover(s,38)}<span class="grow"><span class="t" style="display:block;font-size:15px">Line-up for ${esc(s.title)}</span><span class="sub" style="color:var(--yellow)">Waiting for Start</span></span>${ico('chev')}</button>`:'';
+  const tabs=[['songs','Songs','music'],['queue','Queue','list'],['stage','Stage','tv'],['people','People','people']];
+  return `<div class="scr"><div class="top">${logo}<span class="grow"></span><button data-act="openMe" aria-label="Me">${av(p,40)}</button></div>
+   <div class="scroll" data-scroll="a-${t}">${body}<div style="height:16px"></div></div>${mini}
+   <nav class="tabbar">${tabs.map(([k,l,i])=>`<button class="${t===k?'on':''}" data-act="tab" data-arg="${k}">${ico(i)}${l}${k==='queue'&&S.queue.length?`<span class="badge">${S.queue.length}</span>`:''}</button>`).join('')}</nav></div>`;
+}
+function micA(){
+  const p=meP(),sl=S.lineup.find(l=>l.mic===ME_PHONE),s=nowSong();
+  const st=S.mic;
+  let mid='',btm='';
+  if(st==='needs-tap'){mid=`<p class="h1">You're up, ${esc(p.name)}!</p><p class="note" style="margin-top:8px">${esc(s.title)} is next. This phone is your mic.</p>`;btm=`<button class="btn wide breathe" style="min-height:72px;font-size:22px" data-act="micOn">${ico('mic')}Turn on my mic</button><p class="note" style="margin-top:10px;font-size:13px">Your phone asks for the microphone once.</p>`;}
+  if(st==='ready'){mid=`<p class="h1">Mic is on</p><p class="note" style="margin-top:6px">Sing a note to check. Keep this screen open while you sing.</p><div class="lv" style="width:220px;margin-top:14px;background:rgba(255,255,255,.3)"><i class="js-lv" style="background:#fff"></i></div>`;btm=`<button class="btn go wide" style="color:#fff" data-act="start">${ico('play')}Start ${esc(s.title)}</button>`;}
+  if(st==='singing'){mid=`<p class="h1">Sing it!</p><p class="note" style="margin-top:4px">${esc(s.title)}</p><div class="sc js-score" style="font-size:48px;font-weight:700;margin-top:6px">${S.score.toLocaleString('en')}</div><div class="row" style="width:100%;gap:10px;margin-top:10px"><span class="js-time">${fmt(S.t)}</span><div class="prog grow"><i class="js-prog" style="width:${S.t/len(s)*100}%"></i></div><span>${s.len}</span></div><p class="note" style="margin-top:12px;font-size:13px">${ico('lock')} Screen stays on while you sing</p>`;btm='';}
+  if(st==='lost'){mid=`<p class="h1">Your mic stopped</p><p class="note" style="margin-top:8px">The phone locked, so the song kept going without you. Tap to sing the rest.</p>`;btm=`<button class="btn wide breathe" style="min-height:72px;font-size:22px" data-act="micBack">${ico('mic')}Sing again</button>`;}
+  if(st==='done'){mid=`<p class="sub" style="color:rgba(255,255,255,.85)">${esc(s.title)}</p><div style="font-size:64px;font-weight:700;line-height:1">${S.score.toLocaleString('en')}</div><p class="h1" style="font-size:26px">Superstar</p><span class="chip" style="background:var(--yellow);margin-top:8px">New high score!</span>`;btm=`<button class="btn wide" data-act="micDone">Done</button>`;}
+  return `<div class="mic" style="--pc:${HEX[p.color]}">
+   <div class="wpill"><span class="chip">${ico('mic')} Mic · ${esc(p.name)}</span>${sl?`<span class="chip">${s.duet?`Voice ${sl.voice} · `:''}${sl.diff}</span>`:''}</div>
+   <div class="ring js-ring">${av(p,150)}</div>${mid}<div style="flex:1"></div>
+   <div style="width:100%;display:flex;flex-direction:column;gap:10px">${btm}<button class="btn sm" style="align-self:center;background:rgba(255,255,255,.22);color:#fff;box-shadow:none" data-act="micRemote">${ico('list')}Queue &amp; controls</button></div></div>`;
+}
+
+/* ================= REMOTE B: one scroll ================= */
+function remoteB(){
+  const p=meP(),seated=seatedMe()||S.mic==='done';
+  const peopleRow=`<button class="card row" style="width:100%;text-align:left" data-act="openPeople"><span class="avs">${S.members.map(m=>avId(m.id,36)).join('')}</span><span class="grow sub">${S.members.length} of 12 here</span>${ico('chev')}</button>`;
+  const home=`<div class="pad">${nowCard()}
+   <div class="sec">Queue · ${S.queue.length}</div>${queueList()}
+   <div class="sec">Party people</div>${peopleRow}<div style="height:${seated?150:120}px"></div></div>`;
+  const lib=S.libOpen?`<div class="lib"><div class="top"><button class="round" data-act="closeLib" aria-label="Close">${ico('x')}</button><span class="h2">Add a song</span></div>
+   <div class="scroll pad" data-scroll="libb" style="padding-right:28px">${filtered().map(songRow).join('')||'<p class="muted">No songs match.</p>'}</div>
+   <div class="scrub" aria-hidden="true">${'ABCDEFGHIKLMNOPRSTW'.split('').map(c=>`<span>${c}</span>`).join('')}</div>
+   <div class="foot"><div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none">${['All','Duets','Never sung','80s','Rock'].map(f=>`<button class="chip ${S.filter===f?'on':''}" data-act="filter" data-arg="${f}">${f}</button>`).join('')}</div><div class="search">${ico('search')}<input id="q" placeholder="Search songs or artists" value="${esc(S.q)}" autocomplete="off"></div></div></div>`:'';
+  const bar=seated?micBarB():`<div class="fab"><button class="btn" data-act="openLib">${ico('plus')}Add a song</button></div>`;
+  return `<div class="scr"><div class="top">${logo}<span class="grow"></span>${seated?`<button class="round" data-act="openLib" aria-label="Add a song">${ico('plus')}</button>`:''}<button data-act="openMe" aria-label="Me">${av(p,40)}</button></div>
+   <div class="scroll" data-scroll="b-home">${home}</div>${bar}${lib}</div>`;
+}
+function micBarB(){
+  const p=meP(),st=S.mic,s=nowSong(),sl=S.lineup.find(l=>l.mic===ME_PHONE);
+  if(st==='needs-tap')return `<button class="micbar slideup" style="--pc:${HEX[p.color]};justify-content:center;min-height:76px;font-size:21px;font-weight:700" data-act="micOn">${ico('mic')} You're up! Turn on my mic</button>`;
+  if(st==='lost')return `<button class="micbar slideup" style="--pc:${HEX[p.color]};min-height:76px" data-act="micBack">${av(p,46)}<span class="grow"><b style="font-size:18px">Your mic stopped</b><br><span style="font-size:14px;opacity:.9">The phone locked. Tap to sing again.</span></span>${ico('mic')}</button>`;
+  if(st==='done')return `<div class="micbar slideup" style="--pc:${HEX[p.color]}">${av(p,46)}<span class="grow"><b style="font-size:24px">${S.score.toLocaleString('en')}</b> · Superstar<br><span style="font-size:13px">New high score on ${esc(s.title)}</span></span><button class="btn sm" style="color:var(--ink)" data-act="micDone">OK</button></div>`;
+  return `<div class="micbar" style="--pc:${HEX[p.color]}">${av(p,46)}<div class="grow" style="min-width:0"><div style="display:flex;justify-content:space-between;font-weight:600;font-size:15px"><span>${st==='singing'?'Singing · <span class="js-score">'+S.score.toLocaleString('en')+'</span>':'Mic on · waiting for Start'}</span><span>${sl?sl.diff:''}</span></div><div class="lv" style="margin-top:6px"><i class="js-lv"></i></div><div style="font-size:12px;opacity:.85;margin-top:4px">${ico('lock','ico')} Keep this page open, screen stays on</div></div></div>`;
+}
+
+/* ================= REMOTE C: thumb deck ================= */
+function mirrorC(){
+  const s=nowSong();
+  if(S.stage==='idle')return `<div class="mirror"><div class="sub" style="color:rgba(255,255,255,.6)">On the Stage</div><div class="h2" style="font-size:22px">Waiting for a song</div></div>`;
+  if(S.stage==='lineup'){return `<div class="mirror"><div class="row">${cover(s,46)}<div class="grow"><div class="sub" style="color:var(--yellow)">Line-up · waiting for Start</div><div class="t ell">${esc(s.title)}</div></div></div>
+    <div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap">${S.lineup.map((l,i)=>`<button class="chip" style="${l.mic?'':'box-shadow:0 0 0 2px var(--red)'}" data-act="openSlot" data-arg="${i}">${avId(l.who,24)}${esc(person(l.who).name)}${s.duet?` · V${l.voice}`:''}</button>`).join('')}${S.lineup.length<4?`<button class="chip" data-act="addSeat">${ico('plus')}</button>`:''}</div>
+    <button class="btn go wide" style="margin-top:12px;min-height:50px" data-act="start" ${S.lineup.every(l=>l.mic)?'':'disabled'}>${ico('play')}Start</button></div>`;}
+  if(S.stage==='results')return `<div class="mirror"><div class="sub" style="color:rgba(255,255,255,.6)">Results on the Stage</div><div class="row"><div class="t grow">${esc(s.title)}</div><button class="btn sm" style="color:var(--ink)" data-act="nextUp">Next</button></div></div>`;
+  const p=S.stage==='paused';
+  return `<div class="mirror"><div class="row">${cover(s,46)}<div class="grow"><div class="sub" style="color:var(--green)">${p?'Paused':'Playing'}</div><div class="t ell">${esc(s.title)}</div></div><span class="avs">${S.lineup.map(l=>avId(l.who,28)).join('')}</span></div>
+   <div class="prog" style="margin:12px 0"><i class="js-prog" style="width:${S.t/len(s)*100}%"></i></div>
+   <div class="row" style="gap:8px"><button class="round" style="color:var(--ink)" data-act="ctl" data-arg="${p?'resume':'pause'}" aria-label="Pause or resume">${ico(p?'play':'pause')}</button>${['restart','skip','end'].map(a=>`<button class="chip hold grow" style="justify-content:center;min-height:44px;background:rgba(255,255,255,.12);color:#fff;box-shadow:none" data-hold="ctl:${a}">${a[0].toUpperCase()+a.slice(1)}</button>`).join('')}</div><p class="holdhint" style="color:rgba(255,255,255,.5)">hold to confirm</p></div>`;
+}
+function remoteC(){
+  const p=meP(),d=S.deck;let body='';
+  if(d==='pick'){const list=filtered();const s=list[Math.min(S.sel,list.length-1)]||list[0];
+   body=`${filterChips()}<div class="carousel" id="car">${list.map((x,i)=>cover(x,210,64).replace('class="cover"',`class="cover ${x===s?'sel':''}" data-i="${i}"`)).join('')}</div>
+   ${s?`<div class="pad" style="text-align:center"><div class="h2" style="font-size:24px">${esc(s.title)}</div><div class="a">${esc(s.artist)}</div><div class="row" style="gap:6px;justify-content:center;margin:10px 0 14px;flex-wrap:wrap">${s.duet?'<span class="chip duet">Duet</span>':''}<span class="chip">${s.year}</span><span class="chip">${s.len}</span>${s.best?`<span class="chip best">Best ${s.best.toLocaleString('en')}</span>`:''}</div>
+   <div class="row" style="gap:10px"><button class="round" data-act="searchC" aria-label="Search">${ico('search')}</button><button class="btn go grow breathe" data-act="openSong" data-arg="${s.id}">${ico('plus')}Queue it</button></div></div>`:'<p class="muted pad">No songs match.</p>'}`;}
+  if(d==='queue')body=`<div class="pad" style="padding-top:8px">${queueList()}</div>`;
+  if(d==='people')body=`<div class="pad" style="padding-top:8px">${sheetPeople()}</div>`;
+  const search=S.searchC?`<div class="pad" style="padding-bottom:8px"><div class="search">${ico('search')}<input id="q" placeholder="Search songs or artists" value="${esc(S.q)}" autocomplete="off"><button data-act="searchC" aria-label="Close search">${ico('x')}</button></div></div>`:'';
+  return `<div class="scr"><div class="top">${logo}<span class="grow"></span><button data-act="openMe" aria-label="Me">${av(p,40)}</button></div>
+   ${mirrorC()}<div class="scroll" data-scroll="c-${d}" style="margin-top:6px;display:flex;flex-direction:column;justify-content:${d==='pick'?'flex-end':'flex-start'}">${body}<div style="height:10px"></div></div>${d==='pick'?search:''}
+   <nav class="dock">${[['pick','Pick','music'],['queue',`Queue ${S.queue.length}`,'list'],['people','People','people']].map(([k,l,i])=>`<button class="${d===k?'on':''}" data-act="deck" data-arg="${k}">${ico(i)}${l}</button>`).join('')}</nav></div>`;
+}
+function micC(){
+  const p=meP(),st=S.mic,s=nowSong(),sl=S.lineup.find(l=>l.mic===ME_PHONE);
+  if(S.pocketCtl)return '';
+  const li=Math.floor(S.t/6)%LYR.length,L=LYR[li],N=LYR[(li+1)%LYR.length];
+  let mid='',btm='';
+  if(st==='needs-tap'){mid=`<div style="text-align:center"><p class="h1" style="color:#fff">You're up, ${esc(p.name)}!</p><p style="opacity:.7">${esc(s.title)} · this phone is your mic</p></div>`;btm=`<button class="btn wide breathe" style="background:var(--pc);color:#fff;box-shadow:0 6px 0 rgba(0,0,0,.4);min-height:76px;font-size:22px" data-act="micOn">${ico('mic')}Turn on my mic</button>`;}
+  if(st==='ready'){mid=`<div style="text-align:center"><p class="h1" style="color:#fff">Mic is on</p><p style="opacity:.7">Hum something. The glow answers.</p></div>`;btm=`<button class="btn go wide" style="color:#fff" data-act="start">${ico('play')}Start</button>`;}
+  if(st==='singing'){mid=`<div><div class="lyric">${esc(L[0])}<span>${esc(L[1])}</span>${esc(L[2])}</div><div class="next">${esc(N.join(''))}</div></div>`;btm=`<div class="row" style="gap:12px"><span class="js-score" style="font-size:30px;font-weight:700;color:var(--pc)">${S.score.toLocaleString('en')}</span><div class="prog grow"><i class="js-prog" style="width:${S.t/len(s)*100}%"></i></div></div><p style="opacity:.5;font-size:13px;text-align:center;margin:10px 0 0">Tap anywhere for controls</p>`;}
+  if(st==='lost'){mid=`<div style="text-align:center"><p class="h1" style="color:#fff">Your mic stopped</p><p style="opacity:.7">The phone locked. ${esc(s.title)} is still playing.</p></div>`;btm=`<button class="btn wide breathe" style="background:var(--pc);color:#fff;box-shadow:0 6px 0 rgba(0,0,0,.4);min-height:76px;font-size:22px" data-act="micBack">${ico('mic')}Sing again</button>`;}
+  if(st==='done'){mid=`<div style="text-align:center"><div style="font-size:72px;font-weight:700;color:var(--pc);line-height:1">${S.score.toLocaleString('en')}</div><p class="h1" style="color:#fff">Superstar</p><span class="chip" style="background:var(--yellow);margin-top:6px">New high score!</span></div>`;btm=`<button class="btn wide" data-act="micDone">Done</button>`;}
+  return `<div class="pocket js-ring" style="--pc:${HEX[p.color]}" ${st==='singing'?'data-act="pocketTap"':''}><div class="glow"></div>
+   <div class="row" style="gap:10px">${av(p,40)}<span class="grow" style="font-weight:600">${esc(p.name)}<br><span style="opacity:.6;font-size:13px">${sl?`${s.duet?`Voice ${sl.voice} · `:''}${sl.diff}`:''}</span></span><span class="chip" style="background:rgba(255,255,255,.12);color:#fff;box-shadow:none">${ico('mic')}${st==='singing'||st==='ready'?'on':'off'}</span></div>
+   <div style="flex:1;display:flex;flex-direction:column;justify-content:center">${mid}</div>${btm}</div>`;
+}
+
+/* ================= root ================= */
+function view(){
+  if(!S.joined){const j={a:joinA,b:joinB,c:joinC}[S.variant];return j();}
+  if(S.joinStep==='taken'&&S.variant!=='b')return takenNote();
+  const v=S.variant,micMode=seatedMe()||S.mic==='done';
+  if(v==='a'){
+    if(micMode&&!S.micRemote)return micA()+sheets();
+    const back=micMode?`<div style="position:absolute;left:0;right:0;top:0;z-index:14;padding-top:calc(6px + env(safe-area-inset-top,0px))" class="mtop"><button class="backbar" style="--pc:${HEX[meP().color]};width:calc(100% - 20px)" data-act="micRemote">${ico('mic')}<span class="grow" style="text-align:left">Back to my mic</span><span class="js-score">${S.mic==='singing'?S.score.toLocaleString('en'):''}</span></button></div>`:'';
+    return remoteA().replace('<div class="top">',micMode?'<div class="top" style="padding-top:70px">':'<div class="top">')+back+sheets();
+  }
+  if(v==='b')return remoteB()+sheets();
+  return remoteC()+(micMode?micC():'')+sheets();
+}
+
+let lastScene='';
+function render(){
+  const app=document.getElementById('app');
+  const ae=document.activeElement;const fid=ae&&ae.id,sel=ae&&ae.selectionStart;
+  const sc={};app.querySelectorAll('[data-scroll]').forEach(e=>sc[e.dataset.scroll]=e.scrollTop);
+  if(S.joined){if(seatedMe()&&S.mic==='off')S.mic='needs-tap';if(!seatedMe()&&['needs-tap','ready'].includes(S.mic))S.mic='off';}
+  app.innerHTML=view()+'<div id="toasts"></div>';
+  app.querySelectorAll('[data-scroll]').forEach(e=>{if(sc[e.dataset.scroll]!=null)e.scrollTop=sc[e.dataset.scroll]});
+  if(fid){const el=document.getElementById(fid);if(el){el.focus();try{el.setSelectionRange(sel,sel)}catch(e){}}}
+  drawToasts();bindCarousels();drawPanel();tick(true);
+  const h=`${S.variant}-${S.scene}`;if(location.hash.slice(1)!==h){try{history.replaceState(null,'','#'+h)}catch(e){location.hash=h}}
+}
+function bindCarousels(){
+  const car=document.getElementById('car');
+  if(car){const list=filtered();const s=car.querySelector('.sel');if(s&&!car.dataset.b){car.scrollLeft=s.offsetLeft-car.clientWidth/2+s.clientWidth/2;}
+    let to;car.onscroll=()=>{clearTimeout(to);to=setTimeout(()=>{const mid=car.scrollLeft+car.clientWidth/2;let best=0,bd=1e9;[...car.children].forEach((c,i)=>{const d=Math.abs(c.offsetLeft+c.clientWidth/2-mid);if(d<bd){bd=d;best=i}});if(best!==Math.min(S.sel,list.length-1)){S.sel=best;render();}},120)};
+    car.querySelectorAll('.cover').forEach(c=>c.onclick=()=>{S.sel=+c.dataset.i;render();});}
+  const pc=document.getElementById('pickCar');
+  if(pc){const c=pc.children[S.pickIdx];if(c)pc.scrollLeft=c.offsetLeft-pc.clientWidth/2+c.clientWidth/2;
+    let to;pc.onscroll=()=>{clearTimeout(to);to=setTimeout(()=>{const mid=pc.scrollLeft+pc.clientWidth/2;let best=0,bd=1e9;[...pc.children].forEach((c,i)=>{const d=Math.abs(c.offsetLeft+c.clientWidth/2-mid);if(d<bd){bd=d;best=i}});if(best!==S.pickIdx){S.pickIdx=best;render();}},120)};
+    [...pc.children].forEach((c,i)=>c.onclick=()=>{S.pickIdx=i;render();});}
+}
+
+/* ================= actions ================= */
+function seatFromRequest(){
+  const r=head();if(!r){S.lineup=[];return;}
+  const s=SONG[r.song];let li=1;
+  S.lineup=r.singers.slice(0,4).map((id,i)=>{const m=member(id);let mic=null;if(m&&m.phone)mic=id===S.me?ME_PHONE:'phone:'+id;else mic='local:'+(li++);return {who:id,mic,voice:s.duet?(i%2)+1:1,diff:'Medium'}});
+  if(S.lineup.some(l=>l.mic===ME_PHONE))S.mic='needs-tap';
+}
+const A={
+  tab:a=>{S.tab=a;S.sheet=null;}, deck:a=>{S.deck=a;}, filter:a=>{S.filter=a;S.sel=0;},
+  openSong:a=>{S.sheet={k:'song',song:a,singers:[S.me]};}, quickAdd:a=>{S.sheet={k:'song',song:a,singers:[S.me]};},
+  toggleSinger:a=>{const s=S.sheet.singers;S.sheet.singers=s.includes(a)?s.filter(x=>x!==a):s.length>=4?s:[...s,a];},
+  addRequest:()=>{const sh=S.sheet;if(sh.edit){const r=S.queue.find(q=>q.id===sh.edit);if(r)r.singers=sh.singers;toast(`You changed the singers for ${SONG[sh.song].title}`,S.me);S.sheet=null;return;}S.queue.push({id:S.nextId++,song:sh.song,singers:sh.singers,by:S.me});toast(`${SONG[sh.song].title} added, number ${S.queue.length}`,S.me);S.sheet=null;S.libOpen=false;if(S.stage==='idle'){S.stage='lineup';seatFromRequest();}},
+  openReq:a=>{S.sheet={k:'req',id:+a};},
+  reqMove:a=>{const i=S.queue.findIndex(q=>q.id===S.sheet.id);const [r]=S.queue.splice(i,1);const j=a==='top'?1:a==='up'?i-1:i+1;S.queue.splice(j,0,r);toast(`You moved ${SONG[r.song].title} ${a==='down'?'down':'up'}`,S.me);S.sheet=null;},
+  reqRemove:()=>{const i=S.queue.findIndex(q=>q.id===S.sheet.id);const [r]=S.queue.splice(i,1);toast(`You removed ${SONG[r.song].title}`,S.me);S.sheet=null;if(i===0){if(S.queue.length){S.stage='lineup';seatFromRequest();}else{S.stage='idle';S.lineup=[];}}},
+  reqSingers:()=>{const r=S.queue.find(q=>q.id===S.sheet.id);S.sheet={k:'song',song:r.song,singers:[...r.singers],edit:r.id};},
+  openSlot:a=>{S.sheet={k:'slot',i:+a};},
+  slotWho:a=>{const sl=S.lineup[S.sheet.i];const other=S.lineup.findIndex((l,j)=>l.who===a&&j!==S.sheet.i);if(other>=0){S.lineup.splice(other,1);if(other<S.sheet.i)S.sheet.i--;toast(`${person(a).name} moved to this seat`,a);}S.lineup[S.sheet.i].who=a;},
+  slotMic:a=>{if(S.lineup.some((l,j)=>l.mic===a&&j!==S.sheet.i))return;S.lineup[S.sheet.i].mic=a;if(a===ME_PHONE&&S.mic==='off')S.mic='needs-tap';},
+  slotVoice:a=>{S.lineup[S.sheet.i].voice=+a;}, slotDiff:a=>{S.lineup[S.sheet.i].diff=a;},
+  slotRemove:()=>{const[l]=S.lineup.splice(S.sheet.i,1);if(l.mic===ME_PHONE)S.mic='off';S.sheet=null;},
+  addSeat:()=>{const free=S.members.find(m=>!S.lineup.some(l=>l.who===m.id));if(!free)return;S.lineup.push({who:free.id,mic:null,voice:2,diff:'Medium'});S.sheet={k:'slot',i:S.lineup.length-1};},
+  start:()=>{if(S.lineup.some(l=>!l.mic))return;S.stage='playing';S.t=0;S.score=0;if(seatedMe()&&S.mic!=='off')S.mic='singing';S.micRemote=false;toast(`${person(S.me).name} pressed Start`,S.me);},
+  ctl:a=>{S.sheet=null;
+    if(a==='pause'){S.stage='paused';toast('You paused the Song',S.me);}
+    if(a==='resume'){S.stage='playing';toast('You resumed',S.me);}
+    if(a==='restart'){S.t=0;S.score=0;S.stage='playing';toast('You restarted the Song',S.me);}
+    if(a==='end'){S.stage='results';if(seatedMe()||S.mic==='singing')S.mic='done';toast('You ended the Song. Results are unfinished',S.me);}
+    if(a==='skip'){S.queue.shift();S.mic='off';if(S.queue.length){S.stage='lineup';seatFromRequest();}else{S.stage='idle';S.lineup=[];}toast('You skipped the Song',S.me);}},
+  nextUp:()=>{S.queue.shift();S.mic='off';if(S.queue.length){S.stage='lineup';seatFromRequest();}else{S.stage='idle';S.lineup=[];}},
+  closeSheet:()=>{S.sheet=null;}, openMe:()=>{S.sheet={k:'me'};}, openPeople:()=>{S.sheet={k:'people'};},
+  removeMember:a=>{const p=person(a);S.members=S.members.filter(m=>m.id!==a);S.queue.forEach(q=>q.singers=q.singers.filter(x=>x!==a));toast(`${p.name} left the Party. ${p.color} is free`,null);},
+  leave:()=>{S.joined=false;S.joinStep='removed';S.sheet=null;S.mic='off';},
+  switchMe:()=>{S.joined=false;S.joinStep='who';S.remembered=null;S.sheet=null;S.showAll=true;},
+  editMe:()=>{toast('Profile editor: not in this prototype');},
+  openLib:()=>{S.libOpen=true;S.sheet=null;}, closeLib:()=>{S.libOpen=false;},
+  searchC:()=>{S.searchC=!S.searchC;if(!S.searchC){S.q='';}setTimeout(()=>document.getElementById('q')?.focus(),50);},
+  micOn:()=>{S.mic=S.stage==='playing'?'singing':'ready';try{navigator.wakeLock?.request('screen').catch(()=>{})}catch(e){}toast('Mic on. Screen stays on',S.me);},
+  micBack:()=>{S.mic='singing';toast('Back in. Scoring again',S.me);},
+  micDone:()=>{S.mic='off';S.micRemote=false;A.nextUp();},
+  micRemote:()=>{S.micRemote=!S.micRemote;S.sheet=null;},
+  pocketTap:()=>{S.pocketCtl=true;clearTimeout(A._pt);A._pt=setTimeout(()=>{S.pocketCtl=false;render();},6000);},
+  digit:a=>{S.codeBad=false;if(a==='del')S.code=S.code.slice(0,-1);else if(S.code.length<4)S.code+=a;if(S.code.length===4){if(S.code==='4821'){S.joinStep='who';}else{S.codeBad=true;S.code='';}}},
+  toCode:()=>{S.joinStep='code';S.joinVia='typed';S.code='';},
+  showAll:()=>{S.showAll=true;}, toGuest:()=>{S.joinStep='guest';S.guest={name:'',color:freeColorsAfter(['bo'])[0],av:Object.keys(AVS)[Math.floor(Math.random()*12)]};},
+  joinBack:()=>{S.joinStep='who';},
+  gColor:a=>{S.guest.color=a;}, gAv:a=>{S.guest.av=a;},
+  joinGuest:()=>{const g=S.guest,n=g.name.trim();if(!n){toast('Type a name first');return;}if(PROFILES.some(p=>p.name.toLowerCase()===n.toLowerCase()))return;const id='g-'+n.toLowerCase();S.members=S.members.filter(m=>m.id!=='bo');S.members.push({id,kind:'guest',name:n,av:g.av,color:g.color,phone:true});S.me=id;S.joined=true;S.joinStep=null;S.lineup=S.lineup.filter(l=>l.mic!==ME_PHONE);S.mic='off';toast(`Welcome, ${n}!`,id);},
+  pickProfile:a=>{
+    const p=PROFILES.find(x=>x.id===a);let m=member(a);let note=null;
+    if(!m){const holder=S.members.find(x=>x.color===p.fav);const col=holder?freeColors()[0]:p.fav;if(!col){S.joinStep='full';return;}m={id:a,kind:'profile',color:col,phone:true};S.members.push(m);if(holder)note={fav:p.fav,got:col,holder:holder.id};}
+    else m.phone=true;
+    S.me=a;S.remembered=a;S.joined=true;S.showAll=false;
+    if(!S.lineup.some(l=>l.who===a))S.mic='off';
+    else S.lineup.forEach(l=>{if(l.who===a&&!l.mic?.startsWith('local'))l.mic=ME_PHONE});
+    if(note){if(S.variant==='b'){S.joinStep=null;toast(`${p.fav} is taken by ${person(note.holder).name}. You're ${note.got} tonight`,a);}else{S.joinStep='taken';S.takenNote=note;}}
+    else{S.joinStep=null;toast(`Welcome back, ${p.name}!`,a);}
+  },
+  takenOk:()=>{S.joinStep=null;S.takenNote=null;},
+  retryFull:()=>{toast('Still full: 12 of 12');},
+};
+
+/* ================= events ================= */
+document.addEventListener('click',e=>{
+  const pr=e.target.closest('[data-proto]');if(pr){proto(pr.dataset.proto,pr.dataset.arg);return;}
+  const t=e.target.closest('[data-act]');if(!t||t.disabled)return;
+  if(t.closest('#app')){const fn=A[t.dataset.act];if(fn){fn(t.dataset.arg,t,e);render();}}
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='q'){S.q=e.target.value;S.sel=0;render();}
+  if(e.target.id==='guestName'){S.guest.name=e.target.value;render();}
+  if(e.target.id==='codeIn'){S.code=e.target.value.replace(/\D/g,'').slice(0,4);S.codeBad=S.code.length===4&&S.code!=='4821';render();}
+});
+let holdT;
+document.addEventListener('pointerdown',e=>{const h=e.target.closest('[data-hold]');if(!h)return;h.classList.add('holding');holdT=setTimeout(()=>{h.classList.remove('holding');const [act,arg]=h.dataset.hold.split(':');A[act]?.(arg);render();},700);});
+['pointerup','pointerleave','pointercancel'].forEach(ev=>document.addEventListener(ev,e=>{const h=e.target.closest&&e.target.closest('[data-hold]');if(h)h.classList.remove('holding');clearTimeout(holdT);},true));
+document.addEventListener('keydown',e=>{if(e.target.matches('input,textarea,[contenteditable]'))return;if(e.key==='ArrowRight')proto('next');if(e.key==='ArrowLeft')proto('prev');});
+
+/* live tick: song time, level meter, score (updates in place, no re-render) */
+let lvT=0;
+function tick(once){
+  if(!once){
+    if(S.stage==='playing'){S.t+=.25;const s=nowSong();if(s&&S.t>=len(s)){S.t=len(s);}if(S.mic==='singing')S.score=Math.min(10000,S.score+Math.round(Math.random()*9));}
+    lvT+=.25;S.lv=(S.mic==='ready'||S.mic==='singing')?Math.max(0,Math.min(1,.45+.4*Math.sin(lvT*2.3)+.25*(Math.random()-.5))):0;
+  }
+  const s=nowSong();
+  document.querySelectorAll('.js-prog').forEach(e=>{if(s)e.style.width=(S.t/len(s)*100)+'%'});
+  document.querySelectorAll('.js-time').forEach(e=>e.textContent=fmt(S.t));
+  document.querySelectorAll('.js-lv').forEach(e=>e.parentElement.style.setProperty('--lv',S.lv));
+  document.querySelectorAll('.js-ring').forEach(e=>e.style.setProperty('--lv',S.lv));
+  if(S.mic==='singing')document.querySelectorAll('.js-score').forEach(e=>e.textContent=S.score.toLocaleString('en'));
+}
+setInterval(()=>tick(false),250);
+
+/* ================= prototype chrome ================= */
+function proto(cmd,arg){
+  const ks=Object.keys(VARS);
+  if(cmd==='next'||cmd==='prev'){const i=ks.indexOf(S.variant);S.variant=ks[(i+(cmd==='next'?1:ks.length-1))%ks.length];preset(S.scene);render();}
+  if(cmd==='v'){S.variant=arg;preset(S.scene);render();}
+  if(cmd==='scene'){preset(arg);render();document.getElementById('panel').classList.remove('open');}
+  if(cmd==='panel'){document.getElementById('panel').classList.toggle('open');}
+  if(cmd==='ev'){
+    if(arg==='seat'){if(S.stage==='playing'||S.stage==='paused'){toast('Not mid-song: wait for the next Line-up');return;}if(S.stage==='idle'||S.stage==='results'){preset('mic-turnon');}else{S.lineup=S.lineup.filter(l=>l.who!==S.me);S.lineup.unshift({who:S.me,mic:ME_PHONE,voice:1,diff:'Medium'});S.mic='needs-tap';toast('Sara put you in the Line-up','sara');}}
+    if(arg==='start'){if(S.stage==='lineup'){S.stage='playing';S.t=0;S.score=0;if(S.mic==='ready')S.mic='singing';toast('Sara pressed Start','sara');}}
+    if(arg==='lock'){if(S.mic==='singing'){S.mic='lost';S.t+=8;toast('(Phone was locked for 8 s)');}else toast('Only matters while singing');}
+    if(arg==='end'){if(S.stage==='playing'){S.stage='results';if(S.mic==='singing'||S.mic==='lost')S.mic='done';S.t=nowSong()?len(nowSong()):0;}}
+    if(arg==='other'){toast('Jonas moved Valerie up','jonas');}
+    render();
+  }
+}
+function drawPanel(){
+  const p=document.getElementById('panel');
+  const st={me:meP().name+' ('+meP().color+')',joined:S.joined,stage:S.stage,mic:S.mic,queue:S.queue.map(q=>SONG[q.song].title),lineup:S.lineup.map(l=>`${person(l.who).name} · ${micName(l.mic)} · V${l.voice} · ${l.diff}`)};
+  p.innerHTML=`<h2>Take</h2><div class="vrow">${Object.entries(VARS).map(([k,n])=>`<button class="${S.variant===k?'on':''}" data-proto="v" data-arg="${k}">${k.toUpperCase()} ${n}</button>`).join('')}</div><p class="note">${VNOTES[S.variant]}</p>
+  ${SCENES.map(([g,l])=>`<h2>${g}</h2><div class="scenes">${l.map(([id,lab])=>`<button class="${S.scene===id?'on':''}" data-proto="scene" data-arg="${id}">${lab}</button>`).join('')}</div>`).join('')}
+  <h2>Things that happen elsewhere</h2><div class="ev"><button data-proto="ev" data-arg="seat">Stage seats me</button><button data-proto="ev" data-arg="start">Someone presses Start</button><button data-proto="ev" data-arg="lock">Phone locks mid-song</button><button data-proto="ev" data-arg="end">Song ends</button><button data-proto="ev" data-arg="other">Another Remote acts</button></div>
+  <h2>State</h2><div class="state">${esc(JSON.stringify(st,null,1).replace(/[{}"]/g,'').replace(/^\n|\n$/g,''))}</div>`;
+  document.getElementById('barLbl').textContent=`${S.variant.toUpperCase()} (${VARS[S.variant]})`;
+  document.getElementById('protoLbl').textContent=`${S.variant.toUpperCase()} · ${S.scene}`;
+}
+function fromHash(){
+  const h=location.hash.slice(1);const m=h.match(/^([abc])-(.+)$/);
+  S=null;preset('remote-library');
+  if(m){S.variant=m[1];if(SCENES.some(([,l])=>l.some(([id])=>id===m[2])))preset(m[2]);}
+  render();
+}
+window.addEventListener('hashchange',()=>{const h=location.hash.slice(1);if(h!==`${S.variant}-${S.scene}`)fromHash();});
+fromHash();
+</script>
