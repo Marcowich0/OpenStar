@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timing editor prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  PROTOTYPE, throwaway. Ticket: "Timing editor interaction" (Marcowich0/OpenStar#20).
+  Question: how does a user fix a misaligned Song, and which interaction makes the
+  common case (the whole Song off by a constant) take seconds?
+  Three interactions on one editor, switchable with ?variant=A|B|C and the bottom bar:
+    A  Grab and drag   direct manipulation of the notes over the heard pitch
+    B  Tap along       tap the syllables as you hear them; taps become anchors
+    C  Auto-fit        the editor matches the notes to the singing and proposes the fix
+  Pure model: timing.js. Offline pitch track: pitch-worker.js. Nothing is written to the Library.
+-->
+<style>
+  :root { --cream:#FFF6E9; --ink:#2B2D42; --red:#FF4B5C; --blue:#2EA8FF; --green:#3DDC84; --yellow:#FFC93C; --purple:#9B5CFF; --muted:#8a8478; --card:#fff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--cream); color:var(--ink); font-family:Fredoka, system-ui, sans-serif; font-size:15px; }
+  header { display:flex; align-items:center; gap:14px; padding:10px 18px; }
+  header h1 { font-size:20px; margin:0; font-weight:700; }
+  .badge { background:var(--ink); color:#fff; border-radius:99px; padding:2px 10px; font-size:12px; letter-spacing:.06em; }
+  .songname { font-weight:600; font-size:17px; }
+  .spacer { flex:1; }
+  button, .btn { font-family:inherit; font-size:14px; font-weight:600; border:3px solid var(--ink); border-radius:99px; background:#fff; color:var(--ink); padding:5px 14px; cursor:pointer; box-shadow:0 3px 0 var(--ink); }
+  button:active { transform:translateY(2px); box-shadow:0 1px 0 var(--ink); }
+  button:disabled { opacity:.4; cursor:default; }
+  button.primary { background:var(--blue); color:#fff; }
+  button.go { background:var(--green); }
+  button.small { padding:2px 10px; font-size:13px; border-width:2px; box-shadow:0 2px 0 var(--ink); }
+  .row { display:grid; grid-template-columns: 300px 1fr 1.2fr; gap:14px; padding:0 18px; align-items:stretch; }
+  .card { background:var(--card); border:3px solid var(--ink); border-radius:22px; padding:12px 14px; box-shadow:0 5px 0 var(--ink); }
+  video { width:100%; border-radius:14px; background:#000; display:block; aspect-ratio:16/9; }
+  .transport { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; align-items:center; }
+  .transport label { font-size:13px; display:flex; gap:4px; align-items:center; }
+  .num { display:grid; grid-template-columns: 120px 1fr; gap:6px 10px; align-items:center; }
+  .num .k { color:var(--muted); font-size:13px; }
+  .num .v { font-size:22px; font-weight:700; display:flex; gap:8px; align-items:center; }
+  .num input { font-family:inherit; font-size:20px; font-weight:700; width:120px; border:2px solid var(--ink); border-radius:10px; padding:2px 8px; color:var(--ink); }
+  .num input:disabled { border-color:#ccc; color:#aaa; }
+  .was { font-size:13px; color:var(--muted); font-weight:500; }
+  .why { font-size:12px; color:var(--muted); grid-column: 1 / -1; margin-top:-4px; }
+  .meter { height:14px; border:2px solid var(--ink); border-radius:99px; overflow:hidden; background:#eee; width:100%; }
+  .meter > div { height:100%; background:var(--green); transition: width .3s cubic-bezier(.34,1.56,.64,1); }
+  .vpanel h2 { margin:0 0 4px; font-size:18px; }
+  .vpanel p, .vpanel li { font-size:14px; line-height:1.35; margin:4px 0; }
+  .vpanel ul { padding-left:18px; margin:4px 0; }
+  kbd { font-family:inherit; font-size:12px; border:1.5px solid var(--ink); border-bottom-width:3px; border-radius:6px; padding:0 5px; background:#fff; }
+  .result { background:#F0FFF5; border:2px dashed var(--green); border-radius:12px; padding:6px 10px; margin-top:8px; font-size:14px; }
+  .warn { background:#FFF4D6; border:2px dashed var(--yellow); border-radius:12px; padding:6px 10px; margin-top:8px; font-size:14px; }
+  .tapnext { font-size:26px; font-weight:700; margin:6px 0; min-height:34px; }
+  .tapnext .done { color:#bbb; } .tapnext .next { color:var(--red); text-decoration: underline; text-underline-offset:6px; }
+  .canvases { padding:12px 18px 0; }
+  canvas { display:block; width:100%; border:3px solid var(--ink); border-radius:18px; background:#fff; touch-action:none; }
+  #overview { height:64px; margin-bottom:8px; cursor:pointer; }
+  #detail { height:380px; }
+  .hint { position:relative; }
+  #hint { position:absolute; left:50%; top:30px; transform:translateX(-50%); background:var(--ink); color:#fff; border-radius:99px; padding:4px 14px; font-weight:600; pointer-events:none; opacity:0; transition:opacity .15s; white-space:nowrap; }
+  .bottom { display:grid; grid-template-columns: 1fr 1.4fr; gap:14px; padding:14px 18px 90px; }
+  .bottom h3 { margin:0 0 6px; font-size:16px; }
+  .ops { font-size:14px; max-height:220px; overflow:auto; margin:0; padding-left:20px; }
+  .ops li.undone { color:#bbb; text-decoration:line-through; }
+  pre.diff { font-family: ui-monospace, monospace; font-size:12.5px; max-height:220px; overflow:auto; margin:0; background:#faf7f0; border-radius:10px; padding:8px; }
+  .del { color:#c0392b; } .ins { color:#1e8449; }
+  #switcher { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); background:#111; color:#fff; border-radius:99px; padding:6px 8px; display:flex; gap:8px; align-items:center; box-shadow:0 8px 24px rgba(0,0,0,.35); font-family:system-ui, sans-serif; z-index:10; }
+  #switcher button { background:#333; color:#fff; border:none; box-shadow:none; padding:4px 12px; }
+  #switcher span { min-width:220px; text-align:center; font-weight:600; font-size:14px; }
+  #drop { position:fixed; inset:0; background:rgba(46,168,255,.25); border:6px dashed var(--blue); display:none; align-items:center; justify-content:center; font-size:30px; font-weight:700; z-index:20; }
+  #status { font-size:13px; color:var(--muted); }
+  .sugg { display:flex; justify-content:space-between; align-items:center; gap:8px; border-bottom:1px dashed #ddd; padding:3px 0; font-size:14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Timing editor</h1><span class="badge">PROTOTYPE</span>
+  <span class="songname" id="songname">…</span>
+  <span id="status"></span>
+  <span class="spacer"></span>
+  <label class="btn">Open another Song…<input id="picker" type="file" webkitdirectory multiple hidden></label>
+</header>
+
+<div class="row">
+  <div class="card">
+    <video id="video" playsinline preload="auto"></video>
+    <audio id="audio" preload="auto"></audio>
+    <div class="transport">
+      <button id="play" class="primary">▶ Play</button>
+      <button id="loop" class="small" title="Loop the selected line (L)">⟲ Loop line</button>
+      <select id="speed" title="Speed (1, 2, 3)"><option value="1">100 %</option><option value="0.75">75 %</option><option value="0.5">50 %</option></select>
+      <label><input type="checkbox" id="clicks" checked> click on each note</label>
+      <label><input type="checkbox" id="hum"> hum the notes</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="num">
+      <div class="k">GAP</div><div class="v"><input id="gap" type="number" step="10"> ms <span class="was" id="gapWas"></span></div>
+      <div class="k">BPM</div><div class="v"><input id="bpm" type="number" step="0.01"> <span class="was" id="bpmWas"></span></div>
+      <div class="k">Video offset</div><div class="v"><input id="vgap" type="number" step="0.01"> s <span class="was" id="vgapWas"></span></div>
+      <div class="why" id="vgapWhy"></div>
+      <div class="k">Notes on the singing</div><div class="v" style="font-size:16px"><div class="meter"><div id="meter" style="width:0"></div></div><span id="fitText" style="min-width:110px"></span></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:8px 0 0">"Notes on the singing" = share of note time where the pitch heard in the audio is within a semitone of the note. A rough, offline guide; it is low on Songs with loud backing.</p>
+  </div>
+
+  <div class="card vpanel" id="vpanel"></div>
+</div>
+
+<div class="canvases">
+  <canvas id="overview"></canvas>
+  <div class="hint"><canvas id="detail"></canvas><div id="hint"></div></div>
+</div>
+
+<div class="bottom">
+  <div class="card">
+    <h3>Edits <button class="small" id="undo">↶ Undo</button> <button class="small" id="redo">↷ Redo</button> <button class="small" id="reset">Back to the file</button></h3>
+    <ol class="ops" id="ops"></ol>
+  </div>
+  <div class="card">
+    <h3>What would be written to song.txt <span id="diffCount" class="was"></span> <button class="small" id="download">⬇ Download song.txt</button></h3>
+    <pre class="diff" id="diff"></pre>
+  </div>
+</div>
+
+<div id="switcher"><button id="prevV">←</button><span id="vlabel"></span><button id="nextV">→</button></div>
+<div id="drop">Drop a Song folder (its .txt and media)</div>
+
+<script src="timing.js"></script>
+<script>
+// ---------- app state (page shell; the model lives in timing.js) ----------
+const VARIANTS = { A: 'Grab and drag', B: 'Tap along', C: 'Auto-fit' };
+const $ = (id) => document.getElementById(id);
+const app = {
+  song: null, ops: [], redo: [], st: null, preview: null, previewOp: null,
+  matcher: null, env: null, hop: 0.01, analysing: 0,
+  view: { start: 0, pps: 110 }, follow: true,
+  sel: null, noteSel: null, pin: null, loop: false,
+  taps: [], tapRun: null, lastResult: '', suggestions: null, fitBefore: null,
+  variant: new URLSearchParams(location.search).get('variant') || 'A',
+  urls: { audio: null, video: null }, separate: false, duration: 0,
+};
+if (!VARIANTS[app.variant]) app.variant = 'A';
+const cur = () => app.preview || app.st;
+const song = () => app.song;
+
+// ---------- media ----------
+const video = $('video'), audio = $('audio');
+const clock = () => (app.separate ? audio : video);
+const mediaTime = () => clock().currentTime || 0;
+const playing = () => !clock().paused;
+function seek(t) {
+  t = Math.max(0, Math.min(app.duration || 1e9, t));
+  clock().currentTime = t;
+  if (app.separate) video.currentTime = Math.max(0, t + cur().videoGap);
+  resetScheduler();
+  draw();
+}
+function setPlaying(on) {
+  if (on) ensureAC();
+  if (on) { clock().play(); if (app.separate) video.play(); } else { clock().pause(); if (app.separate) video.pause(); }
+  resetScheduler();
+}
+$('play').onclick = () => setPlaying(!playing());
+video.onplay = audio.onplay = video.onpause = audio.onpause = () => { $('play').textContent = playing() ? '❚❚ Pause' : '▶ Play'; if (!playing()) finishTapRun(); };
+$('speed').onchange = () => { clock().playbackRate = video.playbackRate = +$('speed').value; resetScheduler(); };
+$('loop').onclick = () => toggleLoop();
+
+// ---------- clicks on each note (Web Audio, scheduled ahead against the media clock) ----------
+let ac = null, schedUntil = -1, hums = [];
+function ensureAC() { if (!ac) ac = new AudioContext(); if (ac.state === 'suspended') ac.resume(); }
+function resetScheduler() { schedUntil = -1; hums.forEach((o) => { try { o.stop(); } catch {} }); hums = []; }
+function click(when, golden) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.frequency.value = golden ? 2400 : 1600;
+  g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(0.5, when + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.03);
+  o.connect(g).connect(ac.destination); o.start(when); o.stop(when + 0.04);
+}
+function hum(when, dur, pitch) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'triangle'; o.frequency.value = 440 * Math.pow(2, (pitch + 60 - 69) / 12);
+  g.gain.setValueAtTime(0.0001, when); g.gain.exponentialRampToValueAtTime(0.12, when + 0.02); g.gain.setValueAtTime(0.12, when + Math.max(0.03, dur - 0.03)); g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  o.connect(g).connect(ac.destination); o.start(when); o.stop(when + dur + 0.01); hums.push(o);
+}
+setInterval(() => {
+  if (!app.song || !playing() || !ac) return;
+  const now = mediaTime(), rate = clock().playbackRate, st = cur();
+  const horizon = now + 0.25 * rate;
+  if (schedUntil < now - 0.05 || schedUntil > horizon) schedUntil = now;
+  song().notes.forEach((n, i) => {
+    const t = Timing.noteStart(st, i);
+    if (t > schedUntil && t <= horizon) {
+      const when = ac.currentTime + (t - now) / rate;
+      if ($('clicks').checked) click(when, n.type === '*' || n.type === 'G');
+      if ($('hum').checked && n.type !== 'F' && n.type !== 'R' && n.type !== 'G') hum(when, (Timing.noteEnd(st, i) - t) / rate, n.pitch);
+    }
+  });
+  schedUntil = horizon;
+}, 30);
+
+// ---------- loading a Song ----------
+async function loadFromFolder(base) {
+  const txt = await (await fetch(base + 'song.txt')).text().catch(() => null);
+  if (!txt) throw new Error('no song.txt in ' + base);
+  const s = Timing.parse(txt);
+  await openSong(s, (name) => base + encodeURIComponent(name));
+}
+async function loadFromFiles(files) {
+  const list = Array.from(files);
+  const txtFile = list.find((f) => /\.txt$/i.test(f.name) && !/\.orig$/i.test(f.name));
+  if (!txtFile) return alert('No .txt in what was dropped');
+  const s = Timing.parse(await txtFile.text());
+  const byName = (name) => { const f = list.find((x) => x.name.toLowerCase() === String(name).toLowerCase()); return f ? URL.createObjectURL(f) : null; };
+  await openSong(s, byName);
+}
+async function openSong(s, urlOf) {
+  setPlaying(false);
+  app.song = s; app.ops = []; app.redo = []; app.st = Timing.initialState(s); app.preview = null;
+  app.sel = null; app.noteSel = null; app.pin = null; app.taps = []; app.lastResult = ''; app.suggestions = null; app.matcher = null; app.env = null;
+  const a = s.audioFile, v = s.videoFile;
+  app.separate = !!(v && a && a.toLowerCase() !== v.toLowerCase());
+  app.urls.audio = urlOf(a); app.urls.video = v ? urlOf(v) : null;
+  if (app.separate) { audio.src = app.urls.audio; video.src = app.urls.video || ''; video.muted = true; }
+  else { audio.removeAttribute('src'); video.src = app.urls.audio; video.muted = false; }
+  clock().onloadedmetadata = () => { app.duration = clock().duration; draw(); };
+  $('songname').textContent = (s.headers.ARTIST || {}).value + ' – ' + (s.headers.TITLE || {}).value;
+  app.view.start = Math.max(0, Timing.lineStart(s, app.st, 0) - 2);
+  refresh();
+  analyse(app.urls.audio);
+}
+
+// ---------- offline pitch track of the audio (drives the green fill and the auto-fit) ----------
+async function analyse(url) {
+  try {
+    $('status').textContent = 'listening to the audio…';
+    const buf = await (await fetch(url)).arrayBuffer();
+    const oc = new OfflineAudioContext(1, 1, 16000);
+    const decoded = await oc.decodeAudioData(buf);
+    const n = decoded.length, mono = new Float32Array(n);
+    for (let c = 0; c < decoded.numberOfChannels; c++) { const d = decoded.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += d[i] / decoded.numberOfChannels; }
+    app.duration = app.duration || decoded.duration;
+    const w = new Worker('pitch-worker.js');
+    w.onmessage = (e) => {
+      if (e.data.progress != null) { $('status').textContent = 'listening to the audio… ' + Math.round(e.data.progress * 100) + ' %'; return; }
+      app.env = e.data.env; app.hop = e.data.hop;
+      app.matcher = Timing.buildMatcher(e.data.pitch, e.data.hop);
+      app.pitch = e.data.pitch;
+      app.fitAtLoad = app.matcher.songFit(song(), Timing.initialState(song()));
+      $('status').textContent = '';
+      w.terminate(); refresh();
+    };
+    w.postMessage({ samples: mono, sr: 16000 }, [mono.buffer]);
+  } catch (err) { $('status').textContent = 'could not analyse audio: ' + err.message; }
+}
+
+// ---------- edits ----------
+function describe(op) {
+  const s = song();
+  const lineName = (k) => '“' + s.lines[k].notes.map((i) => s.notes[i].lyric).join('').trim().slice(0, 28) + '…”';
+  switch (op.type) {
+    case 'gap': return `GAP → ${op.gap} ms` + (op.why ? ` (${op.why})` : '');
+    case 'bpm': return `BPM → ${op.bpm}`;
+    case 'gapBpm': return `GAP → ${op.gap} ms, BPM → ${op.bpm}` + (op.why ? ` (${op.why})` : '');
+    case 'videoGap': return `Video offset → ${op.videoGap} s`;
+    case 'shiftLines': return `Shift ${op.from === op.to ? 'line ' + lineName(op.from) : 'lines ' + (op.from + 1) + '–' + (op.to + 1)} by ${op.beats > 0 ? '+' : ''}${op.beats} beats`;
+    case 'stretchLines': return `Stretch ${op.from === op.to ? 'line ' + lineName(op.from) : 'lines ' + (op.from + 1) + '–' + (op.to + 1)} ×${op.factor.toFixed(2)}`;
+    case 'shiftNote': return `Move note “${s.notes[op.i].lyric.trim()}” by ${op.beats > 0 ? '+' : ''}${op.beats} beats`;
+    case 'resizeNote': return `Note “${s.notes[op.i].lyric.trim()}” length → ${op.len} beats`;
+  }
+}
+function commit(op, merge = false) {
+  const last = app.ops[app.ops.length - 1];
+  if (merge && last && last.type === op.type && last.merge && op.merge && Date.now() - last.at < 1500 && sameTarget(last, op)) {
+    app.ops[app.ops.length - 1] = op;
+    app.st = Timing.replay(song(), app.ops);
+  } else { app.ops.push(op); app.st = Timing.apply(song(), app.st, op); }
+  op.at = Date.now();
+  app.redo = []; app.preview = null; app.previewOp = null;
+  if (app.separate) seek(mediaTime());
+  resetScheduler(); refresh();
+}
+const sameTarget = (a, b) => a.from === b.from && a.to === b.to && a.i === b.i;
+function undo() { if (!app.ops.length) return; app.redo.push(app.ops.pop()); app.st = Timing.replay(song(), app.ops); resetScheduler(); refresh(); }
+function redo() { if (!app.redo.length) return; const op = app.redo.pop(); app.ops.push(op); app.st = Timing.apply(song(), app.st, op); resetScheduler(); refresh(); }
+$('undo').onclick = undo; $('redo').onclick = redo;
+$('reset').onclick = () => { if (!app.ops.length) return; app.ops = []; app.redo = []; app.st = Timing.initialState(song()); app.taps = []; app.lastResult = ''; app.suggestions = null; resetScheduler(); refresh(); };
+
+// numeric fields
+$('gap').onchange = () => commit({ type: 'gap', gap: Math.round(+$('gap').value), why: 'typed' });
+$('bpm').onchange = () => commit({ type: 'bpm', bpm: Timing.round2(+$('bpm').value) });
+$('vgap').onchange = () => commit({ type: 'videoGap', videoGap: Math.round(+$('vgap').value * 100) / 100 });
+
+// nudges: whole Song, or the selection when one exists (A)
+function nudge(ms) {
+  const st = app.st;
+  if (app.variant === 'A' && app.sel) {
+    const beats = Math.sign(ms) * (Math.abs(ms) >= 100 ? 4 : 1);
+    return commit({ type: 'shiftLines', from: app.sel.from, to: app.sel.to, beats: (lastShift(app.sel) || 0) + beats, merge: true }, true);
+  }
+  commit({ type: 'gap', gap: st.gap + ms, why: 'nudge', merge: true }, true);
+}
+function lastShift(sel) { const l = app.ops[app.ops.length - 1]; return l && l.type === 'shiftLines' && l.merge && l.from === sel.from && l.to === sel.to && Date.now() - l.at < 1500 ? l.beats : 0; }
+// tempo nudge keeping the playhead where it is
+function tempoNudge(dBpm) {
+  const st = app.st, t = mediaTime(), b = Timing.beatOfTime(st, t);
+  const bpm = Timing.round2(st.bpm + dBpm), s = 60 / (bpm * 4);
+  commit({ type: 'gapBpm', gap: Math.round((t - b * s) * 1000), bpm, why: 'tempo around the playhead', merge: true }, true);
+}
+
+function toggleLoop() {
+  if (app.loop) { app.loop = false; } else {
+    const k = app.sel ? app.sel.from : lineAt(mediaTime());
+    if (k == null) return;
+    app.sel = app.sel || { from: k, to: k };
+    app.loop = true; seek(Timing.lineStart(song(), cur(), app.sel.from) - 1.5); setPlaying(true);
+  }
+  $('loop').style.background = app.loop ? 'var(--yellow)' : '#fff';
+}
+function lineAt(t) {
+  const s = song(), st = cur(); let best = null, bd = 1e9;
+  s.lines.forEach((l, k) => { const a = Timing.lineStart(s, st, k), b = Timing.lineEnd(s, st, k); const d = t < a ? a - t : t > b ? t - b : 0; if (d < bd) { bd = d; best = k; } });
+  return best;
+}
+
+// ---------- variant B: tap along ----------
+function startTapRun() {
+  const s = song();
+  const k = app.sel ? app.sel.from : lineAt(mediaTime() + 1) ?? 0;
+  app.sel = { from: k, to: k };
+  const seq = []; for (let kk = k; kk < s.lines.length; kk++) s.lines[kk].notes.forEach((i) => { if (s.notes[i].type !== 'F') seq.push(i); });
+  app.tapRun = { k, seq, taps: [] };
+  // the audio may be seconds away from the notes: start well before the line as the text places it
+  seek(Math.max(0, Timing.lineStart(s, cur(), k) - 6));
+  setPlaying(true); renderPanel();
+}
+function tap() {
+  const r = app.tapRun; if (!r) return;
+  const i = r.seq[r.taps.length]; if (i == null) return;
+  r.taps.push({ i, time: mediaTime() });
+  renderPanel(); draw();
+}
+function finishTapRun() {
+  const r = app.tapRun; if (!r) return; app.tapRun = null;
+  if (!r.taps.length) { renderPanel(); return; }
+  r.taps.forEach((t) => app.taps.push({ beat: app.st.beat[t.i], i: t.i, time: t.time, k: song().notes[t.i].k }));
+  applyTaps();
+}
+function applyTaps() {
+  const st = app.st, taps = app.taps;
+  const spanS = Math.max(...taps.map((t) => t.time)) - Math.min(...taps.map((t) => t.time));
+  const before = { gap: st.gap, bpm: st.bpm };
+  if (spanS >= 30) {
+    const f = Timing.fitLine(taps.map((t) => ({ beat: t.beat, time: t.time })));
+    commit({ type: 'gapBpm', gap: f.gap, bpm: f.bpm, why: `${taps.length} taps over ${Math.round(spanS)} s` });
+  } else {
+    const offs = taps.map((t) => t.time - Timing.timeOfBeat(st, t.beat)).sort((a, b) => a - b);
+    const med = offs[Math.floor(offs.length / 2)];
+    commit({ type: 'gap', gap: Math.round(st.gap + med * 1000), why: `${taps.length} taps` });
+  }
+  app.lastResult = changeText(before, app.st) + (spanS < 30 ? '<br>Tap a line near the other end of the Song too, and the tempo gets fixed as well.' : '');
+  renderPanel();
+}
+function changeText(b, a) {
+  const parts = [];
+  if (a.gap !== b.gap) parts.push(`notes ${Math.abs(a.gap - b.gap) / 1000} s ${a.gap < b.gap ? 'earlier' : 'later'} (GAP ${b.gap} → ${a.gap} ms)`);
+  if (a.bpm !== b.bpm) parts.push(`tempo ${((b.bpm / a.bpm - 1) * 100).toFixed(2)} % ${a.bpm < b.bpm ? 'slower' : 'faster'} (BPM ${b.bpm} → ${a.bpm})`);
+  return parts.length ? 'Moved ' + parts.join(', ') + '.' : 'Nothing changed.';
+}
+
+// ---------- variant C: auto-fit ----------
+function autoFit(tempo) {
+  if (!app.matcher) return;
+  const before = { gap: app.st.gap, bpm: app.st.bpm }, fb = app.matcher.songFit(song(), app.st);
+  const f = app.matcher.autoFit(song(), app.st, { tempo });
+  if (f.gap === before.gap && f.bpm === before.bpm) { app.lastResult = 'Already the best fit the editor can find.'; renderPanel(); return; }
+  commit({ type: tempo ? 'gapBpm' : 'gap', gap: f.gap, bpm: f.bpm, why: tempo ? 'auto-fit' : 'auto-fit, offset only' });
+  app.lastResult = changeText(before, app.st) + `<br>Notes on the singing ${Math.round(fb * 100)} % → ${Math.round(f.fit * 100)} %. Play a few lines to check, or <b>Undo</b>.`;
+  app.suggestions = app.matcher.lineSuggestions(song(), app.st);
+  renderPanel();
+}
+
+// ---------- variant panel ----------
+function renderPanel() {
+  const p = $('vpanel'), s = song(); if (!s) return;
+  const pinTxt = app.pin != null ? `Pinned: line ${app.pin + 1} <button class="small" onclick="app.pin=null;renderPanel();draw()">unpin</button>` : 'No line pinned.';
+  if (app.variant === 'A') {
+    p.innerHTML = `<h2>A · Grab and drag</h2>
+      <p>The dots are the pitch heard in the audio; the pills are the notes. Make them sit on each other.</p>
+      <ul>
+        <li><b>Drag empty space</b> to move the whole Song (GAP). <kbd>,</kbd> <kbd>.</kbd> nudge 10 ms, with <kbd>Shift</kbd> 100 ms.</li>
+        <li><b>Double-click a line</b> to pin it. Then dragging empty space <b>stretches</b> the Song around the pin (GAP + BPM): fix the start, pin it, drag the end.</li>
+        <li><b>Click a line</b> to select it (<kbd>Shift</kbd>-click for a range); drag it to shift by whole beats; drag its ◀▶ handle to stretch it. <kbd>,</kbd> <kbd>.</kbd> now nudge the selection.</li>
+        <li><kbd>Alt</kbd>-drag a note to move it; drag its right end to lengthen it.</li>
+        <li><kbd>[</kbd> <kbd>]</kbd> tempo −/+ 0.05 BPM around the playhead. <kbd>Esc</kbd> clears the selection.</li>
+      </ul>
+      <p>${pinTxt}</p>`;
+  } else if (app.variant === 'B') {
+    const r = app.tapRun;
+    let next = '';
+    if (r) {
+      const from = Math.max(0, r.taps.length - 2), seq = r.seq.slice(from, from + 8);
+      next = seq.map((i, j) => `<span class="${from + j < r.taps.length ? 'done' : from + j === r.taps.length ? 'next' : ''}">${s.notes[i].lyric.trim() || '~'}</span>`).join(' ');
+    }
+    const lines = [...new Set(app.taps.map((t) => t.k))];
+    p.innerHTML = `<h2>B · Tap along</h2>
+      <p>Pick a line (click it), press <kbd>Space</kbd> to start, then tap <kbd>Space</kbd> on every syllable as you <b>hear</b> it sung, starting with the line's first syllable. Press <kbd>Enter</kbd> or pause to finish. The taps become anchors and the notes jump to them.</p>
+      <p>One place fixes the offset; a second place far away fixes the tempo too.</p>
+      ${r ? `<div class="tapnext">${next}</div><p>Tapped ${r.taps.length}.</p>` : `<p><button class="go" onclick="startTapRun()">Start tapping at line ${(app.sel ? app.sel.from : 0) + 1}</button> <button class="small" onclick="app.taps=[];app.lastResult='';renderPanel();draw()">Forget taps</button></p>`}
+      <p class="was">Anchors: ${app.taps.length} taps on ${lines.length} line${lines.length === 1 ? '' : 's'}.</p>
+      ${app.lastResult ? `<div class="result">${app.lastResult}</div>` : ''}`;
+  } else {
+    const ready = !!app.matcher;
+    const sug = app.suggestions || [];
+    p.innerHTML = `<h2>C · Auto-fit</h2>
+      <p>The editor listens to the Song and moves the notes onto the singing. You check by ear and keep or undo.</p>
+      <p><button class="go" ${ready ? '' : 'disabled'} onclick="autoFit(true)">✨ Fit to the singing</button> <button class="small" ${ready ? '' : 'disabled'} onclick="autoFit(false)">offset only</button></p>
+      ${ready ? '' : '<p class="was">Waiting for the audio analysis…</p>'}
+      ${app.lastResult ? `<div class="result">${app.lastResult}</div>` : ''}
+      ${app.suggestions ? (sug.length ? `<div class="warn"><b>${sug.length} line${sug.length > 1 ? 's' : ''} still look off:</b>${sug.map((g) => `<div class="sugg"><span>Line ${g.k + 1} “${s.lines[g.k].notes.map((i) => s.notes[i].lyric).join('').trim().slice(0, 22)}…” ${g.beats > 0 ? '+' : ''}${g.beats} beats (${Math.round(g.from * 100)}→${Math.round(g.to * 100)} %)</span><span><button class="small" onclick="seek(Timing.lineStart(song(),cur(),${g.k})-1.5);app.sel={from:${g.k},to:${g.k}};draw()">go</button> <button class="small" onclick="applySugg(${g.k},${g.beats})">apply</button></span></div>`).join('')}</div>` : '<p class="was">No single line stands out after the fit.</p>') : ''}
+      <p class="was">Fine-tune after a fit with <kbd>,</kbd> <kbd>.</kbd> (GAP ±10 ms) and <kbd>[</kbd> <kbd>]</kbd> (tempo around the playhead).</p>`;
+  }
+}
+function applySugg(k, beats) { commit({ type: 'shiftLines', from: k, to: k, beats }); app.suggestions = app.suggestions.filter((g) => g.k !== k); renderPanel(); }
+
+// ---------- refresh everything that is not the canvases ----------
+function refresh() {
+  const s = song(); if (!s) return;
+  const st = cur();
+  const ae = document.activeElement;
+  if (ae !== $('gap')) $('gap').value = st.gap;
+  if (ae !== $('bpm')) $('bpm').value = st.bpm;
+  if (ae !== $('vgap')) $('vgap').value = st.videoGap;
+  $('gapWas').textContent = st.gap !== s.gap ? `file: ${s.gap}` : '';
+  $('bpmWas').textContent = st.bpm !== s.bpm ? `file: ${s.bpm}` : '';
+  $('vgapWas').textContent = st.videoGap !== s.videoGap ? `file: ${s.videoGap}` : '';
+  $('vgap').disabled = !app.separate;
+  $('vgapWhy').textContent = app.separate ? 'Audio and video are separate files: the video follows the audio by this offset.' : `Audio and video are the same file (${s.audioFile}), so there is nothing to offset; OpenStar ignores #VIDEOGAP here.`;
+  if (app.matcher) {
+    const f = app.matcher.songFit(s, st);
+    $('meter').style.width = Math.min(100, f * 100 * 1.3) + '%';
+    $('fitText').textContent = `${Math.round(f * 100)} %` + (app.fitAtLoad != null && Math.abs(f - app.fitAtLoad) > 0.005 ? ` (file ${Math.round(app.fitAtLoad * 100)} %)` : '');
+  } else $('fitText').textContent = '…';
+  $('ops').innerHTML = app.ops.map((o) => `<li>${describe(o)}</li>`).join('') + app.redo.slice().reverse().map((o) => `<li class="undone">${describe(o)}</li>`).join('') || '<li style="list-style:none;color:#aaa">No edits yet.</li>';
+  const out = Timing.serialize(s, app.st);
+  $('diffCount').textContent = `${out.changed.length} line${out.changed.length === 1 ? '' : 's'} changed, everything else byte for byte`;
+  $('diff').innerHTML = out.changed.slice(0, 80).map((c) => `${String(c.idx + 1).padStart(4)}  <span class="del">${esc(c.before ?? '(new)')}</span>  →  <span class="ins">${esc(c.after)}</span>`).join('\n') + (out.changed.length > 80 ? `\n… ${out.changed.length - 80} more` : '') || '(nothing: the file would stay as it is)';
+  renderPanel();
+  draw();
+}
+const esc = (x) => String(x).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+$('download').onclick = () => {
+  const out = Timing.serialize(song(), app.st);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([out.text], { type: 'text/plain' })); a.download = 'song.txt'; a.click();
+};
+
+// ---------- drawing ----------
+const ov = $('overview'), dt = $('detail');
+function fitCanvas(c) { const r = c.getBoundingClientRect(), d = devicePixelRatio || 1; if (c.width !== Math.round(r.width * d) || c.height !== Math.round(r.height * d)) { c.width = Math.round(r.width * d); c.height = Math.round(r.height * d); } const g = c.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return [g, r.width, r.height]; }
+const fitColor = (f) => `hsl(${Math.round(Math.min(1, f * 1.6) * 130)}, 75%, 55%)`;
+let geo = null; // detail geometry for hit testing
+function draw() {
+  if (!app.song) return;
+  drawOverview(); drawDetail();
+}
+function drawOverview() {
+  const [g, W, H] = fitCanvas(ov), s = song(), st = cur(), D = app.duration || Timing.lineEnd(s, st, s.lines.length - 1) + 5;
+  const X = (t) => (t / D) * W;
+  g.clearRect(0, 0, W, H);
+  if (app.env) { g.fillStyle = '#e8e2d6'; const step = Math.max(1, Math.floor(app.env.length / W)); let mx = 0; for (let i = 0; i < app.env.length; i++) mx = Math.max(mx, app.env[i]); for (let x = 0; x < W; x++) { const i = Math.floor((x / W) * app.env.length); let v = 0; for (let j = i; j < i + step && j < app.env.length; j++) v = Math.max(v, app.env[j]); const h = (v / mx) * (H - 10); g.fillRect(x, H - 5 - h, 1, h); } }
+  s.lines.forEach((l, k) => {
+    const a = Timing.lineStart(s, st, k), b = Timing.lineEnd(s, st, k);
+    g.fillStyle = app.matcher ? fitColor(app.matcher.lineFit(s, st, k)) : '#bbb';
+    const y = s.lines[k].voice === 2 ? 34 : 14;
+    g.beginPath(); g.roundRect(X(a), y, Math.max(2, X(b) - X(a)), 16, 6); g.fill();
+    if (app.sel && k >= app.sel.from && k <= app.sel.to) { g.strokeStyle = '#2EA8FF'; g.lineWidth = 3; g.stroke(); }
+    if (app.pin === k) { g.fillStyle = '#9B5CFF'; g.font = '14px Fredoka'; g.fillText('📌', X(a) - 4, 12); }
+  });
+  const vw = dt.getBoundingClientRect().width / app.view.pps;
+  g.strokeStyle = '#2B2D42'; g.lineWidth = 2; g.strokeRect(X(app.view.start), 2, X(vw), H - 4);
+  g.fillStyle = '#FF4B5C'; g.fillRect(X(mediaTime()) - 1, 0, 3, H);
+}
+function drawDetail() {
+  const [g, W, H] = fitCanvas(dt), s = song(), st = cur(), pps = app.view.pps, t0 = app.view.start;
+  const X = (t) => (t - t0) * pps, T = (x) => t0 + x / pps;
+  const RULER = 24, WAVE = 56, top = RULER + 22, bot = H - WAVE - 18;
+  let lo = 1e9, hi = -1e9; s.notes.forEach((n) => { if (n.type !== 'F') { lo = Math.min(lo, n.pitch); hi = Math.max(hi, n.pitch); } });
+  lo -= 2; hi += 2; const rowH = (bot - top) / (hi - lo + 1);
+  const Y = (p) => top + (hi - p) * rowH;
+  geo = { X, T, Y, rowH, top, bot, RULER, lo, hi };
+  g.clearRect(0, 0, W, H);
+  // rows
+  for (let p = lo; p <= hi; p++) { if (((p % 12) + 12) % 12 === 0) { g.fillStyle = '#f6f1e7'; g.fillRect(0, Y(p) - rowH / 2, W, rowH); } }
+  // ruler
+  g.fillStyle = '#faf7f0'; g.fillRect(0, 0, W, RULER); g.fillStyle = '#2B2D42'; g.font = '12px Fredoka';
+  for (let t = Math.floor(t0); t < T(W); t++) { const x = X(t); g.fillRect(x, RULER - (t % 5 ? 6 : 12), 1, t % 5 ? 6 : 12); if (t % 5 === 0) g.fillText(fmtT(t), x + 3, 12); }
+  // waveform envelope
+  if (app.env) {
+    let mx = 0; for (let i = 0; i < app.env.length; i++) mx = Math.max(mx, app.env[i]);
+    g.fillStyle = '#d9e9f7'; const mid = H - WAVE / 2 - 4;
+    for (let x = 0; x < W; x++) { const i = Math.floor(T(x) / app.hop); if (i < 0 || i >= app.env.length) continue; const h = (app.env[i] / mx) * (WAVE / 2); g.fillRect(x, mid - h, 1, 2 * h); }
+  }
+  // line bands
+  s.lines.forEach((l, k) => {
+    const a = X(Timing.lineStart(s, st, k)), b = X(Timing.lineEnd(s, st, k));
+    if (b < -50 || a > W + 50) return;
+    const selected = app.sel && k >= app.sel.from && k <= app.sel.to;
+    g.fillStyle = selected ? 'rgba(46,168,255,.14)' : app.pin === k ? 'rgba(155,92,255,.12)' : 'rgba(43,45,66,.035)';
+    g.fillRect(a - 4, RULER + 4, b - a + 8, bot - RULER + 8);
+    g.fillStyle = app.matcher ? fitColor(app.matcher.lineFit(s, st, k)) : '#ccc';
+    g.beginPath(); g.roundRect(a, RULER + 6, Math.max(4, b - a), 8, 4); g.fill();
+    if (app.pin === k) { g.font = '16px Fredoka'; g.fillText('📌', a - 2, RULER + 34); }
+    if (selected && app.variant === 'A' && k === app.sel.to) { g.fillStyle = '#2EA8FF'; g.beginPath(); g.roundRect(X(Timing.lineEnd(s, st, app.sel.to)) + 2, RULER + 2, 16, 18, 6); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px Fredoka'; g.fillText('◀▶', X(Timing.lineEnd(s, st, app.sel.to)) + 3, RULER + 15); }
+  });
+  // heard pitch, folded into the notes' octave range
+  if (app.pitch) {
+    const centre = (lo + hi) / 2 + 60;
+    const i0 = Math.max(0, Math.floor(t0 / app.hop)), i1 = Math.min(app.pitch.length, Math.ceil(T(W) / app.hop));
+    g.fillStyle = 'rgba(43,45,66,.55)';
+    for (let i = i0; i < i1; i++) {
+      const f = app.pitch[i]; if (!(f > 0)) continue;
+      let m = 12 * Math.log2(f / 440) + 69; m += 12 * Math.round((centre - m) / 12);
+      g.fillRect(X(i * app.hop) - 1, Y(m - 60) - 1.5, 3, 3);
+    }
+  }
+  // notes
+  g.font = '13px Fredoka';
+  s.notes.forEach((n, i) => {
+    const a = X(Timing.noteStart(st, i)), b = X(Timing.noteEnd(st, i));
+    if (b < -20 || a > W + 20) return;
+    const y = Y(n.type === 'R' || n.type === 'G' ? (lo + hi) / 2 : n.pitch) - rowH * 0.42, h = Math.max(8, rowH * 0.84), w = Math.max(4, b - a);
+    g.beginPath(); g.roundRect(a, y, w, h, h / 2);
+    g.fillStyle = n.type === '*' || n.type === 'G' ? '#FFE08A' : '#fff'; g.fill();
+    const f = app.matcher ? app.matcher.noteFit(s, st, i) : null;
+    if (f != null && f > 0) { g.save(); g.clip(); g.fillStyle = 'rgba(61,220,132,.85)'; g.fillRect(a, y, w * f, h); g.restore(); }
+    g.lineWidth = app.noteSel === i ? 4 : 2.5; g.strokeStyle = app.noteSel === i ? '#2EA8FF' : '#2B2D42';
+    if (n.type === 'F') g.setLineDash([4, 3]); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#2B2D42'; g.fillText(n.lyric.trim(), a, y + h + 13);
+  });
+  // taps (B)
+  const allTaps = app.taps.map((t) => ({ time: t.time, i: t.i })).concat(app.tapRun ? app.tapRun.taps : []);
+  allTaps.forEach((t) => { const x = X(t.time); g.strokeStyle = '#FF4B5C'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, RULER); g.lineTo(x, bot + 10); g.stroke(); const nx = X(Timing.noteStart(st, t.i)); g.setLineDash([3, 3]); g.beginPath(); g.moveTo(x, bot + 10); g.lineTo(nx, Y(s.notes[t.i].pitch)); g.stroke(); g.setLineDash([]); });
+  // playhead
+  g.fillStyle = '#FF4B5C'; g.fillRect(X(mediaTime()) - 1.5, 0, 3, H);
+}
+const fmtT = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+
+// follow playback, loop, keep separate video in step
+function frame() {
+  if (app.song && playing()) {
+    const t = mediaTime();
+    if (app.loop && app.sel && t > Timing.lineEnd(song(), cur(), app.sel.to) + 0.6) seek(Timing.lineStart(song(), cur(), app.sel.from) - 1.5);
+    if (app.follow && !drag) { const W = dt.getBoundingClientRect().width; app.view.start = t - (W * 0.3) / app.view.pps; }
+    if (app.separate && Math.abs(video.currentTime - (t + cur().videoGap)) > 0.08) video.currentTime = Math.max(0, t + cur().videoGap);
+    draw();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ---------- pointer interaction on the detail view ----------
+let drag = null;
+const hint = (txt) => { $('hint').textContent = txt || ''; $('hint').style.opacity = txt ? 1 : 0; };
+function hitNote(x, y) {
+  const s = song(), st = cur(); let hit = null;
+  s.notes.forEach((n, i) => {
+    const a = geo.X(Timing.noteStart(st, i)), b = geo.X(Timing.noteEnd(st, i)), yc = geo.Y(n.type === 'R' || n.type === 'G' ? (geo.lo + geo.hi) / 2 : n.pitch);
+    if (x >= a - 3 && x <= Math.max(b, a + 6) + 3 && Math.abs(y - yc) <= Math.max(6, geo.rowH * 0.5)) hit = { i, edge: x > b - 6 && b - a > 10 };
+  });
+  return hit;
+}
+function lineAtX(x) {
+  const s = song(), st = cur(), t = geo.T(x);
+  for (let k = 0; k < s.lines.length; k++) if (t >= Timing.lineStart(s, st, k) - 0.1 && t <= Timing.lineEnd(s, st, k) + 0.1) return k;
+  return null;
+}
+dt.addEventListener('pointerdown', (e) => {
+  if (!app.song) return;
+  const r = dt.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, st = app.st, s = song();
+  dt.setPointerCapture(e.pointerId);
+  const base = { x, t: geo.T(x), st };
+  if (y < geo.RULER) { drag = { kind: 'seek', ...base }; seek(geo.T(x)); return; }
+  app.follow = false;
+  if (app.variant === 'A') {
+    if (app.sel) { const ex = geo.X(Timing.lineEnd(s, st, app.sel.to)); if (x >= ex && x <= ex + 20 && y < geo.RULER + 24) { drag = { kind: 'stretch', ...base }; return; } }
+    const h = hitNote(x, y);
+    if (h && e.altKey) { app.noteSel = h.i; drag = { kind: h.edge ? 'resize' : 'note', i: h.i, ...base }; draw(); return; }
+    const k = h ? s.notes[h.i].k : lineAtX(x);
+    if (k != null && y > geo.RULER) {
+      if (e.shiftKey && app.sel) app.sel = { from: Math.min(app.sel.from, k), to: Math.max(app.sel.to, k) };
+      else if (!(app.sel && k >= app.sel.from && k <= app.sel.to)) app.sel = { from: k, to: k };
+      app.noteSel = null;
+      drag = { kind: 'lines', ...base }; refresh(); return;
+    }
+    app.sel = null; app.noteSel = null;
+    const grabBeat = Timing.beatOfTime(st, base.t);
+    drag = { kind: 'song', grabBeat, ...base }; refresh(); return;
+  }
+  // B and C: click a line to select it, drag to pan
+  const h = hitNote(x, y), k = h ? s.notes[h.i].k : lineAtX(x);
+  if (k != null) { app.sel = { from: k, to: k }; refresh(); }
+  drag = { kind: 'pan', start0: app.view.start, ...base };
+});
+dt.addEventListener('pointermove', (e) => {
+  if (!drag) { if (app.variant === 'A' && geo && app.song) { const r = dt.getBoundingClientRect(), h = hitNote(e.clientX - r.left, e.clientY - r.top); dt.style.cursor = h && e.altKey ? (h.edge ? 'ew-resize' : 'move') : 'grab'; } return; }
+  const r = dt.getBoundingClientRect(), x = e.clientX - r.left, d = (x - drag.x) / app.view.pps, s = song(), base = drag.st;
+  if (Math.abs(x - drag.x) < 3 && drag.kind !== 'seek') return;
+  let op = null, txt = '';
+  const spb = Timing.spb(base);
+  switch (drag.kind) {
+    case 'seek': seek(geo.T(x)); return;
+    case 'pan': app.view.start = drag.start0 - d; draw(); return;
+    case 'song': {
+      if (app.pin != null && Math.abs(drag.grabBeat - base.beat[s.lines[app.pin].notes[0]]) > 32) {
+        const pb = base.beat[s.lines[app.pin].notes[0]], pt = Timing.timeOfBeat(base, pb);
+        const f = Timing.solveTwoPoints(pb, pt, drag.grabBeat, drag.t + d);
+        if (f.bpm > 20 && f.bpm < 2000) { op = { type: 'gapBpm', gap: f.gap, bpm: f.bpm, why: 'stretched around the pin' }; txt = `Stretch around the pin · BPM ${base.bpm} → ${f.bpm} · GAP ${base.gap} → ${f.gap} ms`; }
+      } else {
+        const gap = Math.round(base.gap + d * 1000);
+        op = { type: 'gap', gap, why: 'dragged' }; txt = `Whole Song ${Math.abs(d).toFixed(2)} s ${d < 0 ? 'earlier' : 'later'} · GAP ${base.gap} → ${gap} ms`;
+      }
+      break;
+    }
+    case 'lines': { const beats = Math.round(d / spb); if (beats) { op = { type: 'shiftLines', from: app.sel.from, to: app.sel.to, beats }; txt = `${beats > 0 ? '+' : ''}${beats} beats (${(beats * spb).toFixed(2)} s) · whole beats only`; } break; }
+    case 'stretch': {
+      const a = Timing.lineStart(s, base, app.sel.from), len0 = Timing.lineEnd(s, base, app.sel.to) - a;
+      const factor = Math.round(Math.max(0.3, (len0 + d) / len0) * 100) / 100;
+      if (factor !== 1) { op = { type: 'stretchLines', from: app.sel.from, to: app.sel.to, factor }; txt = `Stretch ×${factor.toFixed(2)} · notes snap to whole beats`; }
+      break;
+    }
+    case 'note': { const beats = Math.round(d / spb); if (beats) { op = { type: 'shiftNote', i: drag.i, beats }; txt = `Note ${beats > 0 ? '+' : ''}${beats} beats`; } break; }
+    case 'resize': { const len = base.len[drag.i] + Math.round(d / spb); op = { type: 'resizeNote', i: drag.i, len }; txt = `Length ${Math.max(1, len)} beats`; break; }
+  }
+  app.previewOp = op; app.preview = op ? Timing.apply(s, base, op) : null; hint(txt);
+  refreshLight();
+});
+function endDrag() {
+  if (!drag) return;
+  const op = app.previewOp; drag = null; hint('');
+  if (op) commit(op); else { app.preview = null; refresh(); }
+}
+dt.addEventListener('pointerup', endDrag); dt.addEventListener('pointercancel', endDrag);
+dt.addEventListener('dblclick', (e) => {
+  if (app.variant !== 'A') return;
+  const r = dt.getBoundingClientRect(), k = lineAtX(e.clientX - r.left);
+  if (k == null) return;
+  app.pin = app.pin === k ? null : k; app.sel = null; refresh();
+});
+dt.addEventListener('wheel', (e) => {
+  e.preventDefault(); app.follow = false;
+  if (e.ctrlKey || e.metaKey) { const r = dt.getBoundingClientRect(), x = e.clientX - r.left, t = geo.T(x); app.view.pps = Math.max(8, Math.min(800, app.view.pps * Math.exp(-e.deltaY * 0.002))); app.view.start = t - x / app.view.pps; }
+  else app.view.start += (e.deltaX || e.deltaY) / app.view.pps;
+  draw();
+}, { passive: false });
+ov.addEventListener('pointerdown', (e) => { const r = ov.getBoundingClientRect(), D = app.duration || 1; const t = ((e.clientX - r.left) / r.width) * D; seek(t); app.view.start = t - 3; app.follow = true; draw(); });
+// light refresh during drags: numbers + canvases only
+function refreshLight() {
+  const st = cur(); $('gap').value = st.gap; $('bpm').value = st.bpm;
+  if (app.matcher) { const f = app.matcher.songFit(song(), st); $('meter').style.width = Math.min(100, f * 100 * 1.3) + '%'; $('fitText').textContent = Math.round(f * 100) + ' %'; }
+  draw();
+}
+
+// ---------- keyboard ----------
+document.addEventListener('keydown', (e) => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { switchVariant(e.key === 'ArrowLeft' ? -1 : 1); e.preventDefault(); return; }
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (app.variant === 'B') { if (app.tapRun && playing()) tap(); else if (!playing()) startTapRun(); else setPlaying(false); return; }
+    app.follow = true; setPlaying(!playing()); return;
+  }
+  if (e.key === 'Enter' && app.tapRun) { setPlaying(false); return; }
+  if (e.key === ',' || e.key === '<') nudge(e.shiftKey || e.key === '<' ? -100 : -10);
+  else if (e.key === '.' || e.key === '>') nudge(e.shiftKey || e.key === '>' ? 100 : 10);
+  else if (e.key === '[' || e.key === '{') tempoNudge(e.shiftKey ? -0.5 : -0.05);
+  else if (e.key === ']' || e.key === '}') tempoNudge(e.shiftKey ? 0.5 : 0.05);
+  else if (e.key.toLowerCase() === 'l') toggleLoop();
+  else if (e.key.toLowerCase() === 'p') { app.follow = true; setPlaying(!playing()); }
+  else if (e.key === '1' || e.key === '2' || e.key === '3') { $('speed').value = { 1: '1', 2: '0.75', 3: '0.5' }[e.key]; $('speed').onchange(); }
+  else if (e.key === 'Escape') { app.sel = null; app.noteSel = null; app.loop = false; $('loop').style.background = '#fff'; refresh(); }
+  else if (e.key === 'f') { app.follow = true; app.view.start = mediaTime() - 3; draw(); }
+});
+
+// ---------- variant switcher ----------
+function switchVariant(dir) {
+  const keys = Object.keys(VARIANTS); app.variant = keys[(keys.indexOf(app.variant) + dir + keys.length) % keys.length];
+  const u = new URL(location.href); u.searchParams.set('variant', app.variant); history.replaceState(null, '', u);
+  app.lastResult = ''; app.tapRun = null; renderSwitcher(); refresh();
+}
+function renderSwitcher() { $('vlabel').textContent = `${app.variant} (${VARIANTS[app.variant]})`; }
+$('prevV').onclick = () => switchVariant(-1); $('nextV').onclick = () => switchVariant(1);
+renderSwitcher();
+
+// ---------- open another Song ----------
+$('picker').onchange = (e) => loadFromFiles(e.target.files).catch((err) => alert(err.message));
+let dragDepth = 0;
+addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; $('drop').style.display = 'flex'; });
+addEventListener('dragleave', () => { if (--dragDepth <= 0) { $('drop').style.display = 'none'; dragDepth = 0; } });
+addEventListener('dragover', (e) => e.preventDefault());
+addEventListener('drop', (e) => { e.preventDefault(); dragDepth = 0; $('drop').style.display = 'none'; loadFromFiles(e.dataTransfer.files).catch((err) => alert(err.message)); });
+addEventListener('resize', draw);
+
+const startFolder = new URLSearchParams(location.search).get('song') || 'songs/vincent/';
+loadFromFolder(startFolder.endsWith('/') ? startFolder : startFolder + '/').catch((err) => { $('songname').textContent = 'No Song loaded: drop a Song folder here, or use “Open another Song…”'; console.warn(err); });
+</script>
+</body>
+</html>
