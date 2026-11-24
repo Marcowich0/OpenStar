@@ -118,12 +118,13 @@ function onReading(m) {
   }
   $("cl").firstChild.style.width = `${Math.max(0, m.clarity) * 100}%`;
   $("lvl").firstChild.style.width = `${Math.max(0, Math.min(1, (m.db + 70) / 70)) * 100}%`;
-  const wallPerf = m.wall - performance.timeOrigin;
+  // Date.now() can jump (the phone's clock was adjusted 24 s mid-run), so map it to performance.now() live.
+  const wallPerf = m.wall - (Date.now() - performance.now());
   st.local.push([endPerf - halfWin, wallPerf - halfWin, m.hz, m.clarity, ((m.endFrame - 1024) / st.sr) * 1000]);
   if (st.local.length > 3000) st.local.shift();
   if (st.offset === null) return;
   const te = endPerf + st.offset;
-  const tw = m.wall - performance.timeOrigin + st.offset; // worklet wall-clock stamp at processing time
+  const tw = wallPerf + st.offset; // worklet wall-clock stamp at processing time
   const ok = send({
     t: "r", id: st.id, s: st.seq++,
     tc: +(te - halfWin).toFixed(2), te: +te.toFixed(2), tw: +tw.toFixed(2),
