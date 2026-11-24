@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pitch trace smoothing</title>
+<!--
+  PROTOTYPE, throwaway. Branch prototype/pitch-trace-smoothing, never merged.
+  Wayfinder ticket "Smoothing the Phone pitch trace" (Marcowich0/OpenStar#29).
+
+  Question: how should the Stage draw a Phone's pitch trace when the Wi-Fi holds readings
+  back and then delivers them in bursts? Five ways of drawing, switchable with ?variant=
+  (all, A..E) and the bar at the bottom. Every lane is fed by the same stream: a simulated
+  singer, delivered with the real Wi-Fi lateness recorded in the Phone mic latency runs
+  (wifi-holds.js). Open this file in Chromium; no server needed.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{color-scheme:dark}
+html,body{margin:0;height:100%;overflow:hidden;background:#0d0d12}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0;font-family:Fredoka,system-ui,sans-serif}
+#cv{position:absolute;left:0;top:0;width:1920px;height:1080px}
+#explain{position:absolute;left:60px;top:36px;width:1800px;box-sizing:border-box;padding:26px 36px;border-radius:32px;background:rgba(255,255,255,.8);color:#2B2D42;box-shadow:0 10px 0 rgba(43,45,66,.18);display:none}
+#explain h2{margin:0 0 8px;font-size:40px;font-weight:700}
+#explain p{margin:0;font-size:25px;line-height:1.35;font-weight:500;max-width:1700px}
+/* prototype switcher, not part of the design */
+#bar{position:fixed;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px;padding:6px;background:#111;color:#fff;border-radius:22px;font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 6px 24px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.18);z-index:10;user-select:none;max-width:calc(100vw - 32px)}
+#bar button{font:inherit;color:inherit;background:#262630;border:0;border-radius:16px;padding:9px 12px;cursor:pointer;white-space:nowrap}
+#bar button:hover{background:#383845}
+#bar button.on{background:#3DDC84;color:#111}
+#bar .lbl{padding:0 8px;min-width:250px;text-align:center}
+#help{position:fixed;left:50%;bottom:74px;transform:translateX(-50%);width:min(640px,calc(100vw - 32px));background:#111;color:#eee;border-radius:16px;padding:14px 18px;font:13px/1.5 ui-sans-serif,system-ui,sans-serif;display:none;z-index:10;box-shadow:0 6px 24px rgba(0,0,0,.5)}
+#help h4{margin:0 0 6px;font-size:15px}
+#help kbd{font:12px ui-monospace,monospace;background:#2a2a33;border-radius:4px;padding:1px 5px}
+</style>
+<script src="wifi-holds.js"></script>
+</head>
+<body>
+<div id="stage"><canvas id="cv" width="1920" height="1080"></canvas><div id="explain"><h2></h2><p></p></div></div>
+<div id="help">
+<h4>Prototype: smoothing the Phone pitch trace</h4>
+Every lane is a Phone Player singing the same simulated part, delivered to the Stage with real Wi-Fi lateness from the latency runs (about 2–5 holds a second, 50–100 ms, worst about 250 ms). Only the way each lane draws differs. The strip at the top shows, for each reading, how long after it was sung it reached the Stage, lined up with the lanes.<br><br>
+Lane stats over the last 10 s: <b>behind</b> is how far the trace end sits behind the playhead; <b>guess</b> is how much of the line is a flat guess right now; <b>jumps</b> are frames where the end leapt forward; <b>stalls</b> are times it stopped; <b>snaps</b> are guesses that real readings then redrew by more than half a semitone.<br><br>
+Local mics have no Wi-Fi: drawn on arrival, their trace end sits about 30–50 ms behind the playhead and never stutters.<br><br>
+<kbd>←</kbd><kbd>→</kbd> variant · <kbd>space</kbd> pause · <kbd>s</kbd> speed · <kbd>w</kbd> Wi-Fi · <kbd>[</kbd><kbd>]</kbd> fixed delay D · <kbd>g</kbd> mark guesses · <kbd>n</kbd> other stretch of Wi-Fi · <kbd>h</kbd> hide bar · <kbd>i</kbd> this help
+</div>
+<div id="bar">
+<button id="prev">‹</button><span class="lbl" id="vlbl"></span><button id="next">›</button>
+<button id="play"></button><button id="speed"></button><button id="wifi"></button>
+<button id="dm">D−</button><button id="dl" style="pointer-events:none;background:none"></button><button id="dp">D+</button>
+<button id="marks">mark guesses</button><button id="infoB">?</button>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const INK='#2B2D42',COL=['#FF4B5C','#2EA8FF','#3DDC84','#FF7A1A','#9B5CFF'];
+const rr=(c,x,y,w,h,r)=>{c.beginPath();c.roundRect(x,y,Math.max(1,w),Math.max(1,h),Math.max(0,Math.min(r,h/2,w/2)))};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function starPath(c,x,y,r){c.beginPath();for(let i=0;i<10;i++){const a=i*Math.PI/5-Math.PI/2,R=i%2?r*.45:r;c.lineTo(x+Math.cos(a)*R,y+Math.sin(a)*R)}c.closePath()}
+
+/* ---------- song (invented) ---------- */
+const BEAT=160,PPB=44,LOOP=100,MAXHOLD=600,STEP=10.667;
+const PITCH=[[62,62,64,65,67,65,64,62,60],[64,65,67,67,69,67,65,64,62],[67,67,72,71,69,67,69],[65,65,67,69,67,65,64]];
+const DUR=[[2,1,2,3,2,1,2,2,5],[2,1,3,1,2,2,2,1,5],[2,1,6,1,2,1,6],[2,1,3,2,2,1,7]];
+const GOLD=[[6],[8],[2,6],[6]];
+const NOTES=[];let SB=6;PITCH.forEach((row,li)=>{row.forEach((p,i)=>{NOTES.push({start:SB,len:DUR[li][i],pitch:p,gold:GOLD[li].includes(i)});SB+=DUR[li][i]});SB+=4});SB+=2;
+const PMIN=Math.min(...NOTES.map(n=>n.pitch))-3,PMAX=Math.max(...NOTES.map(n=>n.pitch))+3;
+function noteAt(beat){const b=((beat%SB)+SB)%SB;for(const n of NOTES)if(b>=n.start&&b<n.start+n.len)return n;return null}
+
+/* ---------- simulated singer: one Pitch reading every STEP ms of song time ---------- */
+const K=Math.ceil(6*SB*BEAT/STEP),P=new Float32Array(K),HIT=new Uint8Array(K);
+(function(){let seed=11;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;let cur=NaN,last=null,off=0,offUntil=0,drop=0;
+ for(let k=0;k<K;k++){const s=k*STEP,beat=s/BEAT,n=noteAt(beat),b=((beat%SB)+SB)%SB;
+  if(n!==last){last=n;if(n){off=rnd()<.14?(rnd()<.5?-1:1)*(2+rnd()*1.5):0;offUntil=n.start+n.len*(.3+rnd()*.6)}}
+  if(drop>0){drop--;P[k]=NaN;cur=NaN;continue}
+  const legato=!isNaN(cur)&&n&&b-n.start<.22;
+  if(n&&(b-n.start>=.22||legato)){
+   if(rnd()<.003){drop=2+Math.floor(rnd()*3);P[k]=NaN;cur=NaN;continue}
+   const into=(b-n.start)*BEAT,vib=into>260?.3*Math.sin(2*Math.PI*5.5*s/1000):0;
+   const tgt=n.pitch+(b<offUntil?off:0)+vib+(rnd()-.5)*.12;
+   cur=isNaN(cur)?tgt-1.3:cur+(tgt-cur)*.22;P[k]=cur;HIT[k]=Math.abs(cur-n.pitch)<=1.5?1:0;
+  }else{P[k]=NaN;cur=NaN}
+ }})();
+const pk=k=>k<0?NaN:P[k%K],hk=k=>HIT[k%K],sk=k=>k*STEP;
+
+/* ---------- Wi-Fi: real lateness per reading ---------- */
+const MODES={r22:{label:'Wi-Fi: run 22',run:'22',scale:1},r20:{label:'Wi-Fi: run 20',run:'20',scale:1},x2:{label:'Wi-Fi: holds ×2',run:'22',scale:2},clean:{label:'Wi-Fi: no holds',run:null}};
+let LAT=[],FLOOR=30;
+function loadWifi(){const m=MODES[S.wifi];if(m.run){const r=WIFI_RUNS[m.run];FLOOR=r.floorMs;LAT=r.lat.split(',').map(x=>+x/10*m.scale)}else{FLOOR=31;LAT=Array.from({length:997},(_,i)=>((i*7919)%13)/13*3)}}
+const arrival=k=>sk(k)+LOOP+FLOOR+LAT[(k+S.off)%LAT.length];
+
+/* ---------- state ---------- */
+const q=new URLSearchParams(location.search);
+const S={variant:q.get('variant')||'all',playing:true,speed:+(q.get('speed')||1),wifi:q.get('wifi')||'r22',D:+(q.get('d')||300),marks:q.get('marks')==='1',off:+(q.get('off')||0)};
+let now,R,delays,lanes;
+function pct(arr,p){if(!arr.length)return NaN;const s=[...arr].sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.floor(p*s.length))]}
+
+// Bring the trace end to song time `target`: real readings up to it, else a flat hold at the last pitch.
+function follow(target){const last=R-1;
+ if(last<0)return{realTo:-1,tail:null,guess:null,headS:target,ballP:NaN};
+ if(sk(last)>=target){const k=Math.floor(target/STEP),a=pk(k),b=k+1<=last?pk(k+1):NaN,f=target/STEP-k,p=!isNaN(a)&&!isNaN(b)?a+(b-a)*f:NaN;
+  return{realTo:k,tail:isNaN(p)?null:{s:target,p},guess:null,headS:target,ballP:isNaN(p)?a:p}}
+ const lp=pk(last),hold=!isNaN(lp)&&target-sk(last)<MAXHOLD;
+ return{realTo:last,tail:null,guess:hold?{from:sk(last),p:lp}:null,headS:target,ballP:hold?lp:NaN}}
+
+const VARIANTS=[
+{key:'A',name:'On arrival (today)',
+ info:'Draws each reading where it was sung as soon as it reaches the Stage. The trace end sits about 160 ms behind the playhead and stutters: when the Wi-Fi holds readings back it stops, then jumps forward by up to a quarter of a second.',
+ step(L){const last=R-1;return{realTo:last,tail:null,guess:null,headS:last<0?0:sk(last),ballP:pk(last)}}},
+{key:'B',name:'Hold to the playhead',
+ info:'The trace always reaches the playhead. Past the last reading that has arrived, the line continues flat at the last pitch, and real readings redraw that guess as they come in. No lag and no stutter, but the last 130–400 ms of the line is always a guess: slides and vibrato show up late, and the line snaps when the guess was wrong.',
+ step(L){return follow(now)}},
+{key:'C',name:'Hold to the usual delay',
+ info:'The trace end runs steadily at the Phone\'s usual delay (a low percentile of the last 2 s of readings, about 130–150 ms behind the playhead) and draws real readings up to there. Only when the Wi-Fi holds readings back does the line continue flat at the last pitch until they arrive. The guess is short and only appears during holds.',
+ step(L,ds){const t=pct(delays.filter(x=>x.t>now-2000).map(x=>x.d),.2);if(!isNaN(t)){const want=t-L.L;L.L+=want>0?Math.min(want*Math.min(1,ds/400),.6*ds):want*Math.min(1,ds/1500)}return follow(now-L.L)}},
+{key:'D',name:'Fixed delay',
+ info:'The trace end runs a fixed time D behind the playhead and draws only real readings, so it never guesses. Phone lanes only; Local mics stay on arrival. A hold longer than D still stalls it, then it jumps. Change D with [ and ] (default 300 ms: the Phone\'s usual ~130 ms plus room for most holds).',
+ step(L){const t=now-S.D,last=R-1;if(last>=0&&sk(last)<t)return{realTo:last,tail:null,guess:null,headS:sk(last),ballP:pk(last)};return follow(t)}},
+{key:'E',name:'Adaptive delay + hold',
+ info:'Like D, but the delay follows the recent Wi-Fi: it rises quickly to the 95th percentile of the last 3 s of readings and falls back slowly (between 130 and 450 ms). A reading later than that is bridged by a flat hold as in C, so the end never stalls or jumps.',
+ step(L,ds){const t=clamp(pct(delays.map(x=>x.d),.95)||200,130,450),want=t-L.D;L.D+=want>0?Math.min(want*Math.min(1,ds/300),.6*ds):want*Math.min(1,ds/3000);return follow(now-L.D)}},
+];
+
+function reset(){loadWifi();now=0;R=0;delays=[];lanes=VARIANTS.map((v,i)=>({v,i,d:null,prevHead:null,prevGuess:null,stalled:false,behind:0,guessMs:0,L:140,D:250,ev:{jump:[],stall:[],snap:[]}}))}
+
+function tick(dt){if(!S.playing)return;const ds=Math.min(dt,100)*S.speed;now+=ds;
+ const newly=[];for(;;){const a=arrival(R);if(a>now)break;delays.push({t:a,d:a-sk(R)});newly.push(R);R++}
+ while(delays.length&&delays[0].t<now-3000)delays.shift();
+ for(const L of lanes){const d=L.v.step(L,ds);L.d=d;
+  // jump: the end leaps more than 40 ms of song (~11 px) beyond one frame's travel; stall: it has not moved for over 40 ms
+  if(L.prevHead!=null){const adv=d.headS-L.prevHead;if(adv-ds>40)L.ev.jump.push(now);if(adv>.25*ds){L.movedAt=now;L.stalled=false}else if(!L.stalled&&now-(L.movedAt??now)>40){L.stalled=true;L.ev.stall.push(now)}}
+  if(L.prevGuess)for(const j of newly){const s=sk(j);if(s>L.prevGuess.from&&s<=L.prevGuess.to){const p=pk(j);if(isNaN(p)||Math.abs(p-L.prevGuess.p)>.5){L.ev.snap.push(now);break}}}
+  L.prevGuess=d.guess?{from:d.guess.from,to:d.headS,p:d.guess.p}:null;L.prevHead=d.headS;
+  L.behind+=(now-d.headS-L.behind)*Math.min(1,ds/400);
+  const g=d.guess?d.headS-d.guess.from:0;L.guessMs+=(g-L.guessMs)*Math.min(1,ds/400);
+  for(const k in L.ev)while(L.ev[k].length&&L.ev[k][0]<now-10000)L.ev[k].shift()}}
+
+/* ---------- drawing ---------- */
+const cv=$('#cv'),c=cv.getContext('2d');
+function bg(t){const g=c.createLinearGradient(0,0,1920,1080);g.addColorStop(0,'#3b2a6e');g.addColorStop(.55,'#b0507f');g.addColorStop(1,'#f0a060');c.fillStyle=g;c.fillRect(0,0,1920,1080);
+ for(let i=0;i<7;i++){const x=(i*311+t*.02*(1+i%3))%2200-140,y=120+((i*173)%800)+Math.sin(t/1000+i)*30,r=120+i*30,rg=c.createRadialGradient(x,y,0,x,y,r);rg.addColorStop(0,'rgba(255,255,255,.22)');rg.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=rg;c.fillRect(x-r,y-r,2*r,2*r)}
+ c.fillStyle='rgba(13,13,18,.18)';c.fillRect(0,0,1920,1080)}
+function laneField(x,y,w,h){return{x,y,w,h,fx:x+330,playX:x+640,pad:h<160?14:22}}
+const Xf=(f,s)=>f.playX+(s-now)/BEAT*PPB;
+const Yf=(f,p)=>f.y+f.pad+(1-(p-PMIN)/(PMAX-PMIN))*(f.h-2*f.pad);
+function notes(f){const nh=clamp((f.h-2*f.pad)/(PMAX-PMIN)*1.5,10,30),loop=SB*BEAT,r0=Math.floor((now-3000)/loop);
+ for(let r=r0;r<=r0+2;r++)for(const n of NOTES){const x0=Xf(f,(r*SB+n.start)*BEAT),w=(n.len-.2)*PPB;if(x0>f.x+f.w||x0+w<f.fx)continue;const y=Yf(f,n.pitch),gone=x0+w<f.playX;
+  if(n.gold){const g=c.createLinearGradient(0,y-nh/2,0,y+nh/2);g.addColorStop(0,'#FFE58A');g.addColorStop(1,'#FFB020');c.fillStyle=g}else c.fillStyle=gone?'#ECEDF5':'#fff';
+  rr(c,x0,y-nh/2,w,nh,nh/2);c.fill();c.lineWidth=3.5;c.strokeStyle=INK;c.stroke();if(n.gold){c.fillStyle='#fff';starPath(c,x0+nh/2,y,nh*.28);c.fill()}}}
+function trace(f,L,col){const d=L.d;if(!d)return;const w=f.h<160?9:12;
+ const k0=Math.max(0,Math.floor((now-(f.playX-f.fx)/PPB*BEAT-300)/STEP)),pts=[];
+ for(let k=k0;k<=d.realTo;k++){const p=pk(k);pts.push(isNaN(p)?null:{x:Xf(f,sk(k)),y:Yf(f,p),hit:hk(k),g:0})}
+ if(d.tail){const n=noteAt(d.tail.s/BEAT);pts.push({x:Xf(f,d.tail.s),y:Yf(f,d.tail.p),hit:n&&Math.abs(d.tail.p-n.pitch)<=1.5,g:0})}
+ if(d.guess){const gp=d.guess.p,hitAt=s=>{const n=noteAt(s/BEAT);return n&&Math.abs(gp-n.pitch)<=1.5};
+  for(let s=d.guess.from+STEP;s<d.headS;s+=STEP)pts.push({x:Xf(f,s),y:Yf(f,gp),hit:hitAt(s),g:1});pts.push({x:Xf(f,d.headS),y:Yf(f,gp),hit:hitAt(d.headS),g:1})}
+ const paths={hit:new Path2D(),miss:new Path2D(),ghit:new Path2D(),gmiss:new Path2D()};
+ for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i];if(!a||!b)continue;const key=(b.g&&S.marks?'g':'')+(b.hit?'hit':'miss');const p=paths[key];p.moveTo(a.x,a.y);p.lineTo(b.x,b.y)}
+ c.lineCap='round';c.lineJoin='round';
+ c.strokeStyle=INK;c.lineWidth=w+6;c.stroke(paths.hit);
+ c.strokeStyle='rgba(43,45,66,.25)';c.lineWidth=w*.55;c.stroke(paths.miss);
+ c.strokeStyle=col;c.lineWidth=w;c.stroke(paths.hit);
+ if(S.marks){c.setLineDash([2,14]);c.strokeStyle='rgba(43,45,66,.5)';c.lineWidth=w*.8;c.stroke(paths.ghit);c.stroke(paths.gmiss);c.setLineDash([])}
+ if(!isNaN(d.ballP)){const x=Xf(f,d.headS),y=Yf(f,d.ballP),r=f.h<160?11:14,s=1+.12*Math.abs(Math.sin(now/1000*9+L.i));
+  c.save();c.translate(x,y);c.scale(s,1/s);c.fillStyle=col;c.strokeStyle='#fff';c.lineWidth=4;c.beginPath();c.arc(0,0,r,0,7);c.fill();c.stroke();c.restore()}}
+function lane(f,L){const col=COL[L.i],d=L.d;
+ c.fillStyle='rgba(255,255,255,.74)';rr(c,f.x,f.y,f.w,f.h,30);c.fill();
+ c.save();rr(c,f.fx,f.y,f.x+f.w-f.fx,f.h,30);c.clip();
+ c.strokeStyle='rgba(43,45,66,.07)';c.lineWidth=2;for(let p=Math.ceil(PMIN);p<=PMAX;p+=2){const y=Yf(f,p);c.beginPath();c.moveTo(f.fx,y);c.lineTo(f.x+f.w,y);c.stroke()}
+ notes(f);trace(f,L,col);
+ c.strokeStyle='rgba(43,45,66,.3)';c.lineWidth=4;c.lineCap='round';c.setLineDash([1,12]);c.beginPath();c.moveTo(f.playX,f.y+8);c.lineTo(f.playX,f.y+f.h-8);c.stroke();c.setLineDash([]);
+ c.restore();
+ c.strokeStyle='rgba(43,45,66,.12)';c.lineWidth=3;c.beginPath();c.moveTo(f.fx-6,f.y+12);c.lineTo(f.fx-6,f.y+f.h-12);c.stroke();
+ // badge and stats
+ const cy=f.y+34;c.fillStyle=col;c.strokeStyle='#fff';c.lineWidth=4;c.beginPath();c.arc(f.x+42,cy,22,0,7);c.fill();c.stroke();
+ c.fillStyle='#fff';c.font='700 26px Fredoka';c.textAlign='center';c.textBaseline='middle';c.fillText(L.v.key,f.x+42,cy+1);
+ c.fillStyle=INK;c.textAlign='left';c.font='600 23px Fredoka';c.fillText(L.v.name,f.x+74,cy);
+ const big=f.h>=200,fs=big?21:17,lh=fs+6;c.font=`500 ${fs}px Fredoka`;c.fillStyle='#4a4c66';
+ const rate=a=>(a.length/Math.min(10,Math.max(1,now/1000))).toFixed(1);
+ const extra=L.v.key==='C'?` · delay ${Math.round(L.L)}`:L.v.key==='D'?` · D ${S.D}`:L.v.key==='E'?` · delay ${Math.round(L.D)}`:'';
+ const lines=[`behind ${Math.round(L.behind)} ms${extra}`,`guess ${Math.round(L.guessMs)} ms · snaps ${rate(L.ev.snap)}/s`,`jumps ${rate(L.ev.jump)}/s · stalls ${rate(L.ev.stall)}/s`];
+ lines.forEach((t,i)=>c.fillText(t,f.x+30,cy+34+i*lh))}
+// When each reading reached the Stage, lined up with the lanes.
+function strip(f){c.fillStyle='rgba(255,255,255,.74)';rr(c,f.x,f.y,f.w,f.h,24);c.fill();
+ const top=f.y+14,bot=f.y+f.h-14,YM=v=>bot-clamp(v/400,0,1)*(bot-top);
+ c.fillStyle=INK;c.font='600 20px Fredoka';c.textAlign='left';c.textBaseline='middle';c.fillText('Reached the Stage',f.x+26,f.y+28);
+ c.font='500 16px Fredoka';c.fillStyle='#4a4c66';
+ ['ms after it was sung,','for each reading','(0–400 ms, top = late)'].forEach((t,i)=>c.fillText(t,f.x+26,f.y+54+i*20));
+ c.save();c.beginPath();c.rect(f.fx,f.y,f.x+f.w-f.fx,f.h);c.clip();
+ c.strokeStyle='rgba(43,45,66,.1)';c.lineWidth=2;for(const v of [100,200,300]){c.beginPath();c.moveTo(f.fx,YM(v));c.lineTo(f.x+f.w,YM(v));c.stroke()}
+ const ref=[];const C=lanes[2],D=lanes[3],E=lanes[4];if(C)ref.push([C.L,COL[2]]);ref.push([S.D,COL[3]]);if(E)ref.push([E.D,COL[4]]);
+ for(const [v,col] of ref){c.strokeStyle=col;c.lineWidth=3;c.setLineDash([10,8]);c.beginPath();c.moveTo(f.fx,YM(v));c.lineTo(f.x+f.w,YM(v));c.stroke()}c.setLineDash([]);
+ const k0=Math.max(0,Math.floor((now-(f.playX-f.fx)/PPB*BEAT-200)/STEP));
+ for(let k=k0;k<R;k++){const d=arrival(k)-sk(k),x=f.playX+(sk(k)-now)/BEAT*PPB;c.fillStyle=d>200?'#FF4B5C':d>150?'#FF7A1A':INK;c.beginPath();c.arc(x,YM(d),3.2,0,7);c.fill()}
+ // readings already sung but still held back
+ for(let k=R;sk(k)<=now;k++){const x=f.playX+(sk(k)-now)/BEAT*PPB;c.fillStyle='rgba(43,45,66,.18)';c.fillRect(x-1,top,2,bot-top)}
+ c.strokeStyle='rgba(43,45,66,.3)';c.lineWidth=4;c.setLineDash([1,12]);c.beginPath();c.moveTo(f.playX,f.y+8);c.lineTo(f.playX,f.y+f.h-8);c.stroke();c.setLineDash([]);
+ c.restore()}
+
+function layout(){if(S.variant==='all'){const h=146,gap=12,y0=196;return{strip:laneField(60,30,1800,150),lanes:lanes.map((L,i)=>({L,f:laneField(60,y0+i*(h+gap),1800,h)}))}}
+ const L=lanes.find(L=>L.v.key===S.variant);return{strip:laneField(60,340,1800,170),lanes:[{L,f:laneField(60,540,1800,250)}]}}
+function draw(t){bg(t);const Lo=layout();strip(Lo.strip);for(const {L,f} of Lo.lanes)lane(f,L)}
+
+/* ---------- switcher ---------- */
+const KEYS=['all',...VARIANTS.map(v=>v.key)],SPEEDS=[1,.5,.25],WKEYS=Object.keys(MODES);
+function syncUrl(){const p=new URLSearchParams({variant:S.variant,wifi:S.wifi,d:S.D,speed:S.speed});if(S.marks)p.set('marks','1');if(S.off)p.set('off',S.off);history.replaceState(null,'','?'+p)}
+function ui(){const v=VARIANTS.find(v=>v.key===S.variant);
+ $('#vlbl').textContent=v?`${v.key} (${v.name})`:'all (A–E side by side)';
+ $('#play').textContent=S.playing?'❚❚':'▶';$('#speed').textContent=S.speed+'×';$('#wifi').textContent=MODES[S.wifi].label;$('#dl').textContent=`D ${S.D} ms`;
+ $('#marks').classList.toggle('on',S.marks);
+ const ex=$('#explain');ex.style.display=v?'block':'none';if(v){ex.querySelector('h2').textContent=`${v.key} · ${v.name}`;ex.querySelector('p').textContent=v.info}
+ syncUrl()}
+const go=d=>{S.variant=KEYS[(KEYS.indexOf(S.variant)+d+KEYS.length)%KEYS.length];ui()};
+$('#prev').onclick=()=>go(-1);$('#next').onclick=()=>go(1);
+$('#play').onclick=()=>{S.playing=!S.playing;ui()};
+$('#speed').onclick=()=>{S.speed=SPEEDS[(SPEEDS.indexOf(S.speed)+1)%SPEEDS.length];ui()};
+$('#wifi').onclick=()=>{S.wifi=WKEYS[(WKEYS.indexOf(S.wifi)+1)%WKEYS.length];reset();ui()};
+$('#dm').onclick=()=>{S.D=Math.max(100,S.D-25);ui()};$('#dp').onclick=()=>{S.D=Math.min(600,S.D+25);ui()};
+$('#marks').onclick=()=>{S.marks=!S.marks;ui()};
+$('#infoB').onclick=()=>{const h=$('#help');h.style.display=h.style.display==='block'?'none':'block'};
+addEventListener('keydown',e=>{if(e.target.closest('input,textarea,[contenteditable]'))return;const k=e.key;
+ if(k==='ArrowLeft')go(-1);else if(k==='ArrowRight')go(1);else if(k===' '){S.playing=!S.playing;ui();e.preventDefault()}
+ else if(k==='s')$('#speed').click();else if(k==='w')$('#wifi').click();else if(k==='[')$('#dm').click();else if(k===']')$('#dp').click();
+ else if(k==='g')$('#marks').click();else if(k==='i')$('#infoB').click();else if(k==='h'){const b=$('#bar');b.style.display=b.style.display==='none'?'':'none'}
+ else if(k==='n'){S.off=Math.floor(Math.random()*LAT.length);reset();ui()}});
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080),st=$('#stage');st.style.transform=`scale(${k})`;st.style.left=(innerWidth-1920*k)/2+'px';st.style.top=(innerHeight-1080*k)/2+'px'}
+addEventListener('resize',fit);fit();
+
+reset();ui();
+{const t0=+(q.get('t')||0),sp=S.speed;S.speed=1;for(let t=0;t<t0;t+=1000/60)tick(1000/60);S.speed=sp;if(q.get('paused')==='1')S.playing=false;ui()}
+let last=performance.now();
+function frame(t){tick(t-last);last=t;draw(t);requestAnimationFrame(frame)}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PROTOTYPE Phone A/B</title>
+<!--
+  PROTOTYPE, throwaway (branch prototype/pitch-trace-smoothing). Opens the mic as the real
+  Phone will (echo cancellation and noise suppression on, auto gain off) and, on every
+  512-sample audio frame, sends one reading-sized message twice: over the WebSocket through
+  the relay, and over an unordered, no-retransmit WebRTC data channel straight to the Stage.
+-->
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; font: 16px/1.35 system-ui, sans-serif; background: #fff8ec; color: #1d1b2f; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .proto { font-size: 12px; color: #a33; margin-bottom: 12px; }
+  button { font: 600 20px system-ui; padding: 16px; width: 100%; border: 3px solid #1d1b2f; border-radius: 999px; background: #ffcf3f; margin: 8px 0; }
+  pre { font: 13px/1.45 ui-monospace, monospace; background: #fff; border: 2px solid #1d1b2f; border-radius: 10px; padding: 8px; white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+<h1>Phone A/B: WebSocket vs WebRTC</h1>
+<div class="proto">PROTOTYPE for “Smoothing the Phone pitch trace”. Throwaway.</div>
+<button id="start">Start mic and send</button>
+<pre id="status">Open the Stage page first. Then tap Start, keep this page open and the screen on.</pre>
+<script>
+const $ = (id) => document.getElementById(id);
+const st = { id: null, ws: null, pc: null, dc: null, seq: 0, wsSent: 0, dcSent: 0, dcSkipped: 0, started: 0, wake: "none", hidden: 0, dcState: "none", ice: "none" };
+const ua = navigator.userAgent;
+const name = (/iPhone|iPad/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : "Phone") + " A/B";
+
+function sendWs(o) { if (st.ws && st.ws.readyState === 1) st.ws.send(JSON.stringify(o)); }
+
+function connect() {
+  const ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?role=phone&name=${encodeURIComponent(name)}`);
+  st.ws = ws;
+  ws.onmessage = async (e) => {
+    const m = JSON.parse(e.data);
+    if (m.t === "hello") { st.id = m.id; startRtc(); }
+    else if (m.t === "sig" && st.pc) await st.pc.setRemoteDescription(m.sdp);
+    else if (m.t === "ice" && st.pc && m.c) { try { await st.pc.addIceCandidate(m.c); } catch {} }
+    else if (m.t === "restart") { startRtc(); }
+  };
+  ws.onclose = () => setTimeout(connect, 1000);
+}
+
+async function startRtc() {
+  if (st.pc) st.pc.close();
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  st.pc = pc;
+  // Unordered, no retransmits: a lost packet is simply gone and never holds back later ones.
+  const dc = pc.createDataChannel("readings", { ordered: false, maxRetransmits: 0 });
+  st.dc = dc;
+  dc.onopen = () => (st.dcState = "open");
+  dc.onclose = () => (st.dcState = "closed");
+  pc.onicecandidate = (e) => sendWs({ t: "ice", id: st.id, c: e.candidate });
+  pc.oniceconnectionstatechange = () => (st.ice = pc.iceConnectionState);
+  await pc.setLocalDescription(await pc.createOffer());
+  sendWs({ t: "sig", id: st.id, sdp: pc.localDescription });
+}
+
+// One message per 512-sample frame, the cadence of real Pitch readings (about 94 a second at 48 kHz).
+const WORKLET = `registerProcessor("tick", class extends AudioWorkletProcessor {
+  constructor() { super(); this.n = 0; }
+  process(inputs) { const ch = inputs[0][0]; if (ch) { this.n += ch.length; if (this.n >= 512) { this.n -= 512; this.port.postMessage(currentFrame); } } return true; }
+});`;
+
+async function start() {
+  $("start").disabled = true;
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: false } });
+  const ctx = new AudioContext({ latencyHint: "interactive" });
+  await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" })));
+  const src = ctx.createMediaStreamSource(stream);
+  const node = new AudioWorkletNode(ctx, "tick");
+  const mute = ctx.createGain(); mute.gain.value = 0;
+  src.connect(node).connect(mute).connect(ctx.destination);
+  node.port.onmessage = (e) => {
+    const s = st.seq++, ts = performance.now();
+    // Same size and shape as a real reading message.
+    const msg = JSON.stringify({ t: "r", id: st.id, s, ts: +ts.toFixed(2), tc: +ts.toFixed(2), hz: 220.12, cl: 0.973, db: -24.6, f: e.data });
+    if (st.ws && st.ws.readyState === 1) { st.ws.send(msg); st.wsSent++; }
+    if (st.dc && st.dc.readyState === "open") {
+      if (st.dc.bufferedAmount > 64 * 1024) st.dcSkipped++; else { st.dc.send(msg); st.dcSent++; }
+    }
+  };
+  try { await navigator.wakeLock.request("screen"); st.wake = "on"; } catch (err) { st.wake = "failed: " + err.message; }
+  st.started = performance.now();
+  connect();
+}
+
+if (new URLSearchParams(location.search).get("auto") === "1") start();
+document.addEventListener("visibilitychange", () => { if (document.hidden) st.hidden++; });
+$("start").onclick = () => start().catch((e) => { $("status").textContent = "Error: " + e.message; $("start").disabled = false; });
+
+setInterval(() => {
+  if (!st.started) return;
+  const secs = ((performance.now() - st.started) / 1000).toFixed(0);
+  $("status").textContent =
+    `id ${st.id}  running ${secs} s\n` +
+    `WebSocket: ${st.ws ? ["connecting", "open", "closing", "closed"][st.ws.readyState] : "-"}  sent ${st.wsSent}\n` +
+    `WebRTC: ICE ${st.ice}, channel ${st.dcState}  sent ${st.dcSent}  skipped ${st.dcSkipped}\n` +
+    `screen wake lock ${st.wake}, hidden ${st.hidden}×\n\nKeep this page open and the screen on.`;
+}, 500);
+</script>
+</body>
+</html>

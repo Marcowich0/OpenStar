@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE Stage A/B</title>
+<!--
+  PROTOTYPE, throwaway (branch prototype/pitch-trace-smoothing). Receives each Phone message
+  twice, over the WebSocket through the relay and over the WebRTC data channel, and compares
+  when the two copies arrive. If the Wi-Fi holds show up on both channels at the same moment,
+  they come from the radio and a data channel would not help. If only the WebSocket copy is
+  held while the data channel copy is on time, TCP retransmission causes them.
+-->
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: #fff8ec; color: #1d1b2f; padding: 18px 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .proto { font-size: 12px; color: #a33; margin-bottom: 10px; }
+  button { font: 600 15px system-ui; padding: 9px 16px; border: 3px solid #1d1b2f; border-radius: 999px; background: #ffcf3f; margin: 0 8px 8px 0; cursor: pointer; }
+  table { border-collapse: collapse; margin: 10px 0; font-variant-numeric: tabular-nums; }
+  th, td { border-bottom: 1px solid #d9cdb8; padding: 5px 12px; text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  #verdict { font: 600 18px system-ui; margin: 10px 0; padding: 10px 14px; border-radius: 12px; background: #fff; border: 2px solid #1d1b2f; }
+  canvas { background: #fff; border: 2px solid #1d1b2f; border-radius: 12px; width: 100%; max-width: 1400px; display: block; }
+  pre { font: 12px/1.4 ui-monospace, monospace; color: #555; }
+</style>
+</head>
+<body>
+<h1>Stage A/B: WebSocket vs WebRTC data channel</h1>
+<div class="proto">PROTOTYPE for “Smoothing the Phone pitch trace”. Throwaway.</div>
+<button id="mic">Allow mic (shows the Stage's LAN address to WebRTC)</button>
+<button id="reset">Reset stats</button>
+<button id="save">Save results</button>
+<span id="saved"></span>
+<div id="verdict">Waiting for a Phone…</div>
+<table id="tbl"></table>
+<canvas id="cv" width="1400" height="340"></canvas>
+<pre id="log"></pre>
+<script>
+const $ = (id) => document.getElementById(id);
+const phones = new Map(); // id -> { name, pc, iceQ, rows: Map(seq -> [ts, wsArr, dcArr]), ice, dc }
+let ws, cur = null;
+const log = (s) => { $("log").textContent = (new Date().toLocaleTimeString() + " " + s + "\n" + $("log").textContent).slice(0, 4000); };
+
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?role=stage`);
+  ws.onmessage = (e) => {
+    const arr = performance.now();
+    const m = JSON.parse(e.data);
+    if (m.t === "r") return record(m, 1, arr);
+    if (m.t === "join") { phone(m.id).name = m.name; log(`phone ${m.id} joined (${m.name})`); }
+    else if (m.t === "leave") { log(`phone ${m.id} left`); }
+    else if (m.t === "sig") answer(m.id, m.sdp);
+    else if (m.t === "ice") { const p = phone(m.id); if (p.pc && p.pc.remoteDescription) p.pc.addIceCandidate(m.c).catch(() => {}); else p.iceQ.push(m.c); }
+  };
+  ws.onclose = () => setTimeout(connect, 1000);
+}
+function phone(id) {
+  if (!phones.has(id)) phones.set(id, { name: "?", pc: null, iceQ: [], rows: new Map(), ice: "none", dc: "none" });
+  cur = id;
+  return phones.get(id);
+}
+async function answer(id, sdp) {
+  const p = phone(id);
+  if (p.pc) p.pc.close();
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  p.pc = pc;
+  pc.onicecandidate = (e) => ws.send(JSON.stringify({ to: id, t: "ice", c: e.candidate }));
+  pc.oniceconnectionstatechange = () => { p.ice = pc.iceConnectionState; log(`phone ${id} ICE ${p.ice}`); };
+  pc.ondatachannel = (e) => {
+    const dc = e.channel;
+    dc.onopen = () => { p.dc = "open"; log(`phone ${id} data channel open`); };
+    dc.onclose = () => (p.dc = "closed");
+    dc.onmessage = (ev) => record(JSON.parse(ev.data), 2, performance.now());
+  };
+  await pc.setRemoteDescription(sdp);
+  for (const c of p.iceQ.splice(0)) pc.addIceCandidate(c).catch(() => {});
+  await pc.setLocalDescription(await pc.createAnswer());
+  ws.send(JSON.stringify({ to: id, t: "sig", sdp: pc.localDescription }));
+}
+function record(m, ch, arr) {
+  const p = phone(m.id);
+  let r = p.rows.get(m.s);
+  if (!r) { r = [m.ts, NaN, NaN]; p.rows.set(m.s, r); }
+  r[ch] = arr;
+}
+
+/* ---------- analysis ---------- */
+const q = (a, p) => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+const pctOf = (n, d) => (d ? (100 * n / d).toFixed(1) + " %" : "–");
+const f1 = (v) => (isNaN(v) ? "–" : v.toFixed(1));
+function analyse(p, sinceSeq = -Infinity) {
+  const rows = [...p.rows.entries()].filter(([s]) => s >= sinceSeq).sort((a, b) => a[0] - b[0]);
+  // Both clocks run free; the smallest (arrival - send) over both channels is the zero.
+  let base = Infinity;
+  for (const [, r] of rows) for (const ch of [1, 2]) if (!isNaN(r[ch])) base = Math.min(base, r[ch] - r[0]);
+  const lat = rows.map(([s, r]) => [s, r[1] - r[0] - base, r[2] - r[0] - base]);
+  const settled = rows.length ? rows[rows.length - 1][0] - 100 : 0; // the last second may still be in flight
+  const out = {};
+  for (const ch of [1, 2]) {
+    const got = lat.filter((x) => !isNaN(x[ch]));
+    const v = got.map((x) => x[ch]);
+    const byArr = rows.filter(([, r]) => !isNaN(r[ch])).map(([, r]) => r[ch]).sort((a, b) => a - b);
+    let holds = 0; for (let i = 1; i < byArr.length; i++) if (byArr[i] - byArr[i - 1] > 50) holds++;
+    const secs = byArr.length > 1 ? (byArr[byArr.length - 1] - byArr[0]) / 1000 : 0;
+    out[ch] = { n: got.length, lost: lat.filter((x) => isNaN(x[ch]) && x[0] < settled).length, p50: q(v, .5), p95: q(v, .95), p99: q(v, .99), max: v.length ? Math.max(...v) : NaN,
+      l50: v.filter((x) => x > 50).length, l100: v.filter((x) => x > 100).length, l150: v.filter((x) => x > 150).length, holds, secs };
+  }
+  // Same reading on both channels: when the WebSocket copy is held, is the data channel copy held too?
+  const both = lat.filter((x) => !isNaN(x[1]) && !isNaN(x[2]));
+  const wsHeld = both.filter((x) => x[1] > 50);
+  out.co = { both: both.length, wsHeld: wsHeld.length, dcAlsoHeld: wsHeld.filter((x) => x[2] > 50).length, dcOnTime: wsHeld.filter((x) => x[2] < 25).length,
+    dcHeld: both.filter((x) => x[2] > 50).length, wsAlsoHeld: both.filter((x) => x[2] > 50 && x[1] > 50).length };
+  out.lat = lat; out.base = base;
+  return out;
+}
+
+function render() {
+  const p = phones.get(cur);
+  if (!p || !p.rows.size) return;
+  const a = analyse(p);
+  const row = (label, f) => `<tr><td>${label}</td><td>${f(a[1])}</td><td>${f(a[2])}</td></tr>`;
+  $("tbl").innerHTML = `<tr><th>Phone ${cur} (${p.name}) · ICE ${p.ice} · channel ${p.dc}</th><th>WebSocket</th><th>Data channel</th></tr>` +
+    row("received", (c) => c.n) + row("lost (never arrived)", (c) => c.lost) +
+    row("lateness p50 / p95 / p99 / max, ms", (c) => `${f1(c.p50)} / ${f1(c.p95)} / ${f1(c.p99)} / ${f1(c.max)}`) +
+    row("late by over 50 / 100 / 150 ms", (c) => `${pctOf(c.l50, c.n)} / ${pctOf(c.l100, c.n)} / ${pctOf(c.l150, c.n)}`) +
+    row("holds (arrival gaps over 50 ms) a second", (c) => (c.secs ? (c.holds / c.secs).toFixed(2) : "–"));
+  const co = a.co;
+  let v = `Readings on both channels: ${co.both}. Of the ${co.wsHeld} held back on the WebSocket (over 50 ms late), the data channel copy was also held for ${pctOf(co.dcAlsoHeld, co.wsHeld)} and on time (under 25 ms) for ${pctOf(co.dcOnTime, co.wsHeld)}. ` +
+    `Of the ${co.dcHeld} held on the data channel, the WebSocket copy was also held for ${pctOf(co.wsAlsoHeld, co.dcHeld)}.`;
+  if (co.wsHeld >= 30) v += co.dcAlsoHeld / co.wsHeld > 0.7 ? "  →  Mostly held together: the radio holds them, so a data channel would not help."
+    : co.dcOnTime / co.wsHeld > 0.5 ? "  →  The data channel copy is mostly on time: TCP holds them, so a data channel would help." : "  →  Mixed.";
+  $("verdict").textContent = v;
+  draw(a);
+}
+function draw(a) {
+  const c = $("cv").getContext("2d"), W = 1400, H = 340, lat = a.lat.slice(-94 * 6);
+  c.clearRect(0, 0, W, H);
+  if (!lat.length) return;
+  const s0 = lat[0][0], s1 = lat[lat.length - 1][0], X = (s) => 120 + (s - s0) / Math.max(1, s1 - s0) * (W - 140);
+  const lanes = [[1, "WebSocket", "#2EA8FF", 20], [2, "Data channel", "#FF7A1A", 180]];
+  c.font = "600 14px system-ui"; c.textBaseline = "middle";
+  for (const [ch, label, col, y0] of lanes) {
+    const Y = (v) => y0 + 140 - Math.min(v, 300) / 300 * 140;
+    c.fillStyle = "#1d1b2f"; c.fillText(label, 10, y0 + 20); c.font = "12px system-ui"; c.fillText("0–300 ms late", 10, y0 + 40); c.font = "600 14px system-ui";
+    c.strokeStyle = "#eee"; for (const g of [0, 50, 100, 200, 300]) { c.beginPath(); c.moveTo(120, Y(g)); c.lineTo(W - 20, Y(g)); c.stroke(); }
+    for (const x of lat) { if (isNaN(x[ch])) { c.fillStyle = "#c00"; c.fillRect(X(x[0]) - 1, y0, 2, 140); continue; } c.fillStyle = col; c.fillRect(X(x[0]) - 1.5, Y(x[ch]) - 1.5, 3, 3); }
+  }
+}
+
+$("mic").onclick = async () => { try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach((t) => t.stop()); log("mic allowed; reconnect the Phone (reload it) so WebRTC sees the LAN address"); } catch (e) { log("mic: " + e.message); } };
+$("reset").onclick = () => { for (const p of phones.values()) p.rows.clear(); };
+$("save").onclick = async () => {
+  const dump = { savedAt: new Date().toISOString(), ua: navigator.userAgent, phones: [...phones.entries()].map(([id, p]) => {
+    const a = p.rows.size ? analyse(p) : null;
+    return { id, name: p.name, ice: p.ice, summary: a && { ws: a[1], dc: a[2], co: a.co }, columns: ["seq", "sentPhoneMs", "wsArrStageMs", "dcArrStageMs"], rows: [...p.rows.entries()].map(([s, r]) => [s, ...r]) };
+  }) };
+  const r = await fetch("/api/results", { method: "POST", body: JSON.stringify(dump) });
+  $("saved").textContent = await r.text();
+};
+connect();
+setInterval(render, 500);
+</script>
+</body>
+</html>
