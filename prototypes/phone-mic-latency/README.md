@@ -10,7 +10,7 @@ matched to the Stage) work on real phones?
 ## Run
 
 ```sh
-cd relay && cargo run --release          # serves on 127.0.0.1:8787
+cd relay && BIND=0.0.0.0 cargo run --release   # :8787; BIND=0.0.0.0 lets a LAN Stage use plain HTTP
 tailscale serve --bg --https=8443 http://127.0.0.1:8787   # trusted HTTPS for phones
 ```
 

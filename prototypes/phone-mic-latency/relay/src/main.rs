@@ -57,7 +57,9 @@ async fn main() {
         .fallback_service(ServeDir::new(base.join("web")))
         .with_state(app);
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8787);
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    // BIND=0.0.0.0 lets a Stage on the LAN connect over plain HTTP (it needs no mic).
+    let ip: std::net::IpAddr = std::env::var("BIND").ok().and_then(|b| b.parse().ok()).unwrap_or([127, 0, 0, 1].into());
+    let addr = SocketAddr::new(ip, port);
     println!("relay on http://{addr}");
     // Small frames at 100/s: turn Nagle off so the kernel never holds a reading back.
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap().tap_io(|tcp| {
