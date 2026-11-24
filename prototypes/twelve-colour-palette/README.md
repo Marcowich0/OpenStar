@@ -27,3 +27,12 @@ as stripes). URL parameters mirror the bar.
 
 Finding before any reaction: the old amber `#FFB020` is the bottom stop of the golden-note
 gradient (ΔE 0), so it cannot stay.
+
+## Verdict
+
+**B won**, in B's order (most distinct first), with three additions settled in the same round:
+an ink edge under every pitch line, a slate `#7C82A0` lyric fill when several Players share a
+Voice, and a white initial with an ink outline on every avatar. The colours keep fixed display
+names. Owner's standing rule: the palette stays bright, colourful and fun; deep colours only as
+rich jewel tones, never dull. Brightening B's deep four was tried and cut the first-four
+separation from 33/20 to 25/14, so they stay as they are. The resolution comment on #26 holds the final list.
