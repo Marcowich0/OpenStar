@@ -1,0 +1,5784 @@
+{
+  "pulseNoChannelmix": true,
+  "forceQuantum": null,
+  "pipewire": "pipewire\nCompiled with libpipewire 1.6.2\nLinked with libpipewire 1.6.2",
+  "runs": [
+    {
+      "browser": "chromium (headed, Xvfb)",
+      "version": "159.0.8154.6",
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/159.0.0.0 Safari/537.36",
+      "devices": [
+        {
+          "label": "Default",
+          "deviceId": "default",
+          "groupId": "d22d59d354a1d86e738a941dbeae8c703a63df24824fed721251b5120106d0e3",
+          "capChannelCount": null
+        },
+        {
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+          "groupId": "545fa45f14c40145beb14f6fdef681c58a8b51eda89b6a3fd90e21f38049b6d7",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+          "groupId": "38cc8cb2f7da0557fbe4a1c9c14bf1cb266208ea08a9d24f96ea67331aed78e2",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Virtual-4ch-aiff",
+          "deviceId": "53f1adcc1b26386ad9052a279ba36373a08cc7b17b1e476f5dc0a27510d728df",
+          "groupId": "c6a912457cb677eee3103e63072d7524b43c8021f82859959d333586c95d089b",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Indep-ch1",
+          "deviceId": "2d8b3a378180cf7f7887507b0c46c317d2822d6d82525c4ffd62d0702c1f3349",
+          "groupId": "18b1bec8c3966bb92f29167d8f9de4efe5f3774d4654b7febbdf33a39b3a77bd",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Indep-ch2",
+          "deviceId": "42fb1665e5b5337528d9b4203df9185717f7d7d6c975e9d7dec9b0a04f59ff2e",
+          "groupId": "207f059182633d8ec9ca994acbf961208a4f86785e7be5b3a714a87738453fe1",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Indep-ch3",
+          "deviceId": "26c57eb5a3e0eb12b3b5c376151fb9a009e0973982e8327ed94f0a33017c1153",
+          "groupId": "885fcdff1680ba88b972c57c53457e8c2d2f3df89e1c2650755761b65f173199",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Indep-ch4",
+          "deviceId": "a8cdf9ef4f94b24f6c01be5dc4ea9290a4e9545b7aaa4943e7470c3207b9e90c",
+          "groupId": "78243e2b3041b126ad0461fb7e09b8d05a9f65a8e8664422271ef5602e3f895b",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        }
+      ],
+      "fourChannel": [
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "raw, channelCount ideal 4",
+          "id": 1,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 2,
+            "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+            "echoCancellation": false,
+            "groupId": "545fa45f14c40145beb14f6fdef681c58a8b51eda89b6a3fd90e21f38049b6d7",
+            "latency": 0.021333,
+            "noiseSuppression": false,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -15,
+                "tones": [
+                  220
+                ],
+                "levels": [
+                  -32,
+                  -145,
+                  -135,
+                  -146
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -15,
+                "tones": [
+                  330
+                ],
+                "levels": [
+                  -140,
+                  -32,
+                  -139,
+                  -144
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:220 2:330 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "raw, channelCount exact 4",
+          "error": "OverconstrainedError:  (constraint deviceId)"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "raw, no channelCount",
+          "id": 2,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 2,
+            "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+            "echoCancellation": false,
+            "groupId": "545fa45f14c40145beb14f6fdef681c58a8b51eda89b6a3fd90e21f38049b6d7",
+            "latency": 0.021333,
+            "noiseSuppression": false,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -15,
+                "tones": [
+                  220
+                ],
+                "levels": [
+                  -32,
+                  -145,
+                  -137,
+                  -143
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -15,
+                "tones": [
+                  330
+                ],
+                "levels": [
+                  -142,
+                  -32,
+                  -140,
+                  -148
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:220 2:330 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "defaults (processing on)",
+          "id": 3,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+          "settings": {
+            "autoGainControl": true,
+            "channelCount": 1,
+            "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+            "echoCancellation": true,
+            "groupId": "545fa45f14c40145beb14f6fdef681c58a8b51eda89b6a3fd90e21f38049b6d7",
+            "latency": 0.01,
+            "noiseSuppression": true,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -28.8,
+                "tones": [
+                  220,
+                  330
+                ],
+                "levels": [
+                  -48,
+                  -49,
+                  -148,
+                  -158
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -28.8,
+                "tones": [
+                  220,
+                  330
+                ],
+                "levels": [
+                  -48,
+                  -49,
+                  -148,
+                  -158
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:220+330 2:220+330 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "defaults + channelCount ideal 4",
+          "id": 4,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+          "settings": {
+            "autoGainControl": true,
+            "channelCount": 2,
+            "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+            "echoCancellation": true,
+            "groupId": "545fa45f14c40145beb14f6fdef681c58a8b51eda89b6a3fd90e21f38049b6d7",
+            "latency": 0.01,
+            "noiseSuppression": true,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -28.8,
+                "tones": [
+                  220,
+                  330
+                ],
+                "levels": [
+                  -48,
+                  -49,
+                  -147,
+                  -155
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -28.8,
+                "tones": [
+                  220,
+                  330
+                ],
+                "levels": [
+                  -48,
+                  -49,
+                  -147,
+                  -155
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:220+330 2:220+330 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "raw, ideal 4, AudioContext 44100",
+          "id": 5,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 2,
+            "deviceId": "fdfc301bbf6e68bb8c24d145a510c4e8152b19779704e7cfe58c290411251dfd",
+            "echoCancellation": false,
+            "groupId": "545fa45f14c40145beb14f6fdef681c58a8b51eda89b6a3fd90e21f38049b6d7",
+            "latency": 0.021333,
+            "noiseSuppression": false,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 44100,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -15,
+                "tones": [
+                  220
+                ],
+                "levels": [
+                  -32,
+                  -141,
+                  -134,
+                  -147
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -15,
+                "tones": [
+                  330
+                ],
+                "levels": [
+                  -142,
+                  -32,
+                  -142,
+                  -147
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:220 2:330 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "raw, channelCount ideal 4",
+          "id": 6,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 2,
+            "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+            "echoCancellation": false,
+            "groupId": "38cc8cb2f7da0557fbe4a1c9c14bf1cb266208ea08a9d24f96ea67331aed78e2",
+            "latency": 0.021333,
+            "noiseSuppression": false,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "raw, channelCount exact 4",
+          "error": "OverconstrainedError:  (constraint deviceId)"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "raw, no channelCount",
+          "id": 7,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 2,
+            "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+            "echoCancellation": false,
+            "groupId": "38cc8cb2f7da0557fbe4a1c9c14bf1cb266208ea08a9d24f96ea67331aed78e2",
+            "latency": 0.021333,
+            "noiseSuppression": false,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "defaults (processing on)",
+          "id": 8,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+          "settings": {
+            "autoGainControl": true,
+            "channelCount": 1,
+            "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+            "echoCancellation": true,
+            "groupId": "38cc8cb2f7da0557fbe4a1c9c14bf1cb266208ea08a9d24f96ea67331aed78e2",
+            "latency": 0.01,
+            "noiseSuppression": true,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "defaults + channelCount ideal 4",
+          "id": 9,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+          "settings": {
+            "autoGainControl": true,
+            "channelCount": 2,
+            "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+            "echoCancellation": true,
+            "groupId": "38cc8cb2f7da0557fbe4a1c9c14bf1cb266208ea08a9d24f96ea67331aed78e2",
+            "latency": 0.01,
+            "noiseSuppression": true,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "raw, ideal 4, AudioContext 44100",
+          "id": 10,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 2,
+            "deviceId": "eba9005207ed7a15f2289c88eef6aca959fec00e76b9354ccf515d93802ae230",
+            "echoCancellation": false,
+            "groupId": "38cc8cb2f7da0557fbe4a1c9c14bf1cb266208ea08a9d24f96ea67331aed78e2",
+            "latency": 0.021333,
+            "noiseSuppression": false,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 44100,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-aiff",
+          "variant": "raw, channelCount ideal 4",
+          "id": 11,
+          "label": "Virtual-4ch-aiff",
+          "deviceId": "53f1adcc1b26386ad9052a279ba36373a08cc7b17b1e476f5dc0a27510d728df",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 2,
+            "deviceId": "53f1adcc1b26386ad9052a279ba36373a08cc7b17b1e476f5dc0a27510d728df",
+            "echoCancellation": false,
+            "groupId": "c6a912457cb677eee3103e63072d7524b43c8021f82859959d333586c95d089b",
+            "latency": 0.021333,
+            "noiseSuppression": false,
+            "sampleRate": 48000,
+            "sampleSize": 16,
+            "voiceIsolation": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 2,
+              "min": 1
+            },
+            "sampleRate": {
+              "max": 48000,
+              "min": 48000
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-aiff",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 2,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aiff",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        }
+      ],
+      "remapDevices": [
+        {
+          "label": "Remap-ch1",
+          "deviceId": "a09b3b7b79349d6287f9951437302b3532484b359063d6affbed703a1e3aad1b",
+          "groupId": "099af95414ec37f6b1e8a857d8a625d522534b5deb358a09481709e6c8880dfc",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Remap-ch2",
+          "deviceId": "751062ecafbd6f254b3eba223241f7c5c759076acd344fcfebb893ce0f148816",
+          "groupId": "db48fc1d578bbc64de8e192ab1a36d5903d09bb32b820e88803172a9095678bd",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Remap-ch3",
+          "deviceId": "1df862cbb3b077f25bcb3f8f9939b19b435faae3864740796d7fee4f0de30d45",
+          "groupId": "9ed0160366eb5a85c161f061f047e9588e7c5e0fec4259928d672a3bbc3f13c6",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Remap-ch4",
+          "deviceId": "47924a1ecde8e203c94fea42b5231b3bad184943b23f7a051d9001481cf19951",
+          "groupId": "ed44dd8821cd9ef88f803a8c6622d731e0316ac068fa5c20d3be89c03fb458e8",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Remap-st12",
+          "deviceId": "f40c2f80cdd1ab28d45644e42a1be402978edfbcf247e5270cd19e1f562c783b",
+          "groupId": "d787df4a31726691dd92961616fe35eb99b35ed3bf80d10e84b542e9f9360f14",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        {
+          "label": "Remap-st34",
+          "deviceId": "597343295c1fbdc0d5eb7c34ab4a01edd4759f8f3243f2a204fc5eea77617190",
+          "groupId": "137ba01406ab89d873d0e3ebb90e2af8bc5582b0695db73e85be2d3b907d0bf2",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        }
+      ],
+      "indep4raw": {
+        "settings": [
+          {
+            "label": "Indep-ch1",
+            "channelCount": 2,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Indep-ch2",
+            "channelCount": 2,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Indep-ch3",
+            "channelCount": 2,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Indep-ch4",
+            "channelCount": 2,
+            "sampleRate": 48000
+          }
+        ],
+        "pulseStreams": [
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 4ch 48000Hz",
+            "map": "aux0,aux1,aux2,aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux0"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux2"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux0,aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux2,aux3"
+          },
+          {
+            "source": "ind1",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "ind2",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "ind3",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "ind4",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          }
+        ],
+        "start": [
+          {
+            "label": "Indep-ch1",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Indep-ch2",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Indep-ch3",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Indep-ch4",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          }
+        ],
+        "after5s": [
+          {
+            "label": "Indep-ch1",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Indep-ch2",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Indep-ch3",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Indep-ch4",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          }
+        ]
+      },
+      "mono4raw": {
+        "settings": [
+          {
+            "label": "Remap-ch1",
+            "channelCount": 2,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Remap-ch2",
+            "channelCount": 2,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Remap-ch3",
+            "channelCount": 2,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Remap-ch4",
+            "channelCount": 2,
+            "sampleRate": 48000
+          }
+        ],
+        "pulseStreams": [
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 4ch 48000Hz",
+            "map": "aux0,aux1,aux2,aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux0"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux2"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux0,aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux2,aux3"
+          },
+          {
+            "source": "mic_ch1",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "mic_ch2",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "mic_ch3",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "mic_ch4",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          }
+        ],
+        "start": [
+          {
+            "label": "Remap-ch1",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch2",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch3",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch4",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          }
+        ],
+        "after20s": [
+          {
+            "label": "Remap-ch1",
+            "readyState": "ended",
+            "muted": false,
+            "events": [
+              "ended@43.7s"
+            ],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch2",
+            "readyState": "ended",
+            "muted": false,
+            "events": [
+              "ended@43.8s"
+            ],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch3",
+            "readyState": "ended",
+            "muted": false,
+            "events": [
+              "ended@43.8s"
+            ],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch4",
+            "readyState": "ended",
+            "muted": false,
+            "events": [
+              "ended@43.8s"
+            ],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          }
+        ]
+      },
+      "mono4rawRepeats": [
+        {
+          "settings": [
+            {
+              "label": "Remap-ch1",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch2",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch3",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch4",
+              "channelCount": 2,
+              "sampleRate": 48000
+            }
+          ],
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux0"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux2"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux0,aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux2,aux3"
+            },
+            {
+              "source": "mic_ch1",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch2",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch3",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch4",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "start": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            }
+          ],
+          "after3s": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            }
+          ]
+        },
+        {
+          "settings": [
+            {
+              "label": "Remap-ch1",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch2",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch3",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch4",
+              "channelCount": 2,
+              "sampleRate": 48000
+            }
+          ],
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux0"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux2"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux0,aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux2,aux3"
+            },
+            {
+              "source": "mic_ch1",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch2",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch3",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch4",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "start": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            }
+          ],
+          "after3s": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            }
+          ]
+        },
+        {
+          "settings": [
+            {
+              "label": "Remap-ch1",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch2",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch3",
+              "channelCount": 2,
+              "sampleRate": 48000
+            },
+            {
+              "label": "Remap-ch4",
+              "channelCount": 2,
+              "sampleRate": 48000
+            }
+          ],
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux0"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux2"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux0,aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux2,aux3"
+            },
+            {
+              "source": "mic_ch1",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch2",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch3",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            },
+            {
+              "source": "mic_ch4",
+              "spec": "s16le 2ch 48000Hz",
+              "map": "front-left,front-right",
+              "app": "Chromium input"
+            }
+          ],
+          "start": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            }
+          ],
+          "after3s": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 2,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            }
+          ]
+        }
+      ],
+      "mono4defaults": {
+        "settings": [
+          {
+            "label": "Remap-ch1",
+            "channelCount": 1,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Remap-ch2",
+            "channelCount": 1,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Remap-ch3",
+            "channelCount": 1,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Remap-ch4",
+            "channelCount": 1,
+            "sampleRate": 48000
+          }
+        ],
+        "pulseStreams": [
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 4ch 48000Hz",
+            "map": "aux0,aux1,aux2,aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux0"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux2"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux0,aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux2,aux3"
+          },
+          {
+            "source": "mic_ch1",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "mic_ch2",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "mic_ch3",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "mic_ch4",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          }
+        ],
+        "start": [
+          {
+            "label": "Remap-ch1",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch2",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch3",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch4",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          }
+        ],
+        "after5s": [
+          {
+            "label": "Remap-ch1",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch2",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch3",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch4",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          }
+        ]
+      },
+      "stereo2raw": {
+        "settings": [
+          {
+            "label": "Remap-st12",
+            "channelCount": 2,
+            "sampleRate": 48000
+          },
+          {
+            "label": "Remap-st34",
+            "channelCount": 2,
+            "sampleRate": 48000
+          }
+        ],
+        "pulseStreams": [
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 4ch 48000Hz",
+            "map": "aux0,aux1,aux2,aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux0"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux2"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux0,aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux2,aux3"
+          },
+          {
+            "source": "mic_st12",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          },
+          {
+            "source": "mic_st34",
+            "spec": "s16le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Chromium input"
+          }
+        ],
+        "start": [
+          {
+            "label": "Remap-st12",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:220 2:330 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Remap-st34",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          }
+        ],
+        "after20s": [
+          {
+            "label": "Remap-st12",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:220 2:330 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Remap-st34",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          }
+        ]
+      },
+      "deviceIdStability": {
+        "original": {
+          "label": "Remap-ch1",
+          "deviceId": "a09b3b7b79349d6287f9951437302b3532484b359063d6affbed703a1e3aad1b",
+          "groupId": "099af95414ec37f6b1e8a857d8a625d522534b5deb358a09481709e6c8880dfc",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        "openTrackAfterUnload": {
+          "readyState": "live",
+          "muted": false,
+          "events": []
+        },
+        "listedAfterUnload": false,
+        "openTrackAfterReload": {
+          "readyState": "ended",
+          "muted": false,
+          "events": [
+            "ended@97.3s"
+          ],
+          "summary": []
+        },
+        "reloadedSameName": {
+          "label": "Remap-ch1",
+          "deviceId": "a09b3b7b79349d6287f9951437302b3532484b359063d6affbed703a1e3aad1b",
+          "groupId": "2bd826872a65573e0c6cc1fcd1bc709d0ef516d921a52e590ae5a453c7808af1",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        "reloadedDifferentNameSameDescription": {
+          "label": "Remap-ch1",
+          "deviceId": "06c298b2a9773d63d1f8b33f0256283a0a5e7ba2d02cc9fdc8679b36f4e6d9c7",
+          "groupId": "25aa93f447a0bc9405a3512abb2df194ec5dd8df116bb90cabbf7a4d198c4d1e",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        "afterBrowserRestartSameProfile": {
+          "label": "Remap-ch1",
+          "deviceId": "a09b3b7b79349d6287f9951437302b3532484b359063d6affbed703a1e3aad1b",
+          "groupId": "61b9701dd1c189d44b23f25faaeaf26feb51a90ffc3ff620bc4fb9ccf517034f",
+          "capChannelCount": {
+            "max": 2,
+            "min": 1
+          }
+        },
+        "verdict": {
+          "sameNameKeepsId": true,
+          "differentNameKeepsId": false,
+          "restartKeepsId": true,
+          "labelsStable": true
+        }
+      }
+    },
+    {
+      "browser": "firefox (headed, Xvfb)",
+      "version": "159.0",
+      "userAgent": "Mozilla/5.0 (X11; Linux x86_64; rv:159.0) Gecko/20100101 Firefox/159.0",
+      "devices": [
+        {
+          "label": "Monitor of Dummy-Output",
+          "deviceId": "B/wH71n1LQOKWErhqb/rLKSxS5QX1A/zHHyXzG3ahDQ=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Virtual-4ch-aiff",
+          "deviceId": "QXUXpIT6nQ08zR6j7zAH3bB5ZYcosMzBUJcx++IgmDM=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Indep-ch1",
+          "deviceId": "uMMbp0gsQz1Wl7JYU4g3GMml+e/AssuP/B0UNLEyfZM=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Indep-ch2",
+          "deviceId": "UmPVTPH10SOEbtvKrc9E6V+pPOLDgB6W4py2w69FiqM=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Indep-ch3",
+          "deviceId": "QeQHKvovareeaOFzklNqcghNtSBqeSRC6zRNurHsqZg=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Indep-ch4",
+          "deviceId": "DjMQoMzc5nuhjFeUZfa6W7+UrGGcGNFivCRE/jcdz/I=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        }
+      ],
+      "fourChannel": [
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "raw, channelCount ideal 4",
+          "id": 1,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "raw, channelCount exact 4",
+          "id": 2,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "raw, no channelCount",
+          "id": 3,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "defaults (processing on)",
+          "id": 4,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+          "settings": {
+            "autoGainControl": true,
+            "channelCount": 4,
+            "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+            "echoCancellation": true,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": true
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 1,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "defaults + channelCount ideal 4",
+          "id": 5,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+          "settings": {
+            "autoGainControl": true,
+            "channelCount": 4,
+            "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+            "echoCancellation": true,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": true
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 1,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_aux",
+          "variant": "raw, ideal 4, AudioContext 44100",
+          "id": 6,
+          "label": "Virtual-4ch-mic4_aux",
+          "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "g6P/KmmAqGjamlw4LI9rJQYSBiGM6Xh0rracM9DK+BY=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 44100,
+          "probe": {
+            "label": "Virtual-4ch-mic4_aux",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "raw, channelCount ideal 4",
+          "id": 7,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "raw, channelCount exact 4",
+          "id": 8,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "raw, no channelCount",
+          "id": 9,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "defaults (processing on)",
+          "id": 10,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+          "settings": {
+            "autoGainControl": true,
+            "channelCount": 4,
+            "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+            "echoCancellation": true,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": true
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 1,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "defaults + channelCount ideal 4",
+          "id": 11,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+          "settings": {
+            "autoGainControl": true,
+            "channelCount": 4,
+            "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+            "echoCancellation": true,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": true
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 1,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-mic4_quad",
+          "variant": "raw, ideal 4, AudioContext 44100",
+          "id": 12,
+          "label": "Virtual-4ch-mic4_quad",
+          "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "J1bVrBmXcHillDMlOzyJWs9oUwsFWfJLryFVqthFi1Q=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 44100,
+          "probe": {
+            "label": "Virtual-4ch-mic4_quad",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_quad",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:- 2:- 3:- 4:- 5:- 6:-"
+        },
+        {
+          "source": "Virtual-4ch-aiff",
+          "variant": "raw, channelCount ideal 4",
+          "id": 13,
+          "label": "Virtual-4ch-aiff",
+          "deviceId": "QXUXpIT6nQ08zR6j7zAH3bB5ZYcosMzBUJcx++IgmDM=",
+          "settings": {
+            "autoGainControl": false,
+            "channelCount": 4,
+            "deviceId": "QXUXpIT6nQ08zR6j7zAH3bB5ZYcosMzBUJcx++IgmDM=",
+            "echoCancellation": false,
+            "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+            "noiseSuppression": false
+          },
+          "caps": {
+            "channelCount": {
+              "max": 4,
+              "min": 1
+            }
+          },
+          "ctxSampleRate": 48000,
+          "probe": {
+            "label": "Virtual-4ch-aiff",
+            "readyState": "live",
+            "muted": false,
+            "enabled": true,
+            "srcChannels": 4,
+            "events": [],
+            "ctxState": "running",
+            "channels": [
+              {
+                "ch": 1,
+                "rmsDb": -15,
+                "tones": [
+                  220
+                ],
+                "levels": [
+                  -32,
+                  -145,
+                  -157,
+                  -146
+                ]
+              },
+              {
+                "ch": 2,
+                "rmsDb": -15,
+                "tones": [
+                  330
+                ],
+                "levels": [
+                  -141,
+                  -32,
+                  -141,
+                  -148
+                ]
+              },
+              {
+                "ch": 3,
+                "rmsDb": -15,
+                "tones": [
+                  440
+                ],
+                "levels": [
+                  -145,
+                  -144,
+                  -32,
+                  -143
+                ]
+              },
+              {
+                "ch": 4,
+                "rmsDb": -15,
+                "tones": [
+                  550
+                ],
+                "levels": [
+                  -147,
+                  -149,
+                  -142,
+                  -32
+                ]
+              },
+              {
+                "ch": 5,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 6,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 7,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              },
+              {
+                "ch": 8,
+                "rmsDb": -200,
+                "tones": [],
+                "levels": [
+                  null,
+                  null,
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aiff",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "front-left,front-center,front-right,rear-center",
+              "app": "Nightly"
+            }
+          ],
+          "summary": "1:220 2:330 3:440 4:550 5:- 6:-"
+        }
+      ],
+      "remapDevices": [
+        {
+          "label": "Remap-ch1",
+          "deviceId": "ftw9SSepy5xPT33ZfnDxw8AMmxr7JOvtoMTS5puKJpA=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Remap-ch2",
+          "deviceId": "wfgpp26uu4qIi7a55EQv9vAmClFVUpYhZTPQ/4/1nhA=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Remap-ch3",
+          "deviceId": "PNiNT9hRWifZfkhrRAxcQzhuxEqvx6zw12jfNTvoooQ=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Remap-ch4",
+          "deviceId": "y1dYFdhrCs0OEowU4iGvqJIel4iLbt90/naHGSXgKGA=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Remap-st12",
+          "deviceId": "/syMOuiVhpcB0wTQUHtVhCwYe7YcXMVO5ePMglmj9U0=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        {
+          "label": "Remap-st34",
+          "deviceId": "c1p7NKqgd1dDcAJky3OLgzvJwVztTW5zHh5+tFcqn9E=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        }
+      ],
+      "indep4raw": {
+        "settings": [
+          {
+            "label": "Indep-ch1",
+            "channelCount": 1
+          },
+          {
+            "label": "Indep-ch2",
+            "channelCount": 1
+          },
+          {
+            "label": "Indep-ch3",
+            "channelCount": 1
+          },
+          {
+            "label": "Indep-ch4",
+            "channelCount": 1
+          }
+        ],
+        "pulseStreams": [
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 4ch 48000Hz",
+            "map": "aux0,aux1,aux2,aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux0"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux2"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux0,aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux2,aux3"
+          },
+          {
+            "source": "ind1",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "ind2",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "ind3",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "ind4",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          }
+        ],
+        "start": [
+          {
+            "label": "Indep-ch1",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Indep-ch2",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Indep-ch3",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:440 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Indep-ch4",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:550 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          }
+        ],
+        "after5s": [
+          {
+            "label": "Indep-ch1",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Indep-ch2",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Indep-ch3",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:440 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Indep-ch4",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:550 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          }
+        ]
+      },
+      "mono4raw": {
+        "settings": [
+          {
+            "label": "Remap-ch1",
+            "channelCount": 1
+          },
+          {
+            "label": "Remap-ch2",
+            "channelCount": 1
+          },
+          {
+            "label": "Remap-ch3",
+            "channelCount": 1
+          },
+          {
+            "label": "Remap-ch4",
+            "channelCount": 1
+          }
+        ],
+        "pulseStreams": [
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 4ch 48000Hz",
+            "map": "aux0,aux1,aux2,aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux0"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux2"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux0,aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux2,aux3"
+          },
+          {
+            "source": "mic_ch1",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "mic_ch2",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "mic_ch3",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "mic_ch4",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          }
+        ],
+        "start": [
+          {
+            "label": "Remap-ch1",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Remap-ch2",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Remap-ch3",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 0,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch4",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:550 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          }
+        ],
+        "after20s": [
+          {
+            "label": "Remap-ch1",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Remap-ch2",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Remap-ch3",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 0,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch4",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:550 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          }
+        ]
+      },
+      "mono4rawRepeats": [
+        {
+          "settings": [
+            {
+              "label": "Remap-ch1",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch2",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch3",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch4",
+              "channelCount": 1
+            }
+          ],
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux0"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux2"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux0,aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux2,aux3"
+            },
+            {
+              "source": "mic_ch1",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch2",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch3",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch4",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            }
+          ],
+          "start": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 1,
+              "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 1,
+              "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 0,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 1,
+              "summary": "1:550 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            }
+          ],
+          "after3s": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 0,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:550 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -16
+            }
+          ]
+        },
+        {
+          "settings": [
+            {
+              "label": "Remap-ch1",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch2",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch3",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch4",
+              "channelCount": 1
+            }
+          ],
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux0"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux2"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux0,aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux2,aux3"
+            },
+            {
+              "source": "mic_ch1",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch2",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch3",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch4",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            }
+          ],
+          "start": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 1,
+              "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 1,
+              "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 0,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 1,
+              "summary": "1:550 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            }
+          ],
+          "after3s": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 0,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:550 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            }
+          ]
+        },
+        {
+          "settings": [
+            {
+              "label": "Remap-ch1",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch2",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch3",
+              "channelCount": 1
+            },
+            {
+              "label": "Remap-ch4",
+              "channelCount": 1
+            }
+          ],
+          "pulseStreams": [
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 4ch 48000Hz",
+              "map": "aux0,aux1,aux2,aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux0"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux2"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "aux3"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux0,aux1"
+            },
+            {
+              "source": "mic4_aux",
+              "spec": "float32le 2ch 48000Hz",
+              "map": "aux2,aux3"
+            },
+            {
+              "source": "mic_ch1",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch2",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch3",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            },
+            {
+              "source": "mic_ch4",
+              "spec": "float32le 1ch 48000Hz",
+              "map": "mono",
+              "app": "Nightly"
+            }
+          ],
+          "start": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 1,
+              "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 1,
+              "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 0,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "srcCh": 0,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            }
+          ],
+          "after3s": [
+            {
+              "label": "Remap-ch1",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch2",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -15
+            },
+            {
+              "label": "Remap-ch3",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            },
+            {
+              "label": "Remap-ch4",
+              "readyState": "live",
+              "muted": false,
+              "events": [],
+              "srcCh": 1,
+              "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+              "rms1": -200
+            }
+          ]
+        }
+      ],
+      "mono4defaults": {
+        "settings": [
+          {
+            "label": "Remap-ch1",
+            "channelCount": 1
+          },
+          {
+            "label": "Remap-ch2",
+            "channelCount": 1
+          },
+          {
+            "label": "Remap-ch3",
+            "channelCount": 1
+          },
+          {
+            "label": "Remap-ch4",
+            "channelCount": 1
+          }
+        ],
+        "pulseStreams": [
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 4ch 48000Hz",
+            "map": "aux0,aux1,aux2,aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux0"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux2"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux0,aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux2,aux3"
+          },
+          {
+            "source": "mic_ch1",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "mic_ch2",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "mic_ch3",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          },
+          {
+            "source": "mic_ch4",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "mono",
+            "app": "Nightly"
+          }
+        ],
+        "start": [
+          {
+            "label": "Remap-ch1",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -25.7
+          },
+          {
+            "label": "Remap-ch2",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -7.1
+          },
+          {
+            "label": "Remap-ch3",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch4",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 1,
+            "summary": "1:440+550 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -11
+          }
+        ],
+        "after5s": [
+          {
+            "label": "Remap-ch1",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:220 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -34
+          },
+          {
+            "label": "Remap-ch2",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:330 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -34.2
+          },
+          {
+            "label": "Remap-ch3",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:- 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -200
+          },
+          {
+            "label": "Remap-ch4",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 1,
+            "summary": "1:440+550 2:- 3:- 4:- 5:- 6:-",
+            "rms1": -103.3
+          }
+        ]
+      },
+      "stereo2raw": {
+        "settings": [
+          {
+            "label": "Remap-st12",
+            "channelCount": 2
+          },
+          {
+            "label": "Remap-st34",
+            "channelCount": 2
+          }
+        ],
+        "pulseStreams": [
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 4ch 48000Hz",
+            "map": "aux0,aux1,aux2,aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux0"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux2"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 1ch 48000Hz",
+            "map": "aux3"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux0,aux1"
+          },
+          {
+            "source": "mic4_aux",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "aux2,aux3"
+          },
+          {
+            "source": "mic_st12",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Nightly"
+          },
+          {
+            "source": "mic_st34",
+            "spec": "float32le 2ch 48000Hz",
+            "map": "front-left,front-right",
+            "app": "Nightly"
+          }
+        ],
+        "start": [
+          {
+            "label": "Remap-st12",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:220 2:330 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Remap-st34",
+            "readyState": "live",
+            "muted": false,
+            "srcCh": 2,
+            "summary": "1:440 2:550 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          }
+        ],
+        "after20s": [
+          {
+            "label": "Remap-st12",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:220 2:330 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          },
+          {
+            "label": "Remap-st34",
+            "readyState": "live",
+            "muted": false,
+            "events": [],
+            "srcCh": 2,
+            "summary": "1:440 2:550 3:- 4:- 5:- 6:-",
+            "rms1": -15
+          }
+        ]
+      },
+      "deviceIdStability": {
+        "original": {
+          "label": "Remap-ch1",
+          "deviceId": "ftw9SSepy5xPT33ZfnDxw8AMmxr7JOvtoMTS5puKJpA=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        "openTrackAfterUnload": {
+          "readyState": "ended",
+          "muted": false,
+          "events": [
+            "ended@98.8s"
+          ]
+        },
+        "listedAfterUnload": false,
+        "openTrackAfterReload": {
+          "readyState": "ended",
+          "muted": false,
+          "events": [
+            "ended@98.8s"
+          ],
+          "summary": []
+        },
+        "reloadedSameName": {
+          "label": "Remap-ch1",
+          "deviceId": "ftw9SSepy5xPT33ZfnDxw8AMmxr7JOvtoMTS5puKJpA=",
+          "groupId": "13P1nBquMGp5G96SZfe6CAsSpgYIrdA+ozKqDmi7SDc=",
+          "capChannelCount": "n/a"
+        },
+        "reloadedDifferentNameSameDescription": {
+          "label": "Remap-ch1",
+          "deviceId": "ftw9SSepy5xPT33ZfnDxw8AMmxr7JOvtoMTS5puKJpA=",
+          "groupId": "u4somZTNXBiEz+GxaOxT2Fk6NsXI41YkueIFLLjZmmc=",
+          "capChannelCount": "n/a"
+        },
+        "afterBrowserRestartSameProfile": {
+          "label": "Remap-ch1",
+          "deviceId": "ftw9SSepy5xPT33ZfnDxw8AMmxr7JOvtoMTS5puKJpA=",
+          "groupId": "kYv6GB9TeLE/4rkSg96uVI5VK82DNvNbauKAbxG/EAw=",
+          "capChannelCount": "n/a"
+        },
+        "verdict": {
+          "sameNameKeepsId": true,
+          "differentNameKeepsId": true,
+          "restartKeepsId": true,
+          "labelsStable": true
+        }
+      }
+    }
+  ]
+}

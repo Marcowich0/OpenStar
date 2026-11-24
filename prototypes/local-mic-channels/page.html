@@ -1,0 +1,124 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>mic channel probe</title>
+<script>
+// Helpers driven from measure.mjs via page.evaluate().
+const TONES = [220, 330, 440, 550];
+const handles = new Map();
+let nextId = 1;
+let sharedCtx = null;
+
+const WORKLET = `
+class ChCount extends AudioWorkletProcessor {
+  constructor() { super(); this.n = 0; }
+  process(inputs) {
+    if ((this.n++ % 64) === 0) this.port.postMessage(inputs[0] ? inputs[0].length : -1);
+    return true;
+  }
+}
+registerProcessor('chcount', ChCount);`;
+
+async function getCtx(sampleRate) {
+  if (sampleRate) {
+    const ctx = new AudioContext({ sampleRate });
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
+    return ctx;
+  }
+  if (!sharedCtx) {
+    sharedCtx = new AudioContext();
+    await sharedCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: 'text/javascript' })));
+  }
+  return sharedCtx;
+}
+
+async function unlockLabels() {
+  const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+  s.getTracks().forEach(t => t.stop());
+}
+
+async function listDevices() {
+  const devs = await navigator.mediaDevices.enumerateDevices();
+  return devs.filter(d => d.kind === 'audioinput').map(d => ({
+    label: d.label, deviceId: d.deviceId, groupId: d.groupId,
+    capChannelCount: d.getCapabilities ? (d.getCapabilities().channelCount ?? null) : 'n/a',
+  }));
+}
+
+async function findDevice(labelPart) {
+  const devs = await listDevices();
+  return devs.find(d => d.label.includes(labelPart)) || null;
+}
+
+// audio: the audio constraints object minus deviceId; opts.sampleRate => dedicated AudioContext.
+async function openMic(labelPart, audio, opts = {}) {
+  const dev = await findDevice(labelPart);
+  if (!dev) return { error: `no device matching ${labelPart}` };
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: dev.deviceId }, ...audio } });
+  } catch (e) {
+    return { error: `${e.name}: ${e.message} ${e.constraint ? '(constraint ' + e.constraint + ')' : ''}` };
+  }
+  const track = stream.getAudioTracks()[0];
+  const ctx = await getCtx(opts.sampleRate);
+  if (ctx.state !== 'running') await ctx.resume();
+  const src = ctx.createMediaStreamSource(stream);
+  const split = ctx.createChannelSplitter(8);
+  src.connect(split);
+  const sink = ctx.createGain(); sink.gain.value = 0; sink.connect(ctx.destination);
+  const analysers = [];
+  for (let i = 0; i < 8; i++) {
+    const a = ctx.createAnalyser(); a.fftSize = 16384; a.smoothingTimeConstant = 0.5;
+    split.connect(a, i); a.connect(sink); analysers.push(a);
+  }
+  const cc = new AudioWorkletNode(ctx, 'chcount');
+  const h = { id: nextId++, label: dev.label, stream, track, ctx, src, analysers, cc, srcChannels: null, events: [], ownCtx: !!opts.sampleRate };
+  cc.port.onmessage = (ev) => { h.srcChannels = ev.data; };
+  src.connect(cc); cc.connect(sink);
+  for (const ev of ['mute', 'unmute', 'ended']) track.addEventListener(ev, () => h.events.push(`${ev}@${(performance.now() / 1000).toFixed(1)}s`));
+  handles.set(h.id, h);
+  let caps = null;
+  try { caps = track.getCapabilities(); } catch (e) { caps = String(e); }
+  return {
+    id: h.id, label: dev.label, deviceId: dev.deviceId,
+    settings: track.getSettings(), caps: { channelCount: caps.channelCount, sampleRate: caps.sampleRate },
+    ctxSampleRate: ctx.sampleRate,
+  };
+}
+
+function probe(id) {
+  const h = handles.get(id);
+  const { ctx, analysers } = h;
+  const binHz = ctx.sampleRate / analysers[0].fftSize;
+  const out = [];
+  for (let i = 0; i < analysers.length; i++) {
+    const a = analysers[i];
+    const fd = new Float32Array(a.frequencyBinCount); a.getFloatFrequencyData(fd);
+    const td = new Float32Array(a.fftSize); a.getFloatTimeDomainData(td);
+    let sum = 0; for (const v of td) sum += v * v;
+    const rmsDb = 10 * Math.log10(sum / td.length + 1e-20);
+    const levels = TONES.map(f => {
+      const b = Math.round(f / binHz); let m = -Infinity;
+      for (let k = b - 2; k <= b + 2; k++) m = Math.max(m, fd[k]);
+      return m;
+    });
+    const max = Math.max(...levels);
+    const present = TONES.filter((f, j) => levels[j] > -70 && levels[j] > max - 30);
+    out.push({ ch: i + 1, rmsDb: +rmsDb.toFixed(1), tones: present, levels: levels.map(l => Number.isFinite(l) ? +l.toFixed(0) : null) });
+  }
+  return {
+    label: h.label, readyState: h.track.readyState, muted: h.track.muted, enabled: h.track.enabled,
+    srcChannels: h.srcChannels, events: h.events, ctxState: ctx.state, channels: out,
+  };
+}
+
+function closeMic(id) {
+  const h = handles.get(id);
+  if (!h) return;
+  h.track.stop(); h.src.disconnect(); h.cc.disconnect();
+  if (h.ownCtx) h.ctx.close();
+  handles.delete(id);
+}
+
+function closeAll() { for (const id of [...handles.keys()]) closeMic(id); }
+</script>

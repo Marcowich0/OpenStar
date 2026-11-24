@@ -1,0 +1,35 @@
+-- one client, 4 independent mono sources (ind1..4), round 1
+ind1: 3.01s received, ~220 Hz, rms -15.0 dBFS, zero samples 0%
+ind2: 3.01s received, ~330 Hz, rms -15.0 dBFS, zero samples 0%
+ind3: 3.01s received, ~440 Hz, rms -15.0 dBFS, zero samples 0%
+ind4: 3.01s received, ~550 Hz, rms -15.0 dBFS, zero samples 0%
+-- one client, 4 independent mono sources (ind1..4), round 2
+ind1: 3.01s received, ~220 Hz, rms -15.0 dBFS, zero samples 0%
+ind2: 3.01s received, ~330 Hz, rms -15.0 dBFS, zero samples 0%
+ind3: 3.01s received, ~440 Hz, rms -15.0 dBFS, zero samples 0%
+ind4: 3.01s received, ~550 Hz, rms -15.0 dBFS, zero samples 0%
+-- one client, 4 independent mono sources (ind1..4), round 3
+ind1: 3.01s received, ~220 Hz, rms -15.0 dBFS, zero samples 0%
+ind2: 3.01s received, ~330 Hz, rms -15.0 dBFS, zero samples 0%
+ind3: 3.01s received, ~440 Hz, rms -15.0 dBFS, zero samples 0%
+ind4: 3.01s received, ~550 Hz, rms -15.0 dBFS, zero samples 0%
+-- one client, 4 mono remap sources of mic4_aux, round 1
+mic_ch1: 3.01s received, ~220 Hz, rms -15.0 dBFS, zero samples 0%
+mic_ch2: 1.15s received, ~330 Hz, rms -15.0 dBFS, zero samples 0%
+mic_ch3: 3.56s received, ~440 Hz, rms -15.0 dBFS, zero samples 0%
+mic_ch4: 2.94s received, ~550 Hz, rms -15.0 dBFS, zero samples 0%
+-- one client, 4 mono remap sources of mic4_aux, round 2
+mic_ch1: 3.01s received, ~220 Hz, rms -15.0 dBFS, zero samples 0%
+mic_ch2: NO DATA
+mic_ch3: NO DATA
+mic_ch4: 3.11s received, ~550 Hz, rms -15.0 dBFS, zero samples 0%
+-- one client, 4 mono remap sources of mic4_aux, round 3
+mic_ch1: 3.01s received, ~220 Hz, rms -15.0 dBFS, zero samples 0%
+mic_ch2: NO DATA
+mic_ch3: NO DATA
+mic_ch4: NO DATA
+-- 4 separate parec processes on the 4 remap sources
+mic_ch1 (parec): 3.000000s, ~224 Hz
+mic_ch2 (parec): 3.000000s, ~329 Hz
+mic_ch3 (parec): 3.000000s, ~439 Hz
+mic_ch4 (parec): 3.000000s, ~549 Hz
