@@ -87,6 +87,24 @@ const MIGRATIONS: &[&str] = &[
         vocals_path       TEXT,
         instrumental_path TEXT
     ) STRICT;",
+    // 7: Mic delays, bleed levels and Mic thresholds per (Mic, Stage
+    // output), kept across Parties (no link to `parties`). A Mic is a Phone
+    // id or a Local mic id. Calibration writes the delay and bleed level
+    // together; a hand setting writes only the threshold, so a
+    // never-calibrated Local mic has a threshold and no delay. dBFS values
+    // are at the reference volume.
+    "CREATE TABLE mic_settings (
+        mic_kind         TEXT NOT NULL CHECK (mic_kind IN ('phone', 'localMic')),
+        mic_id           TEXT NOT NULL,
+        stage_output     TEXT NOT NULL,
+        mic_delay_ms     REAL,
+        bleed_level_dbfs REAL,
+        threshold_dbfs   REAL,
+        threshold_set_by TEXT CHECK (threshold_set_by IN ('calibration', 'hand')),
+        PRIMARY KEY (mic_kind, mic_id, stage_output),
+        CHECK ((mic_delay_ms IS NULL) = (bleed_level_dbfs IS NULL)),
+        CHECK ((threshold_dbfs IS NULL) = (threshold_set_by IS NULL))
+    ) STRICT, WITHOUT ROWID;",
 ];
 
 /// The schema version this build migrates to.

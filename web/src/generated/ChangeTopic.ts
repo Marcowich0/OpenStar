@@ -5,4 +5,4 @@
  * HTTP data the frontend refetches. Each area adds a topic per HTTP
  * resource (library, profiles, downloads, ...).
  */
-export type ChangeTopic = "profiles" | "library";
+export type ChangeTopic = "profiles" | "library" | "micSettings";

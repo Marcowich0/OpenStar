@@ -292,6 +292,15 @@ fn every_client_message() -> Vec<ClientMessage> {
             ts: 0.0,
             epoch: 0.0,
         },
+        ClientMessage::StoreCalibration {
+            stage_output: String::new(),
+            results: Vec::new(),
+        },
+        ClientMessage::SetMicThreshold {
+            stage_output: String::new(),
+            local_mic_id: String::new(),
+            reference_dbfs: -40.0,
+        },
     ]
 }
 

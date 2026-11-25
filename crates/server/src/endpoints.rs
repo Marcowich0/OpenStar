@@ -28,7 +28,7 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, jobs, library, profiles, unlock};
+use crate::{AppState, bridge, frontend, jobs, library, mic_settings, profiles, unlock};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,7 +67,10 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::NewParty
         | ClientMessage::PitchReading { .. }
         | ClientMessage::ClockPing { .. }
-        | ClientMessage::ClockPong { .. } => Access::NotGuarded,
+        | ClientMessage::ClockPong { .. }
+        // Calibrate mics and setting a Mic threshold need no Admin PIN.
+        | ClientMessage::StoreCalibration { .. }
+        | ClientMessage::SetMicThreshold { .. } => Access::NotGuarded,
     }
 }
 
@@ -145,6 +148,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/library/rescan",
             NotGuarded,
             library::rescan,
+        )
+        // Anyone reads Mic settings; the Stage writes them over its WebSocket.
+        .add(
+            Method::GET,
+            "/api/mic-settings",
+            NotGuarded,
+            mic_settings::read,
         )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage, but needs Stage trust (#186), not an Unlock.

@@ -7,6 +7,7 @@
 pub mod admin;
 pub mod jobs;
 pub mod library;
+pub mod mics;
 pub mod party;
 pub mod pitch;
 pub mod profile;
@@ -94,6 +95,21 @@ pub enum ClientMessage {
         /// epoch: a new value means the Stage's clock is a new one.
         epoch: f64,
     },
+    /// Stores a Calibration run's successful results at `stage_output`, one
+    /// per Mic included; a Mic left out keeps every value it had. Accepted
+    /// only from the active Stage; needs no Admin PIN.
+    StoreCalibration {
+        stage_output: String,
+        results: Vec<mics::CalibrationResult>,
+    },
+    /// Sets a Local mic's Mic threshold by hand at `stage_output`, in dBFS at
+    /// the reference volume. Accepted only from the active Stage; needs no
+    /// Admin PIN.
+    SetMicThreshold {
+        stage_output: String,
+        local_mic_id: String,
+        reference_dbfs: f64,
+    },
 }
 
 /// A message the server sends over a WebSocket.
@@ -156,6 +172,8 @@ pub enum ChangeTopic {
     /// The Library index: `GET /api/songs`, `GET /api/songs/{id}`,
     /// `GET /api/library/problems` and `GET /api/library/scan`.
     Library,
+    /// `GET /api/mic-settings`.
+    MicSettings,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast
