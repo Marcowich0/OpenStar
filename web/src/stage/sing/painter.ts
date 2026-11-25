@@ -9,10 +9,13 @@
 import type { TokenRef } from "../../theme/tokens";
 import type {
   DrawList,
+  HeadBallEntry,
   LaneEntry,
   LineStyle,
   PillEntry,
+  PitchLineEntry,
   PlayheadEntry,
+  TracePoint,
 } from "./frame";
 
 /** The reference frame every draw list is in (#55). */
@@ -99,6 +102,15 @@ export function createPainter(
   }
 
   function lane(entry: LaneEntry) {
+    const lost = entry.lost;
+    if (lost) {
+      ctx.globalAlpha = lost.alpha;
+      ctx.fillStyle = colour(lost.colour);
+      ctx.beginPath();
+      ctx.roundRect(entry.x, entry.y, entry.width, entry.height, lost.radius);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     const s = entry.separator;
     line(s, "butt", NO_DASH, s.x, s.top, s.bottom);
     ctx.save();
@@ -165,6 +177,59 @@ export function createPainter(
     if (local) ctx.translate(-entry.x, -entry.y);
   }
 
+  /**
+   * Strokes, as one path, every stretch of `points` whose end point has
+   * `hit`. A one-point line is a dot in its point's style.
+   */
+  function stretches(
+    points: readonly TracePoint[],
+    hit: boolean,
+    stroke: string,
+    width: number,
+    alpha: number,
+  ) {
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = width;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.setLineDash(NO_DASH as number[]);
+    ctx.beginPath();
+    let open = false;
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      if (!p) continue;
+      const from = points[i - 1] ?? (points.length === 1 ? p : undefined);
+      if (!from || p.hit !== hit) {
+        open = false;
+        continue;
+      }
+      if (!open) ctx.moveTo(from.x, from.y);
+      open = true;
+      ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  function pitchLine(entry: PitchLineEntry) {
+    const { points, hit, miss } = entry;
+    stretches(points, true, colour(hit.edge), hit.edgeWidth, 1);
+    stretches(points, false, colour(miss.colour), miss.width, miss.alpha);
+    stretches(points, true, colour(hit.colour), hit.width, 1);
+  }
+
+  function headBall(entry: HeadBallEntry) {
+    ctx.beginPath();
+    ctx.arc(entry.x, entry.y, entry.radius, 0, 2 * Math.PI);
+    ctx.fillStyle = colour(entry.colour);
+    ctx.fill();
+    ctx.strokeStyle = colour(entry.rim);
+    ctx.lineWidth = entry.rimWidth;
+    ctx.setLineDash(NO_DASH as number[]);
+    ctx.stroke();
+  }
+
   return {
     paint(list, transform) {
       colours.clear();
@@ -182,6 +247,12 @@ export function createPainter(
             break;
           case "playhead":
             playhead(entry);
+            break;
+          case "pitchLine":
+            pitchLine(entry);
+            break;
+          case "headBall":
+            headBall(entry);
             break;
           case "laneEnd":
             ctx.restore();

@@ -170,17 +170,24 @@ export function readingHits(
   return beatHits(note, readingValue(reading, micThresholdDbfs), difficulty);
 }
 
-/** What one reading alone says, in Beat-value terms. */
+// Reused by `readingValue`, so the trace's per-point hit test allocates
+// nothing; `readingHits` never lets one escape.
+const NO_VOICE: BeatValue = { kind: "noVoice" };
+const VOICE_WITHOUT_PITCH: BeatValue = { kind: "voiceWithoutPitch" };
+const PITCH: { kind: "pitch"; pitch: number } = { kind: "pitch", pitch: 0 };
+
+/** What one reading alone says, in Beat-value terms (only until the next call). */
 function readingValue(
   reading: Pick<BeatReading, "pitch" | "clarity" | "loudness">,
   micThresholdDbfs: number,
 ): BeatValue {
   if (reading.pitch !== null && isVoiced(reading, micThresholdDbfs)) {
-    return { kind: "pitch", pitch: reading.pitch };
+    PITCH.pitch = reading.pitch;
+    return PITCH;
   }
   return passesMicThreshold(reading, micThresholdDbfs)
-    ? { kind: "voiceWithoutPitch" }
-    : { kind: "noVoice" };
+    ? VOICE_WITHOUT_PITCH
+    : NO_VOICE;
 }
 
 /** Starts a scorer for one Player on one Voice. */
