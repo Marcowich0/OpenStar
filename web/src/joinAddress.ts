@@ -17,7 +17,10 @@ export interface JoinAddress {
  * @param publicUrl `ServerInfo.publicUrl`
  * @param stageOrigin the address the Stage was opened on (`window.location.origin`)
  */
-export function joinAddress(publicUrl: string | null, stageOrigin: string): JoinAddress {
+export function joinAddress(
+  publicUrl: string | null,
+  stageOrigin: string,
+): JoinAddress {
   const address = (publicUrl ?? stageOrigin).replace(/\/+$/, "");
   return { address, warning: warningFor(address) };
 }

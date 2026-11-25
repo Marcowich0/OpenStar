@@ -3,7 +3,9 @@ import { joinAddress } from "./joinAddress";
 
 describe("joinAddress", () => {
   it("uses OPENSTAR_PUBLIC_URL when it is set, with no warning for HTTPS", () => {
-    expect(joinAddress("https://openstar.example.org", "http://192.168.1.5:8080")).toEqual({
+    expect(
+      joinAddress("https://openstar.example.org", "http://192.168.1.5:8080"),
+    ).toEqual({
       address: "https://openstar.example.org",
       warning: "none",
     });
@@ -51,9 +53,9 @@ describe("joinAddress", () => {
   });
 
   it("drops a trailing slash from the address", () => {
-    expect(joinAddress("https://openstar.example.org/", "http://x").address).toBe(
-      "https://openstar.example.org",
-    );
+    expect(
+      joinAddress("https://openstar.example.org/", "http://x").address,
+    ).toBe("https://openstar.example.org");
   });
 
   it("warns not-HTTPS for an address it cannot read", () => {
