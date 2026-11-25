@@ -1,0 +1,118 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: encoding/cp1252.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Pl\xe0ceholder T\xedtle" Lf,
+              2 Header "#ARTIST:Placeholder \xc4rtist" Lf,
+              3 Header "#MP3:audio.mp3" Lf,
+              4 Header "#BPM:300" Lf,
+              5 Header "#GAP:1500" Lf,
+              6 Body ": 0 4 0 L\xe0" Lf,
+              7 Body ": 4 4 2 l\xe9" Lf,
+              8 Body "- 10" Lf,
+              9 Body ": 12 4 4 \xe7\xe0" Lf,
+             10 Body ": 16 4 2 \xf1\xf6" Lf,
+             11 End "E" Lf,
+        ],
+        encoding: Cp1252,
+        bom: false,
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: Unversioned,
+                version: None,
+                encoding: None,
+                title: "Plàceholder Títle",
+                artist: "Placeholder Ärtist",
+                audio_reference: Some(
+                    "audio.mp3",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: None,
+                video: None,
+                cover: None,
+                background: None,
+                vocals: None,
+                instrumental: None,
+                beats_per_minute: 1200.0,
+                gap_seconds: 1.5,
+                start_seconds: None,
+                end_seconds: None,
+                video_gap_seconds: None,
+                preview_start_seconds: None,
+                medley_start_beat: None,
+                medley_end_beat: None,
+                year: None,
+                genre: None,
+                genres: [],
+                language: None,
+                languages: [],
+                edition: None,
+                editions: [],
+                creator: None,
+                creators: [],
+                p1: None,
+                p2: None,
+                unknown_headers: [],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "Là",
+                                    line: 6,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "lé",
+                                    line: 7,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 10,
+                                    line: 8,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 4,
+                                    text: "çà",
+                                    line: 9,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 16,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "ñö",
+                                    line: 10,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [],
+    },
+)

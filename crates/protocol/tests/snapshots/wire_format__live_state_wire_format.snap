@@ -1,0 +1,9 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "ServerMessage::LiveState\n{ stage_id: StageId(\"main\".to_owned()), placeholder: \"Hello\".to_owned(), }"
+---
+{
+  "type": "liveState",
+  "stageId": "main",
+  "placeholder": "Hello"
+}

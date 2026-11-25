@@ -1,0 +1,12 @@
+#TITLE:Placeholder Tytu³
+#ARTIST:Placeholder Wykonawca
+#ENCODING:CP1250
+#MP3:audio.mp3
+#BPM:300
+#GAP:1500
+: 0 4 0 £¹
+: 4 4 2 ¿ê
+- 10
+: 12 4 4 œæ
+: 16 4 2 øù
+E

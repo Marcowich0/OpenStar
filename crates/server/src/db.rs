@@ -21,6 +21,13 @@ const MIGRATIONS: &[&str] = &[
         key   TEXT PRIMARY KEY NOT NULL,
         value TEXT NOT NULL
     ) STRICT;",
+    // 2: Unlocks. Only a hash of each browser's token and the Admin PIN's
+    // fingerprint are kept, never the PIN.
+    "CREATE TABLE unlocks (
+        token_hash      BLOB PRIMARY KEY NOT NULL,
+        pin_fingerprint BLOB NOT NULL,
+        last_used_ms    INTEGER NOT NULL
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

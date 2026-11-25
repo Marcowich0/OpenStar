@@ -3,4 +3,4 @@
 /**
  * A message a browser sends over its WebSocket.
  */
-export type ClientMessage = { "type": "ping", nonce: number, };
+export type ClientMessage = { "type": "ping", nonce: number, } | { "type": "setPlaceholder", text: string, };
