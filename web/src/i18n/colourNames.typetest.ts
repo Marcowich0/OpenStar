@@ -2,7 +2,7 @@
 // each `@ts-expect-error`.
 
 import { COLOUR_NAME_KEYS, colourName } from "./colourNames";
-import type { PaletteKey } from "./paletteKeys";
+import type { PaletteKey } from "../theme/tokens";
 import type { MessageKey } from "./t";
 
 colourName("tangerine");
