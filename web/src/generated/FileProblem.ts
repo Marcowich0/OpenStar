@@ -5,4 +5,4 @@
  * `header` is the key without `#`, upper-cased; `reference` is the value
  * as written.
  */
-export type FileProblem = { "code": "missingAudioReference" } | { "code": "audioNotFound", header: string, reference: string, } | { "code": "mediaNotFound", header: string, reference: string, } | { "code": "unreadableFile" };
+export type FileProblem = { "code": "missingAudioReference" } | { "code": "audioNotFound", header: string, reference: string, } | { "code": "mediaNotFound", header: string, reference: string, } | { "code": "unreadableFile" } | { "code": "unreadableMetadata" };

@@ -8,8 +8,9 @@
 //! The references are resolved again at every scan, without re-reading the
 //! `.txt`, so a media file added or removed later is noticed.
 
+use super::identity;
 use openstar_protocol::library::{
-    LibraryProblem, ProblemReason, ProblemSeverity, SongDetail, SongId, SongSummary,
+    LibraryProblem, ProblemReason, ProblemSeverity, SongDetail, SongId, SongIdentity, SongSummary,
 };
 use openstar_protocol::song::ParsedSong;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -84,6 +85,9 @@ pub(crate) struct Media {
     pub problems: Vec<Problem>,
     /// The resolved file of each role, relative to the Library.
     pub resolved: Vec<(Role, String)>,
+    /// `apiId` from the `metadata.json` beside the `.txt` (read again at
+    /// every scan, with the references).
+    pub usdb_id: Option<u32>,
 }
 
 /// A `.txt` just read, ready to be stored.
@@ -192,19 +196,35 @@ pub(crate) fn store_media(
             .find(|(r, _)| *r == role)
             .map(|(_, path)| path.as_str())
     };
+    let identity = if parsed {
+        let (artist, title, duet): (String, String, bool) = tx
+            .prepare_cached("SELECT artist, title, duet FROM library_files WHERE path = ?1")?
+            .query_row([path], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+        Some(identity::key(&identity::identity(
+            media.usdb_id,
+            &artist,
+            &title,
+            duet,
+        )))
+    } else {
+        None
+    };
     let sets: Vec<String> = Role::ALL
         .iter()
         .enumerate()
-        .map(|(n, role)| format!("{} = ?{}", role.column(), n + 4))
+        .map(|(n, role)| format!("{} = ?{}", role.column(), n + 6))
         .collect();
     let sql = format!(
-        "UPDATE library_files SET playable = ?2, file_problems = ?3, {} WHERE path = ?1",
+        "UPDATE library_files SET playable = ?2, file_problems = ?3, usdb_id = ?4, identity = ?5, {}
+         WHERE path = ?1",
         sets.join(", ")
     );
     tx.prepare_cached(&sql)?.execute(params![
         path,
         playable,
         encode_problems(&media.problems),
+        media.usdb_id.filter(|_| parsed),
+        identity,
         resolved(Role::Audio),
         resolved(Role::Video),
         resolved(Role::Cover),
@@ -227,7 +247,7 @@ pub(crate) fn remove(tx: &Transaction<'_>, ids: &[i64]) -> rusqlite::Result<()> 
 /// Every playable Song, by artist, then title, then path.
 pub(crate) fn songs(conn: &Connection) -> rusqlite::Result<Vec<SongSummary>> {
     let mut statement = conn.prepare(
-        "SELECT id, path, artist, title, duet FROM library_files WHERE playable
+        "SELECT id, path, artist, title, duet, identity FROM library_files WHERE playable
          ORDER BY artist COLLATE NOCASE, title COLLATE NOCASE, path",
     )?;
     let rows = statement.query_map([], |row| {
@@ -237,6 +257,7 @@ pub(crate) fn songs(conn: &Connection) -> rusqlite::Result<Vec<SongSummary>> {
             artist: row.get(2)?,
             title: row.get(3)?,
             duet: row.get(4)?,
+            identity: decode_identity(row, 5)?,
         })
     })?;
     rows.collect()
@@ -245,7 +266,7 @@ pub(crate) fn songs(conn: &Connection) -> rusqlite::Result<Vec<SongSummary>> {
 /// One playable Song in full; `None` for any other id.
 pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<SongDetail>> {
     conn.query_row(
-        "SELECT path, song, txt_problems, file_problems FROM library_files
+        "SELECT path, song, txt_problems, file_problems, identity FROM library_files
          WHERE id = ?1 AND playable",
         [id.0],
         |row| {
@@ -262,11 +283,31 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
                         e.into(),
                     )
                 })?,
+                identity: decode_identity(row, 4)?,
                 warnings: problems.into_iter().map(|(_, reason)| reason).collect(),
             })
         },
     )
     .optional()
+}
+
+/// Whether a playable Song with `identity` is in the Library now. Scoring
+/// shows a Song's Score records only while this holds.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "Scoring hides and shows Score records by it (#54)"
+    )
+)]
+pub(crate) fn identity_present(
+    conn: &Connection,
+    identity: &SongIdentity,
+) -> rusqlite::Result<bool> {
+    conn.prepare_cached(
+        "SELECT EXISTS (SELECT 1 FROM library_files WHERE identity = ?1 AND playable)",
+    )?
+    .query_row([identity::key(identity)], |row| row.get(0))
 }
 
 /// Every Library problem, by path: the parser's first, then the references'.
@@ -294,6 +335,15 @@ pub(crate) fn problems(conn: &Connection) -> rusqlite::Result<Vec<LibraryProblem
         all.extend(row?);
     }
     Ok(all)
+}
+
+/// A playable row's identity. Every playable row has one, since the scan
+/// sets it whenever it sets `playable`.
+fn decode_identity(row: &rusqlite::Row<'_>, column: usize) -> rusqlite::Result<SongIdentity> {
+    let text: String = row.get(column)?;
+    serde_json::from_str(&text).map_err(|e| {
+        rusqlite::Error::FromSqlConversionFailure(column, rusqlite::types::Type::Text, e.into())
+    })
 }
 
 fn song_id(rowid: i64) -> SongId {

@@ -87,6 +87,13 @@ const MIGRATIONS: &[&str] = &[
         vocals_path       TEXT,
         instrumental_path TEXT
     ) STRICT;",
+    // 7: Song identity (see `library::identity`). `usdb_id` is `apiId` from
+    // the `metadata.json` beside the `.txt`; `identity` is the identity as
+    // JSON, NULL for a rejected `.txt`. Both are set again at every scan.
+    "ALTER TABLE library_files ADD COLUMN usdb_id INTEGER;
+     ALTER TABLE library_files ADD COLUMN identity TEXT;
+     CREATE INDEX library_files_identity ON library_files (identity);
+     CREATE INDEX library_files_usdb_id ON library_files (usdb_id);",
 ];
 
 /// The schema version this build migrates to.
