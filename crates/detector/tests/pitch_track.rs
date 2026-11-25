@@ -36,7 +36,11 @@ fn frames_are_10_ms_apart() {
     samples.extend(sine(220.0, 0.5, 1.0));
     let track = track(&samples);
     assert_eq!(track.frame_seconds, 0.01);
-    let first_voiced = track.pitch.iter().position(|&p| p > 0.0).expect("a voiced frame");
+    let first_voiced = track
+        .pitch
+        .iter()
+        .position(|&p| p > 0.0)
+        .expect("a voiced frame");
     // Window [i·160, i·160+400) must hold mostly tone to be voiced; frame 100
     // starts exactly at the tone.
     assert!((97..=100).contains(&first_voiced), "{first_voiced}");
@@ -82,13 +86,18 @@ fn searches_lags_for_75_to_700_hz() {
 
 #[test]
 fn tones_across_75_to_700_hz_give_their_pitch() {
-    for frequency in [75.0, 82.41, 110.0, 146.83, 220.0, 329.63, 440.0, 523.25, 659.26, 700.0] {
+    for frequency in [
+        75.0, 82.41, 110.0, 146.83, 220.0, 329.63, 440.0, 523.25, 659.26, 700.0,
+    ] {
         let track = track(&sine(frequency, 0.5, 0.5));
         assert!(!track.pitch.is_empty());
         for (i, &pitch) in track.pitch.iter().enumerate() {
             assert!(pitch > 0.0, "{frequency} Hz: frame {i} unvoiced");
             let off = cents(f64::from(pitch), frequency);
-            assert!(off.abs() < 5.0, "{frequency} Hz: frame {i} at {pitch} Hz ({off:.2} cents)");
+            assert!(
+                off.abs() < 5.0,
+                "{frequency} Hz: frame {i} at {pitch} Hz ({off:.2} cents)"
+            );
         }
     }
 }
@@ -124,7 +133,10 @@ fn the_envelope_is_the_rms_of_each_window() {
     // (400 samples hold exactly 10 periods of 400 Hz).
     let track = track(&sine(400.0, 0.5, 0.5));
     for &envelope in &track.envelope {
-        assert!((f64::from(envelope) - 0.5 / 2.0_f64.sqrt()).abs() < 1e-4, "{envelope}");
+        assert!(
+            (f64::from(envelope) - 0.5 / 2.0_f64.sqrt()).abs() < 1e-4,
+            "{envelope}"
+        );
     }
 }
 
@@ -144,7 +156,10 @@ fn frames_below_8_percent_of_the_95th_percentile_envelope_are_unvoiced() {
         assert!(track.envelope[i] > 0.0, "frame {i}");
     }
     for i in soft {
-        assert!(cents(f64::from(track.pitch[i]), 220.0).abs() < 5.0, "frame {i}");
+        assert!(
+            cents(f64::from(track.pitch[i]), 220.0).abs() < 5.0,
+            "frame {i}"
+        );
         assert!(track.clarity[i] > 0.9, "frame {i}");
     }
 }
