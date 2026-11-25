@@ -22,6 +22,7 @@ const member = (profileId: number, colour: "sky" | "navy"): PartyMember => ({
   colour,
   favouriteTaken: false,
   onPhone: true,
+  singing: false,
 });
 
 describe("the Who's singing? grid", () => {
@@ -67,6 +68,7 @@ describe("the Who's singing? grid", () => {
       colour: "sky",
       favouriteTaken: false,
       onPhone: true,
+      singing: false,
     };
 
     expect(whosSinging(profiles, [guest])[0]?.here).toBe(false);

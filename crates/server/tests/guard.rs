@@ -348,6 +348,13 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::RemoveMember {
             member_id: PartyMemberId(1),
         },
+        ClientMessage::EditLineUp {
+            request_id: openstar_protocol::RequestId(1),
+            edit: openstar_protocol::LineUpEdit::RemoveSeat { seat: 0 },
+        },
+        ClientMessage::SetMyDifficulty {
+            difficulty: openstar_protocol::profile::Difficulty::Hard,
+        },
     ]
 }
 
