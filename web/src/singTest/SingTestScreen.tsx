@@ -4,11 +4,22 @@
 
 import { useMemo } from "react";
 
+import type { SongMedia } from "../generated/SongMedia";
+import { SingBackdrop } from "../stage/sing/SingBackdrop";
 import { SingScreen } from "../stage/sing/SingScreen";
 import { syntheticSing } from "../stage/sing/syntheticSing";
 import type { SingTestSearch } from "./search";
 
 const NO_OFFSET = () => 0;
+
+/** No video and no images: the generated tile, so the page needs no network. */
+const TILE_ONLY: SongMedia = {
+  audio: { url: "", native: false },
+  video: null,
+  cover: null,
+  background: null,
+  tileColour: "navy",
+};
 
 export function SingTestScreen({ search }: { search: SingTestSearch }) {
   const state = useMemo(() => syntheticSing(search.case), [search.case]);
@@ -19,7 +30,7 @@ export function SingTestScreen({ search }: { search: SingTestSearch }) {
       state={state}
       clock={clock}
       avOffset={NO_OFFSET}
-      backdrop={<div className="absolute inset-0 bg-slate" />}
+      backdrop={<SingBackdrop media={TILE_ONLY} />}
     />
   );
 }
