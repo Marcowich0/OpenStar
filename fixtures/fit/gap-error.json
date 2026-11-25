@@ -1,0 +1,25 @@
+{
+  "description": "Only #GAP wrong: the singing starts 1.754 s after the file says. Both fits recover #GAP; offset only keeps #BPM as written.",
+  "file": {
+    "gap": 1203,
+    "bpm": 283.7
+  },
+  "sung": {
+    "gap": 2957,
+    "bpm": 283.7,
+    "transpose": 0,
+    "lineShifts": []
+  },
+  "seconds": 38,
+  "expect": {
+    "fitToTheSinging": {
+      "gap": 2957,
+      "bpm": 283.7
+    },
+    "offsetOnly": {
+      "gap": 2957,
+      "bpm": 283.7
+    }
+  },
+  "melody": "melody.json"
+}

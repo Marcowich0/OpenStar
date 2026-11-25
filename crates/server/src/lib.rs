@@ -9,7 +9,10 @@ pub mod db;
 pub mod endpoints;
 mod frontend;
 pub mod healthcheck;
+pub mod jobs;
+mod library;
 mod live;
+mod profiles;
 mod startup;
 pub mod txt;
 mod unlock;
@@ -31,6 +34,8 @@ use tokio::net::{TcpListener, TcpStream};
 use clock::Clock;
 pub use config::{Config, Secret, UsdbCredentials};
 use db::Database;
+use jobs::Jobs;
+use library::Scanner;
 use live::LiveHandle;
 
 /// The build identifier, worked out by `build.rs` (see [`build_id`]).
@@ -46,6 +51,10 @@ struct AppState {
     library_read_only: Option<LibraryReadOnly>,
     /// The live-state task, which owns everything live.
     live: LiveHandle,
+    /// The background job runner.
+    jobs: Jobs,
+    /// Scans the Library into the index, one scan at a time.
+    scanner: Scanner,
     /// The time source for every timed rule (the Unlock's idle time).
     clock: Clock,
     /// The fingerprint of the running Admin PIN; Unlocks made with another
@@ -77,13 +86,27 @@ impl Server {
         // Step 5: reload the live state (the Party) before anything is served.
         let live = LiveHandle::start(opened.database.clone()).await?;
         tracing::info!("live state reloaded");
+        let jobs = Jobs::start(
+            opened.database.clone(),
+            live.clone(),
+            config.tool_path.clone(),
+        )
+        .await?;
+        tracing::info!("job runner started");
+        let scanner = Scanner::new(
+            opened.database.clone(),
+            config.songs_dir.clone(),
+            live.clone(),
+        );
         Ok(Self {
             state: AppState {
+                scanner,
                 db: opened.database,
                 bridge_dir: PathBuf::from(bridge::DEFAULT_BRIDGE_DIR),
                 config: Arc::new(config.clone()),
                 library_read_only,
                 live,
+                jobs,
                 clock: Clock::system(),
                 pin_fingerprint: unlock::pin_fingerprint(config.admin_pin.expose()).into(),
                 test_routes: false,
@@ -110,7 +133,9 @@ impl Server {
 
     /// Mounts the routes that exist only for tests: `POST /api/test/guarded`
     /// and `POST /api/test/library-write`, guarded endpoints that do nothing
-    /// (the second is classified as writing the Library). Never called by `main`.
+    /// (the second is classified as writing the Library), and
+    /// `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel`, which
+    /// queue and cancel test jobs ([`jobs::TestJob`]). Never called by `main`.
     #[doc(hidden)]
     #[must_use]
     pub fn with_test_routes(mut self) -> Self {
@@ -152,17 +177,23 @@ impl Server {
             .await
     }
 
-    /// Serves on `listener` until `shutdown` completes. Then the live-state
-    /// task stops and every WebSocket is closed, so browsers notice and
-    /// reconnect to the next start.
+    /// Starts the Library scan, then serves on `listener` until `shutdown`
+    /// completes; the stored index is served while the scan runs. Then the
+    /// scan stops, the live-state task stops and every WebSocket is closed,
+    /// so browsers notice and reconnect to the next start.
     pub async fn serve_with_shutdown(
         self,
         listener: TcpListener,
         shutdown: impl Future<Output = ()> + Send + 'static,
     ) -> std::io::Result<()> {
         let live = self.state.live.clone();
+        let jobs = self.state.jobs.clone();
+        let scanner = self.state.scanner.clone();
+        scanner.request();
         let shutdown = async move {
             shutdown.await;
+            scanner.shutdown().await;
+            jobs.shutdown().await;
             live.shutdown().await;
         };
         axum::serve(with_nodelay(listener), self.router())

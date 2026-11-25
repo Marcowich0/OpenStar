@@ -1,5 +1,6 @@
 import { useSearch } from "@tanstack/react-router";
 
+import { t } from "../i18n/t";
 import { JoinScreen } from "./JoinScreen";
 import { ServerStatus } from "./ServerStatus";
 
@@ -8,7 +9,7 @@ export function PhoneScreen() {
   const { join } = useSearch({ from: "/" });
   return (
     <main>
-      <h1>OpenStar</h1>
+      <h1>{t("phone.title")}</h1>
       <JoinScreen joinCode={join} />
       <ServerStatus />
     </main>

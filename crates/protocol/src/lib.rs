@@ -5,8 +5,11 @@
 //! committed. `just check` fails when the committed files drift.
 
 pub mod admin;
+pub mod jobs;
+pub mod library;
 pub mod party;
 pub mod pitch;
+pub mod profile;
 pub mod song;
 
 use serde::{Deserialize, Serialize};
@@ -136,15 +139,24 @@ pub enum ServerMessage {
     ClockPong { t0: f64, ts: f64, epoch: f64 },
     /// Stage only: a Mic's WebSocket closed (one of the lost-Mic signals).
     MicClosed { mic: MicId },
+    /// A background job was queued, started, made progress or ended (sent to
+    /// every connection).
+    JobChanged { job: jobs::Job },
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
 /// HTTP data the frontend refetches. Each area adds a topic per HTTP
-/// resource (library, profiles, downloads, ...); none exists yet.
+/// resource (library, profiles, downloads, ...).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub enum ChangeTopic {}
+pub enum ChangeTopic {
+    /// `GET /api/profiles` and `GET /api/profiles/{id}`.
+    Profiles,
+    /// The Library index: `GET /api/songs`, `GET /api/songs/{id}`,
+    /// `GET /api/library/problems` and `GET /api/library/scan`.
+    Library,
+}
 
 /// Every user-facing message from the server (errors, rejections and toast
 /// events): a code plus its parameters, `{ "code": ..., "params": {...} }`.
@@ -165,6 +177,27 @@ pub enum UserMessage {
     NotTheStage,
     /// Something failed on the server; its log says what.
     ServerError,
+    /// A Profile name is empty once surrounding spaces are trimmed.
+    ProfileNameEmpty,
+    /// A Profile name is longer than `max_length` characters once
+    /// surrounding spaces are trimmed.
+    ProfileNameTooLong { max_length: u32 },
+    /// Another Profile already has this name (ignoring case and surrounding
+    /// spaces); the person is offered that Profile.
+    ProfileNameTaken { profile_id: profile::ProfileId },
+    /// No Profile has this id (it was deleted, or never existed).
+    ProfileNotFound,
+    /// The job was cancelled.
+    JobCancelled,
+    /// A restart interrupted the job, and its kind does not run again.
+    JobInterrupted,
+    /// A tool the job needs (`ffmpeg`, `yt-dlp`, ...) is not installed.
+    ToolNotFound { tool: String },
+    /// A tool the job ran failed; `exit_code` is `null` when a signal ended it.
+    ToolFailed {
+        tool: String,
+        exit_code: Option<i32>,
+    },
 }
 
 #[cfg(test)]

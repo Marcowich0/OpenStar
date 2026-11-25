@@ -39,14 +39,18 @@ describe("live state reducer", () => {
     expect(synced(false, null).stage?.party).toBeNull();
   });
 
-  it("takes the whole Party and the change event from a Party change", () => {
+  it("takes the whole Party and a toast from a Party change", () => {
     const next = { ...party, partyId: "p2", joinCode: "9133" };
     const message = started(next);
     const changed = receive(synced(false), message);
     expect(changed.stage?.party).toEqual(next);
-    expect(changed.lastChange).toEqual(
-      message.type === "partyChanged" ? message.change : null,
-    );
+    expect(changed.toasts).toEqual([
+      {
+        id: 0,
+        actor: { kind: "stage" },
+        event: { code: "partyStarted", params: { joinCode: "9133" } },
+      },
+    ]);
   });
 
   it("ignores a Party change for another Stage", () => {

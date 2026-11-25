@@ -1,0 +1,77 @@
+/*
+ * The default theme: Bubble Pop (v1 spec: Visual direction and Stage screens,
+ * #55). Every token is a Tailwind v4 `@theme` variable, so it makes a utility
+ * (`bg-ink`, `rounded-card`, `shadow-ledge`, `ease-spring`) and, because the
+ * block is `static`, is also emitted as a CSS custom property on `:root` even
+ * when no utility uses it. The canvas reads the same properties through
+ * `readToken` in `tokens.ts`, so a theme is a swap of these variables.
+ *
+ * This file is the only stylesheet that may hold a colour literal. Party
+ * colours are named `--color-party-<palette key>`, in palette order; the token
+ * names are listed again in `TOKEN_NAMES` (a test keeps the two in step).
+ */
+
+@theme static {
+  /* Tailwind's own palette, shadows, radii and easings are off: only these. */
+  --color-*: initial;
+  --shadow-*: initial;
+  --radius-*: initial;
+  --ease-*: initial;
+
+  /* Party colours, in palette order. */
+  --color-party-cherry: #ff4b5c;
+  --color-party-sky: #2ea8ff;
+  --color-party-navy: #1f3f9e;
+  --color-party-cocoa: #7a3e12;
+  --color-party-teal: #12bfc4;
+  --color-party-lime: #9bd62b;
+  --color-party-berry: #8b1457;
+  --color-party-mint: #3ddc84;
+  --color-party-bubblegum: #ff6fb5;
+  --color-party-forest: #146b3a;
+  --color-party-grape: #9b5cff;
+  --color-party-tangerine: #ff7a1a;
+
+  /* Interface colours. */
+  --color-white: #ffffff;
+  --color-cream: #fff6e9;
+  --color-cream-2: #ffe7cc;
+  --color-ink: #2b2d42;
+  --color-ink-2: #5d6079;
+  --color-mute: #8a8ca0;
+  --color-ledge: rgba(43, 45, 66, 0.14);
+  --color-red: #ff4b5c;
+  --color-red-ledge: #c7303f;
+  --color-blue: #2ea8ff;
+  --color-green: #3ddc84;
+  --color-green-ledge: #24a862;
+  --color-yellow: #ffc93c;
+  --color-yellow-ledge: #d9a21a;
+  --color-purple: #9b5cff;
+  --color-slate: #7c82a0;
+  --color-golden-top: #ffe58a;
+  --color-golden-bottom: #ffb020;
+  --color-passed: #ecedf5;
+  --color-warn-bg: #ffe1e4;
+  --color-warn-fg: #b3192b;
+  --color-veil: rgba(43, 45, 66, 0.4);
+  --color-blob-blue: #cdebff;
+  --color-blob-pink: #ffd6dc;
+  --color-blob-green: #d9f7e6;
+
+  /* Radii: buttons, chips and pills use `rounded-full`; cards 36–52 px. */
+  --radius-card-sm: 36px;
+  --radius-card: 44px;
+  --radius-card-lg: 52px;
+
+  /* Ledge shadows: solid, straight down, no blur. */
+  --shadow-ledge-sm: 0 6px 0 var(--color-ledge);
+  --shadow-ledge: 0 8px 0 var(--color-ledge);
+  --shadow-ledge-lg: 0 10px 0 var(--color-ledge);
+
+  /* The one springy back-out easing for all UI motion. */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Fredoka, bundled (see `fonts.ts`), for everything. */
+  --font-sans: "Fredoka", ui-rounded, system-ui, sans-serif;
+}
