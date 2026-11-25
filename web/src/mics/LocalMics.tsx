@@ -1,5 +1,7 @@
 // The Stage browser's Local mics while it is the Stage: one capture, the
-// kept Local mics, and the rule of which devices are open (`devicesToOpen`).
+// kept Local mics, the rule of which devices are open (`devicesToOpen`) and
+// how kept Local mics meet the channels seen (`matchLocalMics`): a missing
+// Local mic found again by exact label + channel is re-keyed at once.
 // `StageScreen` wraps the Stage frame in `<LocalMicsProvider>`; the Mics
 // screen reads it with `useLocalMics()` and says while it is open.
 
@@ -10,13 +12,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 
 import { localMicsQuery, micBridgesQuery } from "../api/queries";
-import type { ClientMessage } from "../generated/ClientMessage";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridges } from "../generated/MicBridges";
 import type { LiveState } from "../live/liveState";
@@ -29,8 +31,10 @@ import {
 } from "./localMicCapture";
 import {
   devicesToOpen,
+  matchLocalMics,
   stageBrowserId,
   type LocalMicChannel,
+  type LocalMicMatch,
 } from "./localMics";
 
 export interface LocalMicsApi {
@@ -47,6 +51,12 @@ export interface LocalMicsApi {
   bridges: MicBridges;
   /** Approves a waiting Mic bridge (no Admin PIN: this is the Stage). */
   approveBridge: (requestId: number) => void;
+  /** Kept Local mics of this browser against the channels seen: not found, new channels. */
+  match: LocalMicMatch;
+  /** Names a channel (of this browser or a bridge; empty: its default); saved at once. */
+  rename: (channel: LocalMicChannel, name: string) => void;
+  /** Find it: `channel` takes over Local mic `localMicId`; saved at once. */
+  relink: (localMicId: string, channel: LocalMicChannel) => void;
 }
 
 const NO_BRIDGES: MicBridges = { bridges: [], requests: [] };
@@ -57,6 +67,8 @@ const IDLE: CaptureSnapshot = {
   open: new Map(),
 };
 
+const NO_MATCH: LocalMicMatch = { rekeys: [], notFound: [], newChannels: [] };
+
 const noCapture: LocalMicsApi = {
   capture: null,
   snapshot: IDLE,
@@ -66,6 +78,9 @@ const noCapture: LocalMicsApi = {
   setSwitchedOn: () => {},
   bridges: NO_BRIDGES,
   approveBridge: () => {},
+  match: NO_MATCH,
+  rename: () => {},
+  relink: () => {},
 };
 
 export const LocalMicsContext = createContext<LocalMicsApi>(noCapture);
@@ -156,36 +171,27 @@ export function LocalMicsProvider({
     void capture.setOpen(new Set(toOpen === "" ? [] : toOpen.split("\n")));
   }, [capture, toOpen]);
 
+  // Every write is sent and shown at once; the change notice refetches.
+  const updateKept = useCallback(
+    (update: (old: readonly LocalMic[]) => LocalMic[]) => {
+      queryClient.setQueryData(localMicsQuery.queryKey, (old = []) =>
+        update(old),
+      );
+    },
+    [queryClient],
+  );
+
   const setSwitchedOn = useCallback(
     (channel: LocalMicChannel, on: boolean) => {
-      const message: ClientMessage = {
+      store.send({
         type: "setLocalMicSwitchedOn",
         localMicId: channel.localMicId,
         source: channel.source,
         switchedOn: on,
-      };
-      store.send(message);
-      // Shown at once; the change notice refetches the kept list.
-      queryClient.setQueryData(localMicsQuery.queryKey, (old = []) => {
-        const known = old.find((m) => m.localMicId === channel.localMicId);
-        return known
-          ? old.map((m) =>
-              m === known
-                ? { ...m, source: channel.source, switchedOn: on }
-                : m,
-            )
-          : [
-              ...old,
-              {
-                localMicId: channel.localMicId,
-                source: channel.source,
-                name: "",
-                switchedOn: on,
-              },
-            ];
       });
+      updateKept((old) => upsert(old, channel, { switchedOn: on }));
     },
-    [store, queryClient],
+    [store, updateKept],
   );
 
   const approveBridge = useCallback(
@@ -194,6 +200,65 @@ export function LocalMicsProvider({
     },
     [store],
   );
+
+  const rename = useCallback(
+    (channel: LocalMicChannel, name: string) => {
+      const trimmed = name.trim();
+      store.send({
+        type: "setLocalMicName",
+        localMicId: channel.localMicId,
+        source: channel.source,
+        name: trimmed,
+      });
+      updateKept((old) => upsert(old, channel, { name: trimmed }));
+    },
+    [store, updateKept],
+  );
+
+  const relink = useCallback(
+    (localMicId: string, channel: LocalMicChannel) => {
+      store.send({
+        type: "relinkLocalMic",
+        localMicId,
+        newLocalMicId: channel.localMicId,
+        source: channel.source,
+      });
+      updateKept((old) =>
+        old.map((m) =>
+          m.localMicId === localMicId
+            ? { ...m, localMicId: channel.localMicId, source: channel.source }
+            : m,
+        ),
+      );
+    },
+    [store, updateKept],
+  );
+
+  const match = useMemo(
+    () =>
+      isStage
+        ? matchLocalMics({
+            stageBrowser,
+            devices: snapshot.devices,
+            open: snapshot.open,
+            kept,
+          })
+        : NO_MATCH,
+    [isStage, stageBrowser, snapshot.devices, snapshot.open, kept],
+  );
+
+  // A missing Local mic found again by exact label + channel is re-keyed,
+  // once per (old id, new id).
+  const rekeyed = useRef(new Set<string>());
+  useEffect(() => {
+    if (!keptQuery.isSuccess) return;
+    for (const { localMic, channel } of match.rekeys) {
+      const key = `${localMic.localMicId}\n${channel.localMicId}`;
+      if (rekeyed.current.has(key)) continue;
+      rekeyed.current.add(key);
+      relink(localMic.localMicId, channel);
+    }
+  }, [match.rekeys, keptQuery.isSuccess, relink]);
 
   const api = useMemo<LocalMicsApi>(
     () => ({
@@ -205,6 +270,9 @@ export function LocalMicsProvider({
       setSwitchedOn,
       bridges,
       approveBridge,
+      match,
+      rename,
+      relink,
     }),
     [
       capture,
@@ -214,7 +282,38 @@ export function LocalMicsProvider({
       setSwitchedOn,
       bridges,
       approveBridge,
+      match,
+      rename,
+      relink,
     ],
   );
   return <LocalMicsContext value={api}>{children}</LocalMicsContext>;
+}
+
+/**
+ * `old` with `channel`'s Local mic changed by `change` and its source as
+ * seen; a new one is added unnamed and switched off, as the server keeps it.
+ */
+function upsert(
+  old: readonly LocalMic[],
+  channel: LocalMicChannel,
+  change: Partial<Pick<LocalMic, "name" | "switchedOn">>,
+): LocalMic[] {
+  const known = old.some((m) => m.localMicId === channel.localMicId);
+  return known
+    ? old.map((m) =>
+        m.localMicId === channel.localMicId
+          ? { ...m, ...change, source: channel.source }
+          : m,
+      )
+    : [
+        ...old,
+        {
+          localMicId: channel.localMicId,
+          source: channel.source,
+          name: "",
+          switchedOn: false,
+          ...change,
+        },
+      ];
 }

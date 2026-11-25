@@ -527,20 +527,42 @@ impl LiveState {
                 source,
                 switched_on,
             }) => {
-                if let LocalMicSource::Bridge {
-                    bridge_id,
-                    device_name,
-                    channel,
-                    ..
-                } = &source
-                    && local_mic_id != bridge_local_mic_id(bridge_id, device_name, *channel)
-                {
+                if !local_mic_id_fits(&local_mic_id, &source) {
                     self.reject(id, UserMessage::InvalidMessage);
                     return;
                 }
                 let stored =
                     crate::local_mics::switch(self.db.clone(), local_mic_id, source, switched_on);
                 self.mic_settings_write(id, stored).await;
+            }
+            Ok(ClientMessage::SetLocalMicName {
+                local_mic_id,
+                source,
+                name,
+            }) => {
+                if !local_mic_id_fits(&local_mic_id, &source) {
+                    self.reject(id, UserMessage::InvalidMessage);
+                    return;
+                }
+                let stored = crate::local_mics::rename(self.db.clone(), local_mic_id, source, name);
+                self.mic_settings_write(id, stored).await;
+            }
+            Ok(ClientMessage::RelinkLocalMic {
+                local_mic_id,
+                new_local_mic_id,
+                source,
+            }) => {
+                if !local_mic_id_fits(&new_local_mic_id, &source) {
+                    self.reject(id, UserMessage::InvalidMessage);
+                    return;
+                }
+                let relinked = crate::local_mics::relink(
+                    self.db.clone(),
+                    local_mic_id,
+                    new_local_mic_id,
+                    source,
+                );
+                self.refusable_mic_settings_write(id, relinked).await;
             }
             Ok(ClientMessage::Hello { phone_id }) => {
                 if !phone_id.is_valid() {
@@ -691,18 +713,29 @@ impl LiveState {
         id: ConnectionId,
         write: impl Future<Output = anyhow::Result<()>>,
     ) {
+        self.refusable_mic_settings_write(id, async { write.await.map(Ok) })
+            .await;
+    }
+
+    /// [`Self::mic_settings_write`] for a write that may refuse with a code.
+    async fn refusable_mic_settings_write(
+        &mut self,
+        id: ConnectionId,
+        write: impl Future<Output = anyhow::Result<Result<(), UserMessage>>>,
+    ) {
         if self.stage().connection != Some(id) {
             self.reject(id, UserMessage::NotTheStage);
             return;
         }
         match write.await {
-            Ok(()) => {
+            Ok(Ok(())) => {
                 self.hub.send_all(&ServerMessage::Changed {
                     topics: vec![ChangeTopic::MicSettings],
                 });
                 // Open bridges show each channel's switch and name.
                 self.send_bridge_channels(None).await;
             }
+            Ok(Err(refused)) => self.reject(id, refused),
             Err(error) => {
                 tracing::error!(?error, "storing Mic settings");
                 self.reject(id, UserMessage::ServerError);
@@ -2052,6 +2085,22 @@ fn server_error(error: &anyhow::Error, doing: &str) -> UserMessage {
 
 /// The Mic a connection's readings and pings come from. Until Phones join
 /// with a Phone id (#81), a Phone's Mic is named by its connection.
+/// Whether `local_mic_id` may be kept with `source`: a bridge Local mic's id
+/// is always the one [`bridge_local_mic_id`] makes from its source, so a
+/// Stage cannot store a bridge channel under another id. A browser Local
+/// mic's id is made by the Stage and kept as sent.
+fn local_mic_id_fits(local_mic_id: &str, source: &LocalMicSource) -> bool {
+    match source {
+        LocalMicSource::Bridge {
+            bridge_id,
+            device_name,
+            channel,
+            ..
+        } => local_mic_id == bridge_local_mic_id(bridge_id, device_name, *channel),
+        LocalMicSource::Browser { .. } => true,
+    }
+}
+
 fn mic_id(id: ConnectionId) -> MicId {
     MicId::Phone { connection: id }
 }
