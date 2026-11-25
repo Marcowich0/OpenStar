@@ -213,9 +213,7 @@ function BridgeGroup({
               switchedOn={stored?.switchedOn ?? false}
               // A closed bridge sends nothing: its rows have no meter.
               read={
-                bridge.open
-                  ? () => levelDbfs(channel.localMicId)
-                  : undefined
+                bridge.open ? () => levelDbfs(channel.localMicId) : undefined
               }
               onSwitch={(on) => {
                 onSwitch(channel, on);

@@ -26,9 +26,7 @@ export function createBridgeLevels(): BridgeLevels {
     },
     levelDbfs(localMicId, now) {
       const level = latest.get(localMicId);
-      return level && now - level.at <= LEVEL_STALE_MS
-        ? level.levelDbfs
-        : null;
+      return level && now - level.at <= LEVEL_STALE_MS ? level.levelDbfs : null;
     },
   };
 }
