@@ -16,14 +16,16 @@ use std::time::Duration;
 
 use axum::Json;
 use axum::extract::State;
-use axum::http::header::{COOKIE, SET_COOKIE};
+use axum::http::header::{COOKIE, RETRY_AFTER, SET_COOKIE};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
+use openstar_protocol::UserMessage;
 use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest, UnlockStatus};
 use rusqlite::OptionalExtension;
 use sha2::{Digest, Sha256};
 
 use crate::AppState;
+use crate::pin_wait::{ClientAddress, PinCheck};
 
 /// An Unlock ends after this long without a guarded action or a heartbeat.
 pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
@@ -79,7 +81,7 @@ enum Use {
 /// ended (idle too long, or made with another PIN).
 async fn check(state: &AppState, token: &str, use_: Use) -> anyhow::Result<bool> {
     let hash = token_hash(token);
-    let fingerprint = state.pin_fingerprint.to_vec();
+    let fingerprint = state.admin_pin.fingerprint().to_vec();
     let now = state.clock.now_millis();
     let limit = i64::try_from(IDLE_LIMIT.as_millis()).unwrap_or(i64::MAX);
     state
@@ -131,6 +133,17 @@ pub(crate) fn refusal(status: StatusCode, code: ApiErrorCode) -> Response {
     (status, Json(ApiError { code })).into_response()
 }
 
+/// `429` with [`UserMessage::AdminPinWait`] and a matching `Retry-After`:
+/// a wrong-guess wait runs, so no PIN was checked.
+pub(crate) fn wait_refusal(seconds_left: u32) -> Response {
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        [(RETRY_AFTER, HeaderValue::from(seconds_left))],
+        Json(UserMessage::AdminPinWait { seconds_left }),
+    )
+        .into_response()
+}
+
 fn unlock_required() -> Response {
     refusal(StatusCode::UNAUTHORIZED, ApiErrorCode::UnlockRequired)
 }
@@ -166,21 +179,24 @@ pub(crate) async fn refusal_without_unlock(
 }
 
 /// `POST /api/unlock`: one Admin PIN attempt.
+/// The PIN goes through the shared wrong-guess wait
+/// ([`AdminPin::check`](crate::pin_wait::AdminPin::check)).
 pub async fn attempt(
     State(state): State<AppState>,
+    client: ClientAddress,
     Json(request): Json<UnlockRequest>,
 ) -> Response {
-    // #69 puts the shared wrong-guess wait in front of this comparison.
-    if pin_fingerprint(&request.pin) != *state.pin_fingerprint {
-        tracing::warn!("a wrong Admin PIN was entered");
-        return refusal(StatusCode::FORBIDDEN, ApiErrorCode::WrongPin);
+    match state.admin_pin.check(&request.pin, &state.clock, &client) {
+        PinCheck::Correct => {}
+        PinCheck::Wrong => return refusal(StatusCode::FORBIDDEN, ApiErrorCode::WrongPin),
+        PinCheck::Wait { seconds_left } => return wait_refusal(seconds_left),
     }
     let token = match new_token() {
         Ok(token) => token,
         Err(error) => return internal_error(error),
     };
     let hash = token_hash(&token);
-    let fingerprint = state.pin_fingerprint.to_vec();
+    let fingerprint = state.admin_pin.fingerprint().to_vec();
     let now = state.clock.now_millis();
     let stored = state
         .db

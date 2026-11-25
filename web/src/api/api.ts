@@ -166,6 +166,7 @@ const REFUSAL_CODES = {
   noResults: true,
   notABridge: true,
   bridgeRequestNotFound: true,
+  adminPinWait: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */
