@@ -5,6 +5,7 @@ import type { ChangeEvent } from "./ChangeEvent";
 import type { ChangeTopic } from "./ChangeTopic";
 import type { Job } from "./Job";
 import type { JoinCode } from "./JoinCode";
+import type { LocalMicLevel } from "./LocalMicLevel";
 import type { MicId } from "./MicId";
 import type { PartyMemberId } from "./PartyMemberId";
 import type { PartySnapshot } from "./PartySnapshot";
@@ -27,4 +28,4 @@ party: PartySnapshot | null,
 /**
  * Whether this connection is the active Stage.
  */
-isStage: boolean, } | { "type": "partyChanged", party: PartySnapshot, change: ChangeEvent, } | { "type": "stageMoved" } | { "type": "changed", topics: Array<ChangeTopic>, } | { "type": "pitchReading", mic: MicId, reading: PitchReading, } | { "type": "clockPing", mic: MicId, t0: number, } | { "type": "clockPong", t0: number, ts: number, epoch: number, } | { "type": "micClosed", mic: MicId, } | { "type": "joinCodeValid", joinCode: JoinCode, } | { "type": "phoneStatus", memberId: PartyMemberId | null, } | { "type": "leftParty" } | { "type": "volume", volume: number, stepped: boolean, } | { "type": "jobChanged", job: Job, } | { "type": "controlSong", requestId: RequestId, songId: SongId, control: SongControl, } | { "type": "bridgeWaiting", code: string, } | { "type": "bridgeApproved", token: string, } | { "type": "bridgeConnected", bridgeId: BridgeId, } | { "type": "bridgeChannels", channels: Array<BridgeChannelSettings>, };
+isStage: boolean, } | { "type": "partyChanged", party: PartySnapshot, change: ChangeEvent, } | { "type": "stageMoved" } | { "type": "changed", topics: Array<ChangeTopic>, } | { "type": "pitchReading", mic: MicId, reading: PitchReading, } | { "type": "clockPing", mic: MicId, t0: number, } | { "type": "clockPong", t0: number, ts: number, epoch: number, } | { "type": "micClosed", mic: MicId, } | { "type": "joinCodeValid", joinCode: JoinCode, } | { "type": "phoneStatus", memberId: PartyMemberId | null, } | { "type": "leftParty" } | { "type": "volume", volume: number, stepped: boolean, } | { "type": "jobChanged", job: Job, } | { "type": "controlSong", requestId: RequestId, songId: SongId, control: SongControl, } | { "type": "bridgeWaiting", code: string, } | { "type": "bridgeApproved", token: string, } | { "type": "bridgeConnected", bridgeId: BridgeId, } | { "type": "bridgeChannels", channels: Array<BridgeChannelSettings>, } | { "type": "bridgeMicsScreen", open: boolean, } | { "type": "localMicLevels", levels: Array<LocalMicLevel>, };
