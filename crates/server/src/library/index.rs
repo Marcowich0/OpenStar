@@ -402,7 +402,10 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
              (SELECT native FROM media_probes p WHERE p.path = video_path),
              preparing, conversion_problems,
              (SELECT state FROM media_conversions c WHERE c.path = audio_path),
-             (SELECT state FROM media_conversions c WHERE c.path = video_path)
+             (SELECT state FROM media_conversions c WHERE c.path = video_path),
+             (SELECT l.lufs FROM media_loudness l JOIN media_probes p
+              ON p.path = l.path AND p.size = l.size AND p.mtime_ns = l.mtime_ns
+              WHERE l.path = audio_path)
          FROM library_files
          WHERE id = ?1 AND playable",
         [id.0],
@@ -464,6 +467,7 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
                 length_seconds: row.get(5)?,
                 preparing: row.get(13)?,
                 media,
+                loudness_lufs: row.get(17)?,
                 warnings: problems.into_iter().map(|(_, reason)| reason).collect(),
             })
         },

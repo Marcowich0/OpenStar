@@ -289,6 +289,16 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT;
     ALTER TABLE library_files ADD COLUMN preparing INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE library_files ADD COLUMN conversion_problems TEXT NOT NULL DEFAULT '[]';",
+    // 17: each Song's loudness (see `library::loudness`): EBU R128
+    // integrated loudness in LUFS of an audio file (path relative to the
+    // Library), valid while its probed size and mtime are unchanged. `lufs`
+    // is NULL when the file was measured without a result.
+    "CREATE TABLE media_loudness (
+        path     TEXT PRIMARY KEY,
+        size     INTEGER NOT NULL,
+        mtime_ns INTEGER NOT NULL,
+        lufs     REAL
+    ) STRICT, WITHOUT ROWID;",
 ];
 
 /// The schema version this build migrates to.

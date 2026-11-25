@@ -11,6 +11,7 @@ mod artwork;
 mod conversion;
 mod identity;
 mod index;
+mod loudness;
 mod probe;
 mod probing;
 mod resolve;
@@ -20,6 +21,7 @@ mod search;
 pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;
 pub(crate) use index::song as song_detail;
+pub use loudness::Measurement;
 
 use std::path::PathBuf;
 use std::sync::Arc;

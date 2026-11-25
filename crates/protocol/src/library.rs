@@ -234,6 +234,9 @@ pub struct SongDetail {
     /// See [`SongSummary::preparing`].
     pub preparing: bool,
     pub media: SongMedia,
+    /// The EBU R128 integrated loudness of the Song's audio file in LUFS;
+    /// `null` while it is not measured (the Song plays at unity gain).
+    pub loudness_lufs: Option<f64>,
     /// The Song's warnings; it plays anyway.
     pub warnings: Vec<ProblemReason>,
 }
