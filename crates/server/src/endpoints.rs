@@ -93,7 +93,12 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // (spec #48: the Admin PIN plays no part); a Profile created for a
         // seat follows the not-guarded Profile create.
         | ClientMessage::EditLineUp { .. }
-        | ClientMessage::SetMyDifficulty { .. } => Access::NotGuarded,
+        | ClientMessage::SetMyDifficulty { .. }
+        // Start, pause, Restart, End and Skip are for everyone in the room;
+        // results come from the Stage, and Next or Done from anyone.
+        | ClientMessage::ControlSong { .. }
+        | ClientMessage::ReachedResults { .. }
+        | ClientMessage::CloseResults => Access::NotGuarded,
     }
 }
 

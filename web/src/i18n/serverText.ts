@@ -73,6 +73,12 @@ export const userMessageText = byCode<UserMessage>({
   micInUse: () => t("userMessage.micInUse"),
   micNotAvailable: () => t("userMessage.micNotAvailable"),
   notADuet: () => t("userMessage.notADuet"),
+  lineUpNotReady: () => t("userMessage.lineUpNotReady"),
+  noStage: () => t("userMessage.noStage"),
+  noSongPlaying: () => t("userMessage.noSongPlaying"),
+  requestPlaying: () => t("userMessage.requestPlaying"),
+  difficultyLocked: () => t("userMessage.difficultyLocked"),
+  noResults: () => t("userMessage.noResults"),
 });
 
 /** An accepted change to the Party, as a toast. */
@@ -123,6 +129,20 @@ export const partyEventText = byCode<PartyEvent>({
       name: params.name,
       difficulty: difficultyName(params.difficulty),
     }),
+  songStarted: ({ params }) =>
+    t("partyEvent.songStarted", { song: params.title }),
+  songPaused: ({ params }) =>
+    t("partyEvent.songPaused", { song: params.title }),
+  songResumed: ({ params }) =>
+    t("partyEvent.songResumed", { song: params.title }),
+  songRestarted: ({ params }) =>
+    t("partyEvent.songRestarted", { song: params.title }),
+  songEnded: ({ params }) => t("partyEvent.songEnded", { song: params.title }),
+  songSkipped: ({ params }) =>
+    t("partyEvent.songSkipped", { song: params.title }),
+  resultsShown: ({ params }) =>
+    t("partyEvent.resultsShown", { song: params.title }),
+  resultsClosed: () => t("partyEvent.resultsClosed"),
 });
 
 /**

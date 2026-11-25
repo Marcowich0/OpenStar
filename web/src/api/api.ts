@@ -151,6 +151,12 @@ const REFUSAL_CODES = {
   micInUse: true,
   micNotAvailable: true,
   notADuet: true,
+  lineUpNotReady: true,
+  noStage: true,
+  noSongPlaying: true,
+  requestPlaying: true,
+  difficultyLocked: true,
+  noResults: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

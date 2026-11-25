@@ -217,5 +217,57 @@ export function toastContent(
           difficulty: difficultyName(event.params.difficulty),
         }),
       };
+    case "songStarted":
+      return queueChange(
+        actor,
+        event.params,
+        (name, song) => tParts("toast.songStarted", { actor: name, song }),
+        (song) => tParts("partyEvent.songStarted", { song }),
+      );
+    case "songPaused":
+      return queueChange(
+        actor,
+        event.params,
+        (name) => tParts("toast.paused", { actor: name }),
+        (song) => tParts("partyEvent.songPaused", { song }),
+      );
+    case "songResumed":
+      return queueChange(
+        actor,
+        event.params,
+        (name) => tParts("toast.resumed", { actor: name }),
+        (song) => tParts("partyEvent.songResumed", { song }),
+      );
+    case "songRestarted":
+      return queueChange(
+        actor,
+        event.params,
+        (name, song) => tParts("toast.songRestarted", { actor: name, song }),
+        (song) => tParts("partyEvent.songRestarted", { song }),
+      );
+    case "songEnded":
+      return queueChange(
+        actor,
+        event.params,
+        (name, song) => tParts("toast.songEnded", { actor: name, song }),
+        (song) => tParts("partyEvent.songEnded", { song }),
+      );
+    case "songSkipped":
+      return queueChange(
+        actor,
+        event.params,
+        (name, song) => tParts("toast.songSkipped", { actor: name, song }),
+        (song) => tParts("partyEvent.songSkipped", { song }),
+      );
+    case "resultsShown":
+      // Only the Stage reports results.
+      return {
+        actor,
+        parts: tParts("partyEvent.resultsShown", { song: event.params.title }),
+      };
+    case "resultsClosed":
+      return actor
+        ? { actor, parts: tParts("toast.resultsClosed", { actor: actor.name }) }
+        : { actor, parts: tParts("partyEvent.resultsClosed") };
   }
 }

@@ -11,6 +11,8 @@ import type { PhoneId } from "./PhoneId";
 import type { PitchReading } from "./PitchReading";
 import type { QueueMove } from "./QueueMove";
 import type { RequestId } from "./RequestId";
+import type { SongControl } from "./SongControl";
+import type { SongEnd } from "./SongEnd";
 import type { SongId } from "./SongId";
 
 /**
@@ -29,4 +31,4 @@ ts: number,
  * The Stage page's `performance.timeOrigin`, in ms since the Unix
  * epoch: a new value means the Stage's clock is a new one.
  */
-epoch: number, } | { "type": "storeCalibration", stageOutput: string, results: Array<CalibrationResult>, } | { "type": "setMicThreshold", stageOutput: string, localMicId: string, referenceDbfs: number, } | { "type": "hello", phoneId: PhoneId, } | { "type": "checkJoinCode", joinCode: JoinCode, } | { "type": "join", phoneId: PhoneId, joinCode: JoinCode, joinAs: JoinAs, } | { "type": "switchIdentity", joinAs: JoinAs, } | { "type": "editMember", memberId: PartyMemberId, edit: MemberEdit, } | { "type": "addRequest", songId: SongId, requestedPlayers: Array<PartyMemberId> | null, } | { "type": "moveRequest", requestId: RequestId, to: QueueMove, } | { "type": "setRequestedPlayers", requestId: RequestId, requestedPlayers: Array<PartyMemberId>, } | { "type": "removeRequest", requestId: RequestId, } | { "type": "reportMicBlocked", blocked: boolean, } | { "type": "leaveParty" } | { "type": "removeMember", memberId: PartyMemberId, } | { "type": "editLineUp", requestId: RequestId, edit: LineUpEdit, } | { "type": "setMyDifficulty", difficulty: Difficulty, };
+epoch: number, } | { "type": "storeCalibration", stageOutput: string, results: Array<CalibrationResult>, } | { "type": "setMicThreshold", stageOutput: string, localMicId: string, referenceDbfs: number, } | { "type": "hello", phoneId: PhoneId, } | { "type": "checkJoinCode", joinCode: JoinCode, } | { "type": "join", phoneId: PhoneId, joinCode: JoinCode, joinAs: JoinAs, } | { "type": "switchIdentity", joinAs: JoinAs, } | { "type": "editMember", memberId: PartyMemberId, edit: MemberEdit, } | { "type": "addRequest", songId: SongId, requestedPlayers: Array<PartyMemberId> | null, } | { "type": "moveRequest", requestId: RequestId, to: QueueMove, } | { "type": "setRequestedPlayers", requestId: RequestId, requestedPlayers: Array<PartyMemberId>, } | { "type": "removeRequest", requestId: RequestId, } | { "type": "reportMicBlocked", blocked: boolean, } | { "type": "leaveParty" } | { "type": "removeMember", memberId: PartyMemberId, } | { "type": "editLineUp", requestId: RequestId, edit: LineUpEdit, } | { "type": "setMyDifficulty", difficulty: Difficulty, } | { "type": "controlSong", requestId: RequestId, control: SongControl, } | { "type": "reachedResults", requestId: RequestId, ended: SongEnd, } | { "type": "closeResults" };

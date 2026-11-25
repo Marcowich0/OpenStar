@@ -39,6 +39,8 @@ const party: PartySnapshot = {
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
 };
 
 const profiles: Profile[] = [
@@ -99,6 +101,30 @@ describe("a Stage toast's content", () => {
       const event = { code, params: africa } as PartyEvent;
       expect(text(byMember(2, event))).toBe(expected);
     }
+  });
+
+  it("says who started, paused, resumed, restarted, ended or skipped the Song", () => {
+    const cases: [PartyEvent["code"], string][] = [
+      ["songStarted", "Mia started Africa"],
+      ["songPaused", "Mia paused the Song"],
+      ["songResumed", "Mia resumed the Song"],
+      ["songRestarted", "Mia restarted Africa"],
+      ["songEnded", "Mia ended Africa early"],
+      ["songSkipped", "Mia skipped Africa"],
+    ];
+    for (const [code, expected] of cases) {
+      const event = { code, params: africa } as PartyEvent;
+      expect(text(byMember(2, event))).toBe(expected);
+    }
+    expect(text(byMember(2, { code: "resultsClosed" }))).toBe(
+      "Mia moved on from the results",
+    );
+    const shown: Toast = {
+      id: 0,
+      actor: { kind: "stage" },
+      event: { code: "resultsShown", params: africa },
+    };
+    expect(text(shown)).toBe("The results of Africa");
   });
 
   it("says who edited the Line-up, and how", () => {

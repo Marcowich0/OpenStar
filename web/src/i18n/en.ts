@@ -192,6 +192,12 @@ export const en = {
   "userMessage.micInUse": "That mic is already in another seat",
   "userMessage.micNotAvailable": "That mic is not available",
   "userMessage.notADuet": "Only a duet has a Voice 2",
+  "userMessage.lineUpNotReady": "The Line-up is not ready to start yet",
+  "userMessage.noStage": "No Stage is open to play the Song",
+  "userMessage.noSongPlaying": "That Song is not playing",
+  "userMessage.requestPlaying": "That Song is playing: skip or end it instead",
+  "userMessage.difficultyLocked": "Difficulty is locked until the Song ends",
+  "userMessage.noResults": "No results are showing",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
@@ -259,6 +265,14 @@ export const en = {
   "partyEvent.seatVoice": "{name} is on Voice {voice, number}",
   "partyEvent.seatDifficulty": "{name} sings on {difficulty}",
   "partyEvent.nextDifficulty": "{name} sings on {difficulty} next",
+  "partyEvent.songStarted": "{song} started",
+  "partyEvent.songPaused": "{song} is paused",
+  "partyEvent.songResumed": "{song} goes on",
+  "partyEvent.songRestarted": "{song} started over",
+  "partyEvent.songEnded": "{song} was ended early",
+  "partyEvent.songSkipped": "{song} was skipped",
+  "partyEvent.resultsShown": "The results of {song}",
+  "partyEvent.resultsClosed": "On to the next Song",
   // Line-up warnings: the screen resolves the member's name.
   "lineUpWarning.noMic": "{name} has no mic",
   "lineUpWarning.micBlocked": "{name}'s mic is blocked",
@@ -278,6 +292,13 @@ export const en = {
   "toast.seatMoved": "{actor} moved {name} to another seat",
   "toast.seatVoice": "{actor} put {name} on Voice {voice, number}",
   "toast.seatDifficulty": "{actor} set {name} to {difficulty}",
+  "toast.songStarted": "{actor} started {song}",
+  "toast.paused": "{actor} paused the Song",
+  "toast.resumed": "{actor} resumed the Song",
+  "toast.songRestarted": "{actor} restarted {song}",
+  "toast.songEnded": "{actor} ended {song} early",
+  "toast.songSkipped": "{actor} skipped {song}",
+  "toast.resultsClosed": "{actor} moved on from the results",
   // Toasts whose sender is not built yet: the server ticket that adds the
   // `PartyEvent` code maps it to one of these in `stage/toasts/toastContent.ts`.
   "toast.backOnMic": "{actor} is back on the mic",
@@ -287,8 +308,6 @@ export const en = {
     "{song} left the Library and was taken off the Queue",
   "toast.requestDroppedProfileDeleted":
     "{song} was taken off the Queue: {name}'s Profile was deleted",
-  "toast.paused": "{actor} paused the Song",
-  "toast.resumed": "{actor} resumed the Song",
   "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",
 
   // The Timing editor's edit list: one entry per edit, with the values

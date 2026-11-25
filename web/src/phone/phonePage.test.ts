@@ -23,6 +23,8 @@ const party: PartySnapshot = {
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
 };
 
 function live(memberId: number | null): LiveState {

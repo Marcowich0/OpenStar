@@ -289,6 +289,15 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT;
     ALTER TABLE library_files ADD COLUMN preparing INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE library_files ADD COLUMN conversion_problems TEXT NOT NULL DEFAULT '[]';",
+    // 17: the results a Party shows (see `live::store`): the Song that just
+    // ended and how, kept until Next or Done. Its Request has left
+    // `queue_requests`, so `request_id` references nothing.
+    "CREATE TABLE party_results (
+        party_id   TEXT PRIMARY KEY REFERENCES parties(id) ON DELETE CASCADE,
+        request_id INTEGER NOT NULL,
+        song_id    INTEGER NOT NULL,
+        ended      TEXT NOT NULL CHECK (ended IN ('played', 'ended'))
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

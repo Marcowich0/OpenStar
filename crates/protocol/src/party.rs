@@ -163,8 +163,8 @@ pub struct PartyMember {
     /// At least one joined Phone uses this identity ("On a Phone"); `false`
     /// means Local mic only.
     pub on_phone: bool,
-    /// Sits in the waiting Line-up ("singing"), so it cannot leave or be
-    /// removed. Computed by the server.
+    /// Sits in the head's Line-up ("singing"), waiting or with its Song
+    /// playing, so it cannot leave or be removed. Computed by the server.
     pub singing: bool,
 }
 
@@ -198,12 +198,99 @@ pub struct PartySnapshot {
     pub queue: Vec<Request>,
     /// The head of the Queue: the Request whose Line-up waits or whose Song
     /// plays. When set it is always the first Request; it never moves and
-    /// nothing moves above it. `null` while the song browser shows.
+    /// nothing moves above it. `null` while the song browser or the results
+    /// show.
     pub head: Option<RequestId>,
-    /// The head's Line-up while it waits for Start (the "Line-up waiting"
-    /// state). `null` while the song browser shows. Prefilled from the
+    /// The head's Line-up: waiting for Start (the "Line-up waiting" state)
+    /// while `playing` is `null`, and fixed for the Song while it plays.
+    /// `null` while the song browser or the results show. Prefilled from the
     /// head's Request when it becomes the head; it never starts by itself.
     pub line_up: Option<LineUp>,
+    /// The head's Song while it plays or is paused (the sing screen), or
+    /// `null`. Its Players are the seats of `line_up`, fixed at Start. Never
+    /// kept across a restart: only the Song in progress is lost, and the
+    /// Line-up waits again.
+    pub playing: Option<PlayingSong>,
+    /// The results of the Song that just ended, while the Stage shows them,
+    /// or `null`. Its Request has left the Queue and there is no head until
+    /// someone presses Next or Done ([`crate::ClientMessage::CloseResults`]).
+    /// Kept across a restart.
+    pub results: Option<SongResults>,
+}
+
+/// The head's Song while it plays: the Party's 'playing' state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct PlayingSong {
+    /// The head, whose Line-up is fixed until the Song ends.
+    pub request_id: RequestId,
+    pub song_id: SongId,
+    /// Someone pressed Pause, and nobody has pressed Resume or Restart
+    /// since.
+    pub paused: bool,
+}
+
+/// The Song whose results the Stage shows: the Party's 'results' state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SongResults {
+    /// The Request that was sung; it has left the Queue.
+    pub request_id: RequestId,
+    pub song_id: SongId,
+    pub ended: SongEnd,
+}
+
+/// How a Song reached its results screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum SongEnd {
+    /// It played to its end.
+    Played,
+    /// Someone pressed End: the results are marked unfinished.
+    Ended,
+}
+
+impl SongEnd {
+    /// The key stored in SQLite and sent on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Played => "played",
+            Self::Ended => "ended",
+        }
+    }
+
+    pub fn from_key(key: &str) -> Option<Self> {
+        [Self::Played, Self::Ended]
+            .into_iter()
+            .find(|end| end.as_str() == key)
+    }
+}
+
+/// What anyone may do to the head's Song, from the Stage or any Remote.
+/// The server passes each accepted one to the Stage
+/// ([`crate::ServerMessage::ControlSong`]), which acts on the Song clock.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum SongControl {
+    /// Begins the Song with the waiting Line-up as it stands; refused
+    /// unless it can start. It does not wait for any Phone's mic.
+    Start,
+    /// A plain tap.
+    Pause,
+    /// A plain tap; the Stage counts 3-2-1 first.
+    Resume,
+    /// Held. Starts the Song over with a clean Score, and unpauses it.
+    Restart,
+    /// Held. Stops the Song early; its results still show, marked
+    /// unfinished, once the Stage reports them.
+    End,
+    /// Held. Stops the Song with no results: its Request leaves the Queue
+    /// at once and the next Line-up comes up.
+    Skip,
 }
 
 /// Which Voice of a Song a seat sings: `p1`, or `p2` in a duet.
@@ -525,6 +612,24 @@ pub enum PartyEvent {
         name: String,
         difficulty: Difficulty,
     },
+    /// Start: the head's Song began with its Line-up.
+    SongStarted(RequestChange),
+    /// The Song was paused.
+    SongPaused(RequestChange),
+    /// The paused Song was resumed.
+    SongResumed(RequestChange),
+    /// The Song was started over.
+    SongRestarted(RequestChange),
+    /// Someone pressed End; the results follow once the Stage shows them.
+    SongEnded(RequestChange),
+    /// The Song was skipped: its Request left the Queue with no results.
+    SongSkipped(RequestChange),
+    /// The Stage shows the Song's results (played out or ended early, see
+    /// `results` in the snapshot); its Request left the Queue.
+    ResultsShown(RequestChange),
+    /// Someone pressed Next or Done on the results: the next Request's
+    /// Line-up waits, or the song browser shows.
+    ResultsClosed,
 }
 
 /// One accepted change: who made it and what it was.
