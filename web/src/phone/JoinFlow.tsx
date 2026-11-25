@@ -9,14 +9,17 @@ import { phoneId, rememberProfile, type PhoneStorage } from "../live/phoneId";
 import { useLive } from "../live/useLive";
 import { NumberPad } from "../ui/NumberPad";
 import { JoinForm, type JoinFormKind } from "./JoinForm";
-import { checkJoinCode, joinParty } from "./joinRequests";
+import { checkJoinCode, joinParty, type JoinResult } from "./joinRequests";
 import { TopBar } from "./Logo";
 import { PartyFull } from "./PartyFull";
+import { LeftParty } from "./people/LeftParty";
+import { switchIdentity } from "./people/memberRequests";
 import { isJoinCode } from "./phoneSearch";
 import { WhosSinging } from "./WhosSinging";
 
 /** Where the join flow stands. `null`: the QR link's code is being checked. */
 type Step =
+  | { kind: "left" }
   | { kind: "code"; refused: boolean }
   | { kind: "who"; joinCode: string }
   | { kind: "form"; joinCode: string; form: JoinFormKind }
@@ -34,10 +37,20 @@ export interface JoinFlowProps {
   storage: PhoneStorage;
   /** The form's picture source (tests pass a fixed one). */
   random?: () => number;
+  /**
+   * The Me sheet's "Someone else is using this phone": this joined Phone
+   * picks another identity, with no Join code, starting at the full
+   * "Who's singing?" grid. `onDone` runs once it has switched.
+   */
+  switching?: { onBack: () => void; onDone: () => void };
 }
 
-/** The first step: the QR link's code is checked, unless it is no Join code. */
-function firstStep(linkCode: string | undefined): Step {
+/**
+ * The first step: "You left the Party" for a Phone that was just in it,
+ * otherwise the QR link's code is checked, unless it is no Join code.
+ */
+function firstStep(linkCode: string | undefined, left: boolean): Step {
+  if (left) return { kind: "left" };
   if (linkCode === undefined) return { kind: "code", refused: false };
   return isJoinCode(linkCode) ? null : { kind: "code", refused: true };
 }
@@ -48,9 +61,19 @@ function firstStep(linkCode: string | undefined): Step {
  * form. It waits for the server's answer to the Phone id first, so a Phone
  * already in the Party goes to the Remote without ever showing the pad.
  */
-export function JoinFlow({ linkCode, store, storage, random }: JoinFlowProps) {
+export function JoinFlow({
+  linkCode,
+  store,
+  storage,
+  random,
+  switching,
+}: JoinFlowProps) {
   const answered = useLive(selectAnswered, store);
-  const [step, setStep] = useState<Step>(() => firstStep(linkCode));
+  const [step, setStep] = useState<Step>(() =>
+    switching
+      ? { kind: "who", joinCode: "" }
+      : firstStep(linkCode, store.getSnapshot().phone?.leftParty ?? false),
+  );
   const [retrying, setRetrying] = useState(false);
   const linkChecked = useRef(false);
 
@@ -77,15 +100,18 @@ export function JoinFlow({ linkCode, store, storage, random }: JoinFlowProps) {
     joinAs: JoinAs,
     back: Step,
   ): Promise<UserMessage | null> {
-    const result = await joinParty(store, {
-      phoneId: phoneId(storage),
-      joinCode,
-      joinAs,
-    });
+    const result: JoinResult = switching
+      ? await switchIdentity(store, joinAs)
+      : await joinParty(store, {
+          phoneId: phoneId(storage),
+          joinCode,
+          joinAs,
+        });
     if (result.ok) {
       const { identity } = result.member;
       if (identity.kind === "profile")
         rememberProfile(storage, identity.profileId);
+      switching?.onDone();
       return null;
     }
     const reason = result.reason ?? { code: "serverError" };
@@ -111,6 +137,14 @@ export function JoinFlow({ linkCode, store, storage, random }: JoinFlowProps) {
     );
 
   switch (step.kind) {
+    case "left":
+      return (
+        <LeftParty
+          onJoinAgain={() => {
+            setStep({ kind: "code", refused: false });
+          }}
+        />
+      );
     case "who":
       return (
         <WhosSinging
@@ -127,6 +161,7 @@ export function JoinFlow({ linkCode, store, storage, random }: JoinFlowProps) {
           onGuest={() => {
             setStep({ kind: "form", joinCode: step.joinCode, form: "guest" });
           }}
+          {...(switching ? { onBack: switching.onBack } : {})}
         />
       );
     case "form":

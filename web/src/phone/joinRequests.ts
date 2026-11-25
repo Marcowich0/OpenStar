@@ -21,7 +21,7 @@ export type CodeAnswer = "accepted" | "refused" | "unanswered";
  * result. A rejection that arrives meanwhile is the server's answer too, and
  * a dropped socket ends the wait.
  */
-function request<T>(
+export function request<T>(
   store: LiveStore,
   message: Parameters<LiveStore["send"]>[0],
   answer: (state: LiveState) => T | undefined,

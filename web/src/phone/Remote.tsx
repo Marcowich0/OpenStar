@@ -12,6 +12,8 @@ import { Avatar } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
 import { TopBar } from "./Logo";
 import { memberLook } from "./memberLook";
+import { MeButton, type MeActions } from "./people/MeSheet";
+import { PeopleTab } from "./people/PeopleTab";
 import { phoneMember } from "./phonePage";
 import { PhoneToasts } from "./PhoneToasts";
 import {
@@ -44,7 +46,7 @@ function isRemoteTab(key: unknown): key is RemoteTab {
  * opens on the Stage tab while a Line-up waits, on Songs otherwise. The
  * tabs' contents and the Me sheet come with later tickets.
  */
-export function Remote({ store }: { store: LiveStore }) {
+export function Remote({ store, me }: { store: LiveStore; me?: MeActions }) {
   const member = useLive(phoneMember, store);
   const party = useLive(selectParty, store);
   const profiles = useQuery(profilesQuery);
@@ -66,7 +68,9 @@ export function Remote({ store }: { store: LiveStore }) {
     >
       <PhoneToasts store={store} />
       <TopBar>
-        {member && look ? (
+        {member && look && me ? (
+          <MeButton store={store} member={member} look={look} me={me} />
+        ) : member && look ? (
           <Avatar
             name={look.name}
             avatar={look.avatar}
@@ -76,7 +80,9 @@ export function Remote({ store }: { store: LiveStore }) {
         ) : null}
       </TopBar>
       {REMOTE_TABS.map((id) => (
-        <TabPanel key={id} id={id} className="grow px-5 outline-none" />
+        <TabPanel key={id} id={id} className="grow px-5 outline-none">
+          {id === "people" && <PeopleTab store={store} />}
+        </TabPanel>
       ))}
       <div className="sticky bottom-0 flex flex-col">
         {strip && (
