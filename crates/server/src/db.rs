@@ -317,6 +317,16 @@ const MIGRATIONS: &[&str] = &[
         mtime_ns INTEGER NOT NULL,
         lufs     REAL
     ) STRICT, WITHOUT ROWID;",
+    // 20: approved Mic bridges (see `mic_bridges`): the SHA-256 of each
+    // approval token (never the token), the name of its computer as it last
+    // said, and when it was approved. `seq` is the order of approval. Not
+    // linked to `parties`: New party keeps them.
+    "CREATE TABLE mic_bridges (
+        seq            INTEGER PRIMARY KEY AUTOINCREMENT,
+        bridge_id      TEXT NOT NULL UNIQUE,
+        host_name      TEXT NOT NULL,
+        approved_at_ms INTEGER NOT NULL
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

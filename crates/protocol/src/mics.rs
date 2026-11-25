@@ -144,6 +144,19 @@ pub enum LocalMicSource {
         /// Whether the device gave two channels.
         stereo: bool,
     },
+    /// One hardware channel of an interface a Mic bridge reads. Its Local
+    /// mic id is made from (`bridge_id`, `device_name`, `channel`) by
+    /// [`crate::bridge::bridge_local_mic_id`].
+    Bridge {
+        bridge_id: crate::bridge::BridgeId,
+        /// The card's `device.name` (for `--wav`, the file name).
+        device_name: String,
+        /// The interface's name for people when it was last seen, for the
+        /// default name "<label> · Input n".
+        label: String,
+        /// The hardware channel, from 0 (`AUXn` of the Pro Audio source).
+        channel: u32,
+    },
 }
 
 /// A Local mic the server keeps: its name and whether it is switched on.

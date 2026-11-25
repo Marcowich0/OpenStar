@@ -13,6 +13,7 @@ pub mod jobs;
 mod library;
 mod live;
 mod local_mics;
+mod mic_bridges;
 pub mod mic_settings;
 mod profiles;
 pub mod scores;
@@ -252,6 +253,17 @@ pub(crate) async fn stage_websocket(
 ) -> Response {
     upgrade.on_upgrade(move |socket| {
         live::connection::run(socket, state.live, live::Role::Stage, state.clock)
+    })
+}
+
+/// A Mic bridge's WebSocket: it asks to join with
+/// [`openstar_protocol::ClientMessage::BridgeHello`].
+pub(crate) async fn bridge_websocket(
+    State(state): State<AppState>,
+    upgrade: WebSocketUpgrade,
+) -> Response {
+    upgrade.on_upgrade(move |socket| {
+        live::connection::run(socket, state.live, live::Role::Bridge, state.clock)
     })
 }
 
