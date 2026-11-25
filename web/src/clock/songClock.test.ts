@@ -481,7 +481,10 @@ describe("playingAt(T) and lastSeekAt", () => {
     // The media reports 200 ms behind the model: Song time holds still.
     clock.observeCurrentTime({ currentTime: 0.8, stageTime: 1000 });
     s.set(1100);
-    expect(clock.songTimeAt(1100)).toBeCloseTo(clock.songTimeAt(1000) ?? NaN, 9);
+    expect(clock.songTimeAt(1100)).toBeCloseTo(
+      clock.songTimeAt(1000) ?? NaN,
+      9,
+    );
     expect(clock.playingAt(1100)).toBe(true);
   });
 
