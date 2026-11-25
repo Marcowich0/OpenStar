@@ -1,7 +1,11 @@
 //! The Library index over HTTP: the playable Songs, one Song's detail, the
 //! Library problems, and the state of the scan.
 //!
-//! - `GET /api/songs`: every playable Song, as [`SongSummary`]s.
+//! - `GET /api/songs?<SongQuery>`: the playable Songs that match the
+//!   [`SongQuery`], each identity once, plus the values each filter can take,
+//!   as a [`SongList`]. Every field of the query is optional; without any,
+//!   every playable Song is listed. A value that does not parse (a year that
+//!   is not a number) is a `400`.
 //! - `GET /api/songs/{id}`: one playable Song, as a [`SongDetail`]; `404`
 //!   for an id that is not a playable Song.
 //! - `GET /api/songs/{id}/media/{role}`: the Song's `audio`, `video`,
@@ -76,6 +80,80 @@ pub struct SongSummary {
     /// same across scans and restarts. Shown without a cover, or when the
     /// cover does not load.
     pub tile_colour: PaletteKey,
+}
+
+/// A search over the Library and its filters, sent as the URL query of
+/// `GET /api/songs` (`?search=la&language=English&duet=true`). Every field
+/// is optional; a Song must match all that are given. Text compares
+/// case-insensitively (Unicode case folding).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, optional_fields)]
+pub struct SongQuery {
+    /// Words that must each appear in the Song's artist or title.
+    pub search: Option<String>,
+    /// One of the Song's `#LANGUAGE` values (the header split on commas).
+    pub language: Option<String>,
+    /// One of the Song's `#GENRE` values.
+    pub genre: Option<String>,
+    /// The Song's `#YEAR`.
+    pub year: Option<i32>,
+    /// One of the Song's `#EDITION` values.
+    pub edition: Option<String>,
+    /// One of the Song's `#CREATOR` values.
+    pub creator: Option<String>,
+    /// Only duets (`true`) or only solo Songs (`false`).
+    pub duet: Option<bool>,
+    /// Only Songs with a video (`true`) or without (`false`).
+    pub has_video: Option<bool>,
+    /// The shortest length, inclusive. A Song of unknown length never
+    /// matches a length filter.
+    pub min_length_seconds: Option<f64>,
+    /// The longest length, inclusive.
+    pub max_length_seconds: Option<f64>,
+}
+
+/// The answer to `GET /api/songs`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SongList {
+    /// The matching playable Songs, each identity once, by artist, then
+    /// title.
+    pub songs: Vec<SongSummary>,
+    /// The values each filter can take in the Library, whatever the query.
+    pub filters: SongFilters,
+}
+
+/// The values each filter can take: those of the playable Songs in the
+/// Library (each identity once), for the filter chips. Text values are
+/// listed once whatever their case (as first written), sorted
+/// case-insensitively.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SongFilters {
+    pub languages: Vec<String>,
+    pub genres: Vec<String>,
+    /// Ascending.
+    pub years: Vec<i32>,
+    pub editions: Vec<String>,
+    pub creators: Vec<String>,
+    /// The duet values present: `[false]`, `[true]` or `[false, true]`.
+    pub duet: Vec<bool>,
+    /// The has-video values present, as for `duet`.
+    pub has_video: Vec<bool>,
+    /// The shortest and longest known length; `None` when no Song has one.
+    pub length: Option<LengthRange>,
+}
+
+/// The lengths of the Songs in the Library, in seconds.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LengthRange {
+    pub min_seconds: f64,
+    pub max_seconds: f64,
 }
 
 /// One media file the Stage plays.

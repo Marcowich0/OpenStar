@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use openstar_protocol::library::{
     FileProblem, LibraryProblem, ProblemReason, ProblemSeverity, ScanStatus, SongDetail,
-    SongIdentity, SongSummary,
+    SongIdentity, SongList, SongSummary,
 };
 use openstar_test_harness::{AppFolders, TestApp};
 
@@ -61,7 +61,7 @@ async fn rescan(app: &TestApp) {
 
 /// The identity of each listed Song, by path.
 async fn identities(app: &TestApp) -> BTreeMap<String, SongIdentity> {
-    let songs: Vec<SongSummary> = app.get_json("/api/songs").await;
+    let songs: Vec<SongSummary> = app.get_json::<SongList>("/api/songs").await.songs;
     songs.into_iter().map(|s| (s.path, s.identity)).collect()
 }
 
@@ -70,7 +70,7 @@ async fn present(app: &TestApp, identity: &SongIdentity) -> bool {
 }
 
 async fn detail(app: &TestApp, path: &str) -> SongDetail {
-    let songs: Vec<SongSummary> = app.get_json("/api/songs").await;
+    let songs: Vec<SongSummary> = app.get_json::<SongList>("/api/songs").await.songs;
     let id = songs
         .iter()
         .find(|s| s.path == path)

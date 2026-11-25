@@ -1,6 +1,6 @@
 //! The Library index: scanning `/songs` into SQLite at every start and on a
 //! Rescan, and serving the playable Songs, a Song's detail and the Library
-//! problems over HTTP (see `openstar_protocol::library` for the endpoints).
+//! problems over HTTP, the Song list with its search and filters (see `openstar_protocol::library` for the endpoints).
 //!
 //! One scan runs at a time. A Rescan asked for while a scan runs starts no
 //! second scan: it answers with the running scan's status. There is no
@@ -14,6 +14,7 @@ mod probe;
 mod probing;
 mod resolve;
 mod scan;
+mod search;
 
 pub(crate) use identity::key as identity_key;
 pub(crate) use index::song as song_detail;
@@ -22,11 +23,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use axum::extract::{Path, Request, State};
+use axum::extract::{Path, Query, Request, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use openstar_protocol::ChangeTopic;
-use openstar_protocol::library::{ScanStatus, SongId};
+use openstar_protocol::library::{ScanStatus, SongId, SongQuery};
 use tokio::sync::watch;
 use tower_http::services::ServeFile;
 
@@ -165,10 +166,14 @@ fn server_error(error: &anyhow::Error) -> Response {
     StatusCode::INTERNAL_SERVER_ERROR.into_response()
 }
 
-/// `GET /api/songs`.
-pub(crate) async fn songs(State(state): State<AppState>) -> Response {
-    match state.db.call(|conn| index::songs(conn)).await {
-        Ok(songs) => axum::Json(songs).into_response(),
+/// `GET /api/songs?<SongQuery>`: the listed Songs that match, and the values
+/// each filter can take. A query value that does not parse is axum's `400`.
+pub(crate) async fn songs(
+    State(state): State<AppState>,
+    Query(query): Query<SongQuery>,
+) -> Response {
+    match state.db.call(|conn| index::listed(conn)).await {
+        Ok(listed) => axum::Json(search::apply(listed, &query)).into_response(),
         Err(error) => server_error(&error),
     }
 }

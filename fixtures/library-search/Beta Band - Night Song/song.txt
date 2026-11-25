@@ -1,0 +1,16 @@
+#TITLE:Night Song
+#ARTIST:Beta Band
+#MP3:audio.mp3
+#VIDEO:video.mp4
+#LANGUAGE:German
+#GENRE:rock
+#YEAR:2005
+#EDITION:Placeholder Duets
+#CREATOR:bob, Alice
+#END:240000
+#BPM:300
+P1
+: 0 4 0 La
+P2
+: 4 4 2 lo
+E

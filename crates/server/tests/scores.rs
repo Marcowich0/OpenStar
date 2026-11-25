@@ -6,7 +6,9 @@ use std::time::Duration;
 
 use openstar::scores::{move_identity_in, rounds, stored_snapshot};
 use openstar_protocol::UserMessage;
-use openstar_protocol::library::{ScanStatus, SongDetail, SongId, SongIdentity, SongSummary};
+use openstar_protocol::library::{
+    ScanStatus, SongDetail, SongId, SongIdentity, SongList, SongSummary,
+};
 use openstar_protocol::party::PartyId;
 use openstar_protocol::profile::{
     Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile, ProfileEdit, ProfileId,
@@ -54,7 +56,7 @@ async fn rescan(app: &TestApp) {
 
 /// The Song detail of the Song titled `title`.
 async fn detail(app: &TestApp, title: &str) -> SongDetail {
-    let songs: Vec<SongSummary> = app.get_json("/api/songs").await;
+    let songs: Vec<SongSummary> = app.get_json::<SongList>("/api/songs").await.songs;
     let id = songs
         .iter()
         .find(|s| s.title == title)

@@ -1,0 +1,13 @@
+#TITLE:Sunny Day
+#ARTIST:Alpha Artist
+#MP3:audio.mp3
+#LANGUAGE:Spanish, English
+#GENRE:Pop
+#GENRE:Rock
+#YEAR:1999
+#EDITION:Placeholder Hits
+#CREATOR:alice
+#END:180000
+#BPM:300
+: 0 4 0 La
+E

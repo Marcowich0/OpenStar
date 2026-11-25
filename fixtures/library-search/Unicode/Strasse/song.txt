@@ -1,0 +1,9 @@
+#TITLE:Lange Straße
+#ARTIST:Ünïcode Ensemble
+#MP3:audio.mp3
+#LANGUAGE:english
+#GENRE:Jazz
+#YEAR:2005
+#BPM:300
+: 0 4 0 La
+E
