@@ -19,7 +19,8 @@ Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents
 - `crates/server`: the `openstar` binary (tokio, axum, tower-http, rusqlite).
 - `crates/protocol`: every HTTP body and WebSocket message, as Rust types.
 - `web/`: the Vite + React app; `web/src/generated/` holds the TypeScript types generated from `crates/protocol` (committed, never edited by hand).
-- `just check` before you push; CI runs `just ci`. `just types` regenerates the TypeScript types, `just run` serves the app on port 8080.
+- `fixtures/`: test cases as data files, shared by every implementation. Read `fixtures/README.md` before you add one: placeholder lyrics only, no real Song audio, openly licensed media only beside an `ATTRIBUTION.md`, floors only ever rise.
+- `just check` before you push; CI runs `just ci`. It runs rustfmt, clippy, `cargo test`, `cargo deny`, ESLint, tsc, Vitest, Prettier, the generated-types drift check and the fixture guard; `just fmt` fixes formatting. There is no git pre-commit hook, and none is to be added. `just types` regenerates the TypeScript types, `just run` serves the app on port 8080.
 - Versions are pinned: the Rust toolchain in `rust-toolchain.toml`, crates with `=` in the root `Cargo.toml`, npm packages exactly in `web/package.json`, pnpm in its `packageManager` field, Node in `.node-version`.
 
 ## House patterns

@@ -1,0 +1,8 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "ServerMessage::Rejected { code: RejectCode::InvalidMessage, }"
+---
+{
+  "type": "rejected",
+  "code": "invalidMessage"
+}
