@@ -17,6 +17,7 @@ import { MeButton, type MeActions } from "./people/MeSheet";
 import { PeopleTab } from "./people/PeopleTab";
 import { phoneMember } from "./phonePage";
 import { PhoneToasts } from "./PhoneToasts";
+import { QueueTab } from "./queue/QueueTab";
 import {
   defaultTab,
   queueCount,
@@ -47,9 +48,9 @@ function isRemoteTab(key: unknown): key is RemoteTab {
  * logo and this Phone's own avatar, the four tabs at the bottom with the
  * Queue's badge, the status strip above them, and the toasts at the top. It
  * opens on the Stage tab while a Line-up waits, on Songs otherwise. The
- * Songs tab is `SongsTab`, the Stage tab `StageTab`, the People tab
- * `PeopleTab`, and the avatar opens the Me sheet (`MeButton`); the Queue
- * tab's contents come with a later ticket.
+ * Songs tab is `SongsTab`, the Queue tab `QueueTab`, the Stage tab
+ * `StageTab`, the People tab `PeopleTab`, and the avatar opens the Me sheet
+ * (`MeButton`).
  */
 export function Remote({
   store,
@@ -96,6 +97,7 @@ export function Remote({
       {REMOTE_TABS.map((id) => (
         <TabPanel key={id} id={id} className="grow px-5 pb-4 outline-none">
           {id === "songs" && <SongsTab store={store} />}
+          {id === "queue" && <QueueTab store={store} />}
           {id === "stage" && <StageTab store={store} myPhoneId={phoneId} />}
           {id === "people" && <PeopleTab store={store} />}
         </TabPanel>

@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
-import { expect, FIXTURE_SONGS, test } from "../fixtures";
+import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
 
 // The Remote frame (#117): the Queue tab's badge, the status strip while a
 // Line-up waits, the Stage tab as the default tab then, and the toasts, in
@@ -8,17 +8,9 @@ import { expect, FIXTURE_SONGS, test } from "../fixtures";
 // a second socket of the Phone itself (`songs.spec.ts` adds from the Songs
 // tab).
 
-/** The Stage's current Join code. */
-async function stageJoinCode(stage: Page): Promise<string> {
-  await stage.goto("/stage");
-  const code = stage.getByTestId("party-join-code");
-  await expect(code).toHaveText(/^\d{4}$/);
-  return (await code.textContent()) ?? "";
-}
-
 /**
- * A Profile with a name no other test uses, and a favourite colour no other
- * test's Profile holds (the server and its Party are shared).
+ * A Profile with a name no other test uses (the server is shared). Its
+ * favourite colour is free: the test starts a New party first.
  */
 async function createProfile(
   request: APIRequestContext,
@@ -81,7 +73,7 @@ test("the Remote shows the Queue badge, the waiting Line-up and every change as 
   openPhone,
   request,
 }) => {
-  const code = await stageJoinCode(stage);
+  const code = await newParty(stage);
   const adder = await createProfile(request, "Adder", "lime");
   const watcher = await createProfile(request, "Watcher", "berry");
   const { songs } = (await (await request.get("/api/songs")).json()) as {
@@ -141,7 +133,7 @@ test("the Remote shows the Queue badge, the waiting Line-up and every change as 
       "true",
     );
   } finally {
-    // Leave the shared Party's Queue as the other tests expect it: empty.
+    // Empty the Queue, so the Stage is back on the song browser.
     for (const requestId of queue)
       await sendFromPhone(mine, { type: "removeRequest", requestId });
   }
