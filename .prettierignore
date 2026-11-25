@@ -3,3 +3,5 @@
 web/src/generated/
 web/pnpm-lock.yaml
 *.snap
+# Saved USDB pages are served and parsed byte for byte.
+fixtures/usdb/**/*.html

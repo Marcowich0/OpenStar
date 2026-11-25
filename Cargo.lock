@@ -848,6 +848,7 @@ dependencies = [
  "insta",
  "mime_guess",
  "openstar-protocol",
+ "openstar-test-harness",
  "proptest",
  "reqwest",
  "rusqlite",
@@ -878,6 +879,25 @@ dependencies = [
  "serde",
  "serde_json",
  "ts-rs",
+]
+
+[[package]]
+name = "openstar-test-harness"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "futures-util",
+ "insta",
+ "openstar",
+ "openstar-protocol",
+ "proptest",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite 0.30.0",
 ]
 
 [[package]]
