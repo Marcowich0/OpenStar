@@ -91,11 +91,7 @@ async fn wait_for_approval(bridge: &mut WsClient, host_name: &str) -> String {
 }
 
 /// Approves the one waiting request and returns the bridge's token and id.
-async fn approve(
-    app: &TestApp,
-    stage: &mut WsClient,
-    bridge: &mut WsClient,
-) -> (String, BridgeId) {
+async fn approve(app: &TestApp, stage: &mut WsClient, bridge: &mut WsClient) -> (String, BridgeId) {
     let requests = mic_bridges(app).await.requests;
     let [request] = requests.as_slice() else {
         panic!("expected one request, got {requests:?}");

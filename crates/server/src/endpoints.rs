@@ -29,7 +29,8 @@ use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
 use crate::{
-    AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles, scores, unlock,
+    AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles,
+    scores, unlock,
 };
 
 /// Whether an endpoint needs an Unlock.
@@ -211,13 +212,23 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
         .add(Method::GET, "/api/local-mics", NotGuarded, local_mics::read)
         // Anyone sees which Mic bridges are approved, open or waiting; only
         // the Stage approves one, over its WebSocket.
-        .add(Method::GET, "/api/mic-bridges", NotGuarded, mic_bridges::read)
+        .add(
+            Method::GET,
+            "/api/mic-bridges",
+            NotGuarded,
+            mic_bridges::read,
+        )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage, but needs Stage trust (#186), not an Unlock.
         .add(Method::GET, "/ws/stage", NotGuarded, crate::stage_websocket)
         // A Mic bridge's own WebSocket: it may only ask to join, and the
         // Stage's approval is the guard.
-        .add(Method::GET, "/ws/bridge", NotGuarded, crate::bridge_websocket)
+        .add(
+            Method::GET,
+            "/ws/bridge",
+            NotGuarded,
+            crate::bridge_websocket,
+        )
         .add(Method::GET, "/bridge/{file}", NotGuarded, bridge::serve);
     if state.test_routes {
         routes = routes

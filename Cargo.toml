@@ -1,6 +1,12 @@
 [workspace]
 resolver = "3"
-members = ["crates/detector", "crates/protocol", "crates/server", "crates/test-harness"]
+members = [
+    "crates/detector",
+    "crates/mic-bridge",
+    "crates/protocol",
+    "crates/server",
+    "crates/test-harness",
+]
 
 [workspace.package]
 edition = "2024"

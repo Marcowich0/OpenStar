@@ -138,11 +138,9 @@ impl LiveState {
             Some(index) => {
                 if self.bridges.approved[index].host_name != host_name {
                     self.bridges.approved[index].host_name = host_name;
-                    let kept = mic_bridges::set_host_name(
-                        &self.db,
-                        self.bridges.approved[index].clone(),
-                    )
-                    .await;
+                    let kept =
+                        mic_bridges::set_host_name(&self.db, self.bridges.approved[index].clone())
+                            .await;
                     if let Err(error) = kept {
                         tracing::error!(?error, "keeping a Mic bridge's host name");
                     }
@@ -292,8 +290,11 @@ impl LiveState {
                     .iter()
                     .flat_map(|interface| {
                         (0..interface.channels).map(|channel| {
-                            let local_mic_id =
-                                bridge_local_mic_id(&open.bridge_id, &interface.device_name, channel);
+                            let local_mic_id = bridge_local_mic_id(
+                                &open.bridge_id,
+                                &interface.device_name,
+                                channel,
+                            );
                             let (switched_on, name) =
                                 kept.get(&local_mic_id).cloned().unwrap_or_default();
                             BridgeChannelSettings {

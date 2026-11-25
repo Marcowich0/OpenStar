@@ -28,8 +28,8 @@ mod store;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use openstar_protocol::library::SongId;
 use openstar_protocol::bridge::bridge_local_mic_id;
+use openstar_protocol::library::SongId;
 use openstar_protocol::mics::{LocalMicSource, MicKey};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::{
