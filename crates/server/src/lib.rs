@@ -74,8 +74,7 @@ impl Server {
             "the database is ready"
         );
         let library_read_only = startup::check_songs(&config.songs_dir);
-        // Step 5: reload the live state (today the placeholder; the Party,
-        // Line-up and Queue once #48 lands) before anything is served.
+        // Step 5: reload the live state (the Party) before anything is served.
         let live = LiveHandle::start(opened.database.clone()).await?;
         tracing::info!("live state reloaded");
         Ok(Self {
@@ -140,7 +139,6 @@ impl Server {
         let mut router = Router::new()
             .route("/healthz", get(healthz))
             .route("/api/server-info", get(server_info))
-            .route("/api/placeholder", get(placeholder))
             .route(
                 "/api/unlock",
                 get(unlock::unlock_status).post(unlock::attempt),
@@ -152,6 +150,7 @@ impl Server {
         }
         router
             .route("/ws", get(websocket))
+            .route("/ws/stage", get(stage_websocket))
             .route("/bridge/{file}", get(bridge::serve))
             .fallback(frontend::serve)
             .layer(TraceLayer::new_for_http())
@@ -216,15 +215,18 @@ async fn server_info(State(state): State<AppState>) -> Response {
     }
 }
 
-async fn placeholder(State(state): State<AppState>) -> Response {
-    match state.live.placeholder().await {
-        Some(placeholder) => axum::Json(placeholder).into_response(),
-        None => StatusCode::SERVICE_UNAVAILABLE.into_response(),
-    }
+/// The WebSocket of every browser that is not the Stage.
+async fn websocket(State(state): State<AppState>, upgrade: WebSocketUpgrade) -> Response {
+    upgrade.on_upgrade(move |socket| {
+        live::connection::run(socket, state.live, live::Role::Browser, state.clock)
+    })
 }
 
-async fn websocket(State(state): State<AppState>, upgrade: WebSocketUpgrade) -> Response {
-    upgrade.on_upgrade(move |socket| live::connection::run(socket, state.live))
+/// The Stage's WebSocket: the browser that opens it becomes the active Stage.
+async fn stage_websocket(State(state): State<AppState>, upgrade: WebSocketUpgrade) -> Response {
+    upgrade.on_upgrade(move |socket| {
+        live::connection::run(socket, state.live, live::Role::Stage, state.clock)
+    })
 }
 
 #[cfg(test)]
