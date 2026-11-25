@@ -104,3 +104,26 @@ describe("Pitch readings in the live store", () => {
     expect(receive).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Mic bridge levels in the live store", () => {
+  it("go to their listeners without the reducer or a render", () => {
+    const { store, server } = start();
+    const rendered = vi.fn();
+    render(<Probe store={store} rendered={rendered} />);
+    const heard = vi.fn();
+    const stop = store.onLocalMicLevels(heard);
+    const rendersBefore = rendered.mock.calls.length;
+    vi.mocked(receive).mockClear();
+
+    const levels = [{ localMicId: "bridge:b:x.wav:0", levelDbfs: -12 }];
+    server({ type: "localMicLevels", levels });
+
+    expect(heard).toHaveBeenCalledWith(levels);
+    expect(receive).not.toHaveBeenCalled();
+    expect(rendered.mock.calls.length).toBe(rendersBefore);
+
+    stop();
+    server({ type: "localMicLevels", levels });
+    expect(heard).toHaveBeenCalledTimes(1);
+  });
+});

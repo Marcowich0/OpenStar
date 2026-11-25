@@ -34,9 +34,10 @@ update-screenshots: build harness-build e2e-install screenshot-page
 screenshot-page: web-install
     pnpm --dir web exec vite build --mode screenshots --logLevel warn
 
-# The openstar-harness binary `just e2e` uses (fixture Library, fake mic WAVs).
+# The openstar-harness binary `just e2e` uses (fixture Library, fake mic WAVs),
+# and the Mic bridge it runs headless.
 harness-build:
-    cargo build --locked -p openstar-test-harness --bin openstar-harness
+    cargo build --locked -p openstar-test-harness --bin openstar-harness -p openstar-mic-bridge --bin openstar-mic-bridge
 
 e2e-install:
     pnpm --dir e2e install --frozen-lockfile
