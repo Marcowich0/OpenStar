@@ -4,6 +4,9 @@
 //! - `GET /api/songs`: every playable Song, as [`SongSummary`]s.
 //! - `GET /api/songs/{id}`: one playable Song, as a [`SongDetail`]; `404`
 //!   for an id that is not a playable Song.
+//! - `GET /api/songs/{id}/media/{role}`: the Song's `audio`, `video`,
+//!   `cover` or `background` file, with HTTP `Range` requests; the URLs in
+//!   [`SongMedia`] and [`SongArtwork`] point here.
 //! - `GET /api/library/problems`: every [`LibraryProblem`].
 //! - `GET /api/library/scan`: the [`ScanStatus`].
 //! - `POST /api/library/rescan`: starts a Rescan unless one is running, and
@@ -15,6 +18,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::profile::PaletteKey;
 use crate::song::{ParsedSong, TxtRejection, TxtWarning};
 
 /// Names one indexed `.txt` while it stays in the Library.
@@ -47,7 +51,7 @@ pub enum SongIdentity {
 }
 
 /// One playable Song in the list.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SongSummary {
@@ -59,6 +63,73 @@ pub struct SongSummary {
     /// Whether the Song has two Voices.
     pub duet: bool,
     pub identity: SongIdentity,
+    /// The audio file's length from ffprobe, or `#END` when it is set;
+    /// `None` while the audio is not probed and there is no `#END`.
+    pub length_seconds: Option<f64>,
+    /// Whether the Song has a video to play.
+    pub has_video: bool,
+    pub cover: SongArtwork,
+}
+
+/// A picture of a Song: an image file, or the generated tile in one of the
+/// palette colours for a Song without one.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum SongArtwork {
+    /// A JPEG, PNG or WebP file, served at `url`.
+    Image { url: String },
+    /// The generated tile. Its colour comes from the Song's identity, so it
+    /// stays the same across scans and restarts.
+    Tile { colour: PaletteKey },
+}
+
+/// One media file the Stage plays.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MediaFile {
+    /// Served with HTTP `Range` requests.
+    pub url: String,
+    /// Whether the Stage plays the file as it is, decided by its container
+    /// and codecs (from ffprobe). `false` means it needs conversion, and also
+    /// for a file not probed yet.
+    pub native: bool,
+}
+
+/// The Song's video.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum SongVideo {
+    /// The audio file holds the video too (the audio reference and `#VIDEO`
+    /// name the same file): play it as both. `#VIDEOGAP` is ignored.
+    InAudio,
+    /// A separate, muted video file that follows the audio, offset by
+    /// `#VIDEOGAP` (`gapSeconds`, 0 without one).
+    File { file: MediaFile, gap_seconds: f64 },
+}
+
+/// What the Stage plays and shows for a Song.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SongMedia {
+    pub audio: MediaFile,
+    /// `None` when the Song has no video.
+    pub video: Option<SongVideo>,
+    /// The cover, else the generated tile.
+    pub cover: SongArtwork,
+    /// `#BACKGROUND`, else the cover, else the generated tile.
+    pub background: SongArtwork,
 }
 
 /// One playable Song in full: the parsed `.txt` with units in seconds and
@@ -72,6 +143,8 @@ pub struct SongDetail {
     pub path: String,
     pub song: ParsedSong,
     pub identity: SongIdentity,
+    pub length_seconds: Option<f64>,
+    pub media: SongMedia,
     /// The Song's warnings; it plays anyway.
     pub warnings: Vec<ProblemReason>,
 }
@@ -151,6 +224,9 @@ pub struct ScanReport {
     pub unchanged: u32,
     /// Index entries removed because their file has gone.
     pub removed: u32,
+    /// Audio and video files probed with ffprobe: new, or changed in size or
+    /// mtime since they were last probed.
+    pub probed: u32,
 }
 
 /// Whether a scan runs, and what the last one did.

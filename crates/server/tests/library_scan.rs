@@ -141,7 +141,9 @@ async fn the_first_scan_lists_every_playable_song_at_any_depth() {
         ScanReport {
             read: CANDIDATES,
             unchanged: 0,
-            removed: 0
+            removed: 0,
+            // The three audio files in `media.list` (empty, so unreadable).
+            probed: 3
         }
     );
     // References in other case (`AUDIO.MP3`, `MEDIA/Track.Ogg`) are found;
@@ -274,7 +276,9 @@ async fn a_rescan_rereads_only_new_and_changed_files_and_drops_gone_ones() {
         ScanReport {
             read: 2,
             unchanged: CANDIDATES - 2,
-            removed: 1
+            removed: 1,
+            // Only the new `New/shared.mp3`.
+            probed: 1
         }
     );
     assert_eq!(
@@ -310,7 +314,8 @@ async fn a_restart_serves_the_stored_index_and_rereads_nothing_unchanged() {
         ScanReport {
             read: 0,
             unchanged: CANDIDATES,
-            removed: 0
+            removed: 0,
+            probed: 0
         }
     );
     assert_eq!(song_paths(&app).await, before);

@@ -135,6 +135,25 @@ const MIGRATIONS: &[&str] = &[
      ALTER TABLE library_files ADD COLUMN identity TEXT;
      CREATE INDEX library_files_identity ON library_files (identity);
      CREATE INDEX library_files_usdb_id ON library_files (usdb_id);",
+    // 10: Song media (see `library::probe`). `media_probes` keeps ffprobe's
+    // answer per audio or video file (path relative to the Library), valid
+    // while its size and mtime are unchanged; `container` is NULL when
+    // ffprobe could not read the file. From here on `cover_path` and
+    // `background_path` of `library_files` are the chosen cover and
+    // background (by the fallback rules), not the header references;
+    // `length_seconds` is `#END` or the audio's duration.
+    "CREATE TABLE media_probes (
+        path             TEXT PRIMARY KEY,
+        size             INTEGER NOT NULL,
+        mtime_ns         INTEGER NOT NULL,
+        container        TEXT,
+        audio_codec      TEXT,
+        video_codec      TEXT,
+        duration_seconds REAL,
+        native           INTEGER NOT NULL
+    ) STRICT, WITHOUT ROWID;
+     ALTER TABLE library_files ADD COLUMN length_seconds REAL;
+     ALTER TABLE library_files ADD COLUMN has_video INTEGER NOT NULL DEFAULT 0;",
 ];
 
 /// The schema version this build migrates to.

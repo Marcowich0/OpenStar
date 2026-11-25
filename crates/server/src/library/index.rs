@@ -10,7 +10,8 @@
 
 use super::identity;
 use openstar_protocol::library::{
-    LibraryProblem, ProblemReason, ProblemSeverity, SongDetail, SongId, SongIdentity, SongSummary,
+    LibraryProblem, MediaFile, ProblemReason, ProblemSeverity, SongArtwork, SongDetail, SongId,
+    SongIdentity, SongMedia, SongSummary, SongVideo,
 };
 use openstar_protocol::song::ParsedSong;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -88,6 +89,10 @@ pub(crate) struct Media {
     /// `apiId` from the `metadata.json` beside the `.txt` (read again at
     /// every scan, with the references).
     pub usdb_id: Option<u32>,
+    /// The chosen cover image, relative to the Library.
+    pub cover: Option<String>,
+    /// The chosen background image (`#BACKGROUND`, else the cover).
+    pub background: Option<String>,
 }
 
 /// A `.txt` just read, ready to be stored.
@@ -227,8 +232,8 @@ pub(crate) fn store_media(
         identity,
         resolved(Role::Audio),
         resolved(Role::Video),
-        resolved(Role::Cover),
-        resolved(Role::Background),
+        media.cover.as_deref(),
+        media.background.as_deref(),
         resolved(Role::Vocals),
         resolved(Role::Instrumental),
     ])?;
@@ -247,17 +252,24 @@ pub(crate) fn remove(tx: &Transaction<'_>, ids: &[i64]) -> rusqlite::Result<()> 
 /// Every playable Song, by artist, then title, then path.
 pub(crate) fn songs(conn: &Connection) -> rusqlite::Result<Vec<SongSummary>> {
     let mut statement = conn.prepare(
-        "SELECT id, path, artist, title, duet, identity FROM library_files WHERE playable
+        "SELECT id, path, artist, title, duet, identity, length_seconds, has_video,
+             cover_path IS NOT NULL
+         FROM library_files WHERE playable
          ORDER BY artist COLLATE NOCASE, title COLLATE NOCASE, path",
     )?;
     let rows = statement.query_map([], |row| {
+        let id = song_id(row.get(0)?);
+        let identity = decode_identity(row, 5)?;
         Ok(SongSummary {
-            id: song_id(row.get(0)?),
+            id,
             path: row.get(1)?,
             artist: row.get(2)?,
             title: row.get(3)?,
             duet: row.get(4)?,
-            identity: decode_identity(row, 5)?,
+            length_seconds: row.get(6)?,
+            has_video: row.get(7)?,
+            cover: artwork(id, MediaRole::Cover, row.get(8)?, &identity),
+            identity,
         })
     })?;
     rows.collect()
@@ -266,29 +278,138 @@ pub(crate) fn songs(conn: &Connection) -> rusqlite::Result<Vec<SongSummary>> {
 /// One playable Song in full; `None` for any other id.
 pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<SongDetail>> {
     conn.query_row(
-        "SELECT path, song, txt_problems, file_problems, identity FROM library_files
+        "SELECT path, song, txt_problems, file_problems, identity, length_seconds,
+             audio_path, video_path, cover_path IS NOT NULL, background_path IS NOT NULL,
+             has_video,
+             (SELECT native FROM media_probes p WHERE p.path = audio_path),
+             (SELECT native FROM media_probes p WHERE p.path = video_path)
+         FROM library_files
          WHERE id = ?1 AND playable",
         [id.0],
         |row| {
-            let song: String = row.get(1)?;
-            let mut problems = decode_problems(&row.get::<_, String>(2)?);
-            problems.extend(decode_problems(&row.get::<_, String>(3)?));
-            Ok(SongDetail {
-                id,
-                path: row.get(0)?,
-                song: serde_json::from_str(&song).map_err(|e| {
+            let song: ParsedSong =
+                serde_json::from_str(&row.get::<_, String>(1)?).map_err(|e| {
                     rusqlite::Error::FromSqlConversionFailure(
                         1,
                         rusqlite::types::Type::Text,
                         e.into(),
                     )
-                })?,
-                identity: decode_identity(row, 4)?,
+                })?;
+            let mut problems = decode_problems(&row.get::<_, String>(2)?);
+            problems.extend(decode_problems(&row.get::<_, String>(3)?));
+            let identity = decode_identity(row, 4)?;
+            let audio_path: String = row.get(6)?;
+            let video_path: Option<String> = row.get(7)?;
+            let has_video: bool = row.get(10)?;
+            let audio_native: Option<bool> = row.get(11)?;
+            let video_native: Option<bool> = row.get(12)?;
+            let video = match video_path {
+                Some(_) if !has_video => None,
+                Some(video) if video == audio_path => Some(SongVideo::InAudio),
+                Some(_) => Some(SongVideo::File {
+                    file: MediaFile {
+                        url: media_url(id, MediaRole::Video),
+                        native: video_native.unwrap_or(false),
+                    },
+                    gap_seconds: song.headers.video_gap_seconds.unwrap_or(0.0),
+                }),
+                None => None,
+            };
+            let media = SongMedia {
+                audio: MediaFile {
+                    url: media_url(id, MediaRole::Audio),
+                    native: audio_native.unwrap_or(false),
+                },
+                video,
+                cover: artwork(id, MediaRole::Cover, row.get(8)?, &identity),
+                background: artwork(id, MediaRole::Background, row.get(9)?, &identity),
+            };
+            Ok(SongDetail {
+                id,
+                path: row.get(0)?,
+                song,
+                identity,
+                length_seconds: row.get(5)?,
+                media,
                 warnings: problems.into_iter().map(|(_, reason)| reason).collect(),
             })
         },
     )
     .optional()
+}
+
+/// A file of a Song that `GET /api/songs/{id}/media/{role}` serves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MediaRole {
+    Audio,
+    Video,
+    Cover,
+    Background,
+}
+
+impl MediaRole {
+    pub(crate) fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "audio" => Some(Self::Audio),
+            "video" => Some(Self::Video),
+            "cover" => Some(Self::Cover),
+            "background" => Some(Self::Background),
+            _ => None,
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Audio => "audio",
+            Self::Video => "video",
+            Self::Cover => "cover",
+            Self::Background => "background",
+        }
+    }
+
+    fn column(self) -> &'static str {
+        match self {
+            Self::Audio => "audio_path",
+            Self::Video => "video_path",
+            Self::Cover => "cover_path",
+            Self::Background => "background_path",
+        }
+    }
+}
+
+/// The URL a Song's file is served at.
+fn media_url(id: SongId, role: MediaRole) -> String {
+    format!("/api/songs/{}/media/{}", id.0, role.name())
+}
+
+/// The image at `role`'s URL when the Song has one, else the generated tile.
+fn artwork(id: SongId, role: MediaRole, has_image: bool, identity: &SongIdentity) -> SongArtwork {
+    if has_image {
+        SongArtwork::Image {
+            url: media_url(id, role),
+        }
+    } else {
+        SongArtwork::Tile {
+            colour: super::artwork::tile_colour(identity),
+        }
+    }
+}
+
+/// The Library file a playable Song plays or shows as `role`, relative to
+/// the Library; `None` when it has none.
+pub(crate) fn media_path(
+    conn: &Connection,
+    id: SongId,
+    role: MediaRole,
+) -> rusqlite::Result<Option<String>> {
+    let sql = format!(
+        "SELECT {} FROM library_files WHERE id = ?1 AND playable",
+        role.column()
+    );
+    Ok(conn
+        .query_row(&sql, [id.0], |row| row.get::<_, Option<String>>(0))
+        .optional()?
+        .flatten())
 }
 
 /// Whether a playable Song with `identity` is in the Library now. Scoring
