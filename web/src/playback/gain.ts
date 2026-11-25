@@ -11,7 +11,11 @@ export const SONG_LOUDNESS = {
   maxBoostDb: 6,
 } as const;
 
-/** One OpenStar volume per Stage output: 0 to 100 in steps of 5. */
+/**
+ * One OpenStar volume per Stage output: 0 to 100 in steps of 5. The server
+ * steps and stores it (`crates/protocol/src/volume.rs`, kept equal by
+ * `checks/openstarVolume.test.ts`).
+ */
 export const OPENSTAR_VOLUME = {
   min: 0,
   max: 100,

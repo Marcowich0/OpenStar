@@ -17,12 +17,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
 import { liveStore, useLive } from "../../live/useLive";
-import { FOCUSABLE, focusDefault, focusablesIn } from "./focusables";
+import {
+  FOCUSABLE,
+  focusDefault,
+  focusablesIn,
+  isTextField,
+} from "./focusables";
 import { nextFocus, type FocusDirection } from "./focusMove";
 import { OVERLAY_KEYS, type OverlayId } from "./overlayIds";
 import { StageOverlay } from "./overlays";
 import { PillRow } from "./PillRow";
 import { StageToasts } from "../toasts/StageToasts";
+import { StageVolume } from "../volume/StageVolume";
 import { ReferenceBox } from "./ReferenceBox";
 import { SCENES, type SceneDefinition } from "./sceneComponents";
 import { SCENE_RULES, pickScene, type SceneId } from "./scenes";
@@ -45,16 +51,6 @@ const selectStage = (live: LiveState) => live.stage;
 
 function reloadAsStage() {
   window.location.reload();
-}
-
-function isTextField(element: Element | null): boolean {
-  if (!(element instanceof HTMLElement)) return false;
-  if (element.isContentEditable) return true;
-  if (element instanceof HTMLTextAreaElement) return true;
-  if (!(element instanceof HTMLInputElement)) return false;
-  return !["button", "checkbox", "radio", "range", "submit"].includes(
-    element.type,
-  );
 }
 
 export interface StageFrameProps {
@@ -279,6 +275,7 @@ export function StageFrame({
         </LayerContext>
         {shownOverlay && <StageOverlay id={shownOverlay} />}
         <StageToasts store={store} duringSong={scene === "sing"} />
+        <StageVolume />
       </div>
     </FrameContext>
   );

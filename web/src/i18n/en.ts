@@ -202,6 +202,7 @@ export const en = {
   "stage.start": "Start",
   "stage.end": "End",
   "stage.back": "Back",
+  "stage.volume": "Volume {volume, number}",
   "stage.takeBack": "Make this the Stage again",
   "chip.duet": "Duet",
 

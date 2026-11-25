@@ -43,6 +43,16 @@ export interface LiveState {
   phone: PhoneState | null;
   /** The Join code the server last confirmed is the current Party's. */
   validJoinCode: JoinCode | null;
+  /**
+   * The Stage's current OpenStar volume (0 to 100), or `null` until the
+   * server has told it (no Stage has reported its output yet). The effective
+   * Mic threshold (`resolveMicSettings` in `mics/micSettings.ts`) takes it:
+   * read it once at Start for the scorer, and on every frame for a meter's
+   * threshold line.
+   */
+  volume: number | null;
+  /** How many volume steps (from the Stage or a Remote) the server has told. */
+  volumeSteps: number;
 }
 
 export const initialLiveState: LiveState = {
@@ -54,6 +64,8 @@ export const initialLiveState: LiveState = {
   lastPong: null,
   phone: null,
   validJoinCode: null,
+  volume: null,
+  volumeSteps: 0,
 };
 
 /** Applies a server message. The `switch` is exhaustive over the generated union. */
@@ -101,6 +113,12 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
       };
     case "joinCodeValid":
       return { ...state, validJoinCode: message.joinCode };
+    case "volume":
+      return {
+        ...state,
+        volume: message.volume,
+        volumeSteps: state.volumeSteps + (message.stepped ? 1 : 0),
+      };
     case "changed":
       // Change notices invalidate HTTP data; they change no live state.
       return state;
