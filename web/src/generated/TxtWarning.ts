@@ -4,4 +4,4 @@
  * Something wrong with a `.txt` that still lets the Song play.
  * `line` is 1-based; `header` is the key without `#`, upper-cased.
  */
-export type TxtWarning = { "code": "duplicateHeader", line: number, header: string, } | { "code": "invalidNumber", line: number, header: string, };
+export type TxtWarning = { "code": "duplicateHeader", line: number, header: string, } | { "code": "invalidNumber", line: number, header: string, } | { "code": "zeroLengthNote", line: number, } | { "code": "overlappingNotes", line: number, earlierLine: number, } | { "code": "unknownBodyLine", line: number, };

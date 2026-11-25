@@ -1,0 +1,9 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: body/duet-voice-without-notes-rejected.txt
+---
+Err(
+    DuetVoiceWithoutNotes {
+        voice: 2,
+    },
+)
