@@ -37,12 +37,15 @@ describe("who reads the Song's position", () => {
     // playback adapter, the one owner of the media element (#155). The
     // song-browser preview (#162) seeks its own element, never the Song's,
     // to the preview point and schedules its fades on the AudioContext's
-    // `currentTime`; it feeds no clock.
+    // `currentTime`; it feeds no clock. The Calibration tone run (#156) reads
+    // its AudioContext's `currentTime` only to schedule tones; their play
+    // times come from `outputTime`.
     expect(
       filesMatching(
         /\.currentTime\b|\.mediaTime\b|requestVideoFrameCallback\s*\(/,
       ),
     ).toEqual([
+      "src/calibration/toneRun.ts",
       "src/clock/songClock.ts",
       "src/playback/mediaPlayback.ts",
       "src/playback/songPreview.ts",
