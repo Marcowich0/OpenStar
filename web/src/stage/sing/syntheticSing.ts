@@ -43,9 +43,17 @@ function voice(pitchShift: number, beatShift: number): Line[] {
       length,
       pitch: pitch + pitchShift,
       text: "la ",
-      line: r * PATTERN.length + i + 1,
+      line: r * (PATTERN.length + 1) + i + 1,
     }));
-    lines.push({ notes, end: null });
+    // Each Line but the last ends at the next pass, as a `- beat` line would.
+    const end =
+      r + 1 < REPEATS
+        ? {
+            beat: (r + 1) * PATTERN_BEATS + beatShift,
+            line: (r + 1) * (PATTERN.length + 1),
+          }
+        : null;
+    lines.push({ notes, end });
   }
   return lines;
 }
