@@ -1,0 +1,121 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: encoding/cp1250-with-encoding.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Placeholder Tytu\xb3" Lf,
+              2 Header "#ARTIST:Placeholder Wykonawca" Lf,
+              3 Header "#ENCODING:CP1250" Lf,
+              4 Header "#MP3:audio.mp3" Lf,
+              5 Header "#BPM:300" Lf,
+              6 Header "#GAP:1500" Lf,
+              7 Body ": 0 4 0 \xa3\xb9" Lf,
+              8 Body ": 4 4 2 \xbf\xea" Lf,
+              9 Body "- 10" Lf,
+             10 Body ": 12 4 4 \x9c\xe6" Lf,
+             11 Body ": 16 4 2 \xf8\xf9" Lf,
+             12 End "E" Lf,
+        ],
+        encoding: Cp1250,
+        bom: false,
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: Unversioned,
+                version: None,
+                encoding: Some(
+                    "CP1250",
+                ),
+                title: "Placeholder Tytuł",
+                artist: "Placeholder Wykonawca",
+                audio_reference: Some(
+                    "audio.mp3",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: None,
+                video: None,
+                cover: None,
+                background: None,
+                vocals: None,
+                instrumental: None,
+                beats_per_minute: 1200.0,
+                gap_seconds: 1.5,
+                start_seconds: None,
+                end_seconds: None,
+                video_gap_seconds: None,
+                preview_start_seconds: None,
+                medley_start_beat: None,
+                medley_end_beat: None,
+                year: None,
+                genre: None,
+                genres: [],
+                language: None,
+                languages: [],
+                edition: None,
+                editions: [],
+                creator: None,
+                creators: [],
+                p1: None,
+                p2: None,
+                unknown_headers: [],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "Łą",
+                                    line: 7,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "żę",
+                                    line: 8,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 10,
+                                    line: 9,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 4,
+                                    text: "ść",
+                                    line: 10,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 16,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "řů",
+                                    line: 11,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [],
+    },
+)

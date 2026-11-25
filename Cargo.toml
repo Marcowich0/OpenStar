@@ -21,6 +21,8 @@ openstar-protocol = { path = "crates/protocol" }
 openstar-test-harness = { path = "crates/test-harness" }
 anyhow = "=1.0.105"
 axum = { version = "=0.8.9", features = ["ws"] }
+chardetng = "=1.0.0"
+encoding_rs = "=0.8.44"
 futures-util = "=0.3.34"
 getrandom = "=0.4.3"
 insta = { version = "=1.49.0", features = ["json"] }

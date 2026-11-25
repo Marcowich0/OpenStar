@@ -31,6 +31,8 @@ Ok(
              24 Body "F 16 2 0 ~" Lf,
              25 End "E" Lf,
         ],
+        encoding: Utf8,
+        bom: false,
         song: ParsedSong {
             headers: SongHeaders {
                 generation: V1,

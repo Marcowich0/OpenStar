@@ -1,0 +1,11 @@
+﻿#TITLE:Placeholder Tïtle
+#ARTIST:Placeholder Ärtist
+#ENCODING:CP1252
+#MP3:audio.mp3
+#BPM:300
+#GAP:1500
+: 0 4 0 Lä
+: 4 4 2 lø
+- 10
+: 12 4 4 ŵē
+E
