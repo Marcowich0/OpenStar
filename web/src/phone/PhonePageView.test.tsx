@@ -50,6 +50,7 @@ function party(
     phones: [],
     queue: [],
     head: null,
+    lineUp: null,
   };
 }
 

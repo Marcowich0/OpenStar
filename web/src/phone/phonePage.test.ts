@@ -21,6 +21,7 @@ const party: PartySnapshot = {
   phones: [{ phoneId: "phone-a", memberId: 1 }],
   queue: [],
   head: null,
+  lineUp: null,
 };
 
 function live(memberId: number | null): LiveState {
