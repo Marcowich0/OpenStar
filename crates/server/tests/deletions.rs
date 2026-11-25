@@ -263,7 +263,6 @@ async fn a_song_gone_at_a_rescan_drops_every_queued_request_for_it_with_a_change
     }
 
     // The drop is stored: a restart keeps the Queue without the Song.
-    drop(sockets);
     drop((stage, bo_phone));
     let mut app = app;
     app.restart().await;
