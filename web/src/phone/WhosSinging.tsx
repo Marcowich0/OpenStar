@@ -30,6 +30,11 @@ export interface WhosSingingProps {
   onNewProfile: () => void;
   /** Opens the Guest form. */
   onGuest: () => void;
+  /**
+   * "Someone else is using this phone": the full grid at once, and a Back
+   * to the Remote.
+   */
+  onBack?: () => void;
 }
 
 /**
@@ -43,11 +48,12 @@ export function WhosSinging({
   onJoin,
   onNewProfile,
   onGuest,
+  onBack,
 }: WhosSingingProps) {
   const profiles = useQuery(profilesQuery);
   const members = useLive(selectMembers, store);
   const [rememberedId] = useState(() => rememberedProfileId(storage));
-  const [showAll, setShowAll] = useState(false);
+  const [showAll, setShowAll] = useState(onBack !== undefined);
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState<UserMessage | null>(null);
 
@@ -124,7 +130,17 @@ export function WhosSinging({
 
   return (
     <main className="flex min-h-dvh flex-col">
-      <TopBar />
+      <TopBar>
+        {onBack ? (
+          <Button
+            size="medium"
+            className="min-h-12 px-5 text-xl"
+            onPress={onBack}
+          >
+            {t("join.back")}
+          </Button>
+        ) : null}
+      </TopBar>
       <div className="flex flex-col gap-2 px-5 pb-8">
         <h1 className="text-4xl leading-tight font-bold">
           {t("join.whosSinging")}

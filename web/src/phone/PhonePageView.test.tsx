@@ -759,6 +759,8 @@ describe("the Remote", () => {
     const { connect, server } = renderPhone();
     connect(1, party([[1, 2]]));
     server({ type: "leftParty" });
+    // "You left the Party" first (#119), then the pad.
+    fireEvent.click(screen.getByRole("button", { name: "Join again" }));
 
     expect(screen.getAllByTestId("code-box")).toHaveLength(4);
   });
