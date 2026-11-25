@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Sheet } from "./Sheet";
+import { SHEET_ENTER_MS, Sheet } from "./Sheet";
 
 function Harness() {
   const [open, setOpen] = useState(true);
@@ -24,6 +24,21 @@ function tap(element: Element) {
   });
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** The sheet's slide in has finished. */
+function settle() {
+  act(() => {
+    vi.advanceTimersByTime(SHEET_ENTER_MS);
+  });
+}
+
 describe("Sheet", () => {
   it("is a labelled dialog over the current tab, at the bottom of the screen", () => {
     render(<Harness />);
@@ -36,6 +51,7 @@ describe("Sheet", () => {
 
   it("closes when tapped outside it", () => {
     render(<Harness />);
+    settle();
     tap(screen.getByTestId("sheet-veil"));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -48,9 +64,20 @@ describe("Sheet", () => {
 
   it("closes on Esc", () => {
     render(<Harness />);
+    settle();
     act(() => {
       fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closed while it still slides in, closes once it is in", () => {
+    // Reversing the slide mid-way would cancel the transition React Aria
+    // waits for, and leave an invisible veil over the whole screen.
+    render(<Harness />);
+    tap(screen.getByTestId("sheet-veil"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    settle();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

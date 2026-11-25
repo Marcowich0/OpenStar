@@ -8,6 +8,10 @@ import { phoneId, type PhoneStorage } from "../live/phoneId";
 import { liveStore, useLive } from "../live/useLive";
 import { FavouriteTaken } from "./FavouriteTaken";
 import { JoinFlow } from "./JoinFlow";
+import { JoinForm } from "./JoinForm";
+import type { MemberLook } from "./memberLook";
+import type { MeActions } from "./people/MeSheet";
+import { editMember } from "./people/memberRequests";
 import { phoneMember, phonePage } from "./phonePage";
 import { Remote } from "./Remote";
 
@@ -46,6 +50,23 @@ export function PhonePageView({
   const [joinedHere, setJoinedHere] = useState(false);
   if (outside && !joinedHere) setJoinedHere(true);
   const [noticeDone, setNoticeDone] = useState<number | null>(null);
+  // A Me sheet action that replaces the Remote for a while.
+  const [meScreen, setMeScreen] = useState<
+    { kind: "switch" } | { kind: "edit"; look: MemberLook } | null
+  >(null);
+  if (page === "joinFlow" && meScreen !== null) setMeScreen(null);
+  const me: MeActions = {
+    phoneId: phoneId(storage),
+    onSomeoneElse: () => {
+      setMeScreen({ kind: "switch" });
+    },
+    onChangeLook: (look) => {
+      setMeScreen({ kind: "edit", look });
+    },
+  };
+  const closeMeScreen = () => {
+    setMeScreen(null);
+  };
 
   switch (page) {
     case "joinFlow":
@@ -60,10 +81,35 @@ export function PhonePageView({
     // Calibrating and the mic takeover come with their tickets; until then
     // the Remote shows.
     case "calibrating":
-      return <Remote store={store} phoneId={phoneId(storage)} />;
+      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
     case "micTakeover":
-      return <Remote store={store} phoneId={phoneId(storage)} />;
+      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
     case "remote":
+      if (meScreen?.kind === "switch")
+        return (
+          <JoinFlow
+            linkCode={undefined}
+            store={store}
+            storage={storage}
+            switching={{ onBack: closeMeScreen, onDone: closeMeScreen }}
+            {...(random ? { random } : {})}
+          />
+        );
+      if (meScreen?.kind === "edit" && member)
+        return (
+          <JoinForm
+            kind="edit"
+            store={store}
+            member={member}
+            look={meScreen.look}
+            onBack={closeMeScreen}
+            onSave={async (edit) => {
+              const refusal = await editMember(store, member.memberId, edit);
+              if (refusal === null) closeMeScreen();
+              return refusal;
+            }}
+          />
+        );
       if (
         joinedHere &&
         member?.identity.kind === "profile" &&
@@ -79,6 +125,6 @@ export function PhonePageView({
             }}
           />
         );
-      return <Remote store={store} phoneId={phoneId(storage)} />;
+      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
   }
 }

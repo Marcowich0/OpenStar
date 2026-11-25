@@ -278,6 +278,37 @@ pub fn leave(party: &mut PartySnapshot, member_id: PartyMemberId) -> Result<Left
     Ok(Left { member, phones })
 }
 
+/// Profile `profile_id` is being deleted: when it is a member of `party` it
+/// leaves the Party like [`leave`], and first loses its seats in a waiting
+/// Line-up (a delete takes it off the Song). `None` when it is no member.
+/// Refused, with nothing changed, with [`UserMessage::ProfileSinging`] while
+/// it sings in the playing Song: seated, or one of its Phones is a seat's Mic.
+pub fn delete_profile(
+    party: &mut PartySnapshot,
+    profile_id: ProfileId,
+) -> Result<Option<Left>, UserMessage> {
+    let Some(member_id) = party
+        .members
+        .iter()
+        .find(|member| member.identity == Identity::Profile { profile_id })
+        .map(|member| member.member_id)
+    else {
+        return Ok(None);
+    };
+    let mut after = party.clone();
+    if after.playing.is_none()
+        && let Some(line_up) = after.line_up.as_mut()
+    {
+        line_up.seats.retain(|seat| seat.member_id != member_id);
+    }
+    let left = leave(&mut after, member_id).map_err(|refused| match refused {
+        UserMessage::MemberSinging => UserMessage::ProfileSinging,
+        other => other,
+    })?;
+    *party = after;
+    Ok(Some(left))
+}
+
 /// Whether all twelve colours are held, so no new member can enter.
 pub fn is_full(party: &PartySnapshot) -> bool {
     PaletteKey::ALL
@@ -803,6 +834,63 @@ mod tests {
             UserMessage::MemberSinging
         );
         assert_eq!(party, before);
+    }
+
+    #[test]
+    fn a_deleted_profile_leaves_the_party_and_its_waiting_seat() {
+        let mut party = party();
+        join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
+        join_phone(&mut party, phone(2), ProfileId(2), Lime).unwrap();
+        party.queue = vec![request(10, &[1, 2], Some(1))];
+        party.head = Some(RequestId(10));
+        party.line_up = Some(line_up(vec![
+            seat(1, Some(phone(1))),
+            seat(2, Some(phone(1))),
+        ]));
+
+        let left = delete_profile(&mut party, ProfileId(1)).unwrap().unwrap();
+
+        assert_eq!(left.member.colour, Teal);
+        assert_eq!(left.phones, vec![phone(1)]);
+        assert_eq!(colours(&party), vec![Lime]);
+        // Its seat is gone, and its Phone is no other seat's Mic.
+        assert_eq!(party.line_up, Some(line_up(vec![seat(2, None)])));
+        assert_eq!(party.queue, vec![request(10, &[2], None)]);
+        // A Profile that is no member changes nothing.
+        let before = party.clone();
+        assert_eq!(delete_profile(&mut party, ProfileId(9)), Ok(None));
+        assert_eq!(party, before);
+    }
+
+    #[test]
+    fn a_profile_that_sings_in_the_playing_song_cannot_be_deleted() {
+        let playing = |party: &mut PartySnapshot| {
+            party.playing = Some(openstar_protocol::PlayingSong {
+                request_id: RequestId(10),
+                song_id: openstar_protocol::library::SongId(10),
+                paused: false,
+            });
+        };
+        let mut party = party();
+        join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
+        join_phone(&mut party, phone(2), ProfileId(2), Lime).unwrap();
+        join_phone(&mut party, phone(3), ProfileId(3), Mint).unwrap();
+        party.queue = vec![request(10, &[1], None)];
+        party.head = Some(RequestId(10));
+        // Member 1 sings on member 2's Phone.
+        party.line_up = Some(line_up(vec![seat(1, Some(phone(2)))]));
+        playing(&mut party);
+        let before = party.clone();
+        for profile in [1, 2] {
+            assert_eq!(
+                delete_profile(&mut party, ProfileId(profile)),
+                Err(UserMessage::ProfileSinging)
+            );
+            assert_eq!(party, before);
+        }
+        // Member 3 does not sing: it goes.
+        assert!(delete_profile(&mut party, ProfileId(3)).unwrap().is_some());
+        assert_eq!(colours(&party), vec![Teal, Lime]);
     }
 
     #[derive(Debug, Clone)]

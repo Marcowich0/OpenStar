@@ -13,6 +13,8 @@ import { Avatar } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
 import { TopBar } from "./Logo";
 import { memberLook } from "./memberLook";
+import { MeButton, type MeActions } from "./people/MeSheet";
+import { PeopleTab } from "./people/PeopleTab";
 import { phoneMember } from "./phonePage";
 import { PhoneToasts } from "./PhoneToasts";
 import {
@@ -45,16 +47,19 @@ function isRemoteTab(key: unknown): key is RemoteTab {
  * logo and this Phone's own avatar, the four tabs at the bottom with the
  * Queue's badge, the status strip above them, and the toasts at the top. It
  * opens on the Stage tab while a Line-up waits, on Songs otherwise. The
- * Songs tab is `SongsTab`, the Stage tab `StageTab`; the other tabs' contents and the Me sheet come
- * with later tickets.
+ * Songs tab is `SongsTab`, the Stage tab `StageTab`, the People tab
+ * `PeopleTab`, and the avatar opens the Me sheet (`MeButton`); the Queue
+ * tab's contents come with a later ticket.
  */
 export function Remote({
   store,
   phoneId,
+  me,
 }: {
   store: LiveStore;
   /** This Phone's own id: its Mic is "This phone" on the Stage tab. */
   phoneId: PhoneId;
+  me?: MeActions;
 }) {
   const member = useLive(phoneMember, store);
   const party = useLive(selectParty, store);
@@ -77,7 +82,9 @@ export function Remote({
     >
       <PhoneToasts store={store} />
       <TopBar>
-        {member && look ? (
+        {member && look && me ? (
+          <MeButton store={store} member={member} look={look} me={me} />
+        ) : member && look ? (
           <Avatar
             name={look.name}
             avatar={look.avatar}
@@ -90,6 +97,7 @@ export function Remote({
         <TabPanel key={id} id={id} className="grow px-5 pb-4 outline-none">
           {id === "songs" && <SongsTab store={store} />}
           {id === "stage" && <StageTab store={store} myPhoneId={phoneId} />}
+          {id === "people" && <PeopleTab store={store} />}
         </TabPanel>
       ))}
       <div className="sticky bottom-0 flex flex-col">

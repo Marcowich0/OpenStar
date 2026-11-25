@@ -133,6 +133,26 @@ export function toastContent(
         }),
       };
     }
+    case "profileDeleted": {
+      // Deleted in the Admin area: the member is gone from the snapshot and
+      // its Profile from the Profiles, so its look comes with the event.
+      const { name, avatar, colour } = event.params;
+      return {
+        actor: { name, avatar, colour },
+        parts: tParts("toast.profileDeleted", {
+          name,
+          colour: colourName(colour),
+        }),
+      };
+    }
+    case "requestDroppedSongGone":
+      // Nobody in the Party did it: the Song left the Library.
+      return {
+        actor: null,
+        parts: tParts("toast.requestDroppedSongGone", {
+          song: event.params.title,
+        }),
+      };
     case "micBlocked":
       return {
         actor: memberLook(party, profiles, event.params.memberId),
