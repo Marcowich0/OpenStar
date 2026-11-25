@@ -54,7 +54,7 @@ pub async fn load(db: &Database) -> anyhow::Result<Vec<Row>> {
             Ok(Row {
                 id: JobId(row.get(0)?),
                 params: row.get(1)?,
-                // An unknown state counts as failed; the runner logs it.
+                // An unknown state counts as failed.
                 state: StoredState::parse(&state).unwrap_or(StoredState::Failed),
                 error: row.get(3)?,
             })
