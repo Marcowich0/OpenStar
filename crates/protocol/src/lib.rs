@@ -171,6 +171,18 @@ pub enum ClientMessage {
     /// Start. Kept only while the server runs: a Phone reports again after
     /// a restart.
     ReportMicBlocked { blocked: bool },
+    /// This connection's joined Phone leaves the Party ("Leave party"): its
+    /// Party member leaves (see [`ClientMessage::RemoveMember`]). Refused
+    /// with [`UserMessage::NotInParty`] for anyone but a joined Phone.
+    LeaveParty,
+    /// Removes a Party member from the Party people list (a Remote command,
+    /// no Admin PIN). Its colour is free at once, every Phone using it is
+    /// out of the Party (told with [`ServerMessage::LeftParty`]) and it is
+    /// dropped from every Request. A Guest is gone; a Profile may enter
+    /// again. Refused while the member sits in the Line-up
+    /// ([`UserMessage::MemberSinging`]), and for a Phone's own member
+    /// ([`UserMessage::UseLeaveParty`]).
+    RemoveMember { member_id: PartyMemberId },
 }
 
 /// A message the server sends over a WebSocket.
@@ -223,7 +235,8 @@ pub enum ServerMessage {
     /// when its Phone is not in the current Party and must join with the code.
     PhoneStatus { member_id: Option<PartyMemberId> },
     /// Sent to every connection of a Phone that was in the Party and no
-    /// longer is (a new Party started): it needs the new Join code.
+    /// longer is (a new Party started, or its Party member left or was
+    /// removed): it needs the Join code to come back.
     LeftParty,
     /// A background job was queued, started, made progress or ended (sent to
     /// every connection).
@@ -322,6 +335,12 @@ pub enum UserMessage {
     PlayerNotInParty,
     /// A Party member is named twice among the requested Players.
     PlayerTwice,
+    /// The Party member sits in the Line-up ("singing"), so it cannot leave
+    /// or be removed: take it off the Song first.
+    MemberSinging,
+    /// A Phone cannot remove its own Party member from the people list; it
+    /// uses Leave party instead.
+    UseLeaveParty,
 }
 
 #[cfg(test)]

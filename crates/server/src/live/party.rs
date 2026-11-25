@@ -1,10 +1,12 @@
 //! The Party's own rules, free of the task and the database: drawing a Join
 //! code and a Party id, starting a Party, a Phone joining it as a Profile or
-//! a new Guest with a Party colour, and editing a member inside the Party.
+//! a new Guest with a Party colour, editing a member inside the Party, and a
+//! member leaving it.
 //!
 //! Clashes with Profile names need the database, so the task checks those;
 //! everything here is about the Party alone.
 
+use openstar_protocol::mics::MicKey;
 use openstar_protocol::profile::{Avatar, Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::{
     Identity, JoinCode, JoinedPhone, MemberEdit, PartyId, PartyMember, PartyMemberId,
@@ -189,6 +191,62 @@ pub fn edit_member(
     Ok(())
 }
 
+/// What [`leave`] did.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Left {
+    /// The member as it was, with the colour it freed.
+    pub member: PartyMember,
+    /// Every Phone that used it, in join order: all of them are out of the
+    /// Party now.
+    pub phones: Vec<PhoneId>,
+}
+
+/// Member `member_id` leaves `party` (Leave party, or removed from the
+/// people list): its colour is free at once, every Phone using it is out of
+/// the Party and is no seat's Mic any more, and it is dropped from the
+/// requested Players of every Request (and as their adder). Refused, with
+/// nothing changed, with [`UserMessage::MemberSinging`] while it sits in the
+/// Line-up and [`UserMessage::MemberNotFound`] when it is not a member.
+pub fn leave(party: &mut PartySnapshot, member_id: PartyMemberId) -> Result<Left, UserMessage> {
+    let index = party
+        .members
+        .iter()
+        .position(|member| member.member_id == member_id)
+        .ok_or(UserMessage::MemberNotFound)?;
+    let seated = party
+        .line_up
+        .as_ref()
+        .is_some_and(|line_up| line_up.seats.iter().any(|s| s.member_id == member_id));
+    if seated {
+        return Err(UserMessage::MemberSinging);
+    }
+    let member = party.members.remove(index);
+    let (gone, kept): (Vec<JoinedPhone>, Vec<JoinedPhone>) = std::mem::take(&mut party.phones)
+        .into_iter()
+        .partition(|phone| phone.member_id == member_id);
+    party.phones = kept;
+    let phones: Vec<PhoneId> = gone.into_iter().map(|phone| phone.phone_id).collect();
+    for request in &mut party.queue {
+        request
+            .requested_players
+            .retain(|&player| player != member_id);
+        if request.adder == Some(member_id) {
+            request.adder = None;
+        }
+    }
+    if let Some(line_up) = party.line_up.as_mut() {
+        for seat in &mut line_up.seats {
+            if let Some(MicKey::Phone { phone_id }) = &seat.mic
+                && phones.iter().any(|phone| &phone.0 == phone_id)
+            {
+                seat.mic = None;
+            }
+        }
+    }
+    refresh_on_phone(party);
+    Ok(Left { member, phones })
+}
+
 /// Whether all twelve colours are held, so no new member can enter.
 pub fn is_full(party: &PartySnapshot) -> bool {
     PaletteKey::ALL
@@ -286,10 +344,15 @@ fn random_u16() -> anyhow::Result<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openstar_protocol::library::SongId;
+    use openstar_protocol::mics::MicKey;
     use openstar_protocol::profile::PaletteKey::{self, *};
     use openstar_protocol::profile::ProfileId;
     use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty};
-    use openstar_protocol::{Identity, PartyMemberId, PhoneId, UserMessage};
+    use openstar_protocol::{
+        Identity, LineUp, PartyMemberId, PhoneId, Request, RequestId, RequestKind, Seat, SeatVoice,
+        UserMessage,
+    };
     use proptest::prelude::*;
 
     fn party() -> PartySnapshot {
@@ -586,15 +649,121 @@ mod tests {
         assert_eq!(party, before);
     }
 
+    fn request(id: u32, players: &[u32], adder: Option<u32>) -> Request {
+        Request {
+            request_id: RequestId(id),
+            kind: RequestKind::Song,
+            song_id: SongId(id),
+            requested_players: players.iter().copied().map(PartyMemberId).collect(),
+            adder: adder.map(PartyMemberId),
+        }
+    }
+
+    #[test]
+    fn a_member_who_leaves_frees_its_colour_and_takes_every_phone_on_it_out() {
+        let mut party = party();
+        join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
+        join_guest(&mut party, phone(2), &name("Lukas"), Tangerine, star()).unwrap();
+        join_phone(&mut party, phone(3), ProfileId(1), Teal).unwrap();
+        let left = leave(&mut party, PartyMemberId(1)).unwrap();
+        assert_eq!(left.member.colour, Teal);
+        assert_eq!(left.phones, vec![phone(1), phone(3)]);
+        assert_eq!(colours(&party), vec![Tangerine]);
+        assert_eq!(party.phones.len(), 1);
+        assert_eq!(party.phones[0].phone_id, phone(2));
+        // The freed colour goes to the next member who enters.
+        join_guest(&mut party, phone(4), &name("Mia"), Teal, star()).unwrap();
+        assert_eq!(colours(&party), vec![Tangerine, Teal]);
+    }
+
+    #[test]
+    fn a_member_who_leaves_is_dropped_from_every_request() {
+        let mut party = party();
+        for n in 1..=3 {
+            join_phone(&mut party, phone(n), ProfileId(n), Teal).unwrap();
+        }
+        party.queue = vec![
+            request(10, &[1, 2], Some(2)),
+            request(11, &[2], None),
+            request(12, &[3, 2, 1], Some(1)),
+        ];
+        party.head = Some(RequestId(10));
+        leave(&mut party, PartyMemberId(2)).unwrap();
+        // A Request the member added stays, with no adder left to name.
+        assert_eq!(
+            party.queue,
+            vec![
+                request(10, &[1], None),
+                request(11, &[], None),
+                request(12, &[3, 1], Some(1)),
+            ]
+        );
+        assert_eq!(party.head, Some(RequestId(10)));
+    }
+
+    fn seat(member: u32, phone_id: Option<PhoneId>) -> Seat {
+        Seat {
+            member_id: PartyMemberId(member),
+            mic: phone_id.map(|p| MicKey::Phone { phone_id: p.0 }),
+            voice: SeatVoice::P1,
+            difficulty: Difficulty::Medium,
+        }
+    }
+
+    fn line_up(seats: Vec<Seat>) -> LineUp {
+        LineUp {
+            request_id: RequestId(10),
+            duet: false,
+            seats,
+            can_start: false,
+            warnings: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_seated_member_cannot_leave_and_nothing_changes() {
+        let mut party = party();
+        join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
+        party.queue = vec![request(10, &[1], None)];
+        party.head = Some(RequestId(10));
+        party.line_up = Some(line_up(vec![seat(1, Some(phone(1)))]));
+        let before = party.clone();
+        assert_eq!(
+            leave(&mut party, PartyMemberId(1)).unwrap_err(),
+            UserMessage::MemberSinging
+        );
+        assert_eq!(party, before);
+        assert_eq!(
+            leave(&mut party, PartyMemberId(7)).unwrap_err(),
+            UserMessage::MemberNotFound
+        );
+        assert_eq!(party, before);
+    }
+
+    #[test]
+    fn a_phone_that_leaves_is_no_longer_any_seats_mic() {
+        let mut party = party();
+        join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
+        join_phone(&mut party, phone(2), ProfileId(2), Lime).unwrap();
+        party.queue = vec![request(10, &[1], None)];
+        party.head = Some(RequestId(10));
+        // Member 1 sings on member 2's Phone.
+        party.line_up = Some(line_up(vec![seat(1, Some(phone(2)))]));
+        leave(&mut party, PartyMemberId(2)).unwrap();
+        assert_eq!(party.line_up, Some(line_up(vec![seat(1, None)])));
+    }
+
     #[derive(Debug, Clone)]
     enum Step {
         Join { phone: u32, profile: u32 },
+        Leave { member: u32 },
         NewParty,
     }
 
     fn step() -> impl Strategy<Value = Step> {
         prop_oneof![
             8 => (0..20_u32, 0..18_u32).prop_map(|(phone, profile)| Step::Join { phone, profile }),
+            3 => (1..20_u32).prop_map(|member| Step::Leave { member }),
             1 => Just(Step::NewParty),
         ]
     }
@@ -635,6 +804,22 @@ mod tests {
                                 prop_assert_eq!(refusal, UserMessage::PartyFull);
                                 prop_assert!(!was_member);
                                 prop_assert_eq!(held.len(), 12);
+                            }
+                        }
+                    }
+                    Step::Leave { member } => {
+                        let id = PartyMemberId(member);
+                        let was_member = party.members.iter().any(|m| m.member_id == id);
+                        match leave(&mut party, id) {
+                            Ok(left) => {
+                                prop_assert!(was_member);
+                                prop_assert!(party.members.iter().all(|m| m.member_id != id));
+                                prop_assert!(party.phones.iter().all(|p| p.member_id != id));
+                                prop_assert!(colour_holder(&party, left.member.colour).is_none());
+                            }
+                            Err(refusal) => {
+                                prop_assert_eq!(refusal, UserMessage::MemberNotFound);
+                                prop_assert!(!was_member);
                             }
                         }
                     }
