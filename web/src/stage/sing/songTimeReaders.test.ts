@@ -34,11 +34,18 @@ describe("who reads the Song's position", () => {
 
   it("reads the media element's position nowhere but in the Song clock's observations", () => {
     // `currentTime` and `mediaTime` reach the clock as observations from the
-    // playback adapter, the one owner of the media element (#155).
+    // playback adapter, the one owner of the media element (#155). The
+    // song-browser preview (#162) seeks its own element, never the Song's,
+    // to the preview point and schedules its fades on the AudioContext's
+    // `currentTime`; it feeds no clock.
     expect(
       filesMatching(
         /\.currentTime\b|\.mediaTime\b|requestVideoFrameCallback\s*\(/,
       ),
-    ).toEqual(["src/clock/songClock.ts", "src/playback/mediaPlayback.ts"]);
+    ).toEqual([
+      "src/clock/songClock.ts",
+      "src/playback/mediaPlayback.ts",
+      "src/playback/songPreview.ts",
+    ]);
   });
 });
