@@ -4,7 +4,7 @@ import { useState } from "react";
 import { browserStorage } from "../live/browserLive";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
-import type { PhoneStorage } from "../live/phoneId";
+import { phoneId, type PhoneStorage } from "../live/phoneId";
 import { liveStore, useLive } from "../live/useLive";
 import { FavouriteTaken } from "./FavouriteTaken";
 import { JoinFlow } from "./JoinFlow";
@@ -60,9 +60,9 @@ export function PhonePageView({
     // Calibrating and the mic takeover come with their tickets; until then
     // the Remote shows.
     case "calibrating":
-      return <Remote store={store} />;
+      return <Remote store={store} phoneId={phoneId(storage)} />;
     case "micTakeover":
-      return <Remote store={store} />;
+      return <Remote store={store} phoneId={phoneId(storage)} />;
     case "remote":
       if (
         joinedHere &&
@@ -79,6 +79,6 @@ export function PhonePageView({
             }}
           />
         );
-      return <Remote store={store} />;
+      return <Remote store={store} phoneId={phoneId(storage)} />;
   }
 }

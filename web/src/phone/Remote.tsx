@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-aria-components";
 
 import { profilesQuery } from "../api/queries";
+import type { PhoneId } from "../generated/PhoneId";
 import { t, type MessageKey } from "../i18n/t";
 import type { IconName } from "../icons/icons";
 import type { LiveState } from "../live/liveState";
@@ -22,6 +23,7 @@ import {
   type RemoteTab,
 } from "./remoteFrame";
 import { SongsTab } from "./songs/SongsTab";
+import { StageTab } from "./stage/StageTab";
 import { StatusStrip } from "./StatusStrip";
 
 /** Each tab's label and icon, in `REMOTE_TABS` order. */
@@ -43,10 +45,17 @@ function isRemoteTab(key: unknown): key is RemoteTab {
  * logo and this Phone's own avatar, the four tabs at the bottom with the
  * Queue's badge, the status strip above them, and the toasts at the top. It
  * opens on the Stage tab while a Line-up waits, on Songs otherwise. The
- * Songs tab is `SongsTab`; the other tabs' contents and the Me sheet come
+ * Songs tab is `SongsTab`, the Stage tab `StageTab`; the other tabs' contents and the Me sheet come
  * with later tickets.
  */
-export function Remote({ store }: { store: LiveStore }) {
+export function Remote({
+  store,
+  phoneId,
+}: {
+  store: LiveStore;
+  /** This Phone's own id: its Mic is "This phone" on the Stage tab. */
+  phoneId: PhoneId;
+}) {
   const member = useLive(phoneMember, store);
   const party = useLive(selectParty, store);
   const profiles = useQuery(profilesQuery);
@@ -80,6 +89,7 @@ export function Remote({ store }: { store: LiveStore }) {
       {REMOTE_TABS.map((id) => (
         <TabPanel key={id} id={id} className="grow px-5 pb-4 outline-none">
           {id === "songs" && <SongsTab store={store} />}
+          {id === "stage" && <StageTab store={store} myPhoneId={phoneId} />}
         </TabPanel>
       ))}
       <div className="sticky bottom-0 flex flex-col">
