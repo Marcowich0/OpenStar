@@ -86,6 +86,24 @@ describe("live state reducer", () => {
     );
   });
 
+  it("leaves the state alone on relayed Pitch readings, clock sync and Mic-closed notices", () => {
+    const state = synced(true);
+    const mic = { kind: "phone", connection: 4 } as const;
+    const relayed: ServerMessage[] = [
+      {
+        type: "pitchReading",
+        mic,
+        reading: { captureMs: 10, pitch: 69, clarity: 0.9, loudness: -20 },
+      },
+      { type: "clockPing", mic, t0: 1 },
+      { type: "clockPong", t0: 1, ts: 2, epoch: 3 },
+      { type: "micClosed", mic },
+    ];
+    for (const message of relayed) {
+      expect(receive(state, message)).toBe(state);
+    }
+  });
+
   it("keeps the last known Stage state while reconnecting", () => {
     const open = receive(connectionChanged(initialLiveState, "open"), {
       type: "liveState",

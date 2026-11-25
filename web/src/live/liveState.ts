@@ -72,6 +72,13 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
     case "changed":
       // Change notices invalidate HTTP data; they change no live state.
       return state;
+    case "pitchReading":
+    case "clockPing":
+    case "clockPong":
+    case "micClosed":
+      // The Pitch reading relay and clock sync change no live state; they
+      // are routed away from the reducer in liveStore.ts (#127).
+      return state;
     default:
       return unreachable(message);
   }
