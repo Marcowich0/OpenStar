@@ -9,12 +9,16 @@
 import type { TokenRef } from "../../theme/tokens";
 import type {
   DrawList,
+  GridEntry,
   HeadBallEntry,
   LaneEntry,
   LineStyle,
   PillEntry,
   PitchLineEntry,
   PlayheadEntry,
+  ProgressEntry,
+  ShimmerStyle,
+  StarStyle,
   TracePoint,
 } from "./frame";
 
@@ -71,6 +75,8 @@ export function createPainter(
   const gradients = new Map<number, CanvasGradient>();
   let gradientTop = "";
   let gradientBottom = "";
+  const bands = new Map<number, CanvasGradient>();
+  let bandColour = "";
 
   function colour(ref: TokenRef): string {
     let value = colours.get(ref);
@@ -113,7 +119,12 @@ export function createPainter(
     }
     const s = entry.separator;
     line(s, "butt", NO_DASH, s.x, s.top, s.bottom);
+    // The Notes area, inside the lane panel's rounded shape, so a pill
+    // leaving at the right follows the panel's corner.
     ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(entry.x, entry.y, entry.width, entry.height, entry.radius);
+    ctx.clip();
     ctx.beginPath();
     ctx.rect(
       entry.notesX,
@@ -122,6 +133,85 @@ export function createPainter(
       entry.height,
     );
     ctx.clip();
+  }
+
+  function grid(entry: GridEntry) {
+    ctx.globalAlpha = entry.alpha;
+    ctx.strokeStyle = colour(entry.colour);
+    ctx.lineWidth = entry.width;
+    ctx.lineCap = "butt";
+    ctx.setLineDash(NO_DASH as number[]);
+    ctx.beginPath();
+    for (const y of entry.ys) {
+      ctx.moveTo(entry.left, y);
+      ctx.lineTo(entry.right, y);
+    }
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  function progress(entry: ProgressEntry) {
+    const { x, y, width, height } = entry;
+    ctx.globalAlpha = entry.trackAlpha;
+    ctx.fillStyle = colour(entry.track);
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, height / 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    const filled = width * entry.fraction;
+    if (filled <= 0) return;
+    ctx.fillStyle = colour(entry.fill);
+    ctx.beginPath();
+    ctx.roundRect(x, y, filled, height, Math.min(height, filled) / 2);
+    ctx.fill();
+  }
+
+  /** A cached horizontal band over `width`: clear, `value` in the middle, clear. */
+  function band(value: string, width: number) {
+    if (value !== bandColour) {
+      bands.clear();
+      bandColour = value;
+    }
+    let gradient = bands.get(width);
+    if (!gradient) {
+      // A nearly clear stop of the same colour, so the edges fade without a
+      // grey fringe (canvas gradients do not premultiply). At 0 % color-mix
+      // gives transparent black, which is exactly that fringe.
+      const clear = `color-mix(in srgb, ${value} 1%, transparent)`;
+      gradient = ctx.createLinearGradient(0, 0, width, 0);
+      gradient.addColorStop(0, clear);
+      gradient.addColorStop(0.5, value);
+      gradient.addColorStop(1, clear);
+      bands.set(width, gradient);
+    }
+    return gradient;
+  }
+
+  /** The shimmer band, clipped to the current path (the pill's). */
+  function shimmer(s: ShimmerStyle, x: number, y: number, height: number) {
+    ctx.save();
+    ctx.clip();
+    ctx.translate(x, y);
+    ctx.globalAlpha = s.alpha;
+    ctx.fillStyle = band(colour(s.colour), s.width);
+    ctx.fillRect(0, 0, s.width, height);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  function star(s: StarStyle) {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? s.outer : s.inner;
+      const angle = (i * Math.PI) / 5;
+      const px = s.x + r * Math.sin(angle);
+      const py = s.y - r * Math.cos(angle);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = colour(s.colour);
+    ctx.fill();
   }
 
   function playhead(entry: PlayheadEntry) {
@@ -170,11 +260,20 @@ export function createPainter(
       );
       ctx.fill();
     }
+    if (entry.shimmer) {
+      shimmer(
+        entry.shimmer,
+        local ? entry.shimmer.x - entry.x : entry.shimmer.x,
+        local ? 0 : entry.y,
+        entry.height,
+      );
+    }
     ctx.strokeStyle = colour(entry.outline);
     ctx.lineWidth = entry.outlineWidth;
     ctx.setLineDash(entry.dash as number[]);
     ctx.stroke();
     if (local) ctx.translate(-entry.x, -entry.y);
+    if (entry.star) star(entry.star);
   }
 
   /**
@@ -239,8 +338,14 @@ export function createPainter(
       ctx.setTransform(scale, 0, 0, scale, x, y);
       for (const entry of list) {
         switch (entry.type) {
+          case "progress":
+            progress(entry);
+            break;
           case "lane":
             lane(entry);
+            break;
+          case "grid":
+            grid(entry);
             break;
           case "pill":
             pill(entry);
@@ -256,6 +361,9 @@ export function createPainter(
             break;
           case "laneEnd":
             ctx.restore();
+            break;
+          case "lyric":
+            // DOM text: the render loop writes it to the lyric bar.
             break;
         }
       }

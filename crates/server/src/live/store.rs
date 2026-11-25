@@ -310,36 +310,66 @@ pub async fn insert_request(
 }
 
 /// Stores the Queue of `party` as it is now: Requests no longer in it are
-/// deleted, the others get their place and requested Players, and the
-/// head's Line-up is replaced. One transaction.
+/// deleted, the others get their place, requested Players and adder, and
+/// the head's Line-up is replaced. One transaction.
 pub async fn save_queue(db: &Database, party: &PartySnapshot) -> anyhow::Result<()> {
-    let party_id = party.party_id.clone();
-    let queue = party.queue.clone();
-    let line_up = party.line_up.clone();
+    let party = party.clone();
     db.call(move |conn| {
         let tx = conn.transaction()?;
-        let kept: Vec<u32> = queue.iter().map(|r| r.request_id.0).collect();
-        tx.execute(
-            "DELETE FROM queue_requests WHERE party_id = ?1
-             AND id NOT IN (SELECT value FROM json_each(?2))",
+        save_queue_in(&tx, &party)?;
+        tx.commit()
+    })
+    .await
+}
+
+/// [`save_queue`] inside the caller's transaction; the caller commits.
+fn save_queue_in(conn: &Connection, party: &PartySnapshot) -> rusqlite::Result<()> {
+    let party_id = &party.party_id;
+    let kept: Vec<u32> = party.queue.iter().map(|r| r.request_id.0).collect();
+    conn.execute(
+        "DELETE FROM queue_requests WHERE party_id = ?1
+         AND id NOT IN (SELECT value FROM json_each(?2))",
+        (
+            &party_id.0,
+            serde_json::to_string(&kept).unwrap_or_default(),
+        ),
+    )?;
+    for (position, request) in party.queue.iter().enumerate() {
+        conn.execute(
+            "UPDATE queue_requests SET position = ?1, requested_players = ?2, adder = ?3
+             WHERE id = ?4 AND party_id = ?5",
             (
+                i64::try_from(position).unwrap_or(i64::MAX),
+                players_json(&request.requested_players),
+                request.adder.map(|m| m.0),
+                request.request_id.0,
                 &party_id.0,
-                serde_json::to_string(&kept).unwrap_or_default(),
             ),
         )?;
-        for (position, request) in queue.iter().enumerate() {
-            tx.execute(
-                "UPDATE queue_requests SET position = ?1, requested_players = ?2
-                 WHERE id = ?3 AND party_id = ?4",
-                (
-                    i64::try_from(position).unwrap_or(i64::MAX),
-                    players_json(&request.requested_players),
-                    request.request_id.0,
-                    &party_id.0,
-                ),
-            )?;
-        }
-        save_line_up_in(&tx, &party_id, line_up.as_ref())?;
+    }
+    save_line_up_in(conn, party_id, party.line_up.as_ref())
+}
+
+/// Stores that member `member_id` left `party` (already applied to it):
+/// its row goes, with its joined Phones and the Local mic it last sang on,
+/// and the Queue and Line-up are stored as they are now. One transaction.
+pub async fn save_leave(
+    db: &Database,
+    party: &PartySnapshot,
+    member_id: PartyMemberId,
+) -> anyhow::Result<()> {
+    let party = party.clone();
+    db.call(move |conn| {
+        let tx = conn.transaction()?;
+        tx.execute(
+            "DELETE FROM party_members WHERE party_id = ?1 AND member_id = ?2",
+            (&party.party_id.0, member_id.0),
+        )?;
+        tx.execute(
+            "DELETE FROM last_local_mics WHERE party_id = ?1 AND member_id = ?2",
+            (&party.party_id.0, member_id.0),
+        )?;
+        save_queue_in(&tx, &party)?;
         tx.commit()
     })
     .await

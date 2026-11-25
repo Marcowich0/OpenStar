@@ -501,6 +501,14 @@ impl LiveState {
                 let reported = self.report_mic_blocked(id, blocked).await;
                 self.refuse_on_error(id, reported);
             }
+            Ok(ClientMessage::LeaveParty) => {
+                let left = self.leave_party(id).await;
+                self.refuse_on_error(id, left);
+            }
+            Ok(ClientMessage::RemoveMember { member_id }) => {
+                let removed = self.remove_member(id, member_id).await;
+                self.refuse_on_error(id, removed);
+            }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
         }
     }
@@ -1093,6 +1101,80 @@ impl LiveState {
         };
         let actor = self.remote_actor(id)?;
         self.party_changed(ChangeEvent { actor, event });
+        Ok(())
+    }
+
+    /// Leave party: the member of connection `id`'s joined Phone leaves.
+    async fn leave_party(&mut self, id: ConnectionId) -> Result<(), UserMessage> {
+        let member_id = self
+            .joined_phone(id)
+            .ok_or(UserMessage::NotInParty)?
+            .member_id;
+        self.take_out(Actor::Member { member_id }, member_id).await
+    }
+
+    /// Removes member `member_id` from the people list, from connection
+    /// `id` (a Remote command). A Phone's own member leaves with Leave
+    /// party instead.
+    async fn remove_member(
+        &mut self,
+        id: ConnectionId,
+        member_id: PartyMemberId,
+    ) -> Result<(), UserMessage> {
+        let actor = self.remote_actor(id)?;
+        if actor == (Actor::Member { member_id }) {
+            return Err(UserMessage::UseLeaveParty);
+        }
+        self.take_out(actor, member_id).await
+    }
+
+    /// Member `member_id` leaves the Party (see [`party::leave`]): stored,
+    /// then every connection of its Phones is told it left the Party and
+    /// everyone hears who left and which colour is free.
+    async fn take_out(
+        &mut self,
+        actor: Actor,
+        member_id: PartyMemberId,
+    ) -> Result<(), UserMessage> {
+        let mut party = self.party()?;
+        let left = party::leave(&mut party, member_id)?;
+        let (name, avatar) = match &left.member.identity {
+            Identity::Guest { name, avatar, .. } => (name.clone(), *avatar),
+            &Identity::Profile { profile_id } => {
+                let profile = profiles::get(&self.db, profile_id)
+                    .await
+                    .map_err(|error| server_error(&error, "reading a Profile that leaves"))?
+                    .ok_or(UserMessage::ServerError)?;
+                (profile.name, profile.avatar)
+            }
+        };
+        store::save_leave(&self.db, &party, member_id)
+            .await
+            .map_err(|error| server_error(&error, "storing a member leaving"))?;
+        let stage = self.stage_mut();
+        stage.party = Some(party);
+        stage.last_local_mics.remove(&member_id);
+        for phone in &left.phones {
+            self.blocked_phones.remove(phone);
+        }
+        let out: Vec<ConnectionId> = self
+            .phones
+            .iter()
+            .filter(|(_, phone)| left.phones.contains(phone))
+            .map(|(&id, _)| id)
+            .collect();
+        for id in out {
+            self.hub.send_to(id, &ServerMessage::LeftParty);
+        }
+        self.party_changed(ChangeEvent {
+            actor,
+            event: PartyEvent::MemberLeft {
+                member_id,
+                name,
+                avatar,
+                colour: left.member.colour,
+            },
+        });
         Ok(())
     }
 

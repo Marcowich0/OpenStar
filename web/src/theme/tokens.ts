@@ -85,6 +85,8 @@ export const INTERFACE_TOKENS = [
   "--color-blob-blue",
   "--color-blob-pink",
   "--color-blob-green",
+  "--color-lane-ledge",
+  "--color-lane-shadow",
   "--radius-card-sm",
   "--radius-card",
   "--radius-card-lg",

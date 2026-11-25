@@ -27,7 +27,10 @@ export interface ButtonProps {
   children: ReactNode;
   fill?: ButtonFill;
   size?: keyof typeof SIZE_CLASSES;
-  /** The breathing Sing / Start button. A disabled button never breathes. */
+  /**
+   * The breathing Sing / Start button. A disabled button never breathes,
+   * and none does when the browser asks for reduced motion.
+   */
   breathing?: boolean;
   /** Greyed and shaking when pressed; `onPress` is not called. */
   isDisabled?: boolean;
@@ -68,7 +71,7 @@ export function Button({
     isDisabled
       ? "cursor-not-allowed opacity-45 grayscale-60"
       : "cursor-pointer",
-    breathing && !isDisabled ? "animate-breathe" : "",
+    breathing && !isDisabled ? "motion-safe:animate-breathe" : "",
     "data-shaking:animate-shake",
     className,
   ];
