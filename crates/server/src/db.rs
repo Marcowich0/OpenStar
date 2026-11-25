@@ -3,11 +3,12 @@
 //! The connection is private: the only way to use it is [`Database::call`],
 //! which runs the closure on a blocking thread, never on the async runtime.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::SystemTime;
 
 use anyhow::Context;
-use rusqlite::Connection;
+use rusqlite::{Connection, OpenFlags, OptionalExtension};
 
 /// File name of the database inside the appdata folder.
 pub const DATABASE_FILE: &str = "openstar.db";
@@ -357,16 +358,29 @@ pub struct Opened {
 
 impl Database {
     /// Opens (or creates) the database in `appdata_dir` in WAL mode and
-    /// applies every pending migration.
+    /// applies every pending migration, after writing a snapshot of the
+    /// database to `backups/` when there is one to apply. Refuses, without
+    /// writing to it, a database whose schema is newer than this build knows.
+    /// Records [`crate::BUILD_ID`] as the OpenStar that last wrote it.
     pub async fn open(appdata_dir: &Path) -> anyhow::Result<Opened> {
+        let appdata_dir = appdata_dir.to_owned();
         let path = appdata_dir.join(DATABASE_FILE);
         tokio::task::spawn_blocking(move || -> anyhow::Result<Opened> {
+            if path.exists() {
+                refuse_newer(&appdata_dir, &path)?;
+            }
             let mut conn = Connection::open(&path)
                 .with_context(|| format!("opening the database {}", path.display()))?;
             let mode: String = conn.query_row("PRAGMA journal_mode = WAL", [], |r| r.get(0))?;
             anyhow::ensure!(mode == "wal", "the database refused WAL mode (got {mode})");
             conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA synchronous = NORMAL;")?;
+            let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+            // A new database (version 0) has nothing worth keeping.
+            if version > 0 && version < SCHEMA_VERSION {
+                snapshot(&conn, &appdata_dir).context("writing the migration snapshot")?;
+            }
             let migrations_applied = migrate(&mut conn).context("migrating the database")?;
+            record_build(&conn, crate::BUILD_ID)?;
             Ok(Opened {
                 database: Self {
                     conn: Arc::new(Mutex::new(conn)),
@@ -397,6 +411,159 @@ impl Database {
         self.call(|conn| conn.query_row("PRAGMA user_version", [], |r| r.get(0)))
             .await
     }
+}
+
+/// Writes the database in `appdata_dir` as an older OpenStar would have left
+/// it: at schema `version`, last written by `build_id`. For tests of
+/// upgrades; the server never calls it.
+#[doc(hidden)]
+pub fn create_at_schema(appdata_dir: &Path, version: u32, build_id: &str) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        (1..=SCHEMA_VERSION).contains(&version),
+        "no schema version {version}"
+    );
+    let mut conn = Connection::open(appdata_dir.join(DATABASE_FILE))?;
+    conn.query_row("PRAGMA journal_mode = WAL", [], |_| Ok(()))?;
+    let tx = conn.transaction()?;
+    for sql in &MIGRATIONS[..version as usize] {
+        tx.execute_batch(sql)?;
+    }
+    tx.pragma_update(None, "user_version", version)?;
+    tx.commit()?;
+    record_build(&conn, build_id)?;
+    Ok(())
+}
+
+/// Folder in the appdata folder that holds the migration snapshots.
+pub const BACKUPS_DIR: &str = "backups";
+
+/// How many migration snapshots are kept.
+const SNAPSHOTS_KEPT: usize = 3;
+
+/// The build that last wrote the database, as a safe file name part.
+fn recorded_build(conn: &Connection) -> rusqlite::Result<Option<String>> {
+    conn.query_row(
+        "SELECT value FROM server_meta WHERE key = 'last_build'",
+        [],
+        |r| r.get(0),
+    )
+    .optional()
+}
+
+fn snapshot_name(build_id: Option<&str>) -> String {
+    let build = build_id
+        .filter(|b| {
+            !b.is_empty()
+                && b.chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
+        })
+        .unwrap_or("unknown");
+    format!("openstar-{build}.db")
+}
+
+/// Fails, without writing to the database, when its schema is newer than
+/// this build knows, naming the snapshot to restore.
+fn refuse_newer(appdata_dir: &Path, path: &Path) -> anyhow::Result<()> {
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .with_context(|| format!("opening the database {}", path.display()))?;
+    let version: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+    if version <= SCHEMA_VERSION {
+        return Ok(());
+    }
+    let written_by = recorded_build(&conn)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "an unknown build".to_owned());
+    drop(conn);
+    let backups = appdata_dir.join(BACKUPS_DIR);
+    let restore = match snapshot_to_restore(&backups) {
+        Some(snapshot) => format!(
+            "To roll back, stop OpenStar, copy the snapshot {} over {}, delete {}-wal and \
+             {}-shm if they exist, and start again; or run OpenStar {written_by} or newer.",
+            snapshot.display(),
+            path.display(),
+            path.display(),
+            path.display(),
+        ),
+        None => format!(
+            "There is no snapshot in {} to restore; run OpenStar {written_by} or newer.",
+            backups.display()
+        ),
+    };
+    anyhow::bail!(
+        "the database {} is at schema version {version}, newer than this OpenStar ({}, schema \
+         version {SCHEMA_VERSION}) knows: it was last written by OpenStar {written_by}. It was \
+         not changed. {restore}",
+        path.display(),
+        crate::BUILD_ID,
+    )
+}
+
+/// The migration snapshots in `backups`, newest first.
+fn snapshots(backups: &Path) -> Vec<(SystemTime, PathBuf)> {
+    let Ok(entries) = std::fs::read_dir(backups) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(SystemTime, PathBuf)> = entries
+        .filter_map(Result::ok)
+        .filter(|e| {
+            let name = e.file_name();
+            let name = name.to_string_lossy();
+            name.starts_with("openstar-") && name.ends_with(".db")
+        })
+        .filter_map(|e| {
+            let meta = e.metadata().ok()?;
+            meta.is_file()
+                .then(|| (meta.modified().unwrap_or(SystemTime::UNIX_EPOCH), e.path()))
+        })
+        .collect();
+    found.sort_by(|a, b| b.cmp(a));
+    found
+}
+
+/// The snapshot this build left before a newer one migrated, else the newest.
+fn snapshot_to_restore(backups: &Path) -> Option<PathBuf> {
+    let ours = backups.join(snapshot_name(Some(crate::BUILD_ID)));
+    if ours.is_file() {
+        return Some(ours);
+    }
+    snapshots(backups).into_iter().next().map(|(_, path)| path)
+}
+
+/// Writes a consistent copy of the database (the write-ahead log included)
+/// to `backups/openstar-<last build>.db`, then keeps only the newest
+/// [`SNAPSHOTS_KEPT`] snapshots.
+fn snapshot(conn: &Connection, appdata_dir: &Path) -> anyhow::Result<()> {
+    let backups = appdata_dir.join(BACKUPS_DIR);
+    std::fs::create_dir_all(&backups).with_context(|| format!("creating {}", backups.display()))?;
+    let target = backups.join(snapshot_name(recorded_build(conn)?.as_deref()));
+    // VACUUM INTO refuses an existing file: write beside it, then replace.
+    let partial = backups.join(".snapshot.partial");
+    match std::fs::remove_file(&partial) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),
+        _ => {}
+    }
+    let partial_str = partial
+        .to_str()
+        .context("the appdata path is not valid UTF-8")?;
+    conn.execute("VACUUM INTO ?1", [partial_str])?;
+    std::fs::rename(&partial, &target).with_context(|| format!("writing {}", target.display()))?;
+    tracing::info!(snapshot = %target.display(), "wrote the migration snapshot");
+    for (_, old) in snapshots(&backups).into_iter().skip(SNAPSHOTS_KEPT) {
+        std::fs::remove_file(&old).with_context(|| format!("deleting {}", old.display()))?;
+        tracing::info!(snapshot = %old.display(), "deleted an old migration snapshot");
+    }
+    Ok(())
+}
+
+/// Records `build_id` as the OpenStar that last wrote the database.
+fn record_build(conn: &Connection, build_id: &str) -> rusqlite::Result<()> {
+    conn.execute(
+        "INSERT INTO server_meta (key, value) VALUES ('last_build', ?1)
+         ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+        [build_id],
+    )?;
+    Ok(())
 }
 
 fn migrate(conn: &mut Connection) -> rusqlite::Result<usize> {
