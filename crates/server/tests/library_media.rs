@@ -11,7 +11,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use openstar_protocol::library::{
-    MediaFile, ScanReport, ScanStatus, SongArtwork, SongDetail, SongSummary, SongVideo,
+    MediaFile, ScanReport, ScanStatus, SongDetail, SongSummary, SongVideo,
 };
 use openstar_test_harness::{AppFolders, Media, TestApp};
 
@@ -80,8 +80,8 @@ fn url(id: u32, role: &str) -> String {
     format!("/api/songs/{id}/media/{role}")
 }
 
-fn image_at(id: u32, role: &str) -> SongArtwork {
-    SongArtwork::Image { url: url(id, role) }
+fn image_at(id: u32, role: &str) -> Option<String> {
+    Some(url(id, role))
 }
 
 /// A Library with one Song per case, its media made by the real ffmpeg.
@@ -226,20 +226,14 @@ async fn probes_media_and_finds_covers_and_backgrounds() {
     let length = named.length_seconds.expect("probed");
     assert!((1.9..2.2).contains(&length), "{length}");
 
-    // The tile: a palette colour, for cover and background alike, the same
-    // after a restart.
+    // No cover: the tile, in a palette colour that is the same in the list
+    // and after a restart. (Which colour is pinned in `artwork`'s tests.)
     let tile = detail(&app, "Tile").await;
-    let SongArtwork::Tile { colour } = tile.media.cover.clone() else {
-        panic!(
-            "a Song without a cover gets the tile: {:?}",
-            tile.media.cover
-        );
-    };
-    assert_eq!(tile.media.background, SongArtwork::Tile { colour });
-    assert_eq!(
-        summary(&app, "Tile").await.cover,
-        SongArtwork::Tile { colour }
-    );
+    assert_eq!(tile.media.cover, None);
+    assert_eq!(tile.media.background, None);
+    let colour = tile.media.tile_colour;
+    let listed = summary(&app, "Tile").await;
+    assert_eq!((listed.cover, listed.tile_colour), (None, colour));
     let missing = app
         .http()
         .get(app.url(&url(tile.id.0, "cover")))
@@ -249,10 +243,7 @@ async fn probes_media_and_finds_covers_and_backgrounds() {
     assert_eq!(missing.status(), 404);
 
     app.restart().await;
-    assert_eq!(
-        detail(&app, "Tile").await.media.cover,
-        SongArtwork::Tile { colour }
-    );
+    assert_eq!(detail(&app, "Tile").await.media.tile_colour, colour);
 
     // Nothing changed: nothing is probed again. A changed file is.
     let report = rescan(&app, 2).await;

@@ -10,8 +10,8 @@
 
 use super::identity;
 use openstar_protocol::library::{
-    LibraryProblem, MediaFile, ProblemReason, ProblemSeverity, SongArtwork, SongDetail, SongId,
-    SongIdentity, SongMedia, SongSummary, SongVideo,
+    LibraryProblem, MediaFile, ProblemReason, ProblemSeverity, SongDetail, SongId, SongIdentity,
+    SongMedia, SongSummary, SongVideo,
 };
 use openstar_protocol::song::ParsedSong;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -268,7 +268,8 @@ pub(crate) fn songs(conn: &Connection) -> rusqlite::Result<Vec<SongSummary>> {
             duet: row.get(4)?,
             length_seconds: row.get(6)?,
             has_video: row.get(7)?,
-            cover: artwork(id, MediaRole::Cover, row.get(8)?, &identity),
+            cover: image_url(id, MediaRole::Cover, row.get(8)?),
+            tile_colour: super::artwork::tile_colour(&identity),
             identity,
         })
     })?;
@@ -321,8 +322,9 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
                     native: audio_native.unwrap_or(false),
                 },
                 video,
-                cover: artwork(id, MediaRole::Cover, row.get(8)?, &identity),
-                background: artwork(id, MediaRole::Background, row.get(9)?, &identity),
+                cover: image_url(id, MediaRole::Cover, row.get(8)?),
+                background: image_url(id, MediaRole::Background, row.get(9)?),
+                tile_colour: super::artwork::tile_colour(&identity),
             };
             Ok(SongDetail {
                 id,
@@ -382,17 +384,9 @@ fn media_url(id: SongId, role: MediaRole) -> String {
     format!("/api/songs/{}/media/{}", id.0, role.name())
 }
 
-/// The image at `role`'s URL when the Song has one, else the generated tile.
-fn artwork(id: SongId, role: MediaRole, has_image: bool, identity: &SongIdentity) -> SongArtwork {
-    if has_image {
-        SongArtwork::Image {
-            url: media_url(id, role),
-        }
-    } else {
-        SongArtwork::Tile {
-            colour: super::artwork::tile_colour(identity),
-        }
-    }
+/// The URL of the image at `role`, when the Song has one.
+fn image_url(id: SongId, role: MediaRole, has_image: bool) -> Option<String> {
+    has_image.then(|| media_url(id, role))
 }
 
 /// The Library file a playable Song plays or shows as `role`, relative to

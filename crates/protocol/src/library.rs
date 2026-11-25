@@ -6,7 +6,7 @@
 //!   for an id that is not a playable Song.
 //! - `GET /api/songs/{id}/media/{role}`: the Song's `audio`, `video`,
 //!   `cover` or `background` file, with HTTP `Range` requests; the URLs in
-//!   [`SongMedia`] and [`SongArtwork`] point here.
+//!   [`SongMedia`] and [`SongSummary`] point here.
 //! - `GET /api/library/problems`: every [`LibraryProblem`].
 //! - `GET /api/library/scan`: the [`ScanStatus`].
 //! - `POST /api/library/rescan`: starts a Rescan unless one is running, and
@@ -68,24 +68,13 @@ pub struct SongSummary {
     pub length_seconds: Option<f64>,
     /// Whether the Song has a video to play.
     pub has_video: bool,
-    pub cover: SongArtwork,
-}
-
-/// A picture of a Song: an image file, or the generated tile in one of the
-/// palette colours for a Song without one.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(
-    tag = "kind",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-#[ts(export)]
-pub enum SongArtwork {
-    /// A JPEG, PNG or WebP file, served at `url`.
-    Image { url: String },
-    /// The generated tile. Its colour comes from the Song's identity, so it
-    /// stays the same across scans and restarts.
-    Tile { colour: PaletteKey },
+    /// The cover image's URL; `None` when the Library found no cover (show
+    /// the generated tile).
+    pub cover: Option<String>,
+    /// The generated tile's colour, from the Song's identity, so it stays the
+    /// same across scans and restarts. Shown without a cover, or when the
+    /// cover does not load.
+    pub tile_colour: PaletteKey,
 }
 
 /// One media file the Stage plays.
@@ -126,10 +115,13 @@ pub struct SongMedia {
     pub audio: MediaFile,
     /// `None` when the Song has no video.
     pub video: Option<SongVideo>,
-    /// The cover, else the generated tile.
-    pub cover: SongArtwork,
-    /// `#BACKGROUND`, else the cover, else the generated tile.
-    pub background: SongArtwork,
+    /// The cover image's URL; `None`: the generated tile.
+    pub cover: Option<String>,
+    /// The background image's URL (`#BACKGROUND`, else the cover); `None`:
+    /// the generated tile.
+    pub background: Option<String>,
+    /// The generated tile's colour (see [`SongSummary::tile_colour`]).
+    pub tile_colour: PaletteKey,
 }
 
 /// One playable Song in full: the parsed `.txt` with units in seconds and
