@@ -6,7 +6,7 @@ use std::path::Path;
 
 use futures_util::{SinkExt, StreamExt};
 use openstar::{Config, Server};
-use openstar_protocol::{ClientMessage, RejectCode, ServerInfo, ServerMessage};
+use openstar_protocol::{ClientMessage, ServerInfo, ServerMessage, UserMessage};
 use tokio_tungstenite::tungstenite::Message;
 
 struct Running {
@@ -49,6 +49,10 @@ async fn websocket_ping_gets_a_pong_with_the_same_nonce() {
     let (mut socket, _) = tokio_tungstenite::connect_async(format!("ws://{}/ws", running.addr))
         .await
         .unwrap();
+    // The first message on every connection is the live state.
+    let first = socket.next().await.unwrap().unwrap();
+    let first: ServerMessage = serde_json::from_str(first.to_text().unwrap()).unwrap();
+    assert!(matches!(first, ServerMessage::LiveState { .. }));
     let ping = serde_json::to_string(&ClientMessage::Ping { nonce: 42 }).unwrap();
     socket.send(Message::text(ping)).await.unwrap();
 
@@ -101,6 +105,7 @@ async fn a_message_that_is_not_a_client_message_is_rejected_with_a_code() {
     let (mut socket, _) = tokio_tungstenite::connect_async(format!("ws://{}/ws", running.addr))
         .await
         .unwrap();
+    let _live_state = socket.next().await.unwrap().unwrap();
     socket
         .send(Message::text(r#"{"type":"sing"}"#))
         .await
@@ -111,7 +116,7 @@ async fn a_message_that_is_not_a_client_message_is_rejected_with_a_code() {
     assert_eq!(
         answer,
         ServerMessage::Rejected {
-            code: RejectCode::InvalidMessage
+            reason: UserMessage::InvalidMessage
         }
     );
 }
