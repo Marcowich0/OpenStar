@@ -6,4 +6,8 @@ import type { PaletteKey } from "./PaletteKey";
  * Body of `PATCH /api/profiles/{id}`: the fields to change; a missing field
  * stays as it is. A new name follows the same rules as on create.
  */
-export type ProfileEdit = { name?: string, avatar?: Avatar, favouriteColour?: PaletteKey, };
+export type ProfileEdit = {
+  name?: string;
+  avatar?: Avatar;
+  favouriteColour?: PaletteKey;
+};

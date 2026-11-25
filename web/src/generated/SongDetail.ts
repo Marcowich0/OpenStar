@@ -10,17 +10,23 @@ import type { SongMedia } from "./SongMedia";
  * One playable Song in full: the parsed `.txt` with units in seconds and
  * real beats, and its warnings.
  */
-export type SongDetail = { id: SongId, 
-/**
- * The `.txt`, relative to the Library, with `/` between folders.
- */
-path: string, song: ParsedSong, 
-/**
- * The fingerprint of the Song's note content as loaded; the Stage
- * returns it with the round's outcome.
- */
-noteFingerprint: NoteFingerprint, identity: SongIdentity, lengthSeconds: number | null, media: SongMedia, 
-/**
- * The Song's warnings; it plays anyway.
- */
-warnings: Array<ProblemReason>, };
+export type SongDetail = {
+  id: SongId;
+  /**
+   * The `.txt`, relative to the Library, with `/` between folders.
+   */
+  path: string;
+  song: ParsedSong;
+  /**
+   * The fingerprint of the Song's note content as loaded; the Stage
+   * returns it with the round's outcome.
+   */
+  noteFingerprint: NoteFingerprint;
+  identity: SongIdentity;
+  lengthSeconds: number | null;
+  media: SongMedia;
+  /**
+   * The Song's warnings; it plays anyway.
+   */
+  warnings: Array<ProblemReason>;
+};

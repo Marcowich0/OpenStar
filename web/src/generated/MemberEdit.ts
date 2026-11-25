@@ -9,4 +9,8 @@ import type { PaletteKey } from "./PaletteKey";
  * becomes both its favourite and its Party colour. For a Guest all three
  * are its own. The colour must be free (or the member's own).
  */
-export type MemberEdit = { name?: string, avatar?: Avatar, colour?: PaletteKey, };
+export type MemberEdit = {
+  name?: string;
+  avatar?: Avatar;
+  colour?: PaletteKey;
+};

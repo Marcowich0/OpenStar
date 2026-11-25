@@ -5,13 +5,14 @@ import type { SongSummary } from "./SongSummary";
 /**
  * The answer to `GET /api/songs`.
  */
-export type SongList = { 
-/**
- * The matching playable Songs, each identity once, by artist, then
- * title.
- */
-songs: Array<SongSummary>, 
-/**
- * The values each filter can take in the Library, whatever the query.
- */
-filters: SongFilters, };
+export type SongList = {
+  /**
+   * The matching playable Songs, each identity once, by artist, then
+   * title.
+   */
+  songs: Array<SongSummary>;
+  /**
+   * The values each filter can take in the Library, whatever the query.
+   */
+  filters: SongFilters;
+};

@@ -5,13 +5,14 @@ import type { Note } from "./Note";
 /**
  * One row of lyrics in a Voice and the Notes sung on it. Never empty.
  */
-export type Line = { 
-/**
- * The Line's Notes in file order; never re-sorted.
- */
-notes: Array<Note>, 
-/**
- * The Line end marker that closed this Line; absent for a Voice's last
- * Line when `E` (or the end of the file) closes it.
- */
-end: LineEnd | null, };
+export type Line = {
+  /**
+   * The Line's Notes in file order; never re-sorted.
+   */
+  notes: Array<Note>;
+  /**
+   * The Line end marker that closed this Line; absent for a Voice's last
+   * Line when `E` (or the end of the file) closes it.
+   */
+  end: LineEnd | null;
+};

@@ -8,13 +8,15 @@ import type { HighScoreEntry } from "./HighScoreEntry";
  * Finished (not unfinished), has a total above 0 and is in `normal` mode; a
  * mic lost record counts.
  */
-export type HighScoreTable = { 
-/**
- * The Voice: an index into the parsed Song's `voices` (0 = `P1`).
- */
-voice: number, difficulty: Difficulty, 
-/**
- * The top 10 Profiles, best first, each once with its best counted
- * record; empty when no record counts.
- */
-entries: Array<HighScoreEntry>, };
+export type HighScoreTable = {
+  /**
+   * The Voice: an index into the parsed Song's `voices` (0 = `P1`).
+   */
+  voice: number;
+  difficulty: Difficulty;
+  /**
+   * The top 10 Profiles, best first, each once with its best counted
+   * record; empty when no record counts.
+   */
+  entries: Array<HighScoreEntry>;
+};

@@ -8,13 +8,16 @@ import type { SeatVoice } from "./SeatVoice";
  * One seat of a Line-up: who sings, on which Mic, which Voice and at
  * which Difficulty.
  */
-export type Seat = { memberId: PartyMemberId, 
-/**
- * A joined Phone or a switched-on Local mic; `null` when none was free
- * ("<name> has no mic").
- */
-mic: MicKey | null, 
-/**
- * Always `p1` for a one-Voice Song.
- */
-voice: SeatVoice, difficulty: Difficulty, };
+export type Seat = {
+  memberId: PartyMemberId;
+  /**
+   * A joined Phone or a switched-on Local mic; `null` when none was free
+   * ("<name> has no mic").
+   */
+  mic: MicKey | null;
+  /**
+   * Always `p1` for a one-Voice Song.
+   */
+  voice: SeatVoice;
+  difficulty: Difficulty;
+};

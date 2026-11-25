@@ -10,6 +10,7 @@ import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { Profile } from "../../generated/Profile";
 import type { RequestChange } from "../../generated/RequestChange";
 import { colourName } from "../../i18n/colourNames";
+import { difficultyName, voiceNumber } from "../../i18n/seatNames";
 import { tParts, type TextPart } from "../../i18n/t";
 import type { Toast } from "../../live/toasts";
 import type { PaletteKey } from "../../theme/tokens";
@@ -163,5 +164,58 @@ export function toastContent(
           tParts("toast.requestedPlayersChanged", { actor: name, song }),
         (song) => tParts("partyEvent.requestedPlayersChanged", { song }),
       );
+    case "lineUpChanged":
+      return actor
+        ? { actor, parts: tParts("toast.lineUpChanged", { actor: actor.name }) }
+        : { actor, parts: tParts("partyEvent.lineUpChanged") };
+    case "seatMoved": {
+      const { name } = event.params;
+      return actor
+        ? {
+            actor,
+            parts: tParts("toast.seatMoved", { actor: actor.name, name }),
+          }
+        : { actor, parts: tParts("partyEvent.seatMoved", { name }) };
+    }
+    case "seatVoice": {
+      const { name } = event.params;
+      const voice = voiceNumber(event.params.voice);
+      return actor
+        ? {
+            actor,
+            parts: tParts("toast.seatVoice", {
+              actor: actor.name,
+              name,
+              voice,
+            }),
+          }
+        : { actor, parts: tParts("partyEvent.seatVoice", { name, voice }) };
+    }
+    case "seatDifficulty": {
+      const { name } = event.params;
+      const difficulty = difficultyName(event.params.difficulty);
+      return actor
+        ? {
+            actor,
+            parts: tParts("toast.seatDifficulty", {
+              actor: actor.name,
+              name,
+              difficulty,
+            }),
+          }
+        : {
+            actor,
+            parts: tParts("partyEvent.seatDifficulty", { name, difficulty }),
+          };
+    }
+    case "nextDifficulty":
+      // Only a Player's own Phone sends it, so the actor is the member.
+      return {
+        actor: memberLook(party, profiles, event.params.memberId),
+        parts: tParts("partyEvent.nextDifficulty", {
+          name: event.params.name,
+          difficulty: difficultyName(event.params.difficulty),
+        }),
+      };
   }
 }

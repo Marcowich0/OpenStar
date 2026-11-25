@@ -8,36 +8,41 @@ import type { ScorePlayer } from "./ScorePlayer";
 /**
  * One seated Player's Score as the Stage reports it with a round's outcome.
  */
-export type PlayerScore = { player: ScorePlayer, 
-/**
- * The Voice sung: an index into the parsed Song's `voices` (0 = `P1`).
- */
-voice: number, difficulty: Difficulty, 
-/**
- * The total, 0 to 10000; always `notes + golden + line_bonus`.
- */
-total: number, 
-/**
- * The Notes part, adjusted as on the results screen.
- */
-notes: number, 
-/**
- * The golden part, adjusted as on the results screen.
- */
-golden: number, 
-/**
- * The Line bonus part, adjusted as on the results screen.
- */
-lineBonus: number, micKind: MicKind, 
-/**
- * The Score is not Finished.
- */
-unfinished: boolean, 
-/**
- * The Player's Mic was lost at some moment during the Song.
- */
-micLost: boolean, beatRange: BeatRange, 
-/**
- * The value of every Beat in `beat_range`, in order.
- */
-beatValues: Array<BeatValue>, };
+export type PlayerScore = {
+  player: ScorePlayer;
+  /**
+   * The Voice sung: an index into the parsed Song's `voices` (0 = `P1`).
+   */
+  voice: number;
+  difficulty: Difficulty;
+  /**
+   * The total, 0 to 10000; always `notes + golden + line_bonus`.
+   */
+  total: number;
+  /**
+   * The Notes part, adjusted as on the results screen.
+   */
+  notes: number;
+  /**
+   * The golden part, adjusted as on the results screen.
+   */
+  golden: number;
+  /**
+   * The Line bonus part, adjusted as on the results screen.
+   */
+  lineBonus: number;
+  micKind: MicKind;
+  /**
+   * The Score is not Finished.
+   */
+  unfinished: boolean;
+  /**
+   * The Player's Mic was lost at some moment during the Song.
+   */
+  micLost: boolean;
+  beatRange: BeatRange;
+  /**
+   * The value of every Beat in `beat_range`, in order.
+   */
+  beatValues: Array<BeatValue>;
+};

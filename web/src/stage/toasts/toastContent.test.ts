@@ -19,6 +19,7 @@ const party: PartySnapshot = {
       colour: "tangerine",
       favouriteTaken: false,
       onPhone: true,
+      singing: false,
     },
     {
       memberId: 2,
@@ -31,6 +32,7 @@ const party: PartySnapshot = {
       colour: "mint",
       favouriteTaken: false,
       onPhone: true,
+      singing: false,
     },
   ],
   phones: [],
@@ -97,6 +99,39 @@ describe("a Stage toast's content", () => {
       const event = { code, params: africa } as PartyEvent;
       expect(text(byMember(2, event))).toBe(expected);
     }
+  });
+
+  it("says who edited the Line-up, and how", () => {
+    expect(text(byMember(2, { code: "lineUpChanged" }))).toBe(
+      "Mia changed the Line-up",
+    );
+    expect(
+      text(
+        byMember(2, { code: "seatMoved", params: { memberId: 1, name: "Bo" } }),
+      ),
+    ).toBe("Mia moved Bo to another seat");
+    expect(
+      text(
+        byMember(2, {
+          code: "seatVoice",
+          params: { memberId: 1, name: "Bo", voice: "p2" },
+        }),
+      ),
+    ).toBe("Mia put Bo on Voice 2");
+    expect(
+      text(
+        byMember(1, {
+          code: "seatDifficulty",
+          params: { memberId: 1, name: "Bo", difficulty: "hard" },
+        }),
+      ),
+    ).toBe("Bo set Bo to Hard");
+    const next = byMember(2, {
+      code: "nextDifficulty",
+      params: { memberId: 2, name: "Mia", difficulty: "easy" },
+    });
+    expect(text(next)).toBe("Mia sings on Easy next");
+    expect(toastContent(next, party, profiles).actor?.name).toBe("Mia");
   });
 
   it("names a joining member with their colour's display name", () => {

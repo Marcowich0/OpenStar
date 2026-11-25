@@ -260,6 +260,7 @@ async fn a_profile_gets_its_favourite_colour_or_the_first_free_one_and_keeps_its
             colour: PaletteKey::Navy,
             favourite_taken: false,
             on_phone: true,
+            singing: false,
         }]
     );
     assert_eq!(

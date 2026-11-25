@@ -7,26 +7,29 @@ import type { ProfileId } from "./ProfileId";
 /**
  * A Profile: a regular's kept identity, editable by anyone.
  */
-export type Profile = { id: ProfileId, 
-/**
- * Trimmed, at most [`NAME_MAX_LENGTH`] characters, unique ignoring case
- * and surrounding spaces.
- */
-name: string, avatar: Avatar, 
-/**
- * Shown outside a Party, and given in a Party when it is free.
- */
-favouriteColour: PaletteKey, 
-/**
- * Preselected in the Profile's next seat; Medium until it sings.
- */
-lastDifficulty: Difficulty, 
-/**
- * When the Profile was created, in milliseconds since the Unix epoch.
- */
-createdAt: number, 
-/**
- * When a Score record was last stored for it, in milliseconds since the
- * Unix epoch; `null` until it sings.
- */
-lastSungAt: number | null, };
+export type Profile = {
+  id: ProfileId;
+  /**
+   * Trimmed, at most [`NAME_MAX_LENGTH`] characters, unique ignoring case
+   * and surrounding spaces.
+   */
+  name: string;
+  avatar: Avatar;
+  /**
+   * Shown outside a Party, and given in a Party when it is free.
+   */
+  favouriteColour: PaletteKey;
+  /**
+   * Preselected in the Profile's next seat; Medium until it sings.
+   */
+  lastDifficulty: Difficulty;
+  /**
+   * When the Profile was created, in milliseconds since the Unix epoch.
+   */
+  createdAt: number;
+  /**
+   * When a Score record was last stored for it, in milliseconds since the
+   * Unix epoch; `null` until it sings.
+   */
+  lastSungAt: number | null;
+};

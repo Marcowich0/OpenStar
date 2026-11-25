@@ -3,17 +3,18 @@
 /**
  * A header line OpenStar keeps without interpreting it.
  */
-export type UnknownHeader = { 
-/**
- * The 1-based line number in the file.
- */
-line: number, 
-/**
- * The text between `#` and the first colon, trimmed; the whole text
- * after `#` when the line has no colon.
- */
-key: string, 
-/**
- * The trimmed text after the first colon; absent without a colon.
- */
-value: string | null, };
+export type UnknownHeader = {
+  /**
+   * The 1-based line number in the file.
+   */
+  line: number;
+  /**
+   * The text between `#` and the first colon, trimmed; the whole text
+   * after `#` when the line has no colon.
+   */
+  key: string;
+  /**
+   * The trimmed text after the first colon; absent without a colon.
+   */
+  value: string | null;
+};

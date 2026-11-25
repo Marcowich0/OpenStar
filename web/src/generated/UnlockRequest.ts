@@ -3,8 +3,9 @@
 /**
  * Body of `POST /api/unlock`: one Admin PIN attempt.
  */
-export type UnlockRequest = { 
-/**
- * The digits typed on the PIN pad.
- */
-pin: string, };
+export type UnlockRequest = {
+  /**
+   * The digits typed on the PIN pad.
+   */
+  pin: string;
+};

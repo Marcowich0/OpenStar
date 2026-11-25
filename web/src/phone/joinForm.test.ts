@@ -23,6 +23,7 @@ function member(
     colour,
     favouriteTaken: false,
     onPhone: true,
+    singing: false,
   };
 }
 

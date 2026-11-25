@@ -7,14 +7,18 @@ import type { SongId } from "./SongId";
 /**
  * One entry of the Queue: a Library Song and the Players asked to sing it.
  */
-export type Request = { requestId: RequestId, kind: RequestKind, songId: SongId, 
-/**
- * The Party members asked to sing it, in order; at most [`SEATS`], no
- * member twice, possibly none.
- */
-requestedPlayers: Array<PartyMemberId>, 
-/**
- * The Party member who added it, or `null` when the Stage added it or
- * that member has left the Party.
- */
-adder: PartyMemberId | null, };
+export type Request = {
+  requestId: RequestId;
+  kind: RequestKind;
+  songId: SongId;
+  /**
+   * The Party members asked to sing it, in order; at most [`SEATS`], no
+   * member twice, possibly none.
+   */
+  requestedPlayers: Array<PartyMemberId>;
+  /**
+   * The Party member who added it, or `null` when the Stage added it or
+   * that member has left the Party.
+   */
+  adder: PartyMemberId | null;
+};

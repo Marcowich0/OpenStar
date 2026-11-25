@@ -26,6 +26,7 @@ fn party() -> PartySnapshot {
             colour: PaletteKey::Sky,
             favourite_taken: true,
             on_phone: true,
+            singing: false,
         }],
         phones: vec![JoinedPhone {
             phone_id: PhoneId("3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60".to_owned()),

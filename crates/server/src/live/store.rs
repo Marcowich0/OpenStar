@@ -99,6 +99,7 @@ fn load_members(conn: &Connection, party_id: &PartyId) -> rusqlite::Result<Vec<P
                 })?,
                 favourite_taken: row.get(3)?,
                 on_phone: false,
+                singing: false,
             })
         })?
         .collect()
@@ -426,23 +427,7 @@ pub fn save_join_in(
     phone: &JoinedPhone,
 ) -> rusqlite::Result<()> {
     if let Some(member) = new_member {
-        let row = MemberColumns::of(member);
-        conn.execute(
-            "INSERT INTO party_members (party_id, member_id, profile_id, colour, favourite_taken,
-                 guest_name, guest_avatar_kind, guest_avatar_ref, guest_difficulty)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            (
-                &party_id.0,
-                member.member_id.0,
-                row.profile_id,
-                member.colour.as_str(),
-                member.favourite_taken,
-                row.guest_name,
-                row.guest_avatar_kind,
-                row.guest_avatar_ref,
-                row.guest_difficulty,
-            ),
-        )?;
+        insert_member_in(conn, party_id, member)?;
     }
     // An upsert keeps the row (and its place in the join order) when a
     // joined Phone switches to another member.
@@ -452,6 +437,46 @@ pub fn save_join_in(
         (&party_id.0, &phone.phone_id.0, phone.member_id.0),
     )?;
     Ok(())
+}
+
+/// Stores a member that entered `party_id`.
+fn insert_member_in(
+    conn: &Connection,
+    party_id: &PartyId,
+    member: &PartyMember,
+) -> rusqlite::Result<()> {
+    let row = MemberColumns::of(member);
+    conn.execute(
+        "INSERT INTO party_members (party_id, member_id, profile_id, colour, favourite_taken,
+                 guest_name, guest_avatar_kind, guest_avatar_ref, guest_difficulty)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        (
+            &party_id.0,
+            member.member_id.0,
+            row.profile_id,
+            member.colour.as_str(),
+            member.favourite_taken,
+            row.guest_name,
+            row.guest_avatar_kind,
+            row.guest_avatar_ref,
+            row.guest_difficulty,
+        ),
+    )?;
+    Ok(())
+}
+
+/// Stores an edit of the waiting Line-up of `party` (already applied to
+/// it), with the member that entered the Party to take a seat, if any,
+/// inside the caller's transaction; the caller commits.
+pub fn save_seating_in(
+    conn: &Connection,
+    party: &PartySnapshot,
+    new_member: Option<&PartyMember>,
+) -> rusqlite::Result<()> {
+    if let Some(member) = new_member {
+        insert_member_in(conn, &party.party_id, member)?;
+    }
+    save_queue_in(conn, party)
 }
 
 /// Stores a member as it is now: its colour, and a Guest's name, avatar

@@ -10,21 +10,25 @@ import type { SongId } from "./SongId";
  * Body of `POST /api/rounds`: how a round ended and, unless it was
  * skipped, one Score per seated Player (any number of them).
  */
-export type RoundOutcome = { 
-/**
- * The Song as the Stage loaded it.
- */
-songId: SongId, 
-/**
- * The fingerprint the loaded Song carried.
- */
-noteFingerprint: NoteFingerprint, partyId: PartyId, mode: RoundMode, 
-/**
- * When the Song last started from its beginning (after the last
- * Restart), in milliseconds since the Unix epoch.
- */
-startedAtMs: number, ended: RoundEnd, 
-/**
- * Empty for a skipped round.
- */
-scores: Array<PlayerScore>, };
+export type RoundOutcome = {
+  /**
+   * The Song as the Stage loaded it.
+   */
+  songId: SongId;
+  /**
+   * The fingerprint the loaded Song carried.
+   */
+  noteFingerprint: NoteFingerprint;
+  partyId: PartyId;
+  mode: RoundMode;
+  /**
+   * When the Song last started from its beginning (after the last
+   * Restart), in milliseconds since the Unix epoch.
+   */
+  startedAtMs: number;
+  ended: RoundEnd;
+  /**
+   * Empty for a skipped round.
+   */
+  scores: Array<PlayerScore>;
+};

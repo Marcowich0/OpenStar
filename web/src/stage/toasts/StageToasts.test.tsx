@@ -35,6 +35,7 @@ const party: PartySnapshot = {
       colour: "tangerine",
       favouriteTaken: false,
       onPhone: true,
+      singing: false,
     },
   ],
   phones: [],

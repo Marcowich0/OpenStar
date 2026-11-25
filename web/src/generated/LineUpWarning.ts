@@ -6,4 +6,7 @@ import type { SeatVoice } from "./SeatVoice";
  * A Line-up warning: a code plus its parameters, like [`crate::UserMessage`].
  * The screens resolve the member's name.
  */
-export type LineUpWarning = { "code": "noMic", "params": { memberId: PartyMemberId, } } | { "code": "micBlocked", "params": { memberId: PartyMemberId, } } | { "code": "duetNeedsVoice", "params": { voice: SeatVoice, } };
+export type LineUpWarning =
+  | { code: "noMic"; params: { memberId: PartyMemberId } }
+  | { code: "micBlocked"; params: { memberId: PartyMemberId } }
+  | { code: "duetNeedsVoice"; params: { voice: SeatVoice } };

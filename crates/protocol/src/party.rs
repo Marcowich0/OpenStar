@@ -163,6 +163,9 @@ pub struct PartyMember {
     /// At least one joined Phone uses this identity ("On a Phone"); `false`
     /// means Local mic only.
     pub on_phone: bool,
+    /// Sits in the waiting Line-up ("singing"), so it cannot leave or be
+    /// removed. Computed by the server.
+    pub singing: bool,
 }
 
 /// A Phone that has joined the current Party, and the Party member it uses
@@ -283,6 +286,67 @@ pub enum LineUpWarning {
     /// "A duet needs someone on Voice <voice>": nobody sits on that Voice
     /// of a duet. Blocks Start.
     DuetNeedsVoice { voice: SeatVoice },
+}
+
+/// Who to put in a Line-up seat: a Party member, a Profile (which enters
+/// the Party when it is not a member yet), or a new Guest or new Profile
+/// that enters the Party and takes the seat in one step (the Stage's
+/// + Guest and + Profile). Tagged by `kind`, like [`JoinAs`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum SeatWho {
+    Member { member_id: PartyMemberId },
+    Profile { profile_id: ProfileId },
+    Guest(NewGuest),
+    NewProfile(NewProfile),
+}
+
+/// One edit of the waiting Line-up, tagged by `kind`. Seats are numbered
+/// from 0 in seat order.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum LineUpEdit {
+    /// Changes who sits in `seat`. A member who sits in another seat moves:
+    /// that seat is taken off. The seat keeps its Voice and a Local mic; a
+    /// Phone of someone else is replaced by the Mic prefill rule.
+    SetWho {
+        seat: u32,
+        who: SeatWho,
+    },
+    /// Add a singer: a new last seat, while fewer than [`SEATS`] are filled.
+    /// A member who already sits in a seat moves to it.
+    AddSeat {
+        who: SeatWho,
+    },
+    /// A joined Phone or a switched-on Local mic that no other seat uses.
+    SetMic {
+        seat: u32,
+        mic: MicKey,
+    },
+    /// Duets only.
+    SetVoice {
+        seat: u32,
+        voice: SeatVoice,
+    },
+    SetDifficulty {
+        seat: u32,
+        difficulty: Difficulty,
+    },
+    /// "Take <name> off this Song": the seat goes; the member stays in the
+    /// Party.
+    RemoveSeat {
+        seat: u32,
+    },
 }
 
 /// Names one Request. Never reused, also across Parties.
@@ -431,6 +495,35 @@ pub enum PartyEvent {
     MicOpened {
         member_id: PartyMemberId,
         name: String,
+    },
+    /// The waiting Line-up changed: who sits where, a Mic, or a seat was
+    /// added or taken off.
+    LineUpChanged,
+    /// A Party member who sat in one seat of the Line-up was chosen for
+    /// another: it moved there and its old seat was taken off.
+    SeatMoved {
+        member_id: PartyMemberId,
+        name: String,
+    },
+    /// A seat's Voice changed.
+    SeatVoice {
+        member_id: PartyMemberId,
+        name: String,
+        voice: SeatVoice,
+    },
+    /// A seat's Difficulty changed (on the Line-up, or from the Player's
+    /// own Phone while seated).
+    SeatDifficulty {
+        member_id: PartyMemberId,
+        name: String,
+        difficulty: Difficulty,
+    },
+    /// A Player who is not seated set the Difficulty their next seat starts
+    /// at, from their own Phone.
+    NextDifficulty {
+        member_id: PartyMemberId,
+        name: String,
+        difficulty: Difficulty,
     },
 }
 

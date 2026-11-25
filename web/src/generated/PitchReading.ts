@@ -3,22 +3,23 @@
 /**
  * One measurement of what a Mic heard at one moment.
  */
-export type PitchReading = { 
-/**
- * The centre of the detector window, on the Stage's clock (the Stage
- * page's `performance.now()`), in milliseconds.
- */
-captureMs: number, 
-/**
- * A fractional MIDI note number (A4 = 69), or `null` when the detector
- * found no frequency.
- */
-pitch: number | null, 
-/**
- * The detector's clarity, 0 to 1.
- */
-clarity: number, 
-/**
- * The RMS of the detector window in dBFS; digital silence is −120.
- */
-loudness: number, };
+export type PitchReading = {
+  /**
+   * The centre of the detector window, on the Stage's clock (the Stage
+   * page's `performance.now()`), in milliseconds.
+   */
+  captureMs: number;
+  /**
+   * A fractional MIDI note number (A4 = 69), or `null` when the detector
+   * found no frequency.
+   */
+  pitch: number | null;
+  /**
+   * The detector's clarity, 0 to 1.
+   */
+  clarity: number;
+  /**
+   * The RMS of the detector window in dBFS; digital silence is −120.
+   */
+  loudness: number;
+};

@@ -152,6 +152,11 @@ export const en = {
   "colour.grape": "Grape",
   "colour.tangerine": "Tangerine",
 
+  // Difficulty display names (`difficultyNames.ts`).
+  "difficulty.easy": "Easy",
+  "difficulty.medium": "Medium",
+  "difficulty.hard": "Hard",
+
   // Server texts: one key per code the server sends (`serverText.ts`).
   "userMessage.invalidMessage": "The server could not read that message",
   "userMessage.notTheStage": "Only the Stage can do that",
@@ -182,6 +187,11 @@ export const en = {
   "userMessage.playerTwice": "Someone is picked twice",
   "userMessage.memberSinging": "They are singing: take them off the Song first",
   "userMessage.useLeaveParty": "To leave the Party, use Leave party",
+  "userMessage.lineUpNotWaiting": "That Line-up is no longer waiting",
+  "userMessage.seatNotFound": "That seat is no longer in the Line-up",
+  "userMessage.micInUse": "That mic is already in another seat",
+  "userMessage.micNotAvailable": "That mic is not available",
+  "userMessage.notADuet": "Only a duet has a Voice 2",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
@@ -230,6 +240,11 @@ export const en = {
   "partyEvent.requestedPlayersChanged": "The singers of {song} changed",
   "partyEvent.micBlocked": "{name}'s mic is blocked",
   "partyEvent.micOpened": "{name}'s mic is on",
+  "partyEvent.lineUpChanged": "The Line-up changed",
+  "partyEvent.seatMoved": "{name} moved to another seat",
+  "partyEvent.seatVoice": "{name} is on Voice {voice, number}",
+  "partyEvent.seatDifficulty": "{name} sings on {difficulty}",
+  "partyEvent.nextDifficulty": "{name} sings on {difficulty} next",
   // Line-up warnings: the screen resolves the member's name.
   "lineUpWarning.noMic": "{name} has no mic",
   "lineUpWarning.micBlocked": "{name}'s mic is blocked",
@@ -245,6 +260,10 @@ export const en = {
   "toast.requestedPlayersChanged": "{actor} changed who sings {song}",
   // A colour parameter is always a palette display name (`colourName`).
   "toast.memberLeft": "{actor} left the Party. {colour} is free",
+  "toast.lineUpChanged": "{actor} changed the Line-up",
+  "toast.seatMoved": "{actor} moved {name} to another seat",
+  "toast.seatVoice": "{actor} put {name} on Voice {voice, number}",
+  "toast.seatDifficulty": "{actor} set {name} to {difficulty}",
   // Toasts whose sender is not built yet: the server ticket that adds the
   // `PartyEvent` code maps it to one of these in `stage/toasts/toastContent.ts`.
   "toast.backOnMic": "{actor} is back on the mic",
@@ -254,9 +273,6 @@ export const en = {
     "{song} left the Library and was taken off the Queue",
   "toast.requestDroppedProfileDeleted":
     "{song} was taken off the Queue: {name}'s Profile was deleted",
-  "toast.lineUpChanged": "{actor} changed the Line-up",
-  "toast.seatVoice": "{actor} put {name} on Voice {voice, number}",
-  "toast.seatDifficulty": "{actor} set {name} to {difficulty}",
   "toast.paused": "{actor} paused the Song",
   "toast.resumed": "{actor} resumed the Song",
   "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",

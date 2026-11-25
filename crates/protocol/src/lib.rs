@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 pub use party::{
-    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, LineUp, LineUpWarning, MemberEdit,
-    NewGuest, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, QueueMove,
-    Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice,
+    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, LineUp, LineUpEdit, LineUpWarning,
+    MemberEdit, NewGuest, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
+    QueueMove, Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice, SeatWho,
 };
 pub use pitch::{MicId, PitchReading};
 pub use scoring::BeatValue;
@@ -183,6 +183,20 @@ pub enum ClientMessage {
     /// ([`UserMessage::MemberSinging`]), and for a Phone's own member
     /// ([`UserMessage::UseLeaveParty`]).
     RemoveMember { member_id: PartyMemberId },
+    /// Edits the waiting Line-up of Request `request_id` (see
+    /// [`LineUpEdit`]). A Remote command; refused with
+    /// [`UserMessage::LineUpNotWaiting`] when that Request's Line-up is not
+    /// the one waiting.
+    EditLineUp {
+        request_id: RequestId,
+        edit: LineUpEdit,
+    },
+    /// "My Difficulty for the next Song" from a joined Phone: sets the
+    /// Difficulty of its member's seat when seated, otherwise the Difficulty
+    /// its next seat starts at (a Guest's Party Difficulty, a Profile's last
+    /// Difficulty). Refused with [`UserMessage::NotInParty`] for anyone but
+    /// a joined Phone.
+    SetMyDifficulty { difficulty: profile::Difficulty },
 }
 
 /// A message the server sends over a WebSocket.
@@ -341,6 +355,17 @@ pub enum UserMessage {
     /// A Phone cannot remove its own Party member from the people list; it
     /// uses Leave party instead.
     UseLeaveParty,
+    /// No Line-up waits for this Request: it is not the head, or its Song
+    /// has started.
+    LineUpNotWaiting,
+    /// The Line-up has no seat with this number (it was taken off).
+    SeatNotFound,
+    /// Another seat already uses this Mic; each Mic serves one seat.
+    MicInUse,
+    /// This Mic is neither a joined Phone nor a switched-on Local mic.
+    MicNotAvailable,
+    /// Only a duet's seats choose a Voice.
+    NotADuet,
 }
 
 #[cfg(test)]

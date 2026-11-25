@@ -5,8 +5,10 @@ import type { LibraryReadOnlyCode } from "./LibraryReadOnlyCode";
  * Why the Library is read-only: a code plus its parameters. The frontend
  * turns it into the notice text.
  */
-export type LibraryReadOnly = { code: LibraryReadOnlyCode, 
-/**
- * The songs folder, as the server sees it (`/songs` in the image).
- */
-songsDir: string, };
+export type LibraryReadOnly = {
+  code: LibraryReadOnlyCode;
+  /**
+   * The songs folder, as the server sees it (`/songs` in the image).
+   */
+  songsDir: string;
+};

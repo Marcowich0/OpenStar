@@ -146,6 +146,11 @@ const REFUSAL_CODES = {
   playerTwice: true,
   memberSinging: true,
   useLeaveParty: true,
+  lineUpNotWaiting: true,
+  seatNotFound: true,
+  micInUse: true,
+  micNotAvailable: true,
+  notADuet: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

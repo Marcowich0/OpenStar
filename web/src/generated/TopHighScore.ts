@@ -5,4 +5,4 @@ import type { HighScoreHolder } from "./HighScoreHolder";
  * A Song's top High score at any Difficulty and either Voice, for its row
  * in the Song list. Of equal totals, the one set first.
  */
-export type TopHighScore = { holder: HighScoreHolder, total: number, };
+export type TopHighScore = { holder: HighScoreHolder; total: number };

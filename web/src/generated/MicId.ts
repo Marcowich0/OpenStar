@@ -4,4 +4,4 @@
  * Names the Mic a relayed message came from. The Stage uses it to tell
  * Mics apart and to address a [`crate::ClientMessage::ClockPong`].
  */
-export type MicId = { "kind": "phone", connection: number, };
+export type MicId = { kind: "phone"; connection: number };

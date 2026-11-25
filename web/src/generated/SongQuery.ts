@@ -6,45 +6,46 @@
  * is optional; a Song must match all that are given. Text compares
  * case-insensitively (Unicode case folding).
  */
-export type SongQuery = { 
-/**
- * Words that must each appear in the Song's artist or title.
- */
-search?: string, 
-/**
- * One of the Song's `#LANGUAGE` values (the header split on commas).
- */
-language?: string, 
-/**
- * One of the Song's `#GENRE` values.
- */
-genre?: string, 
-/**
- * The Song's `#YEAR`.
- */
-year?: number, 
-/**
- * One of the Song's `#EDITION` values.
- */
-edition?: string, 
-/**
- * One of the Song's `#CREATOR` values.
- */
-creator?: string, 
-/**
- * Only duets (`true`) or only solo Songs (`false`).
- */
-duet?: boolean, 
-/**
- * Only Songs with a video (`true`) or without (`false`).
- */
-hasVideo?: boolean, 
-/**
- * The shortest length, inclusive. A Song of unknown length never
- * matches a length filter.
- */
-minLengthSeconds?: number, 
-/**
- * The longest length, inclusive.
- */
-maxLengthSeconds?: number, };
+export type SongQuery = {
+  /**
+   * Words that must each appear in the Song's artist or title.
+   */
+  search?: string;
+  /**
+   * One of the Song's `#LANGUAGE` values (the header split on commas).
+   */
+  language?: string;
+  /**
+   * One of the Song's `#GENRE` values.
+   */
+  genre?: string;
+  /**
+   * The Song's `#YEAR`.
+   */
+  year?: number;
+  /**
+   * One of the Song's `#EDITION` values.
+   */
+  edition?: string;
+  /**
+   * One of the Song's `#CREATOR` values.
+   */
+  creator?: string;
+  /**
+   * Only duets (`true`) or only solo Songs (`false`).
+   */
+  duet?: boolean;
+  /**
+   * Only Songs with a video (`true`) or without (`false`).
+   */
+  hasVideo?: boolean;
+  /**
+   * The shortest length, inclusive. A Song of unknown length never
+   * matches a length filter.
+   */
+  minLengthSeconds?: number;
+  /**
+   * The longest length, inclusive.
+   */
+  maxLengthSeconds?: number;
+};
