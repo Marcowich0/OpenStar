@@ -21,6 +21,28 @@ describe("syntheticSing", () => {
     },
   );
 
+  it.each(SING_TEST_CASES)(
+    "case %s has a confetti burst in flight over the first lane header, in its colour",
+    (name) => {
+      const state = syntheticSing(name);
+      const rect = laneLayout(state.lanes.length)[0];
+      const particles = frame(state, 6, laneLayout(state.lanes.length)).filter(
+        (e) => e.type === "particle",
+      );
+      expect(particles).toHaveLength(30);
+      expect(particles.some((p) => p.colour === state.lanes[0]?.colour)).toBe(
+        true,
+      );
+      // Thrown up from the header's centre, so all are above it by now.
+      const centreY = (rect?.y ?? 0) + (rect?.height ?? 0) / 2;
+      for (const p of particles) expect(p.y).toBeLessThan(centreY);
+      // The same burst every time: the screenshots compare exactly.
+      expect(
+        frame(syntheticSing(name), 6, laneLayout(state.lanes.length)),
+      ).toEqual(frame(state, 6, laneLayout(state.lanes.length)));
+    },
+  );
+
   it("covers every case the test entry accepts", () => {
     for (const name of SING_TEST_CASES)
       expect(syntheticSing(name).lanes.length).toBeGreaterThan(0);

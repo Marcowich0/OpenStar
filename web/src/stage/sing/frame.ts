@@ -28,6 +28,9 @@ import {
   type PitchLineEntry,
 } from "./pitchTrace";
 
+import type { ParticleEntry, ParticlePool } from "./effects";
+
+export type { ParticleEntry } from "./effects";
 export type {
   HeadBallEntry,
   LaneTrace,
@@ -82,6 +85,11 @@ export interface SingState {
    * progress bar; without one, the end of the last Note.
    */
   lengthSeconds?: number | null;
+  /**
+   * The effects' particle pool (#134). Game code bursts into it; the render
+   * loop advances it by each frame's real delta, and `frame()` only reads it.
+   */
+  effects?: ParticlePool;
 }
 
 /** A parsed Song's Voices, flattened once for drawing (not per frame). */
@@ -273,7 +281,8 @@ export type DrawEntry =
   | PitchLineEntry
   | HeadBallEntry
   | LaneEndEntry
-  | LyricEntry;
+  | LyricEntry
+  | ParticleEntry;
 export type DrawList = DrawEntry[];
 
 // Shared constants, so a frame allocates nothing beyond its own entries.
@@ -567,5 +576,7 @@ export function frame(
     list.push({ type: "laneEnd", lane });
   }
   lyricFill(list, state, now);
+  // Last: the painter draws these on the effects canvas, above the DOM layers.
+  state.effects?.draw(list);
   return list;
 }

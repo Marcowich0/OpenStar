@@ -11,6 +11,8 @@ import { syntheticSing } from "../stage/sing/syntheticSing";
 import type { SingTestSearch } from "./search";
 
 const NO_OFFSET = () => 0;
+/** A frozen frame time: the synthetic confetti stays where it was caught. */
+const FROZEN = () => 0;
 
 /** No video and no images: the generated tile, so the page needs no network. */
 const TILE_ONLY: SongMedia = {
@@ -30,6 +32,7 @@ export function SingTestScreen({ search }: { search: SingTestSearch }) {
       state={state}
       clock={clock}
       avOffset={NO_OFFSET}
+      frameTime={FROZEN}
       backdrop={<SingBackdrop media={TILE_ONLY} />}
     />
   );

@@ -5,8 +5,8 @@
 // DOM layers sit in the same 1920 × 1080 reference frame, scaled the same way.
 //
 // #211 adds the Bubble Pop panels and lane headers, #133 the lyric text and
-// its fill; the lyric bar's look and the effects come from #55's other sing
-// screen tickets.
+// its fill, #134 the effects canvas and its particles; the lyric bar's look
+// and which events burst come from #55's other sing screen tickets.
 //
 // Nothing here re-renders per frame: the render loop paints the canvas and
 // writes the lyric fill straight to the DOM. The lane panels re-render only
@@ -33,6 +33,11 @@ export interface SingScreenProps {
   clock: Pick<SongClock, "songTime">;
   /** The Stage's A/V offset in seconds (#53); drawing runs this much behind. */
   avOffset: () => number;
+  /**
+   * The real time in ms that moves the effects; the animation frame's
+   * timestamp by default. A constant freezes them (the screenshot page).
+   */
+  frameTime?: () => number;
   /** The bottom layer: the music video, or the backdrop without one. */
   backdrop?: ReactNode;
   /** The top layer: toasts and overlays. */
@@ -69,6 +74,7 @@ export function SingScreen({
   state,
   clock,
   avOffset,
+  frameTime,
   backdrop,
   children,
 }: SingScreenProps) {
@@ -79,9 +85,9 @@ export function SingScreen({
   const [lyrics] = useState(createLyricDriver);
 
   // The loop reads the latest props each frame without restarting.
-  const latest = useRef({ state, clock, avOffset, viewport });
+  const latest = useRef({ state, clock, avOffset, frameTime, viewport });
   useEffect(() => {
-    latest.current = { state, clock, avOffset, viewport };
+    latest.current = { state, clock, avOffset, frameTime, viewport };
   });
 
   useEffect(() => {
@@ -103,6 +109,10 @@ export function SingScreen({
     const ctx = lanesRef.current?.getContext("2d");
     if (!ctx) return;
     const painter = createPainter(ctx, (ref) => readToken(ref));
+    const effectsCtx = effectsRef.current?.getContext("2d");
+    const effects =
+      effectsCtx &&
+      createPainter(effectsCtx, (ref) => readToken(ref), "effects");
     let transform = referenceTransform(1, 1, 1);
     let transformFor: Viewport | null = null;
     let painted = false;
@@ -110,6 +120,7 @@ export function SingScreen({
       clock: () => latest.current.clock,
       avOffset: () => latest.current.avOffset(),
       state: () => latest.current.state,
+      frameTime: (timestamp) => latest.current.frameTime?.() ?? timestamp,
       paint: (list: DrawList) => {
         const view = latest.current.viewport;
         if (view !== transformFor) {
@@ -117,6 +128,7 @@ export function SingScreen({
           transformFor = view;
         }
         painter.paint(list, transform);
+        effects?.paint(list, transform);
         lyrics.apply(list);
         if (!painted && rootRef.current) {
           // For screenshots (#58): the first frame is on the canvas.

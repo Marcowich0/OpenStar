@@ -13,6 +13,7 @@ import type {
   HeadBallEntry,
   LaneEntry,
   LineStyle,
+  ParticleEntry,
   PillEntry,
   PitchLineEntry,
   PlayheadEntry,
@@ -62,12 +63,23 @@ export interface Painter {
 const NO_DASH: readonly number[] = [];
 
 /**
+ * Which canvas a painter draws: the lanes canvas (everything but particles),
+ * or the effects canvas above the DOM lane headers and lyric bar (particles
+ * only). Both read the same draw list.
+ */
+export type PaintLayer = "lanes" | "effects";
+
+/** A particle star's notch radius as a share of its point radius. */
+const PARTICLE_STAR_INNER = 0.45;
+
+/**
  * A painter for `ctx`. `readColour` resolves a palette key or token name to a
  * colour (`readToken` in the app); it is called at most once per name per frame.
  */
 export function createPainter(
   ctx: CanvasRenderingContext2D,
   readColour: (ref: TokenRef) => string,
+  layer: PaintLayer = "lanes",
 ): Painter {
   // Reused across frames, so painting allocates nothing per frame beyond what
   // the canvas API itself does.
@@ -329,6 +341,34 @@ export function createPainter(
     ctx.stroke();
   }
 
+  function particle(entry: ParticleEntry) {
+    ctx.globalAlpha = entry.alpha;
+    ctx.fillStyle = colour(entry.colour);
+    ctx.beginPath();
+    const outer = entry.size / 2;
+    if (entry.shape === "dot") {
+      ctx.arc(entry.x, entry.y, outer, 0, 2 * Math.PI);
+    } else {
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 === 0 ? outer : outer * PARTICLE_STAR_INNER;
+        const angle = entry.rotation + (i * Math.PI) / 5;
+        const px = entry.x + r * Math.sin(angle);
+        const py = entry.y - r * Math.cos(angle);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  function paintEffects(list: DrawList) {
+    for (const entry of list) {
+      if (entry.type === "particle") particle(entry);
+    }
+  }
+
   return {
     paint(list, transform) {
       colours.clear();
@@ -336,6 +376,10 @@ export function createPainter(
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
       const { scale, x, y } = transform;
       ctx.setTransform(scale, 0, 0, scale, x, y);
+      if (layer === "effects") {
+        paintEffects(list);
+        return;
+      }
       for (const entry of list) {
         switch (entry.type) {
           case "progress":
@@ -364,6 +408,9 @@ export function createPainter(
             break;
           case "lyric":
             // DOM text: the render loop writes it to the lyric bar.
+            break;
+          case "particle":
+            // The effects canvas's painter draws these.
             break;
         }
       }
