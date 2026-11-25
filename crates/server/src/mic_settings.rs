@@ -172,19 +172,30 @@ pub async fn move_local_mic(db: &Database, from: &str, to: &str) -> anyhow::Resu
     let (from, to) = (from.to_owned(), to.to_owned());
     db.call(move |conn| {
         let tx = conn.transaction()?;
-        if from != to {
-            tx.execute(
-                "DELETE FROM mic_settings WHERE mic_kind = ?1 AND mic_id = ?2",
-                params![LOCAL_MIC, to],
-            )?;
-            tx.execute(
-                "UPDATE mic_settings SET mic_id = ?3 WHERE mic_kind = ?1 AND mic_id = ?2",
-                params![LOCAL_MIC, from, to],
-            )?;
-        }
+        move_local_mic_in(&tx, &from, &to)?;
         tx.commit()
     })
     .await
+}
+
+/// [`move_local_mic`] inside a transaction the caller commits, so Find it
+/// moves a Local mic's row and its Mic settings together.
+pub(crate) fn move_local_mic_in(
+    tx: &rusqlite::Transaction<'_>,
+    from: &str,
+    to: &str,
+) -> rusqlite::Result<()> {
+    if from != to {
+        tx.execute(
+            "DELETE FROM mic_settings WHERE mic_kind = ?1 AND mic_id = ?2",
+            params![LOCAL_MIC, to],
+        )?;
+        tx.execute(
+            "UPDATE mic_settings SET mic_id = ?3 WHERE mic_kind = ?1 AND mic_id = ?2",
+            params![LOCAL_MIC, from, to],
+        )?;
+    }
+    Ok(())
 }
 
 /// Forget: deletes every value stored against Local mic id `id`, at every

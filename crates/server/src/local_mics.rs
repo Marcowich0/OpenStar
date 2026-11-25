@@ -1,8 +1,8 @@
 //! Local mics: each one's name and whether it is switched on, kept across
 //! Parties and restarts. The Stage finds its channels and makes their ids
 //! (`web/src/mics/localMics.ts`); the server keeps what it is sent. Writes
-//! come over the active Stage's WebSocket ([`switch`], called by the
-//! live-state task); reads are `GET /api/local-mics`.
+//! come over the active Stage's WebSocket ([`switch`], [`rename`] and
+//! [`relink`], called by the live-state task); reads are `GET /api/local-mics`.
 
 use axum::Json;
 use axum::extract::State;
@@ -10,7 +10,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use openstar_protocol::UserMessage;
 use openstar_protocol::mics::{LocalMic, LocalMicSource};
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 
 use crate::AppState;
 use crate::db::Database;
@@ -35,6 +35,67 @@ pub async fn switch(
             params![local_mic_id, source, switched_on],
         )?;
         Ok(())
+    })
+    .await
+}
+
+/// Names a Local mic: `name` without surrounding spaces, so a blank name is
+/// kept empty (shown with its default). A new one is kept switched off; a
+/// known one keeps whether it is on, and its source becomes `source`.
+pub async fn rename(
+    db: Database,
+    local_mic_id: String,
+    source: LocalMicSource,
+    name: String,
+) -> anyhow::Result<()> {
+    let source = serde_json::to_string(&source)?;
+    let name = name.trim().to_owned();
+    db.call(move |conn| {
+        conn.execute(
+            "INSERT INTO local_mics (id, source, name, switched_on)
+             VALUES (?1, ?2, ?3, 0)
+             ON CONFLICT (id) DO UPDATE SET
+                 source = excluded.source,
+                 name   = excluded.name",
+            params![local_mic_id, source, name],
+        )?;
+        Ok(())
+    })
+    .await
+}
+
+/// Find it: channel `to` (at `source`), not yet a Local mic, takes over Local
+/// mic `from`: its name, whether it is switched on and every Mic setting
+/// stored against it, in one transaction. `from` is gone afterwards.
+/// Refused with [`UserMessage::LocalMicNotFound`] when `from` is not kept,
+/// [`UserMessage::ChannelAlreadyLocalMic`] when `to` is.
+pub async fn relink(
+    db: Database,
+    from: String,
+    to: String,
+    source: LocalMicSource,
+) -> anyhow::Result<Result<(), UserMessage>> {
+    let source = serde_json::to_string(&source)?;
+    db.call(move |conn| {
+        let tx = conn.transaction()?;
+        let known = |id: &str| {
+            tx.query_row("SELECT 1 FROM local_mics WHERE id = ?1", [id], |_| Ok(()))
+                .optional()
+                .map(|row| row.is_some())
+        };
+        if !known(&from)? {
+            return Ok(Err(UserMessage::LocalMicNotFound));
+        }
+        if from != to && known(&to)? {
+            return Ok(Err(UserMessage::ChannelAlreadyLocalMic));
+        }
+        tx.execute(
+            "UPDATE local_mics SET id = ?2, source = ?3 WHERE id = ?1",
+            params![from, to, source],
+        )?;
+        crate::mic_settings::move_local_mic_in(&tx, &from, &to)?;
+        tx.commit()?;
+        Ok(Ok(()))
     })
     .await
 }

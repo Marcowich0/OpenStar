@@ -155,6 +155,8 @@ const REFUSAL_CODES = {
   seatNotFound: true,
   micInUse: true,
   micNotAvailable: true,
+  localMicNotFound: true,
+  channelAlreadyLocalMic: true,
   notADuet: true,
   lineUpNotReady: true,
   noStage: true,

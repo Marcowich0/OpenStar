@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "../api/queryClient";
 import { localMicsQuery, micBridgesQuery } from "../api/queries";
 import type { ClientMessage } from "../generated/ClientMessage";
+import type { LocalMic } from "../generated/LocalMic";
 import type { LiveClientOptions } from "../live/liveClient";
 import { createLiveStore } from "../live/liveStore";
 import type { CaptureSnapshot, LocalMicCapture } from "./localMicCapture";
@@ -22,12 +23,11 @@ const [, dongleRight] = browserChannels("stage", DONGLE, 2) as [
   BrowserChannel,
 ];
 
-function fakeCapture() {
-  const snapshot: CaptureSnapshot = {
-    status: "ready",
-    devices: [DONGLE, WEBCAM],
-    open: new Map(),
-  };
+function fakeCapture(
+  devices = [DONGLE, WEBCAM],
+  open: ReadonlyMap<string, number> = new Map(),
+) {
+  const snapshot: CaptureSnapshot = { status: "ready", devices, open };
   const capture: LocalMicCapture = {
     subscribe: () => () => {},
     getSnapshot: () => snapshot,
@@ -39,7 +39,17 @@ function fakeCapture() {
   return capture;
 }
 
-function setup() {
+const keptRight: LocalMic = {
+  localMicId: dongleRight.localMicId,
+  source: dongleRight.source,
+  name: "",
+  switchedOn: true,
+};
+
+function setup({
+  kept = [keptRight],
+  capture = fakeCapture(),
+}: { kept?: LocalMic[]; capture?: LocalMicCapture } = {}) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
   const sent: ClientMessage[] = [];
@@ -54,19 +64,11 @@ function setup() {
     };
   });
   const queryClient = createQueryClient();
-  queryClient.setQueryData(localMicsQuery.queryKey, [
-    {
-      localMicId: dongleRight.localMicId,
-      source: dongleRight.source,
-      name: "",
-      switchedOn: true,
-    },
-  ]);
+  queryClient.setQueryData(localMicsQuery.queryKey, kept);
   queryClient.setQueryData(micBridgesQuery.queryKey, {
     bridges: [],
     requests: [{ requestId: 7, hostName: "hermes", code: "4821" }],
   });
-  const capture = fakeCapture();
   const makeCapture = vi.fn(() => capture);
   let api: LocalMicsApi | null = null;
   function Probe() {
@@ -223,5 +225,81 @@ describe("the Stage browser's Local mics", () => {
       levels: [{ localMicId: id, levelDbfs: -12 }],
     });
     expect(api().bridgeLevelDbfs(id)).toBe(-12);
+  });
+
+  it("name a channel at once, with no Admin PIN, and show it before the server answers", async () => {
+    const { becomeStage, api, sent } = setup();
+    becomeStage(true);
+    const [webcam] = browserChannels("stage", WEBCAM, 1) as [BrowserChannel];
+    await act(async () => {
+      api().rename(webcam, "Red mic");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(sent).toContainEqual({
+      type: "setLocalMicName",
+      localMicId: webcam.localMicId,
+      source: webcam.source,
+      name: "Red mic",
+    });
+    expect(api().kept.find((m) => m.localMicId === webcam.localMicId)).toEqual({
+      localMicId: webcam.localMicId,
+      source: webcam.source,
+      name: "Red mic",
+      switchedOn: false,
+    });
+  });
+
+  it("re-link a Local mic with Find it, keeping its name and switch", async () => {
+    const { becomeStage, api, sent } = setup({
+      kept: [{ ...keptRight, name: "Red mic" }],
+    });
+    becomeStage(true);
+    const [webcam] = browserChannels("stage", WEBCAM, 1) as [BrowserChannel];
+    await act(async () => {
+      api().relink(keptRight.localMicId, webcam);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(sent).toContainEqual({
+      type: "relinkLocalMic",
+      localMicId: keptRight.localMicId,
+      newLocalMicId: webcam.localMicId,
+      source: webcam.source,
+    });
+    expect(api().kept).toEqual([
+      {
+        localMicId: webcam.localMicId,
+        source: webcam.source,
+        name: "Red mic",
+        switchedOn: true,
+      },
+    ]);
+  });
+
+  it("re-key a missing Local mic to the one channel with its exact label and channel, once", async () => {
+    const reconnected = { deviceId: "dongle-new", label: "USB Audio" };
+    const [, newRight] = browserChannels("stage", reconnected, 2) as [
+      BrowserChannel,
+      BrowserChannel,
+    ];
+    const { becomeStage, api, sent } = setup({
+      kept: [{ ...keptRight, name: "Red mic" }],
+      capture: fakeCapture([reconnected], new Map([["dongle-new", 2]])),
+    });
+    becomeStage(true);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(sent.filter((m) => m.type === "relinkLocalMic")).toEqual([
+      {
+        type: "relinkLocalMic",
+        localMicId: keptRight.localMicId,
+        newLocalMicId: newRight.localMicId,
+        source: newRight.source,
+      },
+    ]);
+    expect(api().kept.map((m) => [m.localMicId, m.name])).toEqual([
+      [newRight.localMicId, "Red mic"],
+    ]);
+    expect(api().match.notFound).toEqual([]);
   });
 });

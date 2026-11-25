@@ -76,6 +76,10 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::SetMicThreshold { .. }
         // Switching a Local mic on or off deletes nothing.
         | ClientMessage::SetLocalMicSwitchedOn { .. }
+        // Naming a Local mic and Find it delete nothing: Find it moves what
+        // is kept against a Local mic to its new channel.
+        | ClientMessage::SetLocalMicName { .. }
+        | ClientMessage::RelinkLocalMic { .. }
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
         | ClientMessage::Join { .. }

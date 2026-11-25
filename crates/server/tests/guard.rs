@@ -317,6 +317,28 @@ fn every_client_message() -> Vec<ClientMessage> {
             },
             switched_on: false,
         },
+        ClientMessage::SetLocalMicName {
+            local_mic_id: String::new(),
+            source: openstar_protocol::mics::LocalMicSource::Browser {
+                stage_browser: String::new(),
+                device_id: String::new(),
+                label: String::new(),
+                channel: 0,
+                stereo: false,
+            },
+            name: String::new(),
+        },
+        ClientMessage::RelinkLocalMic {
+            local_mic_id: String::new(),
+            new_local_mic_id: String::new(),
+            source: openstar_protocol::mics::LocalMicSource::Browser {
+                stage_browser: String::new(),
+                device_id: String::new(),
+                label: String::new(),
+                channel: 0,
+                stereo: false,
+            },
+        },
         ClientMessage::Hello {
             phone_id: PhoneId("phone".to_owned()),
         },

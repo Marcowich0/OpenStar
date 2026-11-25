@@ -428,3 +428,110 @@ async fn a_bridge_local_mic_id_that_does_not_match_its_source_is_refused() {
         }
     );
 }
+
+#[tokio::test]
+async fn a_rename_and_a_find_it_reach_the_bridge_like_a_switch() {
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let mut bridge = connect_bridge(&app).await;
+    wait_for_approval(&mut bridge, "hermes").await;
+    expect_bridges_changed(&mut stage).await;
+    let (_, bridge_id) = approve(&app, &mut stage, &mut bridge).await;
+    expect_channels(&mut bridge).await;
+    expect_bridges_changed(&mut stage).await;
+    let channels = mic_bridges(&app).await.bridges[0].channels.clone();
+    let mic_settings_changed = ServerMessage::Changed {
+        topics: vec![ChangeTopic::MicSettings],
+    };
+
+    // Naming a channel is saved the same way as switching it on.
+    stage
+        .send(&ClientMessage::SetLocalMicName {
+            local_mic_id: channels[0].local_mic_id.clone(),
+            source: channels[0].source.clone(),
+            name: "  Red mic ".into(),
+        })
+        .await;
+    assert_eq!(stage.recv().await, mic_settings_changed);
+    let mut expected = all_off(&bridge_id);
+    expected[0].name = "Red mic".into();
+    assert_eq!(expect_channels(&mut bridge).await, expected);
+
+    // Find it moves a switched-on browser Local mic to bridge channel 2.
+    let browser = LocalMicSource::Browser {
+        stage_browser: "stage".into(),
+        device_id: "dongle".into(),
+        label: "USB Audio".into(),
+        channel: 0,
+        stereo: false,
+    };
+    stage
+        .send(&ClientMessage::SetLocalMicSwitchedOn {
+            local_mic_id: "browser:stage:dongle:0".into(),
+            source: browser.clone(),
+            switched_on: true,
+        })
+        .await;
+    assert_eq!(stage.recv().await, mic_settings_changed);
+    stage
+        .send(&ClientMessage::SetLocalMicName {
+            local_mic_id: "browser:stage:dongle:0".into(),
+            source: browser,
+            name: "Blue mic".into(),
+        })
+        .await;
+    assert_eq!(stage.recv().await, mic_settings_changed);
+    assert_eq!(expect_channels(&mut bridge).await, expected);
+    assert_eq!(expect_channels(&mut bridge).await, expected);
+    stage
+        .send(&ClientMessage::RelinkLocalMic {
+            local_mic_id: "browser:stage:dongle:0".into(),
+            new_local_mic_id: channels[2].local_mic_id.clone(),
+            source: channels[2].source.clone(),
+        })
+        .await;
+    assert_eq!(stage.recv().await, mic_settings_changed);
+    expected[2].name = "Blue mic".into();
+    expected[2].switched_on = true;
+    assert_eq!(expect_channels(&mut bridge).await, expected);
+}
+
+#[tokio::test]
+async fn a_rename_or_find_it_whose_bridge_id_does_not_match_its_source_is_refused() {
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let source = LocalMicSource::Bridge {
+        bridge_id: BridgeId("ab".into()),
+        device_name: "multichannel.wav".into(),
+        label: "multichannel.wav".into(),
+        channel: 0,
+    };
+    stage
+        .send(&ClientMessage::SetLocalMicName {
+            local_mic_id: "bridge:someone-else:x:0".into(),
+            source: source.clone(),
+            name: "Red mic".into(),
+        })
+        .await;
+    assert_eq!(
+        stage.recv().await,
+        ServerMessage::Rejected {
+            reason: UserMessage::InvalidMessage
+        }
+    );
+    stage
+        .send(&ClientMessage::RelinkLocalMic {
+            local_mic_id: "browser:stage:dongle:0".into(),
+            new_local_mic_id: "bridge:someone-else:x:0".into(),
+            source,
+        })
+        .await;
+    assert_eq!(
+        stage.recv().await,
+        ServerMessage::Rejected {
+            reason: UserMessage::InvalidMessage
+        }
+    );
+    let kept: Vec<LocalMic> = app.get_json("/api/local-mics").await;
+    assert_eq!(kept, vec![]);
+}

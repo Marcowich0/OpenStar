@@ -127,6 +127,29 @@ pub enum ClientMessage {
         source: mics::LocalMicSource,
         switched_on: bool,
     },
+    /// Names a Local mic (surrounding spaces trimmed; an empty name is kept
+    /// empty and shown with its default), keeping it with its `source` as
+    /// last seen and, if it is new, switched off. Accepted only from the
+    /// active Stage; needs no Admin PIN. Every browser gets
+    /// [`ChangeTopic::MicSettings`].
+    SetLocalMicName {
+        local_mic_id: String,
+        source: mics::LocalMicSource,
+        name: String,
+    },
+    /// Find it, and the Stage's automatic re-key: the channel
+    /// `new_local_mic_id` (at `source`), which is not yet a Local mic, takes
+    /// over Local mic `local_mic_id`: its name, whether it is switched on and
+    /// every Mic setting stored against it at every Stage output. The old id
+    /// is gone afterwards. Refused with [`UserMessage::LocalMicNotFound`] or
+    /// [`UserMessage::ChannelAlreadyLocalMic`]. Accepted only from the active
+    /// Stage; needs no Admin PIN. Every browser gets
+    /// [`ChangeTopic::MicSettings`].
+    RelinkLocalMic {
+        local_mic_id: String,
+        new_local_mic_id: String,
+        source: mics::LocalMicSource,
+    },
     /// Presents the browser's Phone id. A Phone sends it every time its
     /// WebSocket opens, before anything else. A Phone already in the current
     /// Party is back in at once with the same identity (silent rejoin). The
@@ -468,6 +491,10 @@ pub enum UserMessage {
     MicInUse,
     /// This Mic is neither a joined Phone nor a switched-on Local mic.
     MicNotAvailable,
+    /// Find it: the Local mic to re-link is not kept (any more).
+    LocalMicNotFound,
+    /// Find it: the chosen channel is already a Local mic.
+    ChannelAlreadyLocalMic,
     /// Only a duet's seats choose a Voice.
     NotADuet,
     /// The Line-up cannot start yet: see its warnings.
