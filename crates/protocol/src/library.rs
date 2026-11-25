@@ -91,6 +91,8 @@ pub struct SongSummary {
     /// The Song's top High score at any Difficulty and either Voice; `None`
     /// when no record of its identity counts.
     pub top_high_score: Option<TopHighScore>,
+    /// `#YEAR`, shown as a tag on the Song's row.
+    pub year: Option<i32>,
 }
 
 /// A search over the Library and its filters, sent as the URL query of

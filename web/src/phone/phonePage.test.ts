@@ -16,12 +16,15 @@ const party: PartySnapshot = {
       colour: "sky",
       favouriteTaken: false,
       onPhone: true,
+      singing: false,
     },
   ],
   phones: [{ phoneId: "phone-a", memberId: 1 }],
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
 };
 
 function live(memberId: number | null): LiveState {

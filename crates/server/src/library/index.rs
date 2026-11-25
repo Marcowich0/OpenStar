@@ -381,6 +381,7 @@ pub(crate) fn listed(conn: &Connection) -> rusqlite::Result<Vec<Listed>> {
                 tile_colour: super::artwork::tile_colour(&identity),
                 identity,
                 top_high_score: None,
+                year: row.get(9)?,
             },
             year: row.get(9)?,
             languages: decode_values(row.get(10)?),

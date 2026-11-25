@@ -289,7 +289,25 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT;
     ALTER TABLE library_files ADD COLUMN preparing INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE library_files ADD COLUMN conversion_problems TEXT NOT NULL DEFAULT '[]';",
-    // 17: each Song's loudness (see `library::loudness`): EBU R128
+    // 17: Local mics (see `local_mics`): name (empty shows the default) and
+    // whether switched on, by Local mic id. `source` is the JSON of
+    // `LocalMicSource`. Not linked to `parties`, so New party keeps them.
+    "CREATE TABLE local_mics (
+        id          TEXT PRIMARY KEY NOT NULL,
+        source      TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        switched_on INTEGER NOT NULL CHECK (switched_on IN (0, 1))
+    ) STRICT;",
+    // 18: the results a Party shows (see `live::store`): the Song that just
+    // ended and how, kept until Next or Done. Its Request has left
+    // `queue_requests`, so `request_id` references nothing.
+    "CREATE TABLE party_results (
+        party_id   TEXT PRIMARY KEY REFERENCES parties(id) ON DELETE CASCADE,
+        request_id INTEGER NOT NULL,
+        song_id    INTEGER NOT NULL,
+        ended      TEXT NOT NULL CHECK (ended IN ('played', 'ended'))
+    ) STRICT;",
+    // 19: each Song's loudness (see `library::loudness`): EBU R128
     // integrated loudness in LUFS of an audio file (path relative to the
     // Library), valid while its probed size and mtime are unchanged. `lufs`
     // is NULL when the file was measured without a result.

@@ -34,6 +34,7 @@ const member = (memberId: number): PartyMember => ({
   colour: "cherry",
   favouriteTaken: false,
   onPhone: false,
+  singing: false,
 });
 
 const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
@@ -46,6 +47,8 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
   ...over,
 });
 

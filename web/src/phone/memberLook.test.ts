@@ -9,6 +9,7 @@ const base = {
   colour: "sky",
   favouriteTaken: false,
   onPhone: true,
+  singing: false,
 } as const;
 
 const bo: Profile = {

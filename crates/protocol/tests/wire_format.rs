@@ -7,8 +7,8 @@ use openstar_protocol::profile::{Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
     LineUp, LineUpWarning, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
-    QueueMove, Request, RequestChange, RequestId, RequestKind, Seat, SeatVoice, ServerMessage,
-    StageId, UserMessage,
+    PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, Seat, SeatVoice,
+    ServerMessage, SongControl, SongEnd, SongResults, StageId, UserMessage,
 };
 use proptest::prelude::*;
 
@@ -26,6 +26,7 @@ fn party() -> PartySnapshot {
             colour: PaletteKey::Sky,
             favourite_taken: true,
             on_phone: true,
+            singing: false,
         }],
         phones: vec![JoinedPhone {
             phone_id: PhoneId("3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60".to_owned()),
@@ -69,7 +70,48 @@ fn party() -> PartySnapshot {
                 },
             ],
         }),
+        playing: Some(PlayingSong {
+            request_id: RequestId(3),
+            song_id: SongId(12),
+            paused: true,
+        }),
+        results: None,
     }
+}
+
+#[test]
+fn play_messages_wire_format() {
+    insta::assert_json_snapshot!(vec![
+        ClientMessage::ControlSong {
+            request_id: RequestId(3),
+            control: SongControl::Start,
+        },
+        ClientMessage::ReachedResults {
+            request_id: RequestId(3),
+            ended: SongEnd::Ended,
+        },
+        ClientMessage::CloseResults,
+    ]);
+    insta::assert_json_snapshot!(vec![
+        ServerMessage::ControlSong {
+            request_id: RequestId(3),
+            song_id: SongId(12),
+            control: SongControl::Skip,
+        },
+        ServerMessage::Rejected {
+            reason: UserMessage::LineUpNotReady,
+        },
+    ]);
+    insta::assert_json_snapshot!(SongResults {
+        request_id: RequestId(3),
+        song_id: SongId(12),
+        ended: SongEnd::Played,
+    });
+    insta::assert_json_snapshot!(PartyEvent::SongPaused(RequestChange {
+        request_id: RequestId(3),
+        song_id: SongId(12),
+        title: "Africa".to_owned(),
+    }));
 }
 
 #[test]

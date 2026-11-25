@@ -18,9 +18,10 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 pub use party::{
-    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, LineUp, LineUpWarning, MemberEdit,
-    NewGuest, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, QueueMove,
-    Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice,
+    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, LineUp, LineUpEdit, LineUpWarning,
+    MemberEdit, NewGuest, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
+    PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice,
+    SeatWho, SongControl, SongEnd, SongResults,
 };
 pub use pitch::{MicId, PitchReading};
 pub use scoring::BeatValue;
@@ -116,6 +117,15 @@ pub enum ClientMessage {
         local_mic_id: String,
         reference_dbfs: f64,
     },
+    /// Switches a Local mic on or off, keeping it (with an empty name if it
+    /// is new) and its `source` as last seen. Accepted only from the active
+    /// Stage; needs no Admin PIN. Every browser gets
+    /// [`ChangeTopic::MicSettings`].
+    SetLocalMicSwitchedOn {
+        local_mic_id: String,
+        source: mics::LocalMicSource,
+        switched_on: bool,
+    },
     /// Presents the browser's Phone id. A Phone sends it every time its
     /// WebSocket opens, before anything else. A Phone already in the current
     /// Party is back in at once with the same identity (silent rejoin). The
@@ -183,6 +193,44 @@ pub enum ClientMessage {
     /// ([`UserMessage::MemberSinging`]), and for a Phone's own member
     /// ([`UserMessage::UseLeaveParty`]).
     RemoveMember { member_id: PartyMemberId },
+    /// Edits the waiting Line-up of Request `request_id` (see
+    /// [`LineUpEdit`]). A Remote command; refused with
+    /// [`UserMessage::LineUpNotWaiting`] when that Request's Line-up is not
+    /// the one waiting.
+    EditLineUp {
+        request_id: RequestId,
+        edit: LineUpEdit,
+    },
+    /// "My Difficulty for the next Song" from a joined Phone: sets the
+    /// Difficulty of its member's seat when seated, otherwise the Difficulty
+    /// its next seat starts at (a Guest's Party Difficulty, a Profile's last
+    /// Difficulty). Refused with [`UserMessage::NotInParty`] for anyone but
+    /// a joined Phone.
+    SetMyDifficulty { difficulty: profile::Difficulty },
+    /// Start, Pause, Resume, Restart, End or Skip for the head's Song,
+    /// `request_id` (a Remote command). Accepted ones are passed to the
+    /// Stage. Start is refused with [`UserMessage::LineUpNotWaiting`] when
+    /// that Request's Line-up is not waiting, [`UserMessage::LineUpNotReady`]
+    /// when it cannot start, and [`UserMessage::NoStage`] with no Stage
+    /// open; the others with [`UserMessage::NoSongPlaying`] when that
+    /// Request's Song is not playing. Pause on a paused Song and Resume on a
+    /// running one change nothing.
+    ControlSong {
+        request_id: RequestId,
+        control: SongControl,
+    },
+    /// The Stage reports that Request `request_id`'s Song reached its
+    /// results screen, played out or ended early: the Request leaves the
+    /// Queue and the Party shows results. Accepted only from the active
+    /// Stage; [`UserMessage::NoSongPlaying`] when that Song is not playing.
+    ReachedResults {
+        request_id: RequestId,
+        ended: SongEnd,
+    },
+    /// Next (or Done, with an empty Queue) on the results: the next
+    /// Request's Line-up comes up prefilled, or the song browser. A Remote
+    /// command; [`UserMessage::NoResults`] when no results show.
+    CloseResults,
 }
 
 /// A message the server sends over a WebSocket.
@@ -241,6 +289,16 @@ pub enum ServerMessage {
     /// A background job was queued, started, made progress or ended (sent to
     /// every connection).
     JobChanged { job: jobs::Job },
+    /// Stage only: act on the head's Song (Request `request_id`, Song
+    /// `song_id`), after the server accepted `control` from the Stage or a
+    /// Remote. Sent after the [`ServerMessage::PartyChanged`] that reports
+    /// it. On Start the seats are the snapshot's `lineUp`, fixed for the
+    /// Song.
+    ControlSong {
+        request_id: RequestId,
+        song_id: library::SongId,
+        control: SongControl,
+    },
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
@@ -341,6 +399,30 @@ pub enum UserMessage {
     /// A Phone cannot remove its own Party member from the people list; it
     /// uses Leave party instead.
     UseLeaveParty,
+    /// No Line-up waits for this Request: it is not the head, or its Song
+    /// has started.
+    LineUpNotWaiting,
+    /// The Line-up has no seat with this number (it was taken off).
+    SeatNotFound,
+    /// Another seat already uses this Mic; each Mic serves one seat.
+    MicInUse,
+    /// This Mic is neither a joined Phone nor a switched-on Local mic.
+    MicNotAvailable,
+    /// Only a duet's seats choose a Voice.
+    NotADuet,
+    /// The Line-up cannot start yet: see its warnings.
+    LineUpNotReady,
+    /// No Stage is open to play the Song.
+    NoStage,
+    /// That Request's Song is not playing.
+    NoSongPlaying,
+    /// The Request's Song is playing, so it cannot be removed: Skip or End
+    /// does that.
+    RequestPlaying,
+    /// A seat's Difficulty is locked from Start until the Song ends.
+    DifficultyLocked,
+    /// No results are showing.
+    NoResults,
 }
 
 #[cfg(test)]

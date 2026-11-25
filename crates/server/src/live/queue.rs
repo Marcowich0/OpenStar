@@ -47,11 +47,12 @@ pub fn check_players(party: &PartySnapshot, players: &[PartyMemberId]) -> Result
     Ok(())
 }
 
-/// Puts `request` at the end of the Queue. With no head (the song browser
-/// shows), the first Request becomes the head.
+/// Puts `request` at the end of the Queue. With no head while the song
+/// browser shows, the first Request becomes the head; while results show,
+/// the head waits for Next.
 pub fn add(party: &mut PartySnapshot, request: Request) {
     party.queue.push(request);
-    if party.head.is_none() {
+    if party.head.is_none() && party.results.is_none() {
         party.head = party.queue.first().map(|r| r.request_id);
     }
 }
@@ -82,9 +83,18 @@ pub fn move_request(
 }
 
 /// Removes Request `id`, the head included: then the next Request becomes
-/// the head, or there is none and the song browser shows.
+/// the head, or there is none and the song browser shows. The Request whose
+/// Song plays is refused with [`UserMessage::RequestPlaying`]: Skip or End
+/// does that.
 pub fn remove(party: &mut PartySnapshot, id: RequestId) -> Result<Request, UserMessage> {
     let at = position(party, id)?;
+    if party
+        .playing
+        .as_ref()
+        .is_some_and(|playing| playing.request_id == id)
+    {
+        return Err(UserMessage::RequestPlaying);
+    }
     let request = party.queue.remove(at);
     if party.head == Some(id) {
         party.head = party.queue.first().map(|r| r.request_id);
@@ -136,6 +146,7 @@ mod tests {
                 colour: PaletteKey::ALL[n as usize - 1],
                 favourite_taken: false,
                 on_phone: true,
+                singing: false,
             });
         }
         party
@@ -177,6 +188,35 @@ mod tests {
         add(&mut party, request(8));
         assert_eq!(order(&party), vec![7, 8]);
         assert_eq!(party.head, Some(RequestId(7)));
+    }
+
+    #[test]
+    fn while_results_show_an_added_request_waits_for_next_instead_of_becoming_the_head() {
+        let mut party = party_with_members(0);
+        party.results = Some(openstar_protocol::SongResults {
+            request_id: RequestId(6),
+            song_id: SongId(6),
+            ended: openstar_protocol::SongEnd::Played,
+        });
+        add(&mut party, request(7));
+        assert_eq!(order(&party), vec![7]);
+        assert_eq!(party.head, None);
+    }
+
+    #[test]
+    fn the_request_whose_song_plays_cannot_be_removed() {
+        let mut party = queue_of(2);
+        party.playing = Some(openstar_protocol::PlayingSong {
+            request_id: RequestId(1),
+            song_id: SongId(1),
+            paused: false,
+        });
+        assert_eq!(
+            remove(&mut party, RequestId(1)),
+            Err(UserMessage::RequestPlaying)
+        );
+        assert_eq!(order(&party), vec![1, 2]);
+        assert!(remove(&mut party, RequestId(2)).is_ok());
     }
 
     #[test]

@@ -6,6 +6,7 @@ import type {
   DrawList,
   HeadBallEntry,
   LaneEntry,
+  ParticleEntry,
   PillEntry,
   PitchLineEntry,
   PlayheadEntry,
@@ -125,6 +126,60 @@ describe("referenceTransform", () => {
       x: 0,
       y: 270,
     });
+  });
+});
+
+const dot: ParticleEntry = {
+  type: "particle",
+  x: 300,
+  y: 200,
+  size: 12,
+  shape: "dot",
+  colour: "--color-red",
+  rotation: 1,
+  alpha: 0.5,
+};
+
+describe("the effects painter", () => {
+  it("clears its canvas, then fills a dot particle as a circle at its alpha", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour, "effects").paint([dot], view);
+    expect(calls).toEqual([
+      ["setTransform", 1, 0, 0, 1, 0, 0],
+      ["clearRect", 0, 0, 3840, 2160],
+      ["setTransform", 2, 0, 0, 2, 0, 0],
+      ["set", "globalAlpha", 0.5],
+      ["set", "fillStyle", "value(--color-red)"],
+      ["beginPath"],
+      ["arc", 300, 200, 6, 0, 2 * Math.PI],
+      ["fill"],
+      ["set", "globalAlpha", 1],
+    ]);
+  });
+
+  it("fills a star particle as a five-pointed path turned by its rotation", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour, "effects").paint(
+      [{ ...dot, shape: "star", rotation: Math.PI / 2, alpha: 1 }],
+      view,
+    );
+    const path = calls.filter(([op]) => op === "moveTo" || op === "lineTo");
+    expect(path).toHaveLength(10);
+    // The first point, turned a quarter clockwise from straight up: right.
+    const [, x, y] = path[0] as [string, number, number];
+    expect(x).toBeCloseTo(306, 6);
+    expect(y).toBeCloseTo(200, 6);
+    expect(calls).toContainEqual(["closePath"]);
+    expect(calls).toContainEqual(["fill"]);
+  });
+
+  it("draws nothing but particles", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour, "effects").paint(
+      [lane, pill, playhead, { type: "laneEnd", lane: 0 }],
+      view,
+    );
+    expect(calls).toHaveLength(3);
   });
 });
 
@@ -497,6 +552,12 @@ describe("the painter", () => {
     ]);
     painter.paint(list, view);
     expect(reader).toHaveBeenCalledTimes(4);
+  });
+
+  it("leaves particles to the effects canvas", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint([dot], view);
+    expect(calls).toHaveLength(3);
   });
 
   it("holds no game logic: it imports nothing but types", () => {

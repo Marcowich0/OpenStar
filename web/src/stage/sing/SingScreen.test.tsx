@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Note } from "../../generated/Note";
 import type { ParsedSong } from "../../generated/ParsedSong";
 import { singVoices, type SingState } from "./frame";
+import { confettiBurst, ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 import { LanePanels, SingScreen } from "./SingScreen";
 
@@ -98,9 +99,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function runFrame() {
+function runFrame(timestamp = 0) {
   const next = frames.shift();
-  act(() => next?.(0));
+  act(() => next?.(timestamp));
 }
 
 function layers(container: HTMLElement) {
@@ -263,6 +264,48 @@ describe("SingScreen", () => {
     expect(calls?.filter((c) => c === "roundRect")).toHaveLength(2 + 2 + 4);
     expect(root?.dataset.painted).toBe("true");
     expect(frames).toHaveLength(1); // the next frame is asked for
+  });
+
+  it("paints the particles on the effects canvas, moving them on real frame time", () => {
+    const effects = new ParticlePool(64);
+    confettiBurst(effects, 400, 500, "cherry");
+    const { container } = render(
+      <SingScreen
+        state={{ ...state, effects }}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    runFrame(1000);
+    const canvas = (layer: string) => {
+      const el = container.querySelector<HTMLCanvasElement>(
+        `canvas[data-layer="${layer}"]`,
+      );
+      return (el && contexts.get(el)) ?? [];
+    };
+    const fills = canvas("effects").filter((c) => c === "fill").length;
+    expect(fills).toBe(30);
+    // The lanes canvas draws no particle: only its own two dots' worth of arcs.
+    expect(canvas("lanes").filter((c) => c === "closePath")).toHaveLength(0);
+    expect(canvas("effects").filter((c) => c === "clearRect")).toHaveLength(1);
+    // A second later the burst has ended (it lives at most 1.3 s).
+    for (let t = 1100; t <= 2400; t += 100) runFrame(t);
+    expect(effects.live).toBe(0);
+  });
+
+  it("freezes the particles with a constant frame time", () => {
+    const effects = new ParticlePool(64);
+    confettiBurst(effects, 400, 500, "cherry");
+    render(
+      <SingScreen
+        state={{ ...state, effects }}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+        frameTime={() => 0}
+      />,
+    );
+    for (let t = 1000; t <= 5000; t += 100) runFrame(t);
+    expect(effects.live).toBe(30);
   });
 
   it("stops the loop when it unmounts", () => {

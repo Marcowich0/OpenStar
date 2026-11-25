@@ -13,7 +13,7 @@ import { createLiveStore } from "../../live/liveStore";
 import type { SceneDefinition } from "../frame/sceneComponents";
 import { StageFrame } from "../frame/StageFrame";
 import type { SceneId } from "../frame/scenes";
-import { TOAST_LEAVE_MS, TOAST_STAY_MS } from "./toastQueue";
+import { TOAST_LEAVE_MS, TOAST_STAY_MS } from "../../toasts/toastQueue";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -35,12 +35,15 @@ const party: PartySnapshot = {
       colour: "tangerine",
       favouriteTaken: false,
       onPhone: true,
+      singing: false,
     },
   ],
   phones: [],
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
 };
 
 const bo: Profile = {

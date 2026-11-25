@@ -4,11 +4,15 @@
 
 export const ICON_NAMES = [
   "backspace",
+  "check",
+  "chevron",
   "close",
   "list",
   "lock",
   "music",
   "people",
+  "plus",
+  "search",
   "tv",
 ] as const;
 

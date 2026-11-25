@@ -28,7 +28,9 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, jobs, library, mic_settings, profiles, scores, unlock};
+use crate::{
+    AppState, bridge, frontend, jobs, library, local_mics, mic_settings, profiles, scores, unlock,
+};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,6 +73,8 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // Calibrate mics and setting a Mic threshold need no Admin PIN.
         | ClientMessage::StoreCalibration { .. }
         | ClientMessage::SetMicThreshold { .. }
+        // Switching a Local mic on or off deletes nothing.
+        | ClientMessage::SetLocalMicSwitchedOn { .. }
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
         | ClientMessage::Join { .. }
@@ -88,7 +92,17 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // not-guarded list in docs/agents/guard-rule.md): a Party
         // membership is not kept data, and a Profile is never deleted.
         | ClientMessage::LeaveParty
-        | ClientMessage::RemoveMember { .. } => Access::NotGuarded,
+        | ClientMessage::RemoveMember { .. }
+        // Editing the Line-up and a Player's own Difficulty are everyone's
+        // (spec #48: the Admin PIN plays no part); a Profile created for a
+        // seat follows the not-guarded Profile create.
+        | ClientMessage::EditLineUp { .. }
+        | ClientMessage::SetMyDifficulty { .. }
+        // Start, pause, Restart, End and Skip are for everyone in the room;
+        // results come from the Stage, and Next or Done from anyone.
+        | ClientMessage::ControlSong { .. }
+        | ClientMessage::ReachedResults { .. }
+        | ClientMessage::CloseResults => Access::NotGuarded,
     }
 }
 
@@ -188,6 +202,9 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             mic_settings::read,
         )
+        // Anyone reads the kept Local mics; the Stage switches them over its
+        // WebSocket.
+        .add(Method::GET, "/api/local-mics", NotGuarded, local_mics::read)
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage, but needs Stage trust (#186), not an Unlock.
         .add(Method::GET, "/ws/stage", NotGuarded, crate::stage_websocket)

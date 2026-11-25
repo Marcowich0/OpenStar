@@ -47,11 +47,14 @@ const party = (memberIds: number[]): PartySnapshot => ({
     colour: "sky",
     favouriteTaken: false,
     onPhone: true,
+    singing: false,
   })),
   phones: [],
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
 });
 
 describe("checking a Join code", () => {

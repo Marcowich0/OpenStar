@@ -7,6 +7,7 @@ import type { ApiError } from "../generated/ApiError";
 import type { ApiErrorCode } from "../generated/ApiErrorCode";
 import type { JobList } from "../generated/JobList";
 import type { LibraryProblem } from "../generated/LibraryProblem";
+import type { LocalMic } from "../generated/LocalMic";
 import type { NewProfile } from "../generated/NewProfile";
 import type { Profile } from "../generated/Profile";
 import type { ProfileEdit } from "../generated/ProfileEdit";
@@ -29,6 +30,7 @@ import type { UserMessage } from "../generated/UserMessage";
  */
 export interface Endpoints {
   "GET /api/server-info": { response: ServerInfo };
+  "GET /api/local-mics": { response: LocalMic[] };
   "GET /api/unlock": { response: UnlockStatus };
   "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
   "POST /api/unlock/heartbeat": { response: UnlockStatus };
@@ -146,6 +148,17 @@ const REFUSAL_CODES = {
   playerTwice: true,
   memberSinging: true,
   useLeaveParty: true,
+  lineUpNotWaiting: true,
+  seatNotFound: true,
+  micInUse: true,
+  micNotAvailable: true,
+  notADuet: true,
+  lineUpNotReady: true,
+  noStage: true,
+  noSongPlaying: true,
+  requestPlaying: true,
+  difficultyLocked: true,
+  noResults: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

@@ -21,4 +21,9 @@ favouriteTaken: boolean,
  * At least one joined Phone uses this identity ("On a Phone"); `false`
  * means Local mic only.
  */
-onPhone: boolean, };
+onPhone: boolean, 
+/**
+ * Sits in the head's Line-up ("singing"), waiting or with its Song
+ * playing, so it cannot leave or be removed. Computed by the server.
+ */
+singing: boolean, };

@@ -11,6 +11,7 @@ import {
   type PillEntry,
   type SingState,
 } from "./frame";
+import { confettiBurst, ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 
 // One Beat lasts 0.5 s (beatsPerMinute is the real rate, #BPM × 4); Beat 0
@@ -403,6 +404,29 @@ describe("frame", () => {
     });
   });
 
+  it("ends with the live particles of the state's effects, drawn but not moved by Song time", () => {
+    const effects = new ParticlePool(8, { gravity: 0 });
+    effects.spawn(500, 400, 100, 0, 0, 2, 12, "star", "cherry", 0);
+    effects.advance(0.25);
+    const particle = {
+      type: "particle",
+      x: 525,
+      y: 400,
+      size: 12,
+      shape: "star",
+      colour: "cherry",
+      rotation: 0,
+      alpha: 1,
+    };
+    const at3 = frame({ ...solo, effects }, 3, oneLane);
+    expect(at3.at(-1)).toEqual(particle);
+    expect(frame({ ...solo, effects }, 9, oneLane).at(-1)).toEqual(particle);
+    expect(at3.filter((e) => e.type === "particle")).toHaveLength(1);
+    expect(frame(solo, 3, oneLane).some((e) => e.type === "particle")).toBe(
+      false,
+    );
+  });
+
   it("names colours only by palette key or token, never by a colour value", () => {
     const duet = state(
       [
@@ -411,9 +435,11 @@ describe("frame", () => {
       ],
       [notes],
     );
+    const effects = new ParticlePool(64);
+    confettiBurst(effects, 300, 300, "grape");
     const colours: unknown[] = [];
     for (const t of [3, 3.95, 9]) {
-      for (const entry of frame(duet, t, laneLayout(2))) {
+      for (const entry of frame({ ...duet, effects }, t, laneLayout(2))) {
         switch (entry.type) {
           case "lane":
             colours.push(entry.colour, entry.separator.colour);
@@ -443,6 +469,9 @@ describe("frame", () => {
             break;
           case "progress":
             colours.push(entry.track, entry.fill);
+            break;
+          case "particle":
+            colours.push(entry.colour);
             break;
           case "laneEnd":
             break;

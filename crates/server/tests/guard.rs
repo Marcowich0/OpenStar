@@ -306,6 +306,17 @@ fn every_client_message() -> Vec<ClientMessage> {
             local_mic_id: String::new(),
             reference_dbfs: -40.0,
         },
+        ClientMessage::SetLocalMicSwitchedOn {
+            local_mic_id: String::new(),
+            source: openstar_protocol::mics::LocalMicSource::Browser {
+                stage_browser: String::new(),
+                device_id: String::new(),
+                label: String::new(),
+                channel: 0,
+                stereo: false,
+            },
+            switched_on: false,
+        },
         ClientMessage::Hello {
             phone_id: PhoneId("phone".to_owned()),
         },
@@ -348,6 +359,22 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::RemoveMember {
             member_id: PartyMemberId(1),
         },
+        ClientMessage::EditLineUp {
+            request_id: openstar_protocol::RequestId(1),
+            edit: openstar_protocol::LineUpEdit::RemoveSeat { seat: 0 },
+        },
+        ClientMessage::SetMyDifficulty {
+            difficulty: openstar_protocol::profile::Difficulty::Hard,
+        },
+        ClientMessage::ControlSong {
+            request_id: openstar_protocol::RequestId(1),
+            control: openstar_protocol::SongControl::Skip,
+        },
+        ClientMessage::ReachedResults {
+            request_id: openstar_protocol::RequestId(1),
+            ended: openstar_protocol::SongEnd::Ended,
+        },
+        ClientMessage::CloseResults,
     ]
 }
 
