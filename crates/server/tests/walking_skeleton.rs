@@ -10,7 +10,7 @@ async fn json_endpoint_answers_with_server_info() {
     let app = TestApp::start().await;
 
     let info: ServerInfo = app.get_json("/api/server-info").await;
-    assert_eq!(info.schema_version, 1);
+    assert_eq!(info.schema_version, openstar::db::SCHEMA_VERSION);
     assert!(!info.version.is_empty());
 }
 
@@ -40,7 +40,10 @@ async fn startup_opens_the_database_in_wal_mode_inside_appdata() {
 #[tokio::test]
 async fn a_second_start_applies_no_migrations() {
     let first = TestApp::start().await;
-    assert_eq!(first.migrations_applied(), 1);
+    assert_eq!(
+        first.migrations_applied(),
+        openstar::db::SCHEMA_VERSION as usize
+    );
 
     let folders = first.stop().await;
     let second = TestApp::builder().folders(folders).start().await;

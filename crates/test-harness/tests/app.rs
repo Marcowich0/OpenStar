@@ -23,7 +23,7 @@ async fn starts_on_fresh_folders_with_a_chosen_admin_pin_and_a_base_url() {
         app.addr().port().to_string()
     );
     let info: ServerInfo = app.get_json("/api/server-info").await;
-    assert_eq!(info.schema_version, 1);
+    assert_eq!(info.schema_version, openstar::db::SCHEMA_VERSION);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -36,7 +36,11 @@ async fn apps_in_parallel_share_no_folders_ports_or_databases() {
             assert_ne!(a.songs_dir(), b.songs_dir());
             assert_ne!(a.appdata_dir(), b.appdata_dir());
         }
-        assert_eq!(a.migrations_applied(), 1, "each app has a new database");
+        assert_eq!(
+            a.migrations_applied(),
+            openstar::db::SCHEMA_VERSION as usize,
+            "each app has a new database"
+        );
         assert!(a.appdata_dir().join("openstar.db").is_file());
         let _: ServerInfo = a.get_json("/api/server-info").await;
     }

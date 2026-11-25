@@ -8,6 +8,9 @@ const server = `http://localhost:${process.env.OPENSTAR_PORT ?? "8080"}`;
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Tests import the shared test cases from the repository's `fixtures/`
+    // (`import cases from "../../../fixtures/…/x.json?raw"`).
+    fs: { allow: [".", "../fixtures"] },
     proxy: {
       "/api": server,
       "/ws": { target: server, ws: true },

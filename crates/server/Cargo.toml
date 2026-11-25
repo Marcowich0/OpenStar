@@ -13,6 +13,7 @@ workspace = true
 [dependencies]
 openstar-protocol.workspace = true
 anyhow.workspace = true
+getrandom.workspace = true
 axum.workspace = true
 chardetng.workspace = true
 encoding_rs.workspace = true
@@ -20,6 +21,7 @@ mime_guess.workspace = true
 rusqlite.workspace = true
 rust-embed.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 tokio.workspace = true
 tower-http.workspace = true
 tracing.workspace = true

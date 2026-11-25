@@ -1,0 +1,265 @@
+//! The Admin PIN check and the Unlock.
+//!
+//! A correct Admin PIN gives the browser an Unlock: a random token in an
+//! HttpOnly, SameSite=Strict cookie. SQLite keeps only a hash of the token,
+//! its last use and the PIN fingerprint, never the PIN. An Unlock is live
+//! while its fingerprint matches the running PIN and it was last used less
+//! than [`IDLE_LIMIT`] ago by the server [`Clock`](crate::clock::Clock).
+//!
+//! Guarded HTTP endpoints take the [`Unlocked`] extractor, which checks the
+//! Unlock on the server and resets its idle time. The WebSocket carries no
+//! Unlock, Lock or guarded action. The HTTP routes are listed in
+//! `openstar_protocol::admin`.
+
+use std::time::Duration;
+
+use axum::Json;
+use axum::extract::{FromRequestParts, State};
+use axum::http::header::{COOKIE, SET_COOKIE};
+use axum::http::request::Parts;
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::response::{IntoResponse, Response};
+use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest, UnlockStatus};
+use rusqlite::OptionalExtension;
+use sha2::{Digest, Sha256};
+
+use crate::AppState;
+
+/// An Unlock ends after this long without a guarded action or a heartbeat.
+pub const IDLE_LIMIT: Duration = Duration::from_secs(30 * 60);
+
+/// The name of the Unlock cookie.
+pub const COOKIE_NAME: &str = "openstar_unlock";
+
+/// Bytes of randomness in an Unlock token.
+const TOKEN_BYTES: usize = 32;
+
+/// The SHA-256 fingerprint of an Admin PIN, the only form of the PIN that
+/// reaches SQLite. Stored as a BLOB.
+pub fn pin_fingerprint(pin: &str) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"openstar admin pin fingerprint v1\0");
+    hasher.update(pin.as_bytes());
+    hasher.finalize().to_vec()
+}
+
+fn token_hash(token: &str) -> Vec<u8> {
+    Sha256::digest(token.as_bytes()).to_vec()
+}
+
+fn new_token() -> anyhow::Result<String> {
+    let mut bytes = [0_u8; TOKEN_BYTES];
+    getrandom::fill(&mut bytes).map_err(|error| anyhow::anyhow!("no OS randomness: {error}"))?;
+    Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+/// The Unlock token this request carries, if any.
+fn token_from(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get_all(COOKIE)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(';'))
+        .filter_map(|pair| pair.trim().split_once('='))
+        .find(|(name, _)| *name == COOKIE_NAME)
+        .map(|(_, value)| value.to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+/// What to do with a live Unlock when it is found.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Use {
+    /// A guarded action or a heartbeat: the idle time starts again.
+    Touch,
+    /// The status request: only look.
+    Look,
+}
+
+/// Whether `token` is a live Unlock. Removes the row of an Unlock that has
+/// ended (idle too long, or made with another PIN).
+async fn check(state: &AppState, token: &str, use_: Use) -> anyhow::Result<bool> {
+    let hash = token_hash(token);
+    let fingerprint = state.pin_fingerprint.to_vec();
+    let now = state.clock.now_millis();
+    let limit = i64::try_from(IDLE_LIMIT.as_millis()).unwrap_or(i64::MAX);
+    state
+        .db
+        .call(move |conn| {
+            let tx = conn.transaction()?;
+            let row: Option<(Vec<u8>, i64)> = tx
+                .query_row(
+                    "SELECT pin_fingerprint, last_used_ms FROM unlocks WHERE token_hash = ?1",
+                    [&hash],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )
+                .optional()?;
+            let live = match row {
+                None => false,
+                Some((stored, last_used)) => {
+                    let live = stored == fingerprint && now.saturating_sub(last_used) < limit;
+                    if !live {
+                        tx.execute("DELETE FROM unlocks WHERE token_hash = ?1", [&hash])?;
+                    } else if use_ == Use::Touch {
+                        tx.execute(
+                            "UPDATE unlocks SET last_used_ms = ?2 WHERE token_hash = ?1",
+                            rusqlite::params![hash, now],
+                        )?;
+                    }
+                    live
+                }
+            };
+            tx.commit()?;
+            Ok(live)
+        })
+        .await
+}
+
+/// Whether the request carries a live Unlock.
+async fn check_request(state: &AppState, headers: &HeaderMap, use_: Use) -> anyhow::Result<bool> {
+    match token_from(headers) {
+        Some(token) => check(state, &token, use_).await,
+        None => Ok(false),
+    }
+}
+
+fn internal_error(error: anyhow::Error) -> Response {
+    tracing::error!(?error, "checking an Unlock");
+    StatusCode::INTERNAL_SERVER_ERROR.into_response()
+}
+
+fn refusal(status: StatusCode, code: ApiErrorCode) -> Response {
+    (status, Json(ApiError { code })).into_response()
+}
+
+fn unlock_required() -> Response {
+    refusal(StatusCode::UNAUTHORIZED, ApiErrorCode::UnlockRequired)
+}
+
+fn status(unlocked: bool) -> Json<UnlockStatus> {
+    Json(UnlockStatus { unlocked })
+}
+
+fn cookie(value: &str, max_age: Option<u32>) -> HeaderValue {
+    let max_age = max_age
+        .map(|s| format!("; Max-Age={s}"))
+        .unwrap_or_default();
+    HeaderValue::from_str(&format!(
+        "{COOKIE_NAME}={value}; Path=/; HttpOnly; SameSite=Strict{max_age}"
+    ))
+    .unwrap_or_else(|_| HeaderValue::from_static("openstar_unlock=; Max-Age=0"))
+}
+
+/// Proof that the request carries a live Unlock. Taking it as a handler
+/// argument makes the endpoint guarded: a request without a live Unlock is
+/// refused with `401` and [`ApiErrorCode::UnlockRequired`], and a request
+/// with one resets its idle time.
+pub struct Unlocked(());
+
+impl FromRequestParts<AppState> for Unlocked {
+    type Rejection = Response;
+
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Response> {
+        if check_request(state, &parts.headers, Use::Touch)
+            .await
+            .map_err(internal_error)?
+        {
+            Ok(Self(()))
+        } else {
+            Err(unlock_required())
+        }
+    }
+}
+
+/// `POST /api/unlock`: one Admin PIN attempt.
+pub async fn attempt(
+    State(state): State<AppState>,
+    Json(request): Json<UnlockRequest>,
+) -> Response {
+    // #69 puts the shared wrong-guess wait in front of this comparison.
+    if pin_fingerprint(&request.pin) != *state.pin_fingerprint {
+        tracing::warn!("a wrong Admin PIN was entered");
+        return refusal(StatusCode::FORBIDDEN, ApiErrorCode::WrongPin);
+    }
+    let token = match new_token() {
+        Ok(token) => token,
+        Err(error) => return internal_error(error),
+    };
+    let hash = token_hash(&token);
+    let fingerprint = state.pin_fingerprint.to_vec();
+    let now = state.clock.now_millis();
+    let stored = state
+        .db
+        .call(move |conn| {
+            conn.execute(
+                "INSERT INTO unlocks (token_hash, pin_fingerprint, last_used_ms) VALUES (?1, ?2, ?3)",
+                rusqlite::params![hash, fingerprint, now],
+            )
+        })
+        .await;
+    if let Err(error) = stored {
+        return internal_error(error);
+    }
+    tracing::info!("a browser was unlocked with the Admin PIN");
+    ([(SET_COOKIE, cookie(&token, None))], status(true)).into_response()
+}
+
+/// `GET /api/unlock`: whether this browser holds an Unlock. Does not reset
+/// the idle time.
+pub async fn unlock_status(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    match check_request(&state, &headers, Use::Look).await {
+        Ok(unlocked) => status(unlocked).into_response(),
+        Err(error) => internal_error(error),
+    }
+}
+
+/// `POST /api/unlock/heartbeat`: resets the idle time of a live Unlock. Never
+/// creates or revives one.
+pub async fn heartbeat(_: Unlocked) -> Json<UnlockStatus> {
+    status(true)
+}
+
+/// `POST /api/lock`: ends this browser's Unlock at once. Needs no Unlock.
+pub async fn lock(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    if let Some(token) = token_from(&headers) {
+        let hash = token_hash(&token);
+        let removed = state
+            .db
+            .call(move |conn| conn.execute("DELETE FROM unlocks WHERE token_hash = ?1", [hash]))
+            .await;
+        match removed {
+            Ok(0) => {}
+            Ok(_) => tracing::info!("a browser was locked"),
+            Err(error) => return internal_error(error),
+        }
+    }
+    ([(SET_COOKIE, cookie("", Some(0)))], status(false)).into_response()
+}
+
+/// `POST /api/test/guarded`: a guarded endpoint that does nothing, mounted
+/// only by `Server::with_test_routes`.
+pub async fn test_guarded(_: Unlocked) -> StatusCode {
+    StatusCode::NO_CONTENT
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_unlock_cookie_is_found_among_others() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            COOKIE,
+            HeaderValue::from_static("a=1; openstar_unlock=abc ;b=2"),
+        );
+        assert_eq!(token_from(&headers).as_deref(), Some("abc"));
+        headers.insert(COOKIE, HeaderValue::from_static("openstar_unlock="));
+        assert_eq!(token_from(&headers), None);
+    }
+
+    #[test]
+    fn different_pins_have_different_fingerprints() {
+        assert_ne!(pin_fingerprint("1234"), pin_fingerprint("12345"));
+        assert_eq!(pin_fingerprint("1234"), pin_fingerprint("1234"));
+    }
+}

@@ -1,0 +1,124 @@
+{
+  "description": "Play from 1000 ms, pause at 4000 ms (Song time 3 s), resume countdown from 6000 ms, play again at 9000 ms, the Song ends at 12000 ms. Readings inside the pause, the countdown, before playback began or after it ended are dropped.",
+  "media": "audio",
+  "clock": [
+    { "at": 1000, "event": "play" },
+    { "at": 4000, "event": "pause" },
+    { "at": 9000, "event": "play" },
+    { "at": 12000, "event": "pause" }
+  ],
+  "readings": [
+    {
+      "name": "a Phone reading while playing",
+      "mic": "phone",
+      "captureTime": 2100,
+      "micDelayMs": 100,
+      "placedAt": 2300,
+      "songTime": 1
+    },
+    {
+      "name": "a Mic bridge reading while playing",
+      "mic": "micBridge",
+      "captureTime": 2350,
+      "micDelayMs": 250,
+      "placedAt": 2400,
+      "songTime": 1.1
+    },
+    {
+      "name": "a Local mic reading while playing",
+      "mic": "localMic",
+      "captureTime": 2112,
+      "micDelayMs": 12,
+      "placedAt": 2150,
+      "songTime": 1.1
+    },
+    {
+      "name": "the same capture time with a longer Mic delay lands earlier",
+      "mic": "phone",
+      "captureTime": 2100,
+      "micDelayMs": 300,
+      "placedAt": 2300,
+      "songTime": 0.8
+    },
+    {
+      "name": "the moment just before the pause",
+      "mic": "phone",
+      "captureTime": 4099,
+      "micDelayMs": 100,
+      "placedAt": 4200,
+      "songTime": 2.999
+    },
+    {
+      "name": "dropped: exactly at the pause",
+      "mic": "phone",
+      "captureTime": 4100,
+      "micDelayMs": 100,
+      "placedAt": 4200,
+      "songTime": null
+    },
+    {
+      "name": "dropped: inside the pause",
+      "mic": "localMic",
+      "captureTime": 5100,
+      "micDelayMs": 100,
+      "placedAt": 5200,
+      "songTime": null
+    },
+    {
+      "name": "dropped: inside the resume countdown",
+      "mic": "micBridge",
+      "captureTime": 7600,
+      "micDelayMs": 100,
+      "placedAt": 7700,
+      "songTime": null
+    },
+    {
+      "name": "dropped: captured in the countdown, placed after the Song resumed",
+      "mic": "phone",
+      "captureTime": 9050,
+      "micDelayMs": 100,
+      "placedAt": 9300,
+      "songTime": null
+    },
+    {
+      "name": "resumed exactly where the Song stopped",
+      "mic": "phone",
+      "captureTime": 9600,
+      "micDelayMs": 100,
+      "placedAt": 9700,
+      "songTime": 3.5
+    },
+    {
+      "name": "dropped: before playback began",
+      "mic": "phone",
+      "captureTime": 600,
+      "micDelayMs": 100,
+      "placedAt": 700,
+      "songTime": null
+    },
+    {
+      "name": "dropped: the Mic delay moves the moment before playback began",
+      "mic": "localMic",
+      "captureTime": 1050,
+      "micDelayMs": 100,
+      "placedAt": 1100,
+      "songTime": null
+    },
+    {
+      "name": "dropped: after the Song ended",
+      "mic": "phone",
+      "captureTime": 12600,
+      "micDelayMs": 100,
+      "placedAt": 12700,
+      "songTime": null
+    },
+    {
+      "name": "dropped: older than the clock's history when it arrives",
+      "mic": "phone",
+      "captureTime": 2100,
+      "micDelayMs": 100,
+      "placedAt": 7200,
+      "songTime": null
+    }
+  ]
+}
