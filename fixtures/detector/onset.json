@@ -8,5 +8,9 @@
     { "midi": 69, "levelDbfs": -20, "onsetS": 0.1 },
     { "midi": 48, "levelDbfs": -12, "onsetS": 0.137 }
   ],
-  "limits": { "medianCentsMax": 5, "p99CentsMax": 25, "loudnessToleranceDb": 0.5 }
+  "limits": {
+    "medianCentsMax": 5,
+    "p99CentsMax": 25,
+    "loudnessToleranceDb": 0.5
+  }
 }

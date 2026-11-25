@@ -23,5 +23,9 @@
     { "midi": 81, "levelDbfs": -20 },
     { "midi": 84, "levelDbfs": -12 }
   ],
-  "limits": { "medianCentsMax": 5, "p99CentsMax": 25, "loudnessToleranceDb": 0.5 }
+  "limits": {
+    "medianCentsMax": 5,
+    "p99CentsMax": 25,
+    "loudnessToleranceDb": 0.5
+  }
 }

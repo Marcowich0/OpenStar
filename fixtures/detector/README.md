@@ -9,15 +9,15 @@ the samples from the description below, so they must follow it exactly.
 
 ## File format
 
-| Field         | Meaning                                                                                  |
-| ------------- | ---------------------------------------------------------------------------------------- |
-| `sampleRates` | Every signal is generated and fed at each of these rates (Hz).                           |
-| `blockLen`    | Frames per audio block fed to the reading maker; the last block may be shorter.          |
-| `waveform`    | `sine`, `sawtooth`, `noise` or `silence`.                                                |
-| `durationS`   | Length of each signal in seconds: `round(durationS × sampleRate)` frames.                |
-| `vibrato`     | Optional `{ rateHz, depthCents }` for every signal in the file.                          |
+| Field         | Meaning                                                                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------------------- |
+| `sampleRates` | Every signal is generated and fed at each of these rates (Hz).                                              |
+| `blockLen`    | Frames per audio block fed to the reading maker; the last block may be shorter.                             |
+| `waveform`    | `sine`, `sawtooth`, `noise` or `silence`.                                                                   |
+| `durationS`   | Length of each signal in seconds: `round(durationS × sampleRate)` frames.                                   |
+| `vibrato`     | Optional `{ rateHz, depthCents }` for every signal in the file.                                             |
 | `signals`     | One entry per signal: `midi` (tones), `levelDbfs` (all but silence), `seed` (noise), and optional `onsetS`. |
-| `limits`      | The checks, below.                                                                       |
+| `limits`      | The checks, below.                                                                                          |
 
 ## Generating a signal
 
