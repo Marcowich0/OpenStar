@@ -11,6 +11,8 @@ const party: PartySnapshot = {
   stageId: "main",
   joinCode: "0427",
   startedAtMs: 1000,
+  members: [],
+  phones: [],
 };
 
 /** A browser that has the live state: the Stage, or a Phone. */
@@ -41,6 +43,8 @@ describe("Party changes as toast entries", () => {
       stageId: "main",
       joinCode: "5555",
       startedAtMs: 1000,
+      members: [],
+      phones: [],
     });
   });
 
@@ -80,7 +84,12 @@ describe("Party changes as toast entries", () => {
     }
     expect(MAX_TOASTS).toBe(3);
     expect(
-      state.toasts.map((toast) => [toast.id, toast.event.params.joinCode]),
+      state.toasts.map((toast) => [
+        toast.id,
+        toast.event.code === "partyStarted"
+          ? toast.event.params.joinCode
+          : null,
+      ]),
     ).toEqual([
       [1, "2222"],
       [2, "3333"],
