@@ -112,8 +112,12 @@ describe("rate", () => {
 
   it("refuses a rate that is not positive", () => {
     const clock = createSongClock({ media: "audio", now: () => 0 });
-    expect(() => clock.setRate(0)).toThrow();
-    expect(() => clock.setRate(-1)).toThrow();
+    expect(() => {
+      clock.setRate(0);
+    }).toThrow();
+    expect(() => {
+      clock.setRate(-1);
+    }).toThrow();
   });
 });
 
@@ -128,13 +132,14 @@ function random(seed: number) {
 
 const VSYNC_MS = 1000 / 144;
 
-interface Run {
-  /** Song time the clock reported at each rendered frame. */
-  reported: number[];
-  /** The true media position at each rendered frame. */
-  truth: number[];
-  /** Stage time of each rendered frame, ms. */
-  at: number[];
+/** One rendered frame of a simulated Song. */
+interface Rendered {
+  /** Stage time of the frame, ms. */
+  at: number;
+  /** Song time the clock reported. */
+  reported: number;
+  /** The true media position. */
+  truth: number;
 }
 
 /**
@@ -151,14 +156,14 @@ function simulate(options: {
   durationMs: number;
   seed?: number;
   rate?: number;
-}): Run {
+}): Rendered[] {
   const rnd = random(options.seed ?? 1);
   const s = stage(10_000);
   const start = s.now();
   const clock = createSongClock({ media: options.media, now: s.now });
   if (options.rate !== undefined) clock.setRate(options.rate);
   clock.play();
-  const run: Run = { reported: [], truth: [], at: [] };
+  const run: Rendered[] = [];
   let lastFrame = -1;
   for (
     let vsync = start + VSYNC_MS;
@@ -181,41 +186,47 @@ function simulate(options: {
       const step = Math.floor(Math.max(0, options.truth(render)) / 0.02) * 0.02;
       clock.observeCurrentTime({ currentTime: step, stageTime: render });
     }
-    run.reported.push(clock.songTime());
-    run.truth.push(Math.max(0, options.truth(render)));
-    run.at.push(render);
+    run.push({
+      at: render,
+      reported: clock.songTime(),
+      truth: Math.max(0, options.truth(render)),
+    });
   }
   return run;
 }
 
 /** Largest frame-to-frame deviation of Song time from the ideal step, seconds. */
-function jitter(run: Run, rate: number, fromMs: number) {
+function jitter(run: Rendered[], rate: number) {
   let worst = 0;
-  for (let i = 1; i < run.reported.length; i++) {
-    if (run.at[i] - run.at[0] < fromMs) continue;
-    const ideal = ((run.at[i] - run.at[i - 1]) / 1000) * rate;
-    worst = Math.max(
-      worst,
-      Math.abs(run.reported[i] - run.reported[i - 1] - ideal),
-    );
+  let previous: Rendered | undefined;
+  for (const frame of run) {
+    if (previous) {
+      const ideal = ((frame.at - previous.at) / 1000) * rate;
+      const step = frame.reported - previous.reported;
+      worst = Math.max(worst, Math.abs(step - ideal));
+    }
+    previous = frame;
   }
   return worst;
 }
 
-/** Largest error against the true media position, seconds. */
-function error(run: Run, fromMs: number) {
-  let worst = 0;
-  for (let i = 0; i < run.reported.length; i++) {
-    if (run.at[i] - run.at[0] < fromMs) continue;
-    worst = Math.max(worst, Math.abs(run.reported[i] - run.truth[i]));
-  }
-  return worst;
-}
-
-function neverDecreases(run: Run) {
-  return run.reported.every(
-    (value, i) => i === 0 || value >= run.reported[i - 1],
+/** Largest error against the true media position after `fromMs`, seconds. */
+function error(run: Rendered[], fromMs: number) {
+  const start = run[0]?.at ?? 0;
+  return Math.max(
+    ...run
+      .filter((frame) => frame.at - start >= fromMs)
+      .map((frame) => Math.abs(frame.reported - frame.truth)),
   );
+}
+
+function neverDecreases(run: Rendered[]) {
+  let previous = -Infinity;
+  for (const frame of run) {
+    if (frame.reported < previous) return false;
+    previous = frame.reported;
+  }
+  return true;
 }
 
 describe("following the media", () => {
@@ -232,7 +243,7 @@ describe("following the media", () => {
     "$media (seed $seed): jitter under 1 ms and error under 10 ms against the true position",
     ({ media, seed }) => {
       const run = simulate({ media, truth, durationMs: 20_000, seed });
-      expect(jitter(run, 1, 0)).toBeLessThan(0.001);
+      expect(jitter(run, 1)).toBeLessThan(0.001);
       expect(error(run, 2000)).toBeLessThan(0.01);
       expect(neverDecreases(run)).toBe(true);
     },
@@ -248,7 +259,7 @@ describe("following the media", () => {
       truth: (t) => ((t - 10_000 - 30) / 1000) * rate,
       durationMs: 20_000,
     });
-    expect(jitter(run, rate, 0)).toBeLessThan(0.001);
+    expect(jitter(run, rate)).toBeLessThan(0.001);
     expect(error(run, 2000)).toBeLessThan(0.01);
   });
 

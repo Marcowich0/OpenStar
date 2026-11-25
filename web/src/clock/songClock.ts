@@ -128,9 +128,10 @@ export function createSongClock(options: SongClockOptions): SongClock {
     segments = segments.filter((segment) => segment.start < at);
     segments.push(...next);
     const oldest = at - SONG_CLOCK.historyMs;
-    while (segments.length > 1 && segments[1].start <= oldest) {
-      segments.shift();
-    }
+    const firstNeeded = segments.findLastIndex(
+      (segment) => segment.start <= oldest,
+    );
+    if (firstNeeded > 0) segments = segments.slice(firstNeeded);
   }
 
   function observe(position: number, stageTime: number) {
@@ -223,7 +224,9 @@ export function createSongClock(options: SongClockOptions): SongClock {
     },
     setRate(next) {
       if (!(next > 0) || !Number.isFinite(next)) {
-        throw new RangeError(`Song clock rate must be positive, got ${next}`);
+        throw new RangeError(
+          `Song clock rate must be positive, got ${String(next)}`,
+        );
       }
       const t = now();
       if (playing) anchor(t, { start: t, position: current(), rate: next });
