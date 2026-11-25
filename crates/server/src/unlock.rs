@@ -6,17 +6,17 @@
 //! while its fingerprint matches the running PIN and it was last used less
 //! than [`IDLE_LIMIT`] ago by the server [`Clock`](crate::clock::Clock).
 //!
-//! Guarded HTTP endpoints take the [`Unlocked`] extractor, which checks the
-//! Unlock on the server and resets its idle time. The WebSocket carries no
+//! Guarded HTTP endpoints are classified as such in
+//! [`endpoints`](crate::endpoints), whose guard calls [`refusal_without_unlock`]: it checks
+//! the Unlock on the server and resets its idle time. The WebSocket carries no
 //! Unlock, Lock or guarded action. The HTTP routes are listed in
 //! `openstar_protocol::admin`.
 
 use std::time::Duration;
 
 use axum::Json;
-use axum::extract::{FromRequestParts, State};
+use axum::extract::State;
 use axum::http::header::{COOKIE, SET_COOKIE};
-use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest, UnlockStatus};
@@ -127,7 +127,7 @@ fn internal_error(error: anyhow::Error) -> Response {
     StatusCode::INTERNAL_SERVER_ERROR.into_response()
 }
 
-fn refusal(status: StatusCode, code: ApiErrorCode) -> Response {
+pub(crate) fn refusal(status: StatusCode, code: ApiErrorCode) -> Response {
     (status, Json(ApiError { code })).into_response()
 }
 
@@ -149,24 +149,19 @@ fn cookie(value: &str, max_age: Option<u32>) -> HeaderValue {
     .unwrap_or_else(|_| HeaderValue::from_static("openstar_unlock=; Max-Age=0"))
 }
 
-/// Proof that the request carries a live Unlock. Taking it as a handler
-/// argument makes the endpoint guarded: a request without a live Unlock is
-/// refused with `401` and [`ApiErrorCode::UnlockRequired`], and a request
-/// with one resets its idle time.
-pub struct Unlocked(());
-
-impl FromRequestParts<AppState> for Unlocked {
-    type Rejection = Response;
-
-    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Response> {
-        if check_request(state, &parts.headers, Use::Touch)
-            .await
-            .map_err(internal_error)?
-        {
-            Ok(Self(()))
-        } else {
-            Err(unlock_required())
-        }
+/// The Unlock check of every guarded endpoint, run by the guard in
+/// [`endpoints`](crate::endpoints) from the endpoint's classification. A
+/// request without a live Unlock is refused with `401` and
+/// [`ApiErrorCode::UnlockRequired`]; a request with one resets its idle time
+/// and gets `None`.
+pub(crate) async fn refusal_without_unlock(
+    state: &AppState,
+    headers: &HeaderMap,
+) -> Option<Response> {
+    match check_request(state, headers, Use::Touch).await {
+        Ok(true) => None,
+        Ok(false) => Some(unlock_required()),
+        Err(error) => Some(internal_error(error)),
     }
 }
 
@@ -213,8 +208,9 @@ pub async fn unlock_status(State(state): State<AppState>, headers: HeaderMap) ->
 }
 
 /// `POST /api/unlock/heartbeat`: resets the idle time of a live Unlock. Never
-/// creates or revives one.
-pub async fn heartbeat(_: Unlocked) -> Json<UnlockStatus> {
+/// creates or revives one: it is classified guarded, so the guard has already
+/// checked the Unlock and reset its idle time.
+pub async fn heartbeat() -> Json<UnlockStatus> {
     status(true)
 }
 
@@ -233,12 +229,6 @@ pub async fn lock(State(state): State<AppState>, headers: HeaderMap) -> Response
         }
     }
     ([(SET_COOKIE, cookie("", Some(0)))], status(false)).into_response()
-}
-
-/// `POST /api/test/guarded`: a guarded endpoint that does nothing, mounted
-/// only by `Server::with_test_routes`.
-pub async fn test_guarded(_: Unlocked) -> StatusCode {
-    StatusCode::NO_CONTENT
 }
 
 #[cfg(test)]
