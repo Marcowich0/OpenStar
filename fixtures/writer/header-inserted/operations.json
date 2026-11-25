@@ -1,0 +1,4 @@
+[
+  { "op": "setGap", "seconds": 1.2505 },
+  { "op": "setVideoGap", "seconds": -0.25 }
+]

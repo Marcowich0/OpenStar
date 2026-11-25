@@ -1,0 +1,4 @@
+[
+  { "op": "setGap", "seconds": 0.753 },
+  { "op": "setBpm", "beatsPerMinute": 865.04 }
+]
