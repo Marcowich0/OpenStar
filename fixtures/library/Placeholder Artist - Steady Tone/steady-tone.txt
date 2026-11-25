@@ -1,0 +1,16 @@
+#TITLE:Steady Tone
+#ARTIST:Placeholder Artist
+#MP3:steady-tone.ogg
+#BPM:300
+#GAP:2000
+: 0 16 9 La
+: 20 16 9  la
+* 40 16 -3  la
+- 60
+: 64 16 9 Lo
+: 84 16 -3  lo
+F 104 16 4  free
+- 124
+: 128 16 21 La
+* 148 24 9  la
+E

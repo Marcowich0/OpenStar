@@ -98,6 +98,7 @@ describe("frame", () => {
         height: 170,
         notesX: 320,
         colour: "cherry",
+        lost: null,
         separator: {
           x: 318,
           top: 724,
@@ -322,6 +323,12 @@ describe("frame", () => {
             if (entry.fill?.type === "solid") colours.push(entry.fill.colour);
             if (entry.fill?.type === "vertical")
               colours.push(entry.fill.top, entry.fill.bottom);
+            break;
+          case "pitchLine":
+            colours.push(entry.hit.colour, entry.hit.edge, entry.miss.colour);
+            break;
+          case "headBall":
+            colours.push(entry.colour, entry.rim);
             break;
           case "laneEnd":
             break;

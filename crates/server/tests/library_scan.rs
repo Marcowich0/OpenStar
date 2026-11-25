@@ -1,5 +1,5 @@
 //! The Library scan and its index, through the real app over HTTP and the
-//! WebSocket, on a copy of `fixtures/library/` (see its README for what each
+//! WebSocket, on a copy of `fixtures/library-scan/` (see its README for what each
 //! `.txt` covers). Media files are created empty at test time.
 
 use std::collections::BTreeSet;
@@ -18,7 +18,7 @@ use openstar_test_harness::{AppFolders, TestApp};
 const CANDIDATES: u32 = 9;
 
 fn fixture_library() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/library")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/library-scan")
 }
 
 fn copy_dir(from: &Path, to: &Path) {
@@ -141,7 +141,9 @@ async fn the_first_scan_lists_every_playable_song_at_any_depth() {
         ScanReport {
             read: CANDIDATES,
             unchanged: 0,
-            removed: 0
+            removed: 0,
+            // The three audio files in `media.list` (empty, so unreadable).
+            probed: 3
         }
     );
     // References in other case (`AUDIO.MP3`, `MEDIA/Track.Ogg`) are found;
@@ -274,7 +276,9 @@ async fn a_rescan_rereads_only_new_and_changed_files_and_drops_gone_ones() {
         ScanReport {
             read: 2,
             unchanged: CANDIDATES - 2,
-            removed: 1
+            removed: 1,
+            // Only the new `New/shared.mp3`.
+            probed: 1
         }
     );
     assert_eq!(
@@ -310,7 +314,8 @@ async fn a_restart_serves_the_stored_index_and_rereads_nothing_unchanged() {
         ScanReport {
             read: 0,
             unchanged: CANDIDATES,
-            removed: 0
+            removed: 0,
+            probed: 0
         }
     );
     assert_eq!(song_paths(&app).await, before);

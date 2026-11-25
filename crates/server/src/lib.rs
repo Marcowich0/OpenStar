@@ -98,6 +98,7 @@ impl Server {
             opened.database.clone(),
             config.songs_dir.clone(),
             live.clone(),
+            config.tool_path.clone(),
         );
         Ok(Self {
             state: AppState {

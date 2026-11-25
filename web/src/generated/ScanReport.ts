@@ -16,4 +16,9 @@ unchanged: number,
 /**
  * Index entries removed because their file has gone.
  */
-removed: number, };
+removed: number, 
+/**
+ * Audio and video files probed with ffprobe: new, or changed in size or
+ * mtime since they were last probed.
+ */
+probed: number, };

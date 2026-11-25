@@ -43,4 +43,32 @@ describe("syntheticSing", () => {
       for (const note of voice.notes) expect(note.text.trim()).toBe("la");
     }
   });
+
+  it("gives every lane a pitch line held to the playhead, with hits, misses and a head ball, at the default time", () => {
+    const list = frame(syntheticSing("one"), 6, laneLayout(1));
+    const points = list.flatMap((e) =>
+      e.type === "pitchLine" ? e.points : [],
+    );
+    expect(points.some((p) => p.hit)).toBe(true);
+    expect(points.some((p) => !p.hit)).toBe(true);
+    expect(points.some((p) => p.guessed)).toBe(true);
+    expect(points.at(-1)?.x).toBe(600);
+    // An unvoiced stretch breaks the line.
+    expect(list.filter((e) => e.type === "pitchLine").length).toBeGreaterThan(
+      1,
+    );
+    expect(list.filter((e) => e.type === "headBall")).toHaveLength(1);
+  });
+
+  it("shows a lost lane in the four-Player case", () => {
+    const list = frame(syntheticSing("four"), 6, laneLayout(4));
+    const lanes = list.filter((e) => e.type === "lane");
+    expect(lanes.map((l) => l.lost !== null)).toEqual([
+      false,
+      false,
+      false,
+      true,
+    ]);
+    expect(list.filter((e) => e.type === "headBall")).toHaveLength(3);
+  });
 });
