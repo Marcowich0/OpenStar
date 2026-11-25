@@ -54,7 +54,15 @@ const MIGRATIONS: &[&str] = &[
         created_ms       INTEGER NOT NULL,
         last_sung_ms     INTEGER
     ) STRICT;",
-    // 5: the current Party's members and joined Phones. Both go with their
+    // 5: background jobs. `params` is the job's kind and parameters as JSON,
+    // `error` the failure's `UserMessage` as JSON.
+    "CREATE TABLE jobs (
+        id     INTEGER PRIMARY KEY,
+        params TEXT NOT NULL,
+        state  TEXT NOT NULL CHECK (state IN ('queued', 'running', 'done', 'failed')),
+        error  TEXT
+    ) STRICT;",
+    // 6: the current Party's members and joined Phones. Both go with their
     // Party (New party deletes the `parties` row), and a member's Phones go
     // with the member. One holder per colour and one membership per Profile
     // are kept by the live-state task and backed by UNIQUE here. A member is

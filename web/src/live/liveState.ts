@@ -1,10 +1,10 @@
-import type { ChangeEvent } from "../generated/ChangeEvent";
 import type { JoinCode } from "../generated/JoinCode";
 import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { StageId } from "../generated/StageId";
 import type { UserMessage } from "../generated/UserMessage";
+import { addToast, type Toast } from "./toasts";
 
 /** Where the browser's one WebSocket stands. */
 export type LiveConnection = "connecting" | "open" | "reconnecting";
@@ -33,8 +33,10 @@ export interface LiveState {
   connection: LiveConnection;
   /** `null` until the server has told this browser the state. */
   stage: StageState | null;
-  /** The last accepted change to the Party, for its toast. */
-  lastChange: ChangeEvent | null;
+  /** Party changes to show as toasts, oldest first (`toasts.ts`). */
+  toasts: readonly Toast[];
+  /** The id the next toast gets. */
+  nextToastId: number;
   lastRejection: UserMessage | null;
   lastPong: number | null;
   /** `null` until the server answered this connection's Phone id. */
@@ -46,7 +48,8 @@ export interface LiveState {
 export const initialLiveState: LiveState = {
   connection: "connecting",
   stage: null,
-  lastChange: null,
+  toasts: [],
+  nextToastId: 0,
   lastRejection: null,
   lastPong: null,
   phone: null,
@@ -71,7 +74,7 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
         ? {
             ...state,
             stage: { ...state.stage, party: message.party },
-            lastChange: message.change,
+            ...addToast(state, state.stage.isStage, message.change),
           }
         : state;
     case "stageMoved":
@@ -100,6 +103,10 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
       return { ...state, validJoinCode: message.joinCode };
     case "changed":
       // Change notices invalidate HTTP data; they change no live state.
+      return state;
+    case "jobChanged":
+      // Job updates belong to the screens that show jobs (Downloads, the
+      // Timing editor); the live state does not keep them.
       return state;
     default:
       return unreachable(message);

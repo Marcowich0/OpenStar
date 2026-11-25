@@ -62,6 +62,11 @@ export const en = {
   "userMessage.joinCodeWrong": "That code is not on the Stage",
   "userMessage.partyFull": "Party is full",
   "userMessage.notInParty": "Join the Party first",
+  "userMessage.jobCancelled": "Cancelled",
+  "userMessage.jobInterrupted": "A server restart interrupted this",
+  "userMessage.toolNotFound": "{tool} is not installed on the server",
+  "userMessage.toolFailed": "{tool} failed with exit code {exitCode, number}",
+  "userMessage.toolStopped": "{tool} was stopped before it finished",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
@@ -97,10 +102,12 @@ export const en = {
     "Line {line, number}: the Note overlaps the one on line {earlierLine, number}",
   "txtWarning.unknownBodyLine": "Line {line, number} is not understood",
 
-  // Toasts: structured events from the server, rendered on the Stage.
+  // Toasts: structured events from the server, rendered on the Stage and Phones.
   "partyEvent.partyStarted": "New party started, Join code {joinCode}",
   "partyEvent.memberJoined": "{name} joined the Party in {colour}",
   "partyEvent.phoneJoined": "{name} joined on another Phone",
   "toast.songMovedUp": "{actor} moved {song} up",
   "toast.backOnMic": "{actor} is back on the mic",
+  // A colour parameter is always a palette display name (`colourName`).
+  "toast.memberLeft": "{actor} left the Party. {colour} is free",
 } as const satisfies Record<string, Entry>;

@@ -45,6 +45,13 @@ export const userMessageText = byCode<UserMessage>({
   joinCodeWrong: () => t("userMessage.joinCodeWrong"),
   partyFull: () => t("userMessage.partyFull"),
   notInParty: () => t("userMessage.notInParty"),
+  jobCancelled: () => t("userMessage.jobCancelled"),
+  jobInterrupted: () => t("userMessage.jobInterrupted"),
+  toolNotFound: ({ params }) => t("userMessage.toolNotFound", params),
+  toolFailed: ({ params: { tool, exitCode } }) =>
+    exitCode === null
+      ? t("userMessage.toolStopped", { tool })
+      : t("userMessage.toolFailed", { tool, exitCode }),
 });
 
 /** An accepted change to the Party, as a toast. */

@@ -4,6 +4,10 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import {
+  COLOUR_LITERAL_ALLOWED,
+  colourLiteralRule,
+} from "./checks/colourLiterals.js";
 import { openstarPlugin } from "./lint/noLiteralJsxText.js";
 
 export default defineConfig(
@@ -26,6 +30,15 @@ export default defineConfig(
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/no-floating-promises": "error",
     },
+  },
+  {
+    // Colours by palette key or token only (src/theme/tokens.ts).
+    files: ["src/**/*.{ts,tsx}"],
+    rules: { "no-restricted-syntax": colourLiteralRule },
+  },
+  {
+    files: COLOUR_LITERAL_ALLOWED.filter((file) => !file.endsWith(".css")),
+    rules: { "no-restricted-syntax": "off" },
   },
   {
     // Every word on screen goes through t() (src/i18n/t.ts). Tests and type

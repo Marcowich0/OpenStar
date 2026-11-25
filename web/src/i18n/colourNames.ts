@@ -1,4 +1,4 @@
-import type { PaletteKey } from "./paletteKeys";
+import type { PaletteKey } from "../theme/tokens";
 import { t, type MessageKey } from "./t";
 
 /**

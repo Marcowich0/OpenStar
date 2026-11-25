@@ -60,8 +60,8 @@ enum Command {
     },
     /// A browser's socket closed.
     Disconnect { id: ConnectionId },
-    /// HTTP data changed: tell every connection which topics to refetch.
-    Changed { topics: Vec<ChangeTopic> },
+    /// Send a message to every connection (change notices, job updates).
+    SendAll { message: ServerMessage },
     /// Stop: drop every connection (their sockets close) and end the task.
     Shutdown { done: oneshot::Sender<()> },
 }
@@ -119,7 +119,12 @@ impl LiveHandle {
     /// Sends a change notice for `topics` to every connection, after an HTTP
     /// handler changed the data they name.
     pub async fn changed(&self, topics: Vec<ChangeTopic>) {
-        let _ = self.commands.send(Command::Changed { topics }).await;
+        self.send_all(ServerMessage::Changed { topics }).await;
+    }
+
+    /// Sends `message` to every connected browser.
+    pub async fn send_all(&self, message: ServerMessage) {
+        let _ = self.commands.send(Command::SendAll { message }).await;
     }
 
     /// Stops the task and closes every WebSocket. Returns once it has stopped.
@@ -195,9 +200,7 @@ impl LiveState {
                     message,
                 } => self.received(id, now_ms, message).await,
                 Command::Disconnect { id } => self.disconnect(id),
-                Command::Changed { topics } => {
-                    self.hub.send_all(&ServerMessage::Changed { topics });
-                }
+                Command::SendAll { message } => self.hub.send_all(&message),
                 Command::Shutdown { done } => {
                     drop(self);
                     let _ = done.send(());
