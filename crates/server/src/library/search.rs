@@ -138,7 +138,7 @@ fn filters(listed: &[Listed]) -> SongFilters {
 /// once as first written, sorted by the folded value.
 fn values(listed: &[Listed], field: fn(&Listed) -> &Vec<String>) -> Vec<String> {
     let mut seen = std::collections::BTreeMap::new();
-    for value in listed.iter().flat_map(|s| field(s)) {
+    for value in listed.iter().flat_map(field) {
         let folded = normalise(value);
         if !folded.is_empty() {
             seen.entry(folded).or_insert_with(|| value.clone());

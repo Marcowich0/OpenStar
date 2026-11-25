@@ -2,7 +2,7 @@
 //! its Notes, scanned by the real app: the Library `just e2e` serves.
 
 use openstar_protocol::library::{
-    LibraryProblem, ProblemReason, ProblemSeverity, SongDetail, SongSummary,
+    LibraryProblem, ProblemReason, ProblemSeverity, SongDetail, SongList, SongSummary,
 };
 use openstar_protocol::song::TxtRejection;
 use openstar_test_harness::fixture_library::{DUET, REJECTED, SINE_MELODY, STEADY_TONE};
@@ -18,7 +18,7 @@ async fn start() -> TestApp {
 #[tokio::test]
 async fn every_song_but_the_rejected_file_is_playable() {
     let app = start().await;
-    let songs: Vec<SongSummary> = app.get_json("/api/songs").await;
+    let songs: Vec<SongSummary> = app.get_json::<SongList>("/api/songs").await.songs;
     let mut paths: Vec<&str> = songs.iter().map(|s| s.path.as_str()).collect();
     paths.sort_unstable();
     let mut expected = vec![STEADY_TONE, SINE_MELODY, DUET];
