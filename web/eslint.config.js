@@ -8,6 +8,7 @@ import {
   COLOUR_LITERAL_ALLOWED,
   colourLiteralRule,
 } from "./checks/colourLiterals.js";
+import { apiPlugin, onlyTheWrapperFetches } from "./lint/apiRules.js";
 import { openstarPlugin } from "./lint/noLiteralJsxText.js";
 
 export default defineConfig(
@@ -39,6 +40,27 @@ export default defineConfig(
   {
     files: COLOUR_LITERAL_ALLOWED.filter((file) => !file.endsWith(".css")),
     rules: { "no-restricted-syntax": "off" },
+  },
+  {
+    // HTTP goes through the one typed wrapper, and nothing polls
+    // (lint/apiRules.js).
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { api: apiPlugin },
+    rules: {
+      "no-restricted-globals": ["error", ...onlyTheWrapperFetches.globals],
+      "no-restricted-properties": [
+        "error",
+        ...onlyTheWrapperFetches.properties,
+      ],
+      "api/no-polling": "error",
+    },
+  },
+  {
+    files: ["src/api/api.ts"],
+    rules: {
+      "no-restricted-globals": "off",
+      "no-restricted-properties": "off",
+    },
   },
   {
     // Every word on screen goes through t() (src/i18n/t.ts). Tests and type

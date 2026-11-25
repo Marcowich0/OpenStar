@@ -1,3 +1,5 @@
+import type { JoinCode } from "../generated/JoinCode";
+import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { StageId } from "../generated/StageId";
@@ -18,6 +20,14 @@ export interface StageState {
   stageMoved: boolean;
 }
 
+/** Where this browser's Phone stands in the Party, as the server told it. */
+export interface PhoneState {
+  /** The Party member this Phone uses, or `null` when it is not in the Party. */
+  memberId: PartyMemberId | null;
+  /** It was in the Party and no longer is (a new Party started). */
+  leftParty: boolean;
+}
+
 /** The browser's copy of the live state the server owns. */
 export interface LiveState {
   connection: LiveConnection;
@@ -29,6 +39,10 @@ export interface LiveState {
   nextToastId: number;
   lastRejection: UserMessage | null;
   lastPong: number | null;
+  /** `null` until the server answered this connection's Phone id. */
+  phone: PhoneState | null;
+  /** The Join code the server last confirmed is the current Party's. */
+  validJoinCode: JoinCode | null;
 }
 
 export const initialLiveState: LiveState = {
@@ -38,6 +52,8 @@ export const initialLiveState: LiveState = {
   nextToastId: 0,
   lastRejection: null,
   lastPong: null,
+  phone: null,
+  validJoinCode: null,
 };
 
 /** Applies a server message. The `switch` is exhaustive over the generated union. */
@@ -72,8 +88,28 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
       return { ...state, lastRejection: message.reason };
     case "pong":
       return { ...state, lastPong: message.nonce };
+    case "phoneStatus":
+      return {
+        ...state,
+        phone: { memberId: message.memberId, leftParty: false },
+      };
+    case "leftParty":
+      return {
+        ...state,
+        phone: { memberId: null, leftParty: true },
+        validJoinCode: null,
+      };
+    case "joinCodeValid":
+      return { ...state, validJoinCode: message.joinCode };
     case "changed":
       // Change notices invalidate HTTP data; they change no live state.
+      return state;
+    case "pitchReading":
+    case "clockPing":
+    case "clockPong":
+    case "micClosed":
+      // The Pitch reading relay and clock sync change no live state; they
+      // are routed away from the reducer in liveStore.ts (#127).
       return state;
     case "jobChanged":
       // Job updates belong to the screens that show jobs (Downloads, the

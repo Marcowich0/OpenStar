@@ -6,14 +6,21 @@
 
 pub mod admin;
 pub mod jobs;
+pub mod library;
+pub mod mics;
 pub mod party;
+pub mod pitch;
 pub mod profile;
 pub mod song;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-pub use party::{Actor, ChangeEvent, JoinCode, PartyEvent, PartyId, PartyMemberId, PartySnapshot};
+pub use party::{
+    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, PartyEvent, PartyId, PartyMember,
+    PartyMemberId, PartySnapshot, PhoneId,
+};
+pub use pitch::{MicId, PitchReading};
 
 /// Body of `GET /api/server-info`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -60,7 +67,7 @@ pub enum LibraryReadOnlyCode {
 pub struct StageId(pub String);
 
 /// A message a browser sends over its WebSocket.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -73,10 +80,61 @@ pub enum ClientMessage {
     /// Starts a new Party with a new Join code. Accepted only from the
     /// active Stage; needs no Admin PIN.
     NewParty,
+    /// One Pitch reading from this browser's Mic, relayed to the current
+    /// Stage (dropped while there is none).
+    PitchReading { reading: PitchReading },
+    /// A clock-sync ping, relayed to the current Stage (dropped while there
+    /// is none). `t0` is the send time on the sender's own clock, in ms.
+    ClockPing { t0: f64 },
+    /// The Stage's answer to a [`ServerMessage::ClockPing`], relayed to the
+    /// Mic named in `mic` alone. Accepted only from the active Stage.
+    ClockPong {
+        mic: MicId,
+        /// The ping's `t0`, unchanged.
+        t0: f64,
+        /// The Stage page's `performance.now()` when it answered, in ms.
+        ts: f64,
+        /// The Stage page's `performance.timeOrigin`, in ms since the Unix
+        /// epoch: a new value means the Stage's clock is a new one.
+        epoch: f64,
+    },
+    /// Stores a Calibration run's successful results at `stage_output`, one
+    /// per Mic included; a Mic left out keeps every value it had. Accepted
+    /// only from the active Stage; needs no Admin PIN.
+    StoreCalibration {
+        stage_output: String,
+        results: Vec<mics::CalibrationResult>,
+    },
+    /// Sets a Local mic's Mic threshold by hand at `stage_output`, in dBFS at
+    /// the reference volume. Accepted only from the active Stage; needs no
+    /// Admin PIN.
+    SetMicThreshold {
+        stage_output: String,
+        local_mic_id: String,
+        reference_dbfs: f64,
+    },
+    /// Presents the browser's Phone id. A Phone sends it every time its
+    /// WebSocket opens, before anything else. A Phone already in the current
+    /// Party is back in at once with the same identity (silent rejoin). The
+    /// answer is a [`ServerMessage::PhoneStatus`].
+    Hello { phone_id: PhoneId },
+    /// Asks whether this is the current Party's Join code, before the Phone
+    /// picks who it is. Answered with [`ServerMessage::JoinCodeValid`], or
+    /// refused with [`UserMessage::JoinCodeWrong`]. Wrong codes are never
+    /// counted or delayed.
+    CheckJoinCode { join_code: JoinCode },
+    /// Joins the current Party: the Join code plus an identity. Presents the
+    /// Phone id like [`ClientMessage::Hello`]. A Phone already in the Party
+    /// that joins again switches to the new identity.
+    Join {
+        phone_id: PhoneId,
+        join_code: JoinCode,
+        join_as: JoinAs,
+    },
 }
 
 /// A message the server sends over a WebSocket.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -109,6 +167,24 @@ pub enum ServerMessage {
     StageMoved,
     /// HTTP data changed: the frontend refetches what each topic names.
     Changed { topics: Vec<ChangeTopic> },
+    /// Stage only: a Pitch reading from a Mic, values unchanged.
+    PitchReading { mic: MicId, reading: PitchReading },
+    /// Stage only: a Mic's clock-sync ping. Answer at once with a
+    /// [`ClientMessage::ClockPong`] naming the same Mic.
+    ClockPing { mic: MicId, t0: f64 },
+    /// The Stage's answer to this browser's [`ClientMessage::ClockPing`].
+    ClockPong { t0: f64, ts: f64, epoch: f64 },
+    /// Stage only: a Mic's WebSocket closed (one of the lost-Mic signals).
+    MicClosed { mic: MicId },
+    /// The answer to a [`ClientMessage::CheckJoinCode`] with the current code.
+    JoinCodeValid { join_code: JoinCode },
+    /// Sent to a connection after its [`ClientMessage::Hello`] or accepted
+    /// [`ClientMessage::Join`]: the Party member its Phone uses now, or `null`
+    /// when its Phone is not in the current Party and must join with the code.
+    PhoneStatus { member_id: Option<PartyMemberId> },
+    /// Sent to every connection of a Phone that was in the Party and no
+    /// longer is (a new Party started): it needs the new Join code.
+    LeftParty,
     /// A background job was queued, started, made progress or ended (sent to
     /// every connection).
     JobChanged { job: jobs::Job },
@@ -116,13 +192,21 @@ pub enum ServerMessage {
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
 /// HTTP data the frontend refetches. Each area adds a topic per HTTP
-/// resource (library, profiles, downloads, ...); none exists yet.
+/// resource (library, profiles, downloads, ...).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum ChangeTopic {
+    /// `GET /api/server-info` changed (for example the Library became
+    /// read-only or writable again).
+    ServerInfo,
     /// `GET /api/profiles` and `GET /api/profiles/{id}`.
     Profiles,
+    /// The Library index: `GET /api/songs`, `GET /api/songs/{id}`,
+    /// `GET /api/library/problems` and `GET /api/library/scan`.
+    Library,
+    /// `GET /api/mic-settings`.
+    MicSettings,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast
@@ -154,6 +238,13 @@ pub enum UserMessage {
     ProfileNameTaken { profile_id: profile::ProfileId },
     /// No Profile has this id (it was deleted, or never existed).
     ProfileNotFound,
+    /// The Join code is not the current Party's ("That code is not on the Stage").
+    JoinCodeWrong,
+    /// All twelve Party colours are held, so no new Party member can enter.
+    PartyFull,
+    /// Only a Phone that has joined the Party (with an identity) or the
+    /// Stage may do this.
+    NotInParty,
     /// The job was cancelled.
     JobCancelled,
     /// A restart interrupted the job, and its kind does not run again.

@@ -17,6 +17,7 @@
   --shadow-*: initial;
   --radius-*: initial;
   --ease-*: initial;
+  --animate-*: initial;
 
   /* Party colours, in palette order. */
   --color-party-cherry: #ff4b5c;
@@ -47,6 +48,7 @@
   --color-green-ledge: #24a862;
   --color-yellow: #ffc93c;
   --color-yellow-ledge: #d9a21a;
+  --color-ink-ledge: #14151f;
   --color-purple: #9b5cff;
   --color-slate: #7c82a0;
   --color-golden-top: #ffe58a;
@@ -68,9 +70,64 @@
   --shadow-ledge-sm: 0 6px 0 var(--color-ledge);
   --shadow-ledge: 0 8px 0 var(--color-ledge);
   --shadow-ledge-lg: 0 10px 0 var(--color-ledge);
+  /* The coloured buttons' and stickers' own darker ledges. */
+  --shadow-ledge-green: 0 8px 0 var(--color-green-ledge);
+  --shadow-ledge-red: 0 8px 0 var(--color-red-ledge);
+  --shadow-ledge-ink: 0 8px 0 var(--color-ink-ledge);
+  --shadow-ledge-yellow: 0 8px 0 var(--color-yellow-ledge);
 
   /* The one springy back-out easing for all UI motion. */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Every `transition` utility uses it unless told otherwise. */
+  --default-transition-timing-function: var(--ease-spring);
+
+  /*
+   * Animations. They use the individual `scale` and `translate` properties, so
+   * they leave an element's own `transform` (its positioning) alone.
+   */
+  --animate-breathe: breathe 1.45s ease-in-out infinite;
+  --animate-pop-in: pop-in 0.45s var(--ease-spring) both;
+  --animate-shake: shake 0.3s linear;
+  --animate-float: float 9s ease-in-out infinite;
+
+  /* The breathing Sing / Start button: one breath, up to 6 % larger. */
+  @keyframes breathe {
+    50% {
+      scale: 1.06;
+    }
+  }
+
+  /* Cards, toasts, stickers, Line ratings: the spring easing overshoots. */
+  @keyframes pop-in {
+    from {
+      scale: 0.6;
+      opacity: 0;
+    }
+  }
+
+  /* A press on a disabled control: ±12 px. */
+  @keyframes shake {
+    0%,
+    100% {
+      translate: 0;
+    }
+    20%,
+    60% {
+      translate: -12px;
+    }
+    40%,
+    80% {
+      translate: 12px;
+    }
+  }
+
+  /* The background blobs drifting. */
+  @keyframes float {
+    50% {
+      translate: 30px -26px;
+      scale: 1.06;
+    }
+  }
 
   /* Fredoka, bundled (see `fonts.ts`), for everything. */
   --font-sans: "Fredoka", ui-rounded, system-ui, sans-serif;

@@ -7,6 +7,9 @@
  * volume; the effective Mic threshold adds the OpenStar volume's level.
  */
 
+import type { StoredMicSettings } from "../generated/StoredMicSettings";
+import type { ThresholdSetBy } from "../generated/ThresholdSetBy";
+
 /** Mic threshold rules. Every dBFS value is at the reference volume. */
 export const MIC_THRESHOLD = {
   /** Calibration sets a Mic threshold to its bleed level + this margin. */
@@ -55,27 +58,11 @@ const SILENT_VOLUME_STAND_IN = 5;
 
 export type MicKind = "phone" | "localMic";
 
-/** What last set a Local mic's stored Mic threshold. */
-export type ThresholdSetBy = "calibration" | "hand";
+/** What the server keeps for one Mic at one Stage output (generated from Rust). */
+export type { StoredMicSettings, ThresholdSetBy };
 
 /** Where an effective Mic threshold came from. */
 export type ThresholdSource = ThresholdSetBy | "default";
-
-/** What the server keeps for one Mic at one Stage output. */
-export interface StoredMicSettings {
-  /** Present exactly when the Mic is calibrated at this Stage output. */
-  calibration?: {
-    micDelayMs: number;
-    /** At the reference volume. */
-    bleedLevelDbfs: number;
-  };
-  /** A Local mic's Mic threshold, last write wins. Phones ignore it in v1. */
-  micThreshold?: {
-    /** At the reference volume. */
-    referenceDbfs: number;
-    setBy: ThresholdSetBy;
-  };
-}
 
 export interface MicSettingsInput {
   kind: MicKind;

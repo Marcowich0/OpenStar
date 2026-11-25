@@ -1,9 +1,11 @@
 //! The JSON wire format of the protocol messages, pinned with `insta`
 //! snapshots and a `proptest` property.
 
+use openstar_protocol::profile::{PaletteKey, ProfileId};
 use openstar_protocol::{
-    Actor, ChangeEvent, ClientMessage, JoinCode, PartyEvent, PartyId, PartyMemberId, PartySnapshot,
-    ServerMessage, StageId, UserMessage,
+    Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
+    PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, ServerMessage,
+    StageId, UserMessage,
 };
 use proptest::prelude::*;
 
@@ -13,7 +15,100 @@ fn party() -> PartySnapshot {
         stage_id: StageId("main".to_owned()),
         join_code: JoinCode("0427".to_owned()),
         started_at_ms: 1_764_000_000_000,
+        members: vec![PartyMember {
+            member_id: PartyMemberId(1),
+            identity: Identity::Profile {
+                profile_id: ProfileId(7),
+            },
+            colour: PaletteKey::Sky,
+            favourite_taken: true,
+            on_phone: true,
+        }],
+        phones: vec![JoinedPhone {
+            phone_id: PhoneId("3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60".to_owned()),
+            member_id: PartyMemberId(1),
+        }],
     }
+}
+
+#[test]
+fn join_message_wire_format() {
+    insta::assert_json_snapshot!(ClientMessage::Join {
+        phone_id: PhoneId("3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60".to_owned()),
+        join_code: JoinCode("0427".to_owned()),
+        join_as: JoinAs::Profile {
+            profile_id: ProfileId(7),
+        },
+    });
+}
+
+#[test]
+fn phone_messages_wire_format() {
+    let wire = |message: &ServerMessage| serde_json::to_string(message).unwrap();
+    assert_eq!(
+        wire(&ServerMessage::PhoneStatus {
+            member_id: Some(PartyMemberId(2))
+        }),
+        r#"{"type":"phoneStatus","memberId":2}"#
+    );
+    assert_eq!(
+        wire(&ServerMessage::PhoneStatus { member_id: None }),
+        r#"{"type":"phoneStatus","memberId":null}"#
+    );
+    assert_eq!(wire(&ServerMessage::LeftParty), r#"{"type":"leftParty"}"#);
+    assert_eq!(
+        wire(&ServerMessage::JoinCodeValid {
+            join_code: JoinCode("0427".to_owned())
+        }),
+        r#"{"type":"joinCodeValid","joinCode":"0427"}"#
+    );
+    assert_eq!(
+        serde_json::from_str::<ClientMessage>(r#"{"type":"hello","phoneId":"a-1"}"#).unwrap(),
+        ClientMessage::Hello {
+            phone_id: PhoneId("a-1".to_owned())
+        }
+    );
+    assert_eq!(
+        serde_json::from_str::<ClientMessage>(r#"{"type":"checkJoinCode","joinCode":"0042"}"#)
+            .unwrap(),
+        ClientMessage::CheckJoinCode {
+            join_code: JoinCode("0042".to_owned())
+        }
+    );
+}
+
+#[test]
+fn member_joined_wire_format() {
+    insta::assert_json_snapshot!(ChangeEvent {
+        actor: Actor::Member {
+            member_id: PartyMemberId(1),
+        },
+        event: PartyEvent::MemberJoined {
+            member_id: PartyMemberId(1),
+            name: "Bo".to_owned(),
+            colour: PaletteKey::Sky,
+        },
+    });
+}
+
+#[test]
+fn join_refusal_codes_wire_format() {
+    let wire = |message: &UserMessage| serde_json::to_string(message).unwrap();
+    assert_eq!(
+        wire(&UserMessage::JoinCodeWrong),
+        r#"{"code":"joinCodeWrong"}"#
+    );
+    assert_eq!(wire(&UserMessage::PartyFull), r#"{"code":"partyFull"}"#);
+    assert_eq!(wire(&UserMessage::NotInParty), r#"{"code":"notInParty"}"#);
+}
+
+#[test]
+fn a_phone_id_is_a_short_run_of_letters_digits_and_dashes() {
+    assert!(PhoneId("3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60".to_owned()).is_valid());
+    assert!(!PhoneId(String::new()).is_valid());
+    assert!(!PhoneId("a".repeat(65)).is_valid());
+    assert!(PhoneId("a".repeat(64)).is_valid());
+    assert!(!PhoneId("has space".to_owned()).is_valid());
 }
 
 #[test]
@@ -68,6 +163,17 @@ fn stage_moved_and_new_party_wire_format() {
     assert_eq!(
         serde_json::from_str::<ClientMessage>(r#"{"type":"newParty"}"#).unwrap(),
         ClientMessage::NewParty
+    );
+}
+
+#[test]
+fn change_notice_wire_format() {
+    assert_eq!(
+        serde_json::to_string(&ServerMessage::Changed {
+            topics: vec![ChangeTopic::ServerInfo]
+        })
+        .unwrap(),
+        r#"{"type":"changed","topics":["serverInfo"]}"#
     );
 }
 

@@ -2,7 +2,11 @@
 import type { ChangeEvent } from "./ChangeEvent";
 import type { ChangeTopic } from "./ChangeTopic";
 import type { Job } from "./Job";
+import type { JoinCode } from "./JoinCode";
+import type { MicId } from "./MicId";
+import type { PartyMemberId } from "./PartyMemberId";
 import type { PartySnapshot } from "./PartySnapshot";
+import type { PitchReading } from "./PitchReading";
 import type { StageId } from "./StageId";
 import type { UserMessage } from "./UserMessage";
 
@@ -18,4 +22,4 @@ party: PartySnapshot | null,
 /**
  * Whether this connection is the active Stage.
  */
-isStage: boolean, } | { "type": "partyChanged", party: PartySnapshot, change: ChangeEvent, } | { "type": "stageMoved" } | { "type": "changed", topics: Array<ChangeTopic>, } | { "type": "jobChanged", job: Job, };
+isStage: boolean, } | { "type": "partyChanged", party: PartySnapshot, change: ChangeEvent, } | { "type": "stageMoved" } | { "type": "changed", topics: Array<ChangeTopic>, } | { "type": "pitchReading", mic: MicId, reading: PitchReading, } | { "type": "clockPing", mic: MicId, t0: number, } | { "type": "clockPong", t0: number, ts: number, epoch: number, } | { "type": "micClosed", mic: MicId, } | { "type": "joinCodeValid", joinCode: JoinCode, } | { "type": "phoneStatus", memberId: PartyMemberId | null, } | { "type": "leftParty" } | { "type": "jobChanged", job: Job, };

@@ -3,6 +3,6 @@
 /**
  * What a [`ServerMessage::Changed`] notice says changed: each topic names
  * HTTP data the frontend refetches. Each area adds a topic per HTTP
- * resource (library, profiles, downloads, ...); none exists yet.
+ * resource (library, profiles, downloads, ...).
  */
-export type ChangeTopic = "profiles";
+export type ChangeTopic = "serverInfo" | "profiles" | "library" | "micSettings";

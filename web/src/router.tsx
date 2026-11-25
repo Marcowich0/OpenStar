@@ -1,20 +1,30 @@
+import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   createBrowserHistory,
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
   lazyRouteComponent,
   type RouterHistory,
 } from "@tanstack/react-router";
 
+import { createQueryClient } from "./api/queryClient";
 import { validatePhoneSearch } from "./phone/phoneSearch";
+import { validateSingTestSearch } from "./singTestSearch";
 
 // Every screen is loaded lazily, so each route's code is its own chunk: a
 // Phone downloads only the Phone code. Keep this file free of static imports
 // from `stage/`, `admin/` or `bridge/` (the code-split test checks it).
 
-const rootRoute = createRootRoute({ component: Outlet });
+/** What every route's loaders get: the query client, to prefetch with. */
+export interface RouterContext {
+  queryClient: QueryClient;
+}
+
+const rootRoute = createRootRouteWithContext<RouterContext>()({
+  component: Outlet,
+});
 
 /** `/`: the Phone screens. `/?join=<code>` is the join QR code's link. */
 const phoneRoute = createRoute({
@@ -34,6 +44,20 @@ const stageRoute = createRoute({
   component: lazyRouteComponent(
     () => import("./stage/StageScreen"),
     "StageScreen",
+  ),
+});
+
+/**
+ * `/stage/sing-test`: test only. The sing screen from synthetic state at a
+ * frozen Song time, for the painter screenshots (#58); nothing links to it.
+ */
+const singTestRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stage/sing-test",
+  validateSearch: validateSingTestSearch,
+  component: lazyRouteComponent(
+    () => import("./stage/sing/SingTestScreen"),
+    "SingTestScreen",
   ),
 });
 
@@ -90,6 +114,7 @@ const profilesRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   phoneRoute,
   stageRoute,
+  singTestRoute,
   bridgeRoute,
   adminRoute.addChildren([
     adminIndexRoute,
@@ -100,11 +125,22 @@ const routeTree = rootRoute.addChildren([
   ]),
 ]);
 
-/** The app's router; tests pass a memory history. */
+/**
+ * The app's router; tests pass a memory history. Every route renders inside
+ * `queryClient`'s provider, so any screen can `useQuery`.
+ */
 export function createAppRouter(
   history: RouterHistory = createBrowserHistory(),
+  queryClient: QueryClient = createQueryClient(),
 ) {
-  return createRouter({ routeTree, history });
+  return createRouter({
+    routeTree,
+    history,
+    context: { queryClient },
+    Wrap: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  });
 }
 
 declare module "@tanstack/react-router" {

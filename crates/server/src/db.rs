@@ -62,6 +62,79 @@ const MIGRATIONS: &[&str] = &[
         state  TEXT NOT NULL CHECK (state IN ('queued', 'running', 'done', 'failed')),
         error  TEXT
     ) STRICT;",
+    // 6: the Library index, one row per candidate `.txt` (see `library::index`).
+    // Paths are relative to the Library with `/` between folders; problem and
+    // reference lists are JSON; `*_path` are the resolved file references.
+    "CREATE TABLE library_files (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        path              TEXT NOT NULL UNIQUE,
+        size              INTEGER NOT NULL,
+        mtime_ns          INTEGER NOT NULL,
+        parser_version    INTEGER NOT NULL,
+        encoding          TEXT,
+        song              TEXT,
+        artist            TEXT,
+        title             TEXT,
+        duet              INTEGER NOT NULL,
+        txt_problems      TEXT NOT NULL,
+        file_references   TEXT NOT NULL,
+        file_problems     TEXT NOT NULL DEFAULT '[]',
+        playable          INTEGER NOT NULL DEFAULT 0,
+        audio_path        TEXT,
+        video_path        TEXT,
+        cover_path        TEXT,
+        background_path   TEXT,
+        vocals_path       TEXT,
+        instrumental_path TEXT
+    ) STRICT;",
+    // 7: Mic delays, bleed levels and Mic thresholds per (Mic, Stage
+    // output), kept across Parties (no link to `parties`). A Mic is a Phone
+    // id or a Local mic id. Calibration writes the delay and bleed level
+    // together; a hand setting writes only the threshold, so a
+    // never-calibrated Local mic has a threshold and no delay. dBFS values
+    // are at the reference volume.
+    "CREATE TABLE mic_settings (
+        mic_kind         TEXT NOT NULL CHECK (mic_kind IN ('phone', 'localMic')),
+        mic_id           TEXT NOT NULL,
+        stage_output     TEXT NOT NULL,
+        mic_delay_ms     REAL,
+        bleed_level_dbfs REAL,
+        threshold_dbfs   REAL,
+        threshold_set_by TEXT CHECK (threshold_set_by IN ('calibration', 'hand')),
+        PRIMARY KEY (mic_kind, mic_id, stage_output),
+        CHECK ((mic_delay_ms IS NULL) = (bleed_level_dbfs IS NULL)),
+        CHECK ((threshold_dbfs IS NULL) = (threshold_set_by IS NULL))
+    ) STRICT, WITHOUT ROWID;",
+    // 8: the current Party's members and joined Phones. Both go with their
+    // Party (New party deletes the `parties` row), and a member's Phones go
+    // with the member. One holder per colour and one membership per Profile
+    // are kept by the live-state task and backed by UNIQUE here. A member is
+    // a Profile for now; Guests add their columns later.
+    "CREATE TABLE party_members (
+        party_id        TEXT NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+        member_id       INTEGER NOT NULL,
+        profile_id      INTEGER REFERENCES profiles(id),
+        colour          TEXT NOT NULL,
+        favourite_taken INTEGER NOT NULL,
+        PRIMARY KEY (party_id, member_id),
+        UNIQUE (party_id, colour),
+        UNIQUE (party_id, profile_id)
+    ) STRICT;
+    CREATE TABLE joined_phones (
+        party_id  TEXT NOT NULL,
+        phone_id  TEXT NOT NULL,
+        member_id INTEGER NOT NULL,
+        PRIMARY KEY (party_id, phone_id),
+        FOREIGN KEY (party_id, member_id)
+            REFERENCES party_members(party_id, member_id) ON DELETE CASCADE
+    ) STRICT;",
+    // 9: Song identity (see `library::identity`). `usdb_id` is `apiId` from
+    // the `metadata.json` beside the `.txt`; `identity` is the identity as
+    // JSON, NULL for a rejected `.txt`. Both are set again at every scan.
+    "ALTER TABLE library_files ADD COLUMN usdb_id INTEGER;
+     ALTER TABLE library_files ADD COLUMN identity TEXT;
+     CREATE INDEX library_files_identity ON library_files (identity);
+     CREATE INDEX library_files_usdb_id ON library_files (usdb_id);",
 ];
 
 /// The schema version this build migrates to.
