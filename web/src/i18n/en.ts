@@ -54,6 +54,11 @@ export const en = {
   "userMessage.invalidMessage": "The server could not read that message",
   "userMessage.notTheStage": "Only the Stage can do that",
   "userMessage.serverError": "Something went wrong on the server",
+  "userMessage.profileNameEmpty": "A Profile needs a name",
+  "userMessage.profileNameTooLong":
+    "A Profile name can be at most {maxLength, number} characters long",
+  "userMessage.profileNameTaken": "A Profile with that name already exists",
+  "userMessage.profileNotFound": "That Profile no longer exists",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
