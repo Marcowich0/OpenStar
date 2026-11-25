@@ -91,3 +91,26 @@ fn the_ytdlp_stub_installs_into_a_folder_for_the_front_of_path() {
     assert!(String::from_utf8_lossy(&version.stdout).contains("openstar-stub"));
     assert!(dir.path().join("calls/000001.args").is_file());
 }
+
+#[test]
+fn the_fixture_library_and_the_fake_mic_wavs_are_written_by_the_binary() {
+    let dir = tempfile::tempdir().unwrap();
+    let library = dir.path().join("songs");
+    let mic = dir.path().join("mic");
+    for (command, target) in [("fixture-library", &library), ("fake-mic", &mic)] {
+        let status = Command::new(HARNESS)
+            .args([command, target.to_str().unwrap()])
+            .stdout(Stdio::null())
+            .status()
+            .unwrap();
+        assert!(status.success(), "{command} failed");
+    }
+    assert!(
+        library
+            .join("Placeholder Artist - Steady Tone/steady-tone.ogg")
+            .is_file()
+    );
+    for wav in ["steady-tone.wav", "silence.wav", "multichannel.wav"] {
+        assert!(mic.join(wav).is_file(), "{wav} is missing");
+    }
+}

@@ -17,6 +17,21 @@ import type { NoteKind } from "../../generated/NoteKind";
 import type { ParsedSong } from "../../generated/ParsedSong";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { LaneLayout } from "./laneLayout";
+import {
+  noteIndex,
+  traceLane,
+  type HeadBallEntry,
+  type LaneTrace,
+  type NoteIndex,
+  type PitchLineEntry,
+} from "./pitchTrace";
+
+export type {
+  HeadBallEntry,
+  LaneTrace,
+  PitchLineEntry,
+  TracePoint,
+} from "./pitchTrace";
 
 /** One Voice as the sing screen draws it: its Notes in order and its pitch span. */
 export interface SingVoice {
@@ -25,6 +40,8 @@ export interface SingVoice {
   lowestPitch: number;
   /** Highest Note pitch. */
   highestPitch: number;
+  /** Which Note is under, or nearest to, each Beat (for the pitch trace). */
+  index: NoteIndex;
 }
 
 /** One Player's lane: their Party colour and the Voice they sing. */
@@ -32,6 +49,8 @@ export interface SingLane {
   colour: PaletteKey;
   /** Index into `SingState.voices`. */
   voice: number;
+  /** The Player's readings and Mic for the pitch line; none: no line. */
+  trace?: LaneTrace;
 }
 
 /** Everything `frame()` needs that does not change from frame to frame. */
@@ -53,7 +72,7 @@ export function singVoices(song: Pick<ParsedSong, "voices">): SingVoice[] {
       highestPitch = Math.max(highestPitch, n.pitch);
     }
     if (notes.length === 0) lowestPitch = highestPitch = 0;
-    return { notes, lowestPitch, highestPitch };
+    return { notes, lowestPitch, highestPitch, index: noteIndex(notes) };
   });
 }
 
@@ -77,8 +96,17 @@ export interface LaneEntry {
   /** The Notes area runs from here to the lane's right edge. */
   notesX: number;
   colour: PaletteKey;
+  /** The lane's Mic is lost: the lane is greyed over its panel. */
+  lost: LostStyle | null;
   /** The thin vertical line just left of the Notes area. */
   separator: LineStyle & { x: number; top: number; bottom: number };
+}
+
+/** The grey wash over a lost lane, a rounded rectangle the size of the lane. */
+export interface LostStyle {
+  colour: TokenName;
+  alpha: number;
+  radius: number;
 }
 
 /** How a straight line is stroked. */
@@ -127,7 +155,13 @@ export interface LaneEndEntry {
   lane: number;
 }
 
-export type DrawEntry = LaneEntry | PillEntry | PlayheadEntry | LaneEndEntry;
+export type DrawEntry =
+  | LaneEntry
+  | PillEntry
+  | PlayheadEntry
+  | PitchLineEntry
+  | HeadBallEntry
+  | LaneEndEntry;
 export type DrawList = DrawEntry[];
 
 // Shared constants, so a frame allocates nothing beyond its own entries.
@@ -189,6 +223,9 @@ export function frame(
     if (!player || !rect || !voice) continue;
 
     const padding = rect.height < 150 ? 12 : 22;
+    const trace = player.trace;
+    const lost =
+      trace !== undefined && trace.lostAt !== null && trace.lostAt <= songTime;
     list.push({
       type: "lane",
       lane,
@@ -198,6 +235,13 @@ export function frame(
       height: rect.height,
       notesX: rect.notesX,
       colour: player.colour,
+      lost: lost
+        ? {
+            colour: "--color-slate",
+            alpha: 0.55,
+            radius: Math.min(40, rect.height / 2),
+          }
+        : null,
       separator: {
         x: rect.notesX - SEPARATOR_WIDTH,
         top: rect.y + padding,
@@ -259,6 +303,28 @@ export function frame(
       width: 4,
       dash: PLAYHEAD_DASH,
     });
+    if (trace) {
+      traceLane(
+        list,
+        trace,
+        {
+          lane,
+          colour: player.colour,
+          playheadX: rect.playheadX,
+          pixelsPerBeat: rect.pixelsPerBeat,
+          notesX: rect.notesX,
+          height: rect.height,
+          low,
+          range,
+          inner,
+          bottom,
+        },
+        state.grid,
+        voice.notes,
+        voice.index,
+        songTime,
+      );
+    }
     list.push({ type: "laneEnd", lane });
   }
   return list;

@@ -1,0 +1,11 @@
+{
+  "sampleRate": 48000,
+  "seconds": 10,
+  "steadyTone": { "file": "steady-tone.wav", "hz": 440 },
+  "silence": { "file": "silence.wav" },
+  "multichannel": {
+    "file": "multichannel.wav",
+    "channels": 4,
+    "toneChannel": 0
+  }
+}

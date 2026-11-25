@@ -1,4 +1,5 @@
-//! The fake USDB and the yt-dlp stub as standalone processes, for `just e2e`.
+//! The fake USDB and the yt-dlp stub as standalone processes, and the fixture
+//! Library and fake mic WAVs written to disk, for `just e2e`.
 //!
 //! ```text
 //! openstar-harness fake-usdb [--port <port>] [--fixtures <dir>]
@@ -9,6 +10,12 @@
 //! openstar-harness ytdlp-stub <dir>
 //!     Installs the stub as <dir>/yt-dlp; put <dir> first on the PATH of the
 //!     binary under test. Its calls are recorded in <dir>/calls/.
+//! openstar-harness fixture-library <dir>
+//!     Copies fixtures/library/ into <dir> and generates each Song's audio
+//!     from its Notes (needs ffmpeg).
+//! openstar-harness fake-mic <dir>
+//!     Writes the fake microphone WAVs of fixtures/mic/fake-mic.json into
+//!     <dir> (needs ffmpeg) and prints their paths.
 //! ```
 
 use std::io::Write;
@@ -16,10 +23,12 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
 use anyhow::{Context, bail};
-use openstar_test_harness::{FakeUsdb, YtDlpStub};
+use openstar_test_harness::{FakeUsdb, YtDlpStub, fake_mic, fixture_library};
 
 const USAGE: &str = "usage: openstar-harness fake-usdb [--port <port>] [--fixtures <dir>]\n       \
-                     openstar-harness ytdlp-stub <dir>";
+                     openstar-harness ytdlp-stub <dir>\n       \
+                     openstar-harness fixture-library <dir>\n       \
+                     openstar-harness fake-mic <dir>";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -51,6 +60,20 @@ async fn main() -> anyhow::Result<()> {
             let dir = args.next().context(USAGE)?;
             let path = YtDlpStub::install(&PathBuf::from(dir)).context("installing the stub")?;
             println!("{}", path.display());
+            Ok(())
+        }
+        Some("fixture-library") => {
+            let dir = PathBuf::from(args.next().context(USAGE)?);
+            fixture_library::install(&dir).context("installing the fixture Library")?;
+            println!("{}", dir.display());
+            Ok(())
+        }
+        Some("fake-mic") => {
+            let dir = PathBuf::from(args.next().context(USAGE)?);
+            let files = fake_mic::write(&dir).context("writing the fake mic WAVs")?;
+            for path in [files.steady_tone, files.silence, files.multichannel] {
+                println!("{}", path.display());
+            }
             Ok(())
         }
         _ => bail!("{USAGE}"),

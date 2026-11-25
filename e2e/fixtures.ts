@@ -5,6 +5,29 @@ import {
   type Browser,
   type Page,
 } from "@playwright/test";
+import { join } from "node:path";
+
+/**
+ * The fake microphone WAVs `just e2e` generates from `fixtures/mic/fake-mic.json`
+ * before the suite runs, for `openPhone({ wav })`.
+ */
+export const FAKE_MIC = {
+  /** A steady tone on the pitch class of every scored Note of {@link FIXTURE_SONGS.steadyTone}. */
+  steadyTone: join(import.meta.dirname, "generated/mic/steady-tone.wav"),
+  /** Digital silence: a Phone that hears it scores 0. */
+  silence: join(import.meta.dirname, "generated/mic/silence.wav"),
+  /** The steady tone on channel 0 and silence on the other three, for the Mic bridge. */
+  multichannel: join(import.meta.dirname, "generated/mic/multichannel.wav"),
+} as const;
+
+/** The fixture Library's `.txt` files (`fixtures/library/`), relative to the Library. */
+export const FIXTURE_SONGS = {
+  steadyTone: "Placeholder Artist - Steady Tone/steady-tone.txt",
+  sineMelody: "Placeholder Artist - Sine Melody/sine-melody.txt",
+  duet: "Placeholder Duo - Two Voices/duet.txt",
+  /** Rejected by the parser (`#VERSION:2.0.0`): a Library problem. */
+  rejected: "Placeholder Artist - Rejected/rejected.txt",
+} as const;
 
 /** The Stage's screen: a desktop browser on a TV-sized viewport. */
 export const STAGE_VIEWPORT = { width: 1920, height: 1080 };
