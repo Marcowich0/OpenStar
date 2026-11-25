@@ -45,4 +45,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
+      # The server tests generate tiny media with the real ffmpeg (and the
+      # yt-dlp stub uses it too); they fail with a message naming ffmpeg without it.
+      - name: ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - run: just ci

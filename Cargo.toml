@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/protocol", "crates/server"]
+members = ["crates/protocol", "crates/server", "crates/test-harness"]
 
 [workspace.package]
 edition = "2024"
@@ -16,7 +16,9 @@ publish = false
 unsafe_code = "forbid"
 
 [workspace.dependencies]
+openstar = { path = "crates/server" }
 openstar-protocol = { path = "crates/protocol" }
+openstar-test-harness = { path = "crates/test-harness" }
 anyhow = "=1.0.105"
 axum = { version = "=0.8.9", features = ["ws"] }
 futures-util = "=0.3.34"
