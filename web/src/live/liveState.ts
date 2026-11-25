@@ -126,7 +126,8 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
     case "clockPing":
     case "clockPong":
     case "micClosed":
-      // The Pitch reading relay and clock sync change no live state; they
+    case "localMicLevels":
+      // The Pitch reading relay, clock sync and bridge levels change no live state; they
       // are routed away from the reducer in liveStore.ts (#127).
       return state;
     case "controlSong":
@@ -137,6 +138,7 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
     case "bridgeApproved":
     case "bridgeConnected":
     case "bridgeChannels":
+    case "bridgeMicsScreen":
       // Only a Mic bridge's own socket gets these.
       return state;
     case "jobChanged":

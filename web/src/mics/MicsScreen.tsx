@@ -3,11 +3,12 @@
 // editable name, a live level meter and an on/off switch, then every kept
 // Local mic of this browser whose id is not present as "<name> · not found"
 // with Find it), then each approved Mic bridge in order of approval (open or
-// closed, with its channels and their editable names), then New bridges
+// closed, with its channels and their editable names, and while open a live
+// meter per channel fed by the levels the bridge sends), then New bridges
 // waiting for approval with their code and Approve. Naming, switching, Find
-// it and approving need no Admin PIN and are saved at once. Every device is
-// open while the screen is open. Bridge meters (#152) and the Mic threshold
-// line (#172) come later.
+// it and approving need no Admin PIN and are saved at once. Every device,
+// and every interface of every open bridge, is open while the screen is
+// open. The Mic threshold line (#172) comes later.
 
 import { useEffect, useRef, useState } from "react";
 
@@ -125,8 +126,8 @@ function ChannelRow({
   channel: LocalMicChannel;
   stored: string;
   switchedOn: boolean;
-  /** The live level; a row without one has no meter yet (bridges, #152). */
-  read?: () => number | null;
+  /** The live level; a row without one has no meter (a closed bridge). */
+  read?: (() => number | null) | undefined;
   onSwitch: (on: boolean) => void;
   onRename: (name: string) => void;
 }) {
@@ -169,11 +170,14 @@ function BridgeGroup({
   kept,
   onSwitch,
   onRename,
+  levelDbfs,
 }: {
   bridge: MicBridge;
   kept: readonly LocalMic[];
   onSwitch: (channel: LocalMicChannel, on: boolean) => void;
   onRename: (channel: LocalMicChannel, name: string) => void;
+  /** A Local mic's latest level from its bridge. */
+  levelDbfs: (localMicId: string) => number | null;
 }) {
   const keptById = new Map(kept.map((m) => [m.localMicId, m]));
   const channels = bridgeGroupChannels(bridge, kept);
@@ -207,6 +211,10 @@ function BridgeGroup({
               channel={channel}
               stored={stored?.name ?? ""}
               switchedOn={stored?.switchedOn ?? false}
+              // A closed bridge sends nothing: its rows have no meter.
+              read={
+                bridge.open ? () => levelDbfs(channel.localMicId) : undefined
+              }
               onSwitch={(on) => {
                 onSwitch(channel, on);
               }}
@@ -339,6 +347,7 @@ export function MicsScreen() {
     match,
     rename,
     relink,
+    bridgeLevelDbfs,
   } = useLocalMics();
 
   useEffect(() => {
@@ -419,6 +428,7 @@ export function MicsScreen() {
           kept={kept}
           onSwitch={setSwitchedOn}
           onRename={rename}
+          levelDbfs={bridgeLevelDbfs}
         />
       ))}
       {bridges.requests.length > 0 && (

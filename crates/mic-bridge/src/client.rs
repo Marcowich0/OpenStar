@@ -1,13 +1,16 @@
 //! Joining the server: say hello with the token (if any) and the
 //! interfaces, wait for approval with a code, keep the token handed out,
-//! then show each channel as the Stage set it.
+//! then show each channel as the Stage set it, open the interfaces the
+//! Stage needs and send their meter levels ten times a second.
 //!
-//! [`Joining`] is the pure part: it turns each [`ServerMessage`] into what
-//! the bridge shows and keeps. [`run`] drives it over a WebSocket and
-//! connects again whenever the connection ends.
+//! [`Joining`] and [`crate::levels::Metering`] are the pure parts: what the
+//! bridge shows and keeps for each [`ServerMessage`], and which interfaces
+//! are open and which channels metered. [`run`] drives them over a
+//! WebSocket and connects again whenever the connection ends.
 
 use std::time::Duration;
 
+use crate::levels::{LEVEL_INTERVAL, Metering};
 use anyhow::Context as _;
 use futures_util::{SinkExt as _, StreamExt as _};
 use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInterface};
@@ -72,6 +75,14 @@ impl Joining {
                 .iter()
                 .map(|channel| Effect::Show(self.channel_line(channel)))
                 .collect(),
+            ServerMessage::BridgeMicsScreen { open } => vec![Effect::Show(
+                if open {
+                    "Mics screen open"
+                } else {
+                    "Mics screen closed"
+                }
+                .into(),
+            )],
             ServerMessage::Rejected { reason } => {
                 vec![Effect::Show(format!("The server refused: {reason:?}"))]
             }
@@ -107,22 +118,39 @@ pub fn host_name() -> String {
         .unwrap_or_else(|| "mic bridge".to_owned())
 }
 
+/// One interface the bridge reads (for `--wav`, a WAV file).
+pub trait Input: Send {
+    /// What the bridge offers the server.
+    fn interface(&self) -> &BridgeInterface;
+    /// Called every [`LEVEL_INTERVAL`] while the interface is open: the
+    /// level of each of its channels (index = hardware channel) since the
+    /// last call, in dBFS.
+    fn read_levels(&mut self) -> Vec<f64>;
+    /// The interface is no longer needed.
+    fn close(&mut self) {}
+}
+
 /// Connects to the server in `config` and stays connected, connecting again
 /// whenever the connection ends. Returns only on an error no retry fixes.
-pub async fn run(config: ConfigDir, interfaces: Vec<BridgeInterface>) -> anyhow::Result<()> {
+pub async fn run(config: ConfigDir, mut inputs: Vec<Box<dyn Input>>) -> anyhow::Result<()> {
     let server = config.server()?;
     let url = bridge_socket_url(&server)?;
+    let interfaces = inputs.iter().map(|i| i.interface().clone()).collect();
     let joining = Joining::new(interfaces);
     let host_name = host_name();
     let mut attempt = 0;
     loop {
         println!("Connecting to {server}");
-        match session(&config, &url, &joining, &host_name).await {
+        match session(&config, &url, &joining, &host_name, &mut inputs).await {
             Ok(()) => {
                 println!("Disconnected");
                 attempt = 0;
             }
             Err(error) => println!("Not connected: {error:#}"),
+        }
+        // Not connected, so nothing is needed.
+        for input in &mut inputs {
+            input.close();
         }
         tokio::time::sleep(RETRY[attempt.min(RETRY.len() - 1)]).await;
         attempt += 1;
@@ -135,32 +163,73 @@ async fn session(
     url: &str,
     joining: &Joining,
     host_name: &str,
+    inputs: &mut [Box<dyn Input>],
 ) -> anyhow::Result<()> {
     let (mut socket, _) = tokio_tungstenite::connect_async(url)
         .await
         .with_context(|| format!("connecting to {url}"))?;
     let hello = serde_json::to_string(&joining.hello(host_name, config.token()))?;
     socket.send(Message::text(hello)).await?;
-    while let Some(message) = socket.next().await {
-        let Message::Text(text) = message? else {
-            continue;
-        };
-        // Same build as the server, so every message parses; anything else
-        // is not for the bridge.
-        let Ok(message) = serde_json::from_str::<ServerMessage>(&text) else {
-            continue;
-        };
-        for effect in joining.received(message) {
-            match effect {
-                Effect::Show(line) => println!("{line}"),
-                Effect::KeepToken(token) => {
-                    config.save_token(&token)?;
-                    println!("Approved: the token is kept in {}", config.path().display());
+    let mut metering = Metering::default();
+    let mut connected = false;
+    let mut was_open = vec![false; inputs.len()];
+    let mut tick = tokio::time::interval(LEVEL_INTERVAL);
+    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    loop {
+        tokio::select! {
+            message = socket.next() => {
+                let Some(message) = message else { return Ok(()) };
+                let Message::Text(text) = message? else {
+                    continue;
+                };
+                // Same build as the server, so every message parses; anything
+                // else is not for the bridge.
+                let Ok(message) = serde_json::from_str::<ServerMessage>(&text) else {
+                    continue;
+                };
+                match &message {
+                    ServerMessage::BridgeConnected { .. } => connected = true,
+                    ServerMessage::BridgeChannels { channels } => metering.set_channels(channels),
+                    ServerMessage::BridgeMicsScreen { open } => metering.set_mics_screen_open(*open),
+                    _ => {}
+                }
+                for effect in joining.received(message) {
+                    match effect {
+                        Effect::Show(line) => println!("{line}"),
+                        Effect::KeepToken(token) => {
+                            config.save_token(&token)?;
+                            println!("Approved: the token is kept in {}", config.path().display());
+                        }
+                    }
+                }
+            }
+            _ = tick.tick() => {
+                if !connected {
+                    continue;
+                }
+                let mut levels = Vec::new();
+                for (input, was_open) in inputs.iter_mut().zip(&mut was_open) {
+                    let open = metering.is_open(input.interface());
+                    if open != *was_open {
+                        *was_open = open;
+                        let state = if open { "open" } else { "closed" };
+                        println!("Interface {}: {state}", input.interface().device_name);
+                        if !open {
+                            input.close();
+                        }
+                    }
+                    if open {
+                        let read = input.read_levels();
+                        levels.extend(metering.levels_to_send(input.interface(), &read));
+                    }
+                }
+                if !levels.is_empty() {
+                    let message = ClientMessage::BridgeLevels { levels };
+                    socket.send(Message::text(serde_json::to_string(&message)?)).await?;
                 }
             }
         }
     }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -237,6 +306,18 @@ mod tests {
                 Effect::Show("Channel Red mic: on".into()),
                 Effect::Show("Channel Scarlett 4i4 · Input 3: off".into()),
             ]
+        );
+    }
+
+    #[test]
+    fn the_mics_screen_is_shown_open_or_closed() {
+        assert_eq!(
+            wav().received(ServerMessage::BridgeMicsScreen { open: true }),
+            vec![Effect::Show("Mics screen open".into())]
+        );
+        assert_eq!(
+            wav().received(ServerMessage::BridgeMicsScreen { open: false }),
+            vec![Effect::Show("Mics screen closed".into())]
         );
     }
 

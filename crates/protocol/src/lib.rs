@@ -295,6 +295,16 @@ pub enum ClientMessage {
     /// [`UserMessage::BridgeRequestNotFound`] when no bridge waits under
     /// that id.
     ApproveBridge { request_id: bridge::BridgeRequestId },
+    /// The Stage's Mics screen opened (`true`) or closed. Accepted only from
+    /// the active Stage; the server tells every open Mic bridge
+    /// ([`ServerMessage::BridgeMicsScreen`]). It counts as closed once that
+    /// Stage closes or another browser becomes the Stage.
+    SetMicsScreenOpen { open: bool },
+    /// From an open (approved, connected) Mic bridge, ten times a second:
+    /// the meter level of each channel it meters. Relayed to the Stage as
+    /// [`ServerMessage::LocalMicLevels`]; dropped from any other socket and
+    /// for channels the bridge does not offer.
+    BridgeLevels { levels: Vec<bridge::BridgeLevel> },
 }
 
 /// A message the server sends over a WebSocket.
@@ -384,6 +394,14 @@ pub enum ServerMessage {
     BridgeChannels {
         channels: Vec<bridge::BridgeChannelSettings>,
     },
+    /// To a connected Mic bridge: whether the Stage's Mics screen is open.
+    /// Sent after [`ServerMessage::BridgeChannels`] on connect and whenever
+    /// it changes. While it is open the bridge opens every interface and
+    /// meters every channel; otherwise only those with a switched-on channel.
+    BridgeMicsScreen { open: bool },
+    /// Stage only: meter levels of a Mic bridge's Local mics, ten times a
+    /// second each.
+    LocalMicLevels { levels: Vec<bridge::LocalMicLevel> },
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names

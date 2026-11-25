@@ -1,6 +1,6 @@
-//! What the bridge needs from a WAV file's header in `--wav` mode: how many
-//! channels it has (each is one hardware channel of one interface) and its
-//! sample rate. Plain PCM, IEEE float and `WAVE_FORMAT_EXTENSIBLE` (what
+//! What the bridge needs from a WAV file in `--wav` mode: how many channels
+//! it has (each is one hardware channel of one interface), its sample rate
+//! and its samples. Plain PCM, IEEE float and `WAVE_FORMAT_EXTENSIBLE` (what
 //! ffmpeg writes for more than two channels) are read.
 
 use std::io::Read;
@@ -76,6 +76,126 @@ pub fn read_format(mut reader: impl Read) -> anyhow::Result<WavFormat> {
     }
 }
 
+/// A whole WAV file: its format and every sample, interleaved, as floats
+/// in −1..1.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WavAudio {
+    pub format: WavFormat,
+    pub samples: Vec<f32>,
+}
+
+/// Reads a WAV file's format and samples (8-, 16-, 24- or 32-bit PCM, or
+/// 32- or 64-bit float).
+pub fn read_audio(mut reader: impl Read) -> anyhow::Result<WavAudio> {
+    let mut bytes = Vec::new();
+    reader.read_to_end(&mut bytes)?;
+    let format = read_format(bytes.as_slice())?;
+    let data = data_chunk(&bytes).context("not a WAV file: no data chunk")?;
+    let width = usize::from(format.bits_per_sample / 8);
+    let decode: fn(&[u8]) -> f32 = match (format.float, format.bits_per_sample) {
+        (false, 8) => |b| (f32::from(b[0]) - 128.0) / 128.0,
+        (false, 16) => |b| f32::from(i16::from_le_bytes([b[0], b[1]])) / 32_768.0,
+        (false, 24) => |b| (i32::from_le_bytes([0, b[0], b[1], b[2]]) >> 8) as f32 / 8_388_608.0,
+        (false, 32) => |b| i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f32 / 2_147_483_648.0,
+        (true, 32) => |b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]),
+        (true, 64) => {
+            |b| f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]) as f32
+        }
+        (float, bits) => bail!(
+            "unsupported WAV sample size: {bits}-bit {}",
+            if float { "float" } else { "PCM" }
+        ),
+    };
+    let frame = width * usize::from(format.channels);
+    let usable = data.len() - data.len() % frame;
+    let samples = data[..usable].chunks_exact(width).map(decode).collect();
+    Ok(WavAudio { format, samples })
+}
+
+/// The bytes of the `data` chunk (cut at the end of the file when its size
+/// says more, as streamed WAV files do).
+fn data_chunk(bytes: &[u8]) -> Option<&[u8]> {
+    let mut at = 12;
+    while at + 8 <= bytes.len() {
+        let size = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().ok()?) as usize;
+        let body = at + 8;
+        if &bytes[at..at + 4] == b"data" {
+            return Some(&bytes[body..body.saturating_add(size).min(bytes.len())]);
+        }
+        at = body.checked_add(size + size % 2)?;
+    }
+    None
+}
+
+/// One interface read from a WAV file, played in a loop: each call to
+/// [`WavLoop::next_block`] gives the next frames, so read every tenth of a
+/// second it runs at the file's own pace.
+pub struct WavLoop {
+    audio: WavAudio,
+    at: usize,
+}
+
+impl WavLoop {
+    pub fn new(audio: WavAudio) -> Self {
+        Self { audio, at: 0 }
+    }
+
+    pub fn format(&self) -> WavFormat {
+        self.audio.format
+    }
+
+    /// The next `frames` frames, interleaved, from the start again after
+    /// the end. Empty for a file without samples.
+    pub fn next_block(&mut self, frames: usize) -> Vec<f32> {
+        let samples = &self.audio.samples;
+        if samples.is_empty() {
+            return Vec::new();
+        }
+        let wanted = frames * usize::from(self.audio.format.channels);
+        let mut block = Vec::with_capacity(wanted);
+        while block.len() < wanted {
+            let take = (wanted - block.len()).min(samples.len() - self.at);
+            block.extend_from_slice(&samples[self.at..self.at + take]);
+            self.at = (self.at + take) % samples.len();
+        }
+        block
+    }
+}
+
+/// A WAV file as an interface: its file name is the device name and the
+/// label, each of its channels one hardware channel.
+pub struct WavInput {
+    interface: openstar_protocol::bridge::BridgeInterface,
+    wav: WavLoop,
+}
+
+impl WavInput {
+    pub fn new(name: String, audio: WavAudio) -> Self {
+        Self {
+            interface: openstar_protocol::bridge::BridgeInterface {
+                device_name: name.clone(),
+                label: name,
+                channels: u32::from(audio.format.channels),
+            },
+            wav: WavLoop::new(audio),
+        }
+    }
+}
+
+impl crate::client::Input for WavInput {
+    fn interface(&self) -> &openstar_protocol::bridge::BridgeInterface {
+        &self.interface
+    }
+
+    fn read_levels(&mut self) -> Vec<f64> {
+        let format = self.wav.format();
+        let frames = (u128::from(format.sample_rate) * crate::levels::LEVEL_INTERVAL.as_millis()
+            / 1000) as usize;
+        let block = self.wav.next_block(frames);
+        crate::levels::channel_levels_dbfs(&block, usize::from(format.channels))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,6 +246,31 @@ mod tests {
         chunk.extend_from_slice(&[0; 14]);
         let format = read_format(header(&chunk).as_slice()).unwrap();
         assert_eq!((format.channels, format.float), (4, true));
+    }
+
+    /// A 16-bit PCM file with `channels` channels and these samples.
+    fn pcm16(channels: u16, samples: &[i16]) -> Vec<u8> {
+        let mut out = header(&fmt(1, channels, 48_000, 16));
+        let data: Vec<u8> = samples.iter().flat_map(|s| s.to_le_bytes()).collect();
+        let size_at = out.len() - 4;
+        out[size_at..].copy_from_slice(&(data.len() as u32).to_le_bytes());
+        out.extend_from_slice(&data);
+        out
+    }
+
+    #[test]
+    fn samples_are_read_interleaved_as_floats() {
+        let audio = read_audio(pcm16(2, &[16_384, -32_768, 0, 8_192]).as_slice()).unwrap();
+        assert_eq!(audio.format.channels, 2);
+        assert_eq!(audio.samples, vec![0.5, -1.0, 0.0, 0.25]);
+    }
+
+    #[test]
+    fn a_wav_loop_starts_again_after_the_end() {
+        let audio = read_audio(pcm16(2, &[16_384, 0, 8_192, 0]).as_slice()).unwrap();
+        let mut wav = WavLoop::new(audio);
+        assert_eq!(wav.next_block(3), vec![0.5, 0.0, 0.25, 0.0, 0.5, 0.0]);
+        assert_eq!(wav.next_block(1), vec![0.25, 0.0]);
     }
 
     #[test]

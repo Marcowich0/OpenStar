@@ -50,10 +50,12 @@ function setup({
   ]),
   kept = [] as LocalMic[],
   bridges = NO_BRIDGES,
+  bridgeLevelDbfs = () => null,
 }: {
   open?: Map<string, number>;
   kept?: LocalMic[];
   bridges?: MicBridges;
+  bridgeLevelDbfs?: (localMicId: string) => number | null;
 } = {}) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
@@ -90,6 +92,7 @@ function setup({
     }),
     rename: vi.fn(),
     relink: vi.fn(),
+    bridgeLevelDbfs,
   };
   render(
     <LocalMicsContext value={api}>
@@ -274,6 +277,43 @@ describe("the Mics screen", () => {
       fireEvent.keyDown(field, { key: "Enter" });
     });
     expect(api.rename).toHaveBeenCalledWith(channel, "Red mic");
+  });
+
+  it("shows a live meter on each row of an open bridge, fed by its levels, and none while it is closed", () => {
+    const loud = wavChannel("zeus", 0);
+    setup({
+      bridges: {
+        bridges: [
+          {
+            bridgeId: "zeus",
+            hostName: "zeus",
+            open: true,
+            channels: [loud, wavChannel("zeus", 1)],
+          },
+          { bridgeId: "apollo", hostName: "apollo", open: false, channels: [] },
+        ],
+        requests: [],
+      },
+      kept: [{ ...wavChannel("apollo", 2), name: "Red mic", switchedOn: true }],
+      bridgeLevelDbfs: (id) => (id === loud.localMicId ? -12 : null),
+    });
+    const dialog = openMicsScreen();
+    const zeus = within(dialog).getByRole("group", { name: "zeus mic bridge" });
+    expect(
+      within(zeus)
+        .getAllByRole("meter")
+        .map((m) => [
+          m.getAttribute("aria-label"),
+          m.getAttribute("aria-valuenow"),
+        ]),
+    ).toEqual([
+      ["mics.wav · Input 1 level", "-12"],
+      ["mics.wav · Input 2 level", "-60"],
+    ]);
+    const apollo = within(dialog).getByRole("group", {
+      name: "apollo mic bridge",
+    });
+    expect(within(apollo).queryAllByRole("meter")).toEqual([]);
   });
 
   it("switches a bridge channel on like a browser one", () => {
