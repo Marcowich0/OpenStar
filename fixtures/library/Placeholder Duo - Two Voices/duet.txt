@@ -1,0 +1,21 @@
+#VERSION:1.1.0
+#TITLE:Two Voices
+#ARTIST:Placeholder Duo
+#AUDIO:duet.ogg
+#BPM:300
+#GAP:1500
+#P1:Placeholder One
+#P2:Placeholder Two
+P1
+: 0 16 0 La
+: 20 16 4  la
+- 40
+: 88 16 7 Both
+: 108 24 4  la
+P2
+: 44 16 7 Lo
+: 64 16 9  lo
+- 84
+: 88 16 12 Both
+: 108 24 7  lo
+E

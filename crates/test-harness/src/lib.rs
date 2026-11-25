@@ -9,9 +9,13 @@
 //!   arguments, writes tiny generated media and can be scripted to fail or hang.
 //! - [`Media`] makes tones, sine melodies, noise, silence, multichannel WAVs and
 //!   a tiny video with the real ffmpeg, only into its own temporary folder.
+//! - [`fixture_library`] installs `fixtures/library/` with each Song's audio
+//!   generated from its own Notes ([`AppFolders::with_fixture_library`]), and
+//!   [`fake_mic`] writes the fake microphone WAVs described in `fixtures/mic/`.
 //!
-//! The fake USDB and the stub also run as standalone processes for `just e2e`:
-//! see the `openstar-harness` binary.
+//! The fake USDB and the stub also run as standalone processes, and the
+//! fixture Library and the fake mic WAVs are written, for `just e2e`: see the
+//! `openstar-harness` binary.
 //!
 //! Nothing here can reach the real USDB: the app under test reads its settings
 //! only from the harness's own variables (never the process environment), they
@@ -19,6 +23,8 @@
 //! local port.
 
 mod app;
+pub mod fake_mic;
+pub mod fixture_library;
 mod media;
 mod usdb;
 mod ytdlp;
