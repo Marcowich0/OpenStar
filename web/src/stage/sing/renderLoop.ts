@@ -4,9 +4,13 @@
  * offset), computes the draw list with the pure `frame()` and hands it to the
  * painter. Nothing else in the frontend reads the media element's position.
  *
+ * Effects move on real frame time instead (#134): before drawing, the loop
+ * advances the state's particle pool by the real time since the previous
+ * animation frame, whatever the display's refresh rate.
+ *
  * Apart from the draw list itself, a frame allocates nothing: the frame
- * callback is made once, and the lane layout is recomputed only when the
- * Player count changes.
+ * callback is made once, the lane layout is recomputed only when the Player
+ * count changes, and the particle pool is allocated once.
  */
 
 import type { SongClock } from "../../clock/songClock";
@@ -22,6 +26,12 @@ export interface RenderLoopOptions {
   state: () => SingState;
   /** Turns a draw list into pixels. */
   paint: (list: DrawList) => void;
+  /**
+   * The real time in milliseconds that moves the effects, given the
+   * animation frame's timestamp; that timestamp by default. A constant
+   * freezes them (screenshots).
+   */
+  frameTime?: (timestamp: number) => number;
   requestFrame?: (callback: FrameRequestCallback) => number;
   cancelFrame?: (handle: number) => void;
 }
@@ -29,8 +39,11 @@ export interface RenderLoopOptions {
 export interface RenderLoop {
   start(): void;
   stop(): void;
-  /** Draws one frame now. The loop calls it on every animation frame. */
-  step(): void;
+  /**
+   * Draws one frame now, after moving the effects by `delta` real seconds
+   * (none by default). The loop calls it on every animation frame.
+   */
+  step(delta?: number): void;
 }
 
 export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
@@ -43,9 +56,12 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
     });
   let layout: LaneLayout = [];
   let handle: number | null = null;
+  /** The previous animation frame's time, ms; null on the first frame. */
+  let lastFrameTime: number | null = null;
 
-  function step() {
+  function step(delta = 0) {
     const state = options.state();
+    state.effects?.advance(delta);
     if (layout.length !== state.lanes.length) {
       layout = laneLayout(state.lanes.length);
     }
@@ -54,15 +70,19 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
     options.paint(frame(state, drawTime, layout));
   }
 
-  function onFrame() {
+  function onFrame(timestamp: number) {
     if (handle === null) return;
-    step();
+    const now = options.frameTime ? options.frameTime(timestamp) : timestamp;
+    const delta = lastFrameTime === null ? 0 : (now - lastFrameTime) / 1000;
+    lastFrameTime = now;
+    step(delta);
     handle = requestFrame(onFrame);
   }
 
   return {
     start() {
       if (handle !== null) return;
+      lastFrameTime = null;
       handle = requestFrame(onFrame);
     },
     stop() {

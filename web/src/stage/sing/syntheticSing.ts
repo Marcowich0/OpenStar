@@ -5,6 +5,9 @@
 // a sharp miss, an unvoiced gap, and readings ending 150 ms before the default
 // 6 s, so the line is held to the playhead. The four-Player case's last lane
 // has lost its Mic. Every lane has a made-up Player (one a Guest) and Score.
+// A confetti burst from the first lane header (#134) is caught in flight: a
+// seeded burst, aged a fixed time, so the screenshots stay exact (the page
+// freezes the effects' frame time).
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
@@ -12,9 +15,32 @@ import type { NoteKind } from "../../generated/NoteKind";
 import { beatAt } from "../../clock/beats";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
 import type { AvatarKey } from "../../generated/AvatarKey";
-import { PALETTE_KEYS } from "../../theme/tokens";
+import { PALETTE_KEYS, type PaletteKey } from "../../theme/tokens";
 import type { SingTestCase } from "../../singTest/search";
+import { confettiBurst, EFFECTS_CAPACITY, ParticlePool } from "./effects";
 import { singVoices, type SingState } from "./frame";
+import { laneLayout } from "./laneLayout";
+
+/** How long the synthetic confetti burst has been flying, seconds. */
+const BURST_AGE = 0.12;
+
+/** A seeded confetti burst from the first lane header, `BURST_AGE` old. */
+function burst(lanes: number, colour: PaletteKey): ParticlePool {
+  const pool = new ParticlePool(EFFECTS_CAPACITY, { seed: 134 });
+  const rect = laneLayout(lanes)[0];
+  if (rect) {
+    confettiBurst(
+      pool,
+      (rect.x + rect.notesX) / 2,
+      rect.y + rect.height / 2,
+      colour,
+    );
+  }
+  // Stepped as a 144 Hz display would, though any steps land the same. Caught
+  // early, so the confetti still covers the header: the effects canvas is above it.
+  for (let i = 0; i < Math.round(BURST_AGE * 144); i++) pool.advance(1 / 144);
+  return pool;
+}
 
 /** Beat 0 at 1 s, half a second per Beat: Song time 6 s is Beat 10. */
 const GRID = { gapSeconds: 1, beatsPerMinute: 120 };
@@ -143,5 +169,6 @@ export function syntheticSing(name: SingTestCase): SingState {
         lostAt: name === "four" && i === lanes.length - 1 ? 5 : null,
       },
     })),
+    effects: burst(lanes.length, PALETTE_KEYS[0]),
   };
 }
