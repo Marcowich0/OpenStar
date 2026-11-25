@@ -161,3 +161,43 @@ describe("live state reducer", () => {
     expect(reconnecting.stage).toEqual(open.stage);
   });
 });
+
+describe("the OpenStar volume", () => {
+  it("is unknown until the server says, then follows it", () => {
+    expect(initialLiveState.volume).toBeNull();
+    const told = receive(synced(false), {
+      type: "volume",
+      volume: 80,
+      stepped: false,
+    });
+    expect(told.volume).toBe(80);
+    expect(told.volumeSteps).toBe(0);
+  });
+
+  it("counts every step, one that changes nothing included", () => {
+    let state = receive(synced(true), {
+      type: "volume",
+      volume: 100,
+      stepped: false,
+    });
+    state = receive(state, { type: "volume", volume: 100, stepped: true });
+    state = receive(state, { type: "volume", volume: 95, stepped: true });
+    expect(state.volume).toBe(95);
+    expect(state.volumeSteps).toBe(2);
+  });
+
+  it("is kept when the server tells the live state again", () => {
+    const told = receive(synced(true), {
+      type: "volume",
+      volume: 65,
+      stepped: true,
+    });
+    const again = receive(told, {
+      type: "liveState",
+      stageId: "main",
+      party,
+      isStage: true,
+    });
+    expect(again.volume).toBe(65);
+  });
+});
