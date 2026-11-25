@@ -29,6 +29,12 @@ export const en = {
 
   // The Stage, the Mic bridge page and the Admin area.
   "stage.title": "Stage",
+  "stage.sing": "Sing!",
+  "stage.start": "Start",
+  "stage.end": "End",
+  "stage.back": "Back",
+  "stage.takeBack": "Make this the Stage again",
+  "chip.duet": "Duet",
   "bridge.title": "Mic bridge",
   "admin.title": "Admin",
   "admin.downloads": "Downloads",
