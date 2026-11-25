@@ -286,6 +286,10 @@ export const en = {
   "stage.lineUp.micLevel": "{name}'s mic level",
   "stage.lineUp.remove": "Take {name} off this Song",
   "stage.lineUp.addSinger": "Add a singer",
+  "stage.lineUp.addGuest": "+ Guest",
+  "stage.lineUp.addProfile": "+ Profile",
+  "stage.lineUp.namePlaceholder": "Type a name",
+  "stage.lineUp.ok": "OK",
   "stage.sing.title": "Singing",
   "stage.results.title": "Results",
   // The minimal playback view (#155), until the sing scene plays Songs (#164).
