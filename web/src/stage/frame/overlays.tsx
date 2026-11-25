@@ -1,14 +1,15 @@
 // What each overlay shows, and the overlay itself: a veil over the whole
 // screen and a cream modal (44 px radius) in the reference frame. The Songs,
 // Queue and People overlays are placeholders until their tickets fill them;
-// so are the Setup menu's three screens (Mics #51, Calibrate mics #52,
-// Check A/V sync #53).
+// so are two of the Setup menu's three screens (Calibrate mics #52, Check
+// A/V sync #53). Mics is `mics/MicsScreen.tsx`.
 
 import { useId, type ComponentType } from "react";
 
 import { t, type MessageKey } from "../../i18n/t";
 import type { LiveState } from "../../live/liveState";
 import { useLive } from "../../live/useLive";
+import { MicsScreen } from "../../mics/MicsScreen";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
 import type { OverlayId } from "./overlayIds";
@@ -65,7 +66,7 @@ export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
   songs: { title: "stage.overlay.songs", component: ComingSoon },
   queue: { title: "stage.overlay.queue", component: QueueOverlay },
   people: { title: "stage.overlay.people", component: PeopleOverlay },
-  mics: { title: "stage.overlay.mics", component: ComingSoon },
+  mics: { title: "stage.overlay.mics", component: MicsScreen },
   calibrateMics: {
     title: "stage.overlay.calibrateMics",
     component: ComingSoon,
