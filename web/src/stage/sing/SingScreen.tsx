@@ -4,10 +4,15 @@
 // toasts and overlays. Both canvases cover the screen at device pixels; the
 // DOM layers sit in the same 1920 × 1080 reference frame, scaled the same way.
 //
-// #211 adds the Bubble Pop panels and lane headers; the lyric bar and the
-// effects come from #55's other sing screen tickets.
+// #211 adds the Bubble Pop panels and lane headers, #133 the lyric text and
+// its fill; the lyric bar's look and the effects come from #55's other sing
+// screen tickets.
+//
+// Nothing here re-renders per frame: the render loop paints the canvas and
+// writes the lyric fill straight to the DOM. The lane panels re-render only
+// when the Line-up changes, the lyric text only when a Line does.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { SongClock } from "../../clock/songClock";
 import { readToken, tokenVar } from "../../theme/tokens";
@@ -17,6 +22,7 @@ import { Score } from "../../ui/Score";
 import type { DrawList, SingLane, SingState } from "./frame";
 import { laneHeaderSizes } from "./laneHeader";
 import { laneLayout, type LaneRect } from "./laneLayout";
+import { createLyricDriver, LyricBar } from "./LyricBar";
 import { createPainter, referenceTransform } from "./painter";
 import { createRenderLoop } from "./renderLoop";
 
@@ -70,6 +76,7 @@ export function SingScreen({
   const lanesRef = useRef<HTMLCanvasElement>(null);
   const effectsRef = useRef<HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState(currentViewport);
+  const [lyrics] = useState(createLyricDriver);
 
   // The loop reads the latest props each frame without restarting.
   const latest = useRef({ state, clock, avOffset, viewport });
@@ -110,6 +117,7 @@ export function SingScreen({
           transformFor = view;
         }
         painter.paint(list, transform);
+        lyrics.apply(list);
         if (!painted && rootRef.current) {
           // For screenshots (#58): the first frame is on the canvas.
           rootRef.current.dataset.painted = "true";
@@ -121,7 +129,7 @@ export function SingScreen({
     return () => {
       loop.stop();
     };
-  }, []);
+  }, [lyrics]);
 
   const frame = referenceTransform(viewport.width, viewport.height, 1);
   const referenceStyle = {
@@ -146,30 +154,7 @@ export function SingScreen({
         className="pointer-events-none absolute top-0 left-0"
         style={referenceStyle}
       >
-        {lanes.map((lane, i) => (
-          <div
-            key={i}
-            data-lane-panel
-            className="absolute overflow-hidden bg-white/66 backdrop-blur-lg backdrop-saturate-130"
-            style={{
-              left: `${String(lane.x)}px`,
-              top: `${String(lane.y)}px`,
-              width: `${String(lane.width)}px`,
-              height: `${String(lane.height)}px`,
-              borderRadius: Math.min(40, lane.height / 2),
-              boxShadow: PANEL_SHADOW,
-            }}
-          >
-            <div
-              className="absolute inset-0 opacity-16"
-              style={{
-                backgroundColor: tokenVar(
-                  state.lanes[i]?.colour ?? "--color-white",
-                ),
-              }}
-            />
-          </div>
-        ))}
+        <LanePanels lanes={state.lanes} />
       </div>
       <canvas
         ref={lanesRef}
@@ -190,7 +175,7 @@ export function SingScreen({
             duet={state.voices.length > 1}
           />
         ))}
-        <div data-lyric-bar className="absolute right-0 bottom-[34px] left-0" />
+        <LyricBar voices={state.voices} driver={lyrics} />
       </div>
       <canvas
         ref={effectsRef}
@@ -204,6 +189,51 @@ export function SingScreen({
     </div>
   );
 }
+
+/** Panels change only with the Line-up: how many Players, in which colours. */
+function sameLineUp(
+  a: { lanes: readonly SingLane[] },
+  b: { lanes: readonly SingLane[] },
+): boolean {
+  return (
+    a.lanes.length === b.lanes.length &&
+    a.lanes.every((lane, i) => lane.colour === b.lanes[i]?.colour)
+  );
+}
+
+/**
+ * The frosted lane panels (DOM, for the backdrop blur), one per lane, placed
+ * by the same `laneLayout` as the canvas and tinted in the Party colour. They
+ * re-render only when the Line-up changes, not when a Score or a frame does.
+ */
+export const LanePanels = memo(function LanePanels({
+  lanes,
+}: {
+  lanes: readonly SingLane[];
+}) {
+  return laneLayout(lanes.length).map((lane, i) => (
+    <div
+      key={i}
+      data-lane-panel
+      className="absolute overflow-hidden bg-white/66 backdrop-blur-lg backdrop-saturate-130"
+      style={{
+        left: `${String(lane.x)}px`,
+        top: `${String(lane.y)}px`,
+        width: `${String(lane.width)}px`,
+        height: `${String(lane.height)}px`,
+        borderRadius: Math.min(40, lane.height / 2),
+        boxShadow: PANEL_SHADOW,
+      }}
+    >
+      <div
+        className="absolute inset-0 opacity-16"
+        style={{
+          backgroundColor: tokenVar(lanes[i]?.colour ?? "--color-white"),
+        }}
+      />
+    </div>
+  ));
+}, sameLineUp);
 
 /**
  * A lane's header, left of its Notes area (#55, "Lane header"): the avatar,

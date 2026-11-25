@@ -13,6 +13,7 @@
 
 import { beatAt, beatStart, type BeatGrid } from "../../clock/beats";
 import type { Avatar } from "../../generated/Avatar";
+import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { ParsedSong } from "../../generated/ParsedSong";
@@ -37,6 +38,8 @@ export type {
 /** One Voice as the sing screen draws it: its Notes in order and its pitch span. */
 export interface SingVoice {
   notes: readonly Note[];
+  /** The Voice's Lines in file order, for the lyric bar and its fill. */
+  lines: readonly Line[];
   /** Lowest Note pitch (semitones from C4). */
   lowestPitch: number;
   /** Highest Note pitch. */
@@ -96,6 +99,7 @@ export function singVoices(song: Pick<ParsedSong, "voices">): SingVoice[] {
     if (notes.length === 0) lowestPitch = highestPitch = 0;
     return {
       notes,
+      lines: voice.lines,
       lowestPitch,
       highestPitch,
       index: noteIndex(notes),
@@ -228,6 +232,32 @@ export interface PlayheadEntry {
   dash: readonly number[];
 }
 
+/**
+ * One Voice's lyric fill, for the lyric bar (DOM, not the canvas). The
+ * render loop writes `fraction` to a CSS custom property on the current
+ * Note's text; React re-renders the text only when `line` changes.
+ */
+export interface LyricEntry {
+  type: "lyric";
+  /** Index into `SingState.voices`. */
+  voice: number;
+  /** Index of the current Line in the Voice's `lines`; -1: the Voice has none. */
+  line: number;
+  /**
+   * The current Note's index in that Line: the last one that has started;
+   * -1 before the Line's first Note. The Notes before it are fully sung.
+   */
+  note: number;
+  /** How much of the current Note's text is filled, 0 to 1. */
+  fraction: number;
+  /** The current Note is being sung right now (its text lifts). */
+  singing: boolean;
+  /** The Party colour of the one Player on this Voice; slate when several (or none) share it. */
+  colour: LyricColour;
+}
+
+export type LyricColour = PaletteKey | "--color-slate";
+
 /** Ends the clip a `lane` entry started. */
 export interface LaneEndEntry {
   type: "laneEnd";
@@ -242,7 +272,8 @@ export type DrawEntry =
   | PlayheadEntry
   | PitchLineEntry
   | HeadBallEntry
-  | LaneEndEntry;
+  | LaneEndEntry
+  | LyricEntry;
 export type DrawList = DrawEntry[];
 
 // Shared constants, so a frame allocates nothing beyond its own entries.
@@ -297,6 +328,62 @@ function pillFill(kind: NoteKind, passed: boolean): PillFill | null {
 function beatPosition(grid: BeatGrid, t: number): number {
   const beat = beatAt(grid, t);
   return beat + ((t - beatStart(grid, beat)) * grid.beatsPerMinute) / 60;
+}
+
+/**
+ * A Voice's lyric fill colour (#55): the Player's Party colour when exactly
+ * one Player sings the Voice, slate when several share it or none sings it.
+ */
+function lyricColour(state: SingState, voice: number): LyricColour {
+  let colour: LyricColour = "--color-slate";
+  let singers = 0;
+  for (const lane of state.lanes) {
+    if (lane.voice !== voice) continue;
+    singers++;
+    colour = lane.colour;
+  }
+  return singers === 1 ? colour : "--color-slate";
+}
+
+/**
+ * Pushes one `lyric` entry per Voice. The current Line is the first whose
+ * Line end marker's Beat is still ahead (the last Line has none); in it, the
+ * current Note is the last one that has started.
+ */
+function lyricFill(list: DrawList, state: SingState, now: number) {
+  for (let v = 0; v < state.voices.length; v++) {
+    const lines = state.voices[v]?.lines ?? [];
+    let line = lines.length - 1;
+    for (let i = 0; i < lines.length; i++) {
+      const end = lines[i]?.end;
+      if (!end || now < end.beat) {
+        line = i;
+        break;
+      }
+    }
+    const notes = lines[line]?.notes ?? [];
+    let note = -1;
+    while (note + 1 < notes.length && (notes[note + 1]?.start ?? 0) <= now) {
+      note++;
+    }
+    const current = notes[note];
+    let fraction = 0;
+    let singing = false;
+    if (current) {
+      const sung = now - current.start;
+      fraction = current.length > 0 ? Math.min(1, sung / current.length) : 1;
+      singing = sung < current.length;
+    }
+    list.push({
+      type: "lyric",
+      voice: v,
+      line,
+      note,
+      fraction,
+      singing,
+      colour: lyricColour(state, v),
+    });
+  }
 }
 
 /** The Song's length in seconds, for the progress bar. */
@@ -479,5 +566,6 @@ export function frame(
     }
     list.push({ type: "laneEnd", lane });
   }
+  lyricFill(list, state, now);
   return list;
 }
