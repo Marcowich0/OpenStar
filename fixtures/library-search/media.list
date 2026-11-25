@@ -1,5 +1,6 @@
-# Media files the search tests create (empty) in their copy of this Library,
-# one path per line, relative to the Library. No media is committed here.
+# Media files the search tests create in their copy of this Library,
+# one path per line, relative to the Library, as tiny generated placeholders
+# (`openstar_test_harness::placeholder_media`). No media is committed here.
 Alpha Artist - Sunny Day/audio.mp3
 Beta Band - Night Song/audio.mp3
 Beta Band - Night Song/video.mp4

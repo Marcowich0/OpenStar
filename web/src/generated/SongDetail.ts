@@ -19,7 +19,11 @@ path: string, song: ParsedSong,
  * The fingerprint of the Song's note content as loaded; the Stage
  * returns it with the round's outcome.
  */
-noteFingerprint: NoteFingerprint, identity: SongIdentity, lengthSeconds: number | null, media: SongMedia, 
+noteFingerprint: NoteFingerprint, identity: SongIdentity, lengthSeconds: number | null, 
+/**
+ * See [`SongSummary::preparing`].
+ */
+preparing: boolean, media: SongMedia, 
 /**
  * The Song's warnings; it plays anyway.
  */

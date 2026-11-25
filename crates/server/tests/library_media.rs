@@ -10,6 +10,7 @@
 use std::path::Path;
 use std::time::Duration;
 
+use openstar_protocol::jobs::{JobList, JobState};
 use openstar_protocol::library::{
     MediaFile, ScanReport, ScanStatus, SongDetail, SongList, SongSummary, SongVideo,
 };
@@ -170,7 +171,9 @@ async fn probes_media_and_finds_covers_and_backgrounds() {
     assert_eq!(listed.cover, image_at(id, "cover"));
     assert_eq!(fetch(&app, &url(id, "cover")).await, b"placeholder image");
 
-    // Two files: the AVI needs conversion; gap in seconds; `#END` is the length.
+    // Two files: the AVI needs conversion, and is offered once converted
+    // (see `library_conversion.rs`); gap in seconds; `#END` is the length.
+    conversions_ended(&app).await;
     let two = detail(&app, "Two Files").await;
     let id = two.id.0;
     assert_eq!(
@@ -185,7 +188,7 @@ async fn probes_media_and_finds_covers_and_backgrounds() {
         Some(SongVideo::File {
             file: MediaFile {
                 url: url(id, "video"),
-                native: false
+                native: true
             },
             gap_seconds: 1.5,
         })
@@ -194,10 +197,13 @@ async fn probes_media_and_finds_covers_and_backgrounds() {
     assert!(summary(&app, "Two Files").await.has_video);
     assert_eq!(two.media.cover, image_at(id, "cover"));
     let songs = app.songs_dir().to_owned();
-    assert_eq!(
-        fetch(&app, &url(id, "video")).await,
-        std::fs::read(songs.join("Two Files/clip.avi")).unwrap()
+    let served = fetch(&app, &url(id, "video")).await;
+    assert_ne!(
+        served,
+        std::fs::read(songs.join("Two Files/clip.avi")).unwrap(),
+        "the converted copy is served"
     );
+    assert_eq!(&served[4..8], b"ftyp", "an MP4");
 
     // Each cover rule picks the expected image.
     for (folder, cover, background) in [
@@ -292,6 +298,22 @@ async fn media_is_served_with_range_requests() {
     for path in [url(id, "video"), url(id, "lyrics"), url(99_999, "audio")] {
         let response = app.http().get(app.url(&path)).send().await.unwrap();
         assert_eq!(response.status(), 404, "{path}");
+    }
+}
+
+/// Waits until no background job is queued or running.
+async fn conversions_ended(app: &TestApp) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    loop {
+        let jobs = app.get_json::<JobList>("/api/jobs").await.jobs;
+        if jobs
+            .iter()
+            .all(|job| matches!(job.state, JobState::Done | JobState::Failed { .. }))
+        {
+            return;
+        }
+        assert!(tokio::time::Instant::now() < deadline, "{jobs:?}");
+        tokio::time::sleep(Duration::from_millis(20)).await;
     }
 }
 

@@ -1,6 +1,6 @@
 //! Song identity through the real app over HTTP: the USDB id from a
 //! `metadata.json` beside the `.txt`, otherwise the normalised artist and
-//! title plus the duet flag. Media files are created empty.
+//! title plus the duet flag. Media files are tiny placeholders generated at test time.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -12,10 +12,10 @@ use openstar_protocol::library::{
 };
 use openstar_test_harness::{AppFolders, TestApp};
 
-/// Writes a playable Song (`song.txt` + empty `song.mp3`) into `folder`.
+/// Writes a playable Song (`song.txt` + a placeholder `song.mp3`) into `folder`.
 fn write_song(folder: &Path, artist: &str, title: &str, duet: bool) {
     std::fs::create_dir_all(folder).unwrap();
-    std::fs::write(folder.join("song.mp3"), b"").unwrap();
+    openstar_test_harness::placeholder_media(&folder.join("song.mp3")).unwrap();
     let body = if duet {
         "P1\n: 0 4 0 La\nP2\n: 4 4 2 lo\nE\n"
     } else {

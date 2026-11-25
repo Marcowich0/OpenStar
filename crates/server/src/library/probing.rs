@@ -33,14 +33,15 @@ struct OnDisk {
     mtime_ns: i64,
 }
 
-/// Probes what needs probing and updates every Song's length and has video.
-/// Returns how many files were probed, or `None` when the scan was cancelled.
+/// Probes what needs probing and updates every Song's length (has video
+/// follows in `index::refresh`). Returns the files probed (new or changed),
+/// or `None` when the scan was cancelled.
 pub(crate) async fn run(
     db: &Database,
     root: &Path,
     slot: &Slot,
     cancelled: &Arc<AtomicBool>,
-) -> anyhow::Result<Option<u32>> {
+) -> anyhow::Result<Option<Vec<String>>> {
     let (named, probed) = db
         .call(|conn| Ok::<_, rusqlite::Error>((named_media(conn)?, probed_media(conn)?)))
         .await?;
@@ -61,7 +62,7 @@ pub(crate) async fn run(
     .await?;
 
     let keep: Vec<String> = on_disk.iter().map(|f| f.path.clone()).collect();
-    let mut count = 0u32;
+    let mut probed_now = Vec::new();
     for file in on_disk {
         if probed.get(&file.path) == Some(&(file.size, file.mtime_ns)) {
             continue;
@@ -81,8 +82,9 @@ pub(crate) async fn run(
                 continue;
             }
         };
+        let path = file.path.clone();
         db.call(move |conn| store(conn, &file, &probe)).await?;
-        count += 1;
+        probed_now.push(path);
     }
     if cancelled.load(Ordering::Relaxed) {
         return Ok(None);
@@ -94,7 +96,7 @@ pub(crate) async fn run(
         tx.commit()
     })
     .await?;
-    Ok(Some(count))
+    Ok(Some(probed_now))
 }
 
 /// Runs ffprobe on `file`. A file ffprobe fails on, or that takes too long,
@@ -176,17 +178,12 @@ fn forget_others(conn: &Connection, keep: &[String]) -> rusqlite::Result<()> {
     )
 }
 
-/// Length: `#END` when it is set, else the audio's duration. Has video: a
-/// `#VIDEO` file that, once probed, turned out to hold a video stream (a
-/// file ffprobe could not read counts, since its conversion decides).
+/// Length: `#END` when it is set, else the audio's duration.
 fn derive_song_fields(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "UPDATE library_files SET
              length_seconds = CASE WHEN song IS NULL THEN NULL ELSE COALESCE(
                  json_extract(song, '$.headers.endSeconds'),
-                 (SELECT duration_seconds FROM media_probes p WHERE p.path = audio_path)) END,
-             has_video = video_path IS NOT NULL AND COALESCE(
-                 (SELECT container IS NULL OR video_codec IS NOT NULL
-                  FROM media_probes p WHERE p.path = video_path), 1);",
+                 (SELECT duration_seconds FROM media_probes p WHERE p.path = audio_path)) END;",
     )
 }

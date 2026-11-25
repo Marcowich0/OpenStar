@@ -1,6 +1,6 @@
 //! Searching and filtering the Library through `GET /api/songs`, on a copy of
 //! `fixtures/library-search/` (see its README for what each Song covers).
-//! Media files are created empty at test time.
+//! Media files are tiny placeholders generated at test time.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -39,7 +39,7 @@ async fn start() -> TestApp {
         .lines()
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
     {
-        std::fs::write(songs.join(line), b"").unwrap();
+        openstar_test_harness::placeholder_media(&songs.join(line)).unwrap();
     }
     // `TestApp` returns once the start-up scan has finished.
     TestApp::builder().folders(folders).start().await
@@ -224,7 +224,7 @@ async fn year_duet_video_and_length_filter() {
         )
         .await,
         set(&[SUNNY, NIGHT]),
-        "inclusive; a Song of unknown length never matches"
+        "inclusive"
     );
     assert_eq!(
         matches(
@@ -264,18 +264,28 @@ async fn the_list_names_the_values_each_filter_can_take() {
         creators: vec!["alice".into(), "bob".into(), "carol".into()],
         duet: vec![false, true],
         has_video: vec![false, true],
+        // Straße has no `#END`: its placeholder audio's length (0.3 s).
         length: Some(LengthRange {
-            min_seconds: 120.0,
+            min_seconds: 0.3,
             max_seconds: 240.0,
         }),
     };
-    assert_eq!(list(&app, &SongQuery::default()).await.filters, expected);
+    let rounded = |mut filters: SongFilters| {
+        if let Some(length) = &mut filters.length {
+            length.min_seconds = (length.min_seconds * 10.0).round() / 10.0;
+        }
+        filters
+    };
+    assert_eq!(
+        rounded(list(&app, &SongQuery::default()).await.filters),
+        expected
+    );
     let narrow = SongQuery {
         search: Some("sunny".into()),
         ..SongQuery::default()
     };
     assert_eq!(
-        list(&app, &narrow).await.filters,
+        rounded(list(&app, &narrow).await.filters),
         expected,
         "the values of the whole Library, whatever the query"
     );
