@@ -26,6 +26,12 @@ lengthSeconds: number | null,
  */
 hasVideo: boolean, 
 /**
+ * Whether the Song's audio (or the one file serving as audio and
+ * video) is still being converted for the Stage: shown as "preparing",
+ * and it cannot be queued yet.
+ */
+preparing: boolean, 
+/**
  * The cover image's URL; `None` when the Library found no cover (show
  * the generated tile).
  */

@@ -77,6 +77,10 @@ pub struct SongSummary {
     pub length_seconds: Option<f64>,
     /// Whether the Song has a video to play.
     pub has_video: bool,
+    /// Whether the Song's audio (or the one file serving as audio and
+    /// video) is still being converted for the Stage: shown as "preparing",
+    /// and it cannot be queued yet.
+    pub preparing: bool,
     /// The cover image's URL; `None` when the Library found no cover (show
     /// the generated tile).
     pub cover: Option<String>,
@@ -170,9 +174,11 @@ pub struct LengthRange {
 pub struct MediaFile {
     /// Served with HTTP `Range` requests.
     pub url: String,
-    /// Whether the Stage plays the file as it is, decided by its container
-    /// and codecs (from ffprobe). `false` means it needs conversion, and also
-    /// for a file not probed yet.
+    /// Whether the Stage plays the file served at `url`, decided by its
+    /// container and codecs (from ffprobe). A file converted into the cache
+    /// is served in its place at the same URL, and is native. `false` means
+    /// it needs conversion (not converted yet), and also for a file not
+    /// probed yet.
     pub native: bool,
 }
 
@@ -225,6 +231,8 @@ pub struct SongDetail {
     pub note_fingerprint: NoteFingerprint,
     pub identity: SongIdentity,
     pub length_seconds: Option<f64>,
+    /// See [`SongSummary::preparing`].
+    pub preparing: bool,
     pub media: SongMedia,
     /// The Song's warnings; it plays anyway.
     pub warnings: Vec<ProblemReason>,
@@ -291,6 +299,13 @@ pub enum FileProblem {
     /// not JSON, or its `apiId` is not a USDB id. The Song is identified by
     /// its artist and title instead.
     UnreadableMetadata,
+    /// Rejection: the Song's audio (or the one file serving as audio and
+    /// video) does not play on the Stage and could not be converted.
+    /// `file` is relative to the Library.
+    AudioNotConverted { file: String },
+    /// Warning: the Song's video does not play on the Stage and could not be
+    /// converted; the Song plays over its background or cover.
+    VideoNotConverted { file: String },
 }
 
 /// What a scan did.

@@ -5,6 +5,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
 
 use anyhow::{Context, bail};
 use tempfile::TempDir;
@@ -222,6 +223,45 @@ impl Media {
         }
         Ok(self.dir.path().join(name))
     }
+}
+
+/// Writes a tiny playable media file at `path` (creating its folder): a short
+/// H.264/AAC MP4 when the extension names a video container (`.mp4`, `.avi`,
+/// `.mkv`, …), else a short MP3 of silence. Whatever the extension, the
+/// content plays natively on the Stage, so the scan never converts it.
+/// For tests that need a Song to play but do not care about its media: an
+/// empty file is unreadable, and unreadable audio is a rejection once its
+/// conversion fails. Each kind is generated once per test process.
+pub fn placeholder_media(path: &Path) -> anyhow::Result<()> {
+    static AUDIO: OnceLock<Result<Vec<u8>, String>> = OnceLock::new();
+    static VIDEO: OnceLock<Result<Vec<u8>, String>> = OnceLock::new();
+    let video = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_ascii_lowercase)
+        .is_some_and(|e| {
+            [
+                "mp4", "m4v", "avi", "mkv", "webm", "mov", "mpg", "mpeg", "divx", "wmv", "flv",
+            ]
+            .contains(&e.as_str())
+        });
+    let bytes = if video {
+        VIDEO.get_or_init(|| generated(|m| m.tiny_video("placeholder.mp4", 0.3)))
+    } else {
+        AUDIO.get_or_init(|| generated(|m| m.silence("placeholder.mp3", 0.3, 44_100)))
+    };
+    let bytes = bytes.as_ref().map_err(|e| anyhow::anyhow!("{e}"))?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, bytes)?;
+    Ok(())
+}
+
+fn generated(make: impl FnOnce(&Media) -> anyhow::Result<PathBuf>) -> Result<Vec<u8>, String> {
+    let media = Media::new();
+    let path = make(&media).map_err(|e| format!("{e:#}"))?;
+    std::fs::read(path).map_err(|e| e.to_string())
 }
 
 impl Default for Media {

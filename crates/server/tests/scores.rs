@@ -26,7 +26,7 @@ const SOLO: &str = ": 0 4 0 La\n: 4 4 2 lo\nE\n";
 fn write_song(app: &TestApp, folder: &str, title: &str, body: &str) {
     let folder = app.songs_dir().join(folder);
     std::fs::create_dir_all(&folder).unwrap();
-    std::fs::write(folder.join("song.mp3"), b"").unwrap();
+    openstar_test_harness::placeholder_media(&folder.join("song.mp3")).unwrap();
     std::fs::write(
         folder.join("song.txt"),
         format!("#ARTIST:Placeholder Artist\n#TITLE:{title}\n#MP3:song.mp3\n#BPM:200\n{body}"),

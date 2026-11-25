@@ -24,6 +24,7 @@ mod store;
 mod test_kind;
 
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 
@@ -91,18 +92,21 @@ pub enum AfterRestart {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum JobParams {
     Test(TestJob),
+    Conversion(crate::library::Conversion),
 }
 
 impl JobParams {
     pub fn kind(&self) -> JobKind {
         match self {
             Self::Test(_) => JobKind::Test,
+            Self::Conversion(_) => JobKind::Conversion,
         }
     }
 
     pub fn lane(&self) -> Lane {
         match self {
             Self::Test(job) => job.lane,
+            Self::Conversion(_) => Lane::Ffmpeg,
         }
     }
 
@@ -110,12 +114,15 @@ impl JobParams {
         match self {
             Self::Test(job) if job.fails_after_restart => AfterRestart::Fail,
             Self::Test(_) => AfterRestart::StartAgain,
+            // It removes what an interrupted run left in the cache first.
+            Self::Conversion(_) => AfterRestart::StartAgain,
         }
     }
 
     async fn run(self, ctx: &mut JobContext) -> Result<(), UserMessage> {
         match self {
             Self::Test(job) => job.run(ctx).await,
+            Self::Conversion(job) => job.run(ctx).await,
         }
     }
 }
@@ -124,6 +131,17 @@ impl JobParams {
 pub struct JobContext {
     pub progress: Progress,
     pub slot: Slot,
+    pub(crate) env: JobEnv,
+}
+
+/// What every job may use besides its slot: the database, the live-state
+/// task (for change notices) and the folders from the settings.
+#[derive(Clone)]
+pub(crate) struct JobEnv {
+    pub(crate) db: Database,
+    pub(crate) live: LiveHandle,
+    pub(crate) songs_dir: PathBuf,
+    pub(crate) appdata_dir: PathBuf,
 }
 
 /// Reports a running job's progress to every browser.
@@ -188,15 +206,12 @@ impl Jobs {
     /// Loads the kept jobs, applies each interrupted job's [`AfterRestart`]
     /// rule, then starts the runner, which starts queued jobs at once.
     /// `tool_path` is the `PATH` child processes run with.
-    pub(crate) async fn start(
-        db: Database,
-        live: LiveHandle,
-        tool_path: Option<String>,
-    ) -> anyhow::Result<Self> {
+    pub(crate) async fn start(env: JobEnv, tool_path: Option<String>) -> anyhow::Result<Self> {
         let (commands, receiver) = mpsc::channel(COMMAND_CAPACITY);
         let mut runner = Runner {
-            db,
-            live,
+            db: env.db.clone(),
+            live: env.live.clone(),
+            env,
             tool_path,
             commands: commands.clone(),
             jobs: BTreeMap::new(),
@@ -268,6 +283,7 @@ struct Running {
 struct Runner {
     db: Database,
     live: LiveHandle,
+    env: JobEnv,
     tool_path: Option<String>,
     /// Handed to running jobs, so they can report back.
     commands: mpsc::Sender<Command>,
@@ -435,6 +451,7 @@ impl Runner {
                     tool_path: self.tool_path.clone(),
                     cancel: cancelled,
                 },
+                env: self.env.clone(),
             };
             let commands = self.commands.clone();
             let task = tokio::spawn(async move {

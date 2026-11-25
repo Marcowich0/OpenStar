@@ -89,19 +89,15 @@ impl Server {
         // Step 5: reload the live state (the Party) before anything is served.
         let live = LiveHandle::start(opened.database.clone()).await?;
         tracing::info!("live state reloaded");
-        let jobs = Jobs::start(
-            opened.database.clone(),
-            live.clone(),
-            config.tool_path.clone(),
-        )
-        .await?;
+        let env = jobs::JobEnv {
+            db: opened.database.clone(),
+            live: live.clone(),
+            songs_dir: config.songs_dir.clone(),
+            appdata_dir: config.appdata_dir.clone(),
+        };
+        let jobs = Jobs::start(env.clone(), config.tool_path.clone()).await?;
         tracing::info!("job runner started");
-        let scanner = Scanner::new(
-            opened.database.clone(),
-            config.songs_dir.clone(),
-            live.clone(),
-            config.tool_path.clone(),
-        );
+        let scanner = Scanner::new(env, jobs.clone(), config.tool_path.clone());
         Ok(Self {
             state: AppState {
                 scanner,

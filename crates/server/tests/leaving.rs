@@ -341,7 +341,7 @@ async fn only_the_party_removes_members_and_a_phone_leaves_rather_than_removing_
 /// Writes a playable Song into `folder`.
 fn write_song(folder: &Path, title: &str) {
     std::fs::create_dir_all(folder).unwrap();
-    std::fs::write(folder.join("song.mp3"), b"").unwrap();
+    openstar_test_harness::placeholder_media(&folder.join("song.mp3")).unwrap();
     std::fs::write(
         folder.join("song.txt"),
         format!("#ARTIST:Toto\n#TITLE:{title}\n#MP3:song.mp3\n#BPM:200\n: 0 4 0 La\nE\n"),
