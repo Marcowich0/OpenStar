@@ -45,7 +45,37 @@ expression: "ServerMessage::PartyChanged\n{\n    party: party(), change: ChangeE
         "adder": null
       }
     ],
-    "head": 3
+    "head": 3,
+    "lineUp": {
+      "requestId": 3,
+      "duet": true,
+      "seats": [
+        {
+          "memberId": 1,
+          "mic": {
+            "kind": "phone",
+            "phoneId": "3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60"
+          },
+          "voice": "p1",
+          "difficulty": "medium"
+        }
+      ],
+      "canStart": false,
+      "warnings": [
+        {
+          "code": "micBlocked",
+          "params": {
+            "memberId": 1
+          }
+        },
+        {
+          "code": "duetNeedsVoice",
+          "params": {
+            "voice": "p2"
+          }
+        }
+      ]
+    }
   },
   "change": {
     "actor": {

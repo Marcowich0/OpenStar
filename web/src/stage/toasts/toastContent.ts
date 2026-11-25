@@ -99,6 +99,16 @@ export function toastContent(
         actor: memberLook(party, profiles, event.params.memberId),
         parts: tParts("partyEvent.memberChanged", { name: event.params.name }),
       };
+    case "micBlocked":
+      return {
+        actor: memberLook(party, profiles, event.params.memberId),
+        parts: tParts("partyEvent.micBlocked", { name: event.params.name }),
+      };
+    case "micOpened":
+      return {
+        actor: memberLook(party, profiles, event.params.memberId),
+        parts: tParts("partyEvent.micOpened", { name: event.params.name }),
+      };
     case "requestAdded":
       return queueChange(
         actor,

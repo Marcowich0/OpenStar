@@ -37,6 +37,7 @@ const party: PartySnapshot = {
   phones: [],
   queue: [],
   head: null,
+  lineUp: null,
 };
 
 const profiles: Profile[] = [

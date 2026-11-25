@@ -40,6 +40,7 @@ const party: PartySnapshot = {
   phones: [],
   queue: [],
   head: null,
+  lineUp: null,
 };
 
 const bo: Profile = {

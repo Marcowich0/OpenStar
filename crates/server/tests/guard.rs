@@ -343,6 +343,7 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::RemoveRequest {
             request_id: RequestId(1),
         },
+        ClientMessage::ReportMicBlocked { blocked: true },
     ]
 }
 

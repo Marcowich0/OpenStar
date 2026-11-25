@@ -64,4 +64,6 @@ export const wrongParam = byCode<PartyEvent>({
   requestPlayNext: ({ params }) => params.title,
   requestRemoved: ({ params }) => params.title,
   requestedPlayersChanged: ({ params }) => params.title,
+  micBlocked: ({ params }) => params.name,
+  micOpened: ({ params }) => params.name,
 });

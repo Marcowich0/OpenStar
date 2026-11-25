@@ -16,16 +16,21 @@ pub enum SongLookup {
         expect(dead_code, reason = "the index reports \"preparing\" from #144 on")
     )]
     Preparing { title: String },
-    /// In the Library and queueable.
-    Ready { title: String },
+    /// In the Library and queueable; `duet` when it has two Voices.
+    Ready { title: String, duet: bool },
 }
 
 impl SongLookup {
     /// The Song's title, for change events; empty when it left the Library.
+    /// Whether the Song is a duet; `false` once it has left the Library.
+    pub fn duet(&self) -> bool {
+        matches!(self, Self::Ready { duet: true, .. })
+    }
+
     pub fn title(&self) -> &str {
         match self {
             Self::NotInLibrary => "",
-            Self::Preparing { title } | Self::Ready { title } => title,
+            Self::Preparing { title } | Self::Ready { title, .. } => title,
         }
     }
 }
@@ -40,16 +45,17 @@ pub struct LibraryIndex;
 
 impl Songs for LibraryIndex {
     fn lookup(&self, conn: &Connection, id: SongId) -> rusqlite::Result<SongLookup> {
-        let title: Option<Option<String>> = conn
+        let found: Option<(Option<String>, bool)> = conn
             .query_row(
-                "SELECT title FROM library_files WHERE id = ?1 AND playable = 1",
+                "SELECT title, duet FROM library_files WHERE id = ?1 AND playable = 1",
                 [id.0],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?;
-        Ok(match title {
-            Some(title) => SongLookup::Ready {
+        Ok(match found {
+            Some((title, duet)) => SongLookup::Ready {
                 title: title.unwrap_or_default(),
+                duet,
             },
             None => SongLookup::NotInLibrary,
         })
