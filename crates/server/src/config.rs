@@ -40,6 +40,11 @@ pub struct UsdbCredentials {
 pub struct Secret(String);
 
 impl Secret {
+    /// Wraps a value, for tests that choose their own Admin PIN.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
     /// The value itself, for the one place that needs it.
     pub fn expose(&self) -> &str {
         &self.0

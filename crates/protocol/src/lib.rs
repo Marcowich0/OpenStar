@@ -4,6 +4,9 @@
 //! tests writes the TypeScript types to `web/src/generated/`, which is
 //! committed. `just check` fails when the committed files drift.
 
+pub mod admin;
+pub mod song;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

@@ -1,0 +1,160 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: headers/version-1.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#VERSION:1.2.0" Lf,
+              2 Header "#TITLE:Placeholder Title" Lf,
+              3 Header "#ARTIST:Placeholder Artist" Lf,
+              4 Header "#MP3:audio.mp3" Lf,
+              5 Header "#AUDIO:video.mp4" Lf,
+              6 Header "#VOCALS:vocals.mp3" Lf,
+              7 Header "#INSTRUMENTAL:instrumental.mp3" Lf,
+              8 Header "#BPM:250" Lf,
+              9 Header "#GAP:800" Lf,
+             10 Header "#START:3.5" Lf,
+             11 Header "#END:95000" Lf,
+             12 Header "#PREVIEWSTART:42.25" Lf,
+             13 Header "#MEDLEYSTARTBEAT:64" Lf,
+             14 Header "#MEDLEYENDBEAT:256" Lf,
+             15 Header "#EDITION:Placeholder Edition" Lf,
+             16 Header "#CREATOR:Placeholder Creator" Lf,
+             17 Header "#P1:Voice One" Lf,
+             18 Header "#P2:Voice Two" Lf,
+             19 Header "#DUETSINGERP1:Ignored Alias" Lf,
+             20 Body ": 0 4 0 La" Lf,
+             21 Body ": 4 4 2 la" Lf,
+             22 Body "- 10" Lf,
+             23 Body "* 12 4 4 Lo" Lf,
+             24 Body "F 16 2 0 ~" Lf,
+             25 End "E" Lf,
+        ],
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: V1,
+                version: Some(
+                    "1.2.0",
+                ),
+                encoding: None,
+                title: "Placeholder Title",
+                artist: "Placeholder Artist",
+                audio_reference: Some(
+                    "video.mp4",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: Some(
+                    "video.mp4",
+                ),
+                video: None,
+                cover: None,
+                background: None,
+                vocals: Some(
+                    "vocals.mp3",
+                ),
+                instrumental: Some(
+                    "instrumental.mp3",
+                ),
+                beats_per_minute: 1000.0,
+                gap_seconds: 0.8,
+                start_seconds: Some(
+                    3.5,
+                ),
+                end_seconds: Some(
+                    95.0,
+                ),
+                video_gap_seconds: None,
+                preview_start_seconds: Some(
+                    42.25,
+                ),
+                medley_start_beat: Some(
+                    64,
+                ),
+                medley_end_beat: Some(
+                    256,
+                ),
+                year: None,
+                genre: None,
+                genres: [],
+                language: None,
+                languages: [],
+                edition: Some(
+                    "Placeholder Edition",
+                ),
+                editions: [
+                    "Placeholder Edition",
+                ],
+                creator: Some(
+                    "Placeholder Creator",
+                ),
+                creators: [
+                    "Placeholder Creator",
+                ],
+                p1: Some(
+                    "Voice One",
+                ),
+                p2: Some(
+                    "Voice Two",
+                ),
+                unknown_headers: [],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "La",
+                                    line: 20,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "la",
+                                    line: 21,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 10,
+                                    line: 22,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Golden,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 4,
+                                    text: "Lo",
+                                    line: 23,
+                                },
+                                Note {
+                                    kind: Freestyle,
+                                    start: 16,
+                                    length: 2,
+                                    pitch: 0,
+                                    text: "~",
+                                    line: 24,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [],
+    },
+)
