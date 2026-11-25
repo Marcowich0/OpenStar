@@ -1,0 +1,14 @@
+{
+  "description": "White noise at several levels.",
+  "sampleRates": [44100, 48000],
+  "blockLen": 128,
+  "waveform": "noise",
+  "durationS": 1,
+  "signals": [
+    { "levelDbfs": -6, "seed": 1 },
+    { "levelDbfs": -20, "seed": 2 },
+    { "levelDbfs": -40, "seed": 3 },
+    { "levelDbfs": -70, "seed": 4 }
+  ],
+  "limits": { "clarityBelow": 0.8, "loudnessToleranceDb": 0.5 }
+}

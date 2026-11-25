@@ -286,12 +286,12 @@ impl TestApp {
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
-        if let Some(mut task) = self.task.take() {
-            if tokio::time::timeout(WAIT, &mut task).await.is_err() {
-                // Open WebSockets can hold a graceful shutdown; end them.
-                task.abort();
-                let _ = task.await;
-            }
+        if let Some(mut task) = self.task.take()
+            && tokio::time::timeout(WAIT, &mut task).await.is_err()
+        {
+            // Open WebSockets can hold a graceful shutdown; end them.
+            task.abort();
+            let _ = task.await;
         }
         self.folders.take().expect("folders are kept until stop")
     }

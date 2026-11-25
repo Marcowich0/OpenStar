@@ -1,0 +1,61 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: headers/mixed-crlf-lf.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Placeholder Title" CrLf,
+              2 Header "#ARTIST:Placeholder Artist" Lf,
+              3 Header "#MP3:audio.mp3" CrLf,
+              4 Header "#BPM:300" Lf,
+              5 Header "#GAP:500" CrLf,
+              6 Body ": 0 4 0 La" Lf,
+              7 Body ": 4 4 2 la" CrLf,
+              8 Body "- 10" Cr,
+              9 Body "* 12 4 4 Lo" CrLf,
+             10 End "E" CrLf,
+             11 AfterEnd "Anything after E is ignored." Lf,
+        ],
+        headers: SongHeaders {
+            generation: Unversioned,
+            version: None,
+            encoding: None,
+            title: "Placeholder Title",
+            artist: "Placeholder Artist",
+            audio_reference: Some(
+                "audio.mp3",
+            ),
+            mp3: Some(
+                "audio.mp3",
+            ),
+            audio: None,
+            video: None,
+            cover: None,
+            background: None,
+            vocals: None,
+            instrumental: None,
+            beats_per_minute: 1200.0,
+            gap_seconds: 0.5,
+            start_seconds: None,
+            end_seconds: None,
+            video_gap_seconds: None,
+            preview_start_seconds: None,
+            medley_start_beat: None,
+            medley_end_beat: None,
+            year: None,
+            genre: None,
+            genres: [],
+            language: None,
+            languages: [],
+            edition: None,
+            editions: [],
+            creator: None,
+            creators: [],
+            p1: None,
+            p2: None,
+            unknown_headers: [],
+        },
+        warnings: [],
+    },
+)

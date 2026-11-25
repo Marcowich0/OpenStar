@@ -39,8 +39,10 @@ fn wav_channels(path: &Path, channels: usize) -> Vec<Vec<i16>> {
         .position(|w| w == b"data")
         .expect("a data chunk");
     let samples: Vec<i16> = bytes[data + 8..]
-        .chunks_exact(2)
-        .map(|b| i16::from_le_bytes([b[0], b[1]]))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|&b| i16::from_le_bytes(b))
         .collect();
     (0..channels)
         .map(|c| samples.iter().skip(c).step_by(channels).copied().collect())
