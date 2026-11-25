@@ -21,6 +21,10 @@ beforeAll(async () => {
     root: webDir,
     configFile: path.join(webDir, "vite.config.ts"),
     logLevel: "silent",
+    // Vitest sets NODE_ENV=test, which would build React's development code
+    // (with links in its warnings); check what ships.
+    mode: "production",
+    define: { "process.env.NODE_ENV": JSON.stringify("production") },
     build: { write: false },
   });
   if (!("output" in output))
