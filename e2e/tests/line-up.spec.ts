@@ -60,6 +60,7 @@ async function sendFromPhone(phone: Page, message: object): Promise<Snapshot> {
   );
 }
 
+/** A Profile with a favourite colour no other test's Profile holds. */
 async function createProfile(
   request: APIRequestContext,
 ): Promise<{ id: number; name: string }> {
@@ -68,7 +69,7 @@ async function createProfile(
     data: {
       name,
       avatar: { kind: "builtIn", key: "star" },
-      favouriteColour: "navy",
+      favouriteColour: "bubblegum",
     },
   });
   expect(response.ok()).toBe(true);
