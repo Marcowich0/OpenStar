@@ -306,6 +306,17 @@ fn every_client_message() -> Vec<ClientMessage> {
             local_mic_id: String::new(),
             reference_dbfs: -40.0,
         },
+        ClientMessage::SetLocalMicSwitchedOn {
+            local_mic_id: String::new(),
+            source: openstar_protocol::mics::LocalMicSource::Browser {
+                stage_browser: String::new(),
+                device_id: String::new(),
+                label: String::new(),
+                channel: 0,
+                stereo: false,
+            },
+            switched_on: false,
+        },
         ClientMessage::Hello {
             phone_id: PhoneId("phone".to_owned()),
         },

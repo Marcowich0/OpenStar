@@ -124,6 +124,20 @@ export const en = {
   "stage.overlay.avSync": "Check A/V sync",
   "stage.overlay.close": "Close",
   "stage.overlay.comingSoon": "This screen is still being built.",
+  // The Mics screen (Setup › Mics) and Local mic names.
+  "mics.group.thisBrowser": "This browser",
+  "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
+  "mics.noDevices": "No input device found",
+  "mics.allowMicrophone":
+    "Allow this browser to use the microphone to list its inputs",
+  "mics.unavailable": "This browser cannot read its microphones here",
+  "mics.switchedOn": "On",
+  "mics.switchedOff": "Off",
+  "mics.switch": "{name} switched on",
+  "mics.meter": "{name} level",
+  "mics.localMic.left": "{label} · Left",
+  "mics.localMic.right": "{label} · Right",
+  "mics.localMic.mono": "{label}",
   "stage.queue.count": {
     one: "{count, number} Request in the Queue",
     other: "{count, number} Requests in the Queue",

@@ -289,6 +289,15 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT;
     ALTER TABLE library_files ADD COLUMN preparing INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE library_files ADD COLUMN conversion_problems TEXT NOT NULL DEFAULT '[]';",
+    // 17: Local mics (see `local_mics`): name (empty shows the default) and
+    // whether switched on, by Local mic id. `source` is the JSON of
+    // `LocalMicSource`. Not linked to `parties`, so New party keeps them.
+    "CREATE TABLE local_mics (
+        id          TEXT PRIMARY KEY NOT NULL,
+        source      TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        switched_on INTEGER NOT NULL CHECK (switched_on IN (0, 1))
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.
