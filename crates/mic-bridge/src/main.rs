@@ -6,8 +6,8 @@ use std::process::ExitCode;
 
 use anyhow::Context as _;
 use openstar_mic_bridge::cli::{self, Action};
-use openstar_mic_bridge::config::ConfigDir;
 use openstar_mic_bridge::client::{self, Input};
+use openstar_mic_bridge::config::ConfigDir;
 use openstar_mic_bridge::{BUILD_ID, wav};
 
 fn main() -> ExitCode {

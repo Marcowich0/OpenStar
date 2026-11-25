@@ -10,10 +10,10 @@
 
 use std::time::Duration;
 
+use crate::levels::{LEVEL_INTERVAL, Metering};
 use anyhow::Context as _;
 use futures_util::{SinkExt as _, StreamExt as _};
 use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInterface};
-use crate::levels::{LEVEL_INTERVAL, Metering};
 use openstar_protocol::{ClientMessage, ServerMessage};
 use tokio_tungstenite::tungstenite::Message;
 

@@ -98,9 +98,9 @@ pub fn read_audio(mut reader: impl Read) -> anyhow::Result<WavAudio> {
         (false, 24) => |b| (i32::from_le_bytes([0, b[0], b[1], b[2]]) >> 8) as f32 / 8_388_608.0,
         (false, 32) => |b| i32::from_le_bytes([b[0], b[1], b[2], b[3]]) as f32 / 2_147_483_648.0,
         (true, 32) => |b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]),
-        (true, 64) => |b| {
-            f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]) as f32
-        },
+        (true, 64) => {
+            |b| f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]) as f32
+        }
         (float, bits) => bail!(
             "unsupported WAV sample size: {bits}-bit {}",
             if float { "float" } else { "PCM" }

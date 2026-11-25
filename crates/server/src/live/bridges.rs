@@ -320,7 +320,11 @@ impl LiveState {
                 })
             })
             .map(|level| LocalMicLevel {
-                local_mic_id: bridge_local_mic_id(&open.bridge_id, &level.device_name, level.channel),
+                local_mic_id: bridge_local_mic_id(
+                    &open.bridge_id,
+                    &level.device_name,
+                    level.channel,
+                ),
                 level_dbfs: level.level_dbfs.clamp(SILENCE_DBFS, 0.0),
             })
             .collect();

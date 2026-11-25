@@ -279,7 +279,10 @@ async fn a_wav_bridge_sends_levels_of_every_channel_while_the_mics_screen_is_ope
     bridge.until("Interface multichannel.wav: ", "open").await;
     let levels = next_levels(&mut stage).await;
     assert_eq!(
-        levels.iter().map(|l| l.local_mic_id.clone()).collect::<Vec<_>>(),
+        levels
+            .iter()
+            .map(|l| l.local_mic_id.clone())
+            .collect::<Vec<_>>(),
         (0..4).map(id).collect::<Vec<_>>()
     );
     assert!(levels[0].level_dbfs > -40.0, "the tone: {levels:?}");
@@ -313,7 +316,10 @@ async fn a_wav_bridge_sends_levels_of_every_channel_while_the_mics_screen_is_ope
         levels = next_levels(&mut stage).await;
     }
     assert_eq!(
-        levels.iter().map(|l| l.local_mic_id.clone()).collect::<Vec<_>>(),
+        levels
+            .iter()
+            .map(|l| l.local_mic_id.clone())
+            .collect::<Vec<_>>(),
         vec![id(2)]
     );
 

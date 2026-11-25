@@ -44,7 +44,8 @@ impl Metering {
     }
 
     fn is_on(&self, device_name: &str, channel: u32) -> bool {
-        self.switched_on.contains(&(device_name.to_owned(), channel))
+        self.switched_on
+            .contains(&(device_name.to_owned(), channel))
     }
 
     /// Whether `interface` should be open now.
@@ -57,9 +58,7 @@ impl Metering {
     /// the Mics screen is open, otherwise the switched-on ones.
     pub fn metered(&self, interface: &BridgeInterface) -> Vec<u32> {
         (0..interface.channels)
-            .filter(|&channel| {
-                self.mics_screen_open || self.is_on(&interface.device_name, channel)
-            })
+            .filter(|&channel| self.mics_screen_open || self.is_on(&interface.device_name, channel))
             .collect()
     }
 
@@ -149,7 +148,10 @@ mod tests {
     fn before_the_server_says_anything_nothing_is_open_or_metered() {
         let metering = Metering::default();
         assert!(!metering.is_open(&interface("scarlett", 4)));
-        assert_eq!(metering.metered(&interface("scarlett", 4)), Vec::<u32>::new());
+        assert_eq!(
+            metering.metered(&interface("scarlett", 4)),
+            Vec::<u32>::new()
+        );
     }
 
     #[test]

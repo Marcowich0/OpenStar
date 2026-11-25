@@ -352,9 +352,7 @@ pub enum ServerMessage {
     BridgeMicsScreen { open: bool },
     /// Stage only: meter levels of a Mic bridge's Local mics, ten times a
     /// second each.
-    LocalMicLevels {
-        levels: Vec<bridge::LocalMicLevel>,
-    },
+    LocalMicLevels { levels: Vec<bridge::LocalMicLevel> },
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
