@@ -7,42 +7,37 @@ import type { TopHighScore } from "./TopHighScore";
 /**
  * One playable Song in the list.
  */
-export type SongSummary = {
-  id: SongId;
-  /**
-   * The `.txt`, relative to the Library, with `/` between folders.
-   */
-  path: string;
-  artist: string;
-  title: string;
-  /**
-   * Whether the Song has two Voices.
-   */
-  duet: boolean;
-  identity: SongIdentity;
-  /**
-   * The audio file's length from ffprobe, or `#END` when it is set;
-   * `None` while the audio is not probed and there is no `#END`.
-   */
-  lengthSeconds: number | null;
-  /**
-   * Whether the Song has a video to play.
-   */
-  hasVideo: boolean;
-  /**
-   * The cover image's URL; `None` when the Library found no cover (show
-   * the generated tile).
-   */
-  cover: string | null;
-  /**
-   * The generated tile's colour, from the Song's identity, so it stays the
-   * same across scans and restarts. Shown without a cover, or when the
-   * cover does not load.
-   */
-  tileColour: PaletteKey;
-  /**
-   * The Song's top High score at any Difficulty and either Voice; `None`
-   * when no record of its identity counts.
-   */
-  topHighScore: TopHighScore | null;
-};
+export type SongSummary = { id: SongId, 
+/**
+ * The `.txt`, relative to the Library, with `/` between folders.
+ */
+path: string, artist: string, title: string, 
+/**
+ * Whether the Song has two Voices.
+ */
+duet: boolean, identity: SongIdentity, 
+/**
+ * The audio file's length from ffprobe, or `#END` when it is set;
+ * `None` while the audio is not probed and there is no `#END`.
+ */
+lengthSeconds: number | null, 
+/**
+ * Whether the Song has a video to play.
+ */
+hasVideo: boolean, 
+/**
+ * The cover image's URL; `None` when the Library found no cover (show
+ * the generated tile).
+ */
+cover: string | null, 
+/**
+ * The generated tile's colour, from the Song's identity, so it stays the
+ * same across scans and restarts. Shown without a cover, or when the
+ * cover does not load.
+ */
+tileColour: PaletteKey, 
+/**
+ * The Song's top High score at any Difficulty and either Voice; `None`
+ * when no record of its identity counts.
+ */
+topHighScore: TopHighScore | null, };

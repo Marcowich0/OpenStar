@@ -6,4 +6,4 @@ import type { JobState } from "./JobState";
 /**
  * One background job.
  */
-export type Job = { id: JobId; kind: JobKind; state: JobState };
+export type Job = { id: JobId, kind: JobKind, state: JobState, };

@@ -6,27 +6,24 @@ import type { PartyMemberId } from "./PartyMemberId";
 /**
  * A Profile or Guest that has entered the current Party.
  */
-export type PartyMember = {
-  memberId: PartyMemberId;
-  identity: Identity;
-  /**
-   * Held by no other Party member, until this one leaves the Party or the
-   * Party ends. Never saved back into a Profile.
-   */
-  colour: PaletteKey;
-  /**
-   * The Profile's favourite colour was held by another member when it
-   * entered, so it got the first free colour instead.
-   */
-  favouriteTaken: boolean;
-  /**
-   * At least one joined Phone uses this identity ("On a Phone"); `false`
-   * means Local mic only.
-   */
-  onPhone: boolean;
-  /**
-   * Sits in the waiting Line-up ("singing"), so it cannot leave or be
-   * removed. Computed by the server.
-   */
-  singing: boolean;
-};
+export type PartyMember = { memberId: PartyMemberId, identity: Identity, 
+/**
+ * Held by no other Party member, until this one leaves the Party or the
+ * Party ends. Never saved back into a Profile.
+ */
+colour: PaletteKey, 
+/**
+ * The Profile's favourite colour was held by another member when it
+ * entered, so it got the first free colour instead.
+ */
+favouriteTaken: boolean, 
+/**
+ * At least one joined Phone uses this identity ("On a Phone"); `false`
+ * means Local mic only.
+ */
+onPhone: boolean, 
+/**
+ * Sits in the waiting Line-up ("singing"), so it cannot leave or be
+ * removed. Computed by the server.
+ */
+singing: boolean, };

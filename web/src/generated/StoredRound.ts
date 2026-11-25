@@ -9,19 +9,12 @@ import type { SongIdentity } from "./SongIdentity";
 /**
  * A stored round: one Song sung together, and its Score records.
  */
-export type StoredRound = {
-  id: RoundId;
-  song: SongIdentity;
-  partyId: PartyId;
-  mode: RoundMode;
-  startedAtMs: number;
-  ended: RoundEnd;
-  /**
-   * Groups the rounds of one game; always `null` in v1.
-   */
-  gameId: string | null;
-  /**
-   * The round's Score records, in the order the Stage sent them.
-   */
-  records: Array<ScoreRecord>;
-};
+export type StoredRound = { id: RoundId, song: SongIdentity, partyId: PartyId, mode: RoundMode, startedAtMs: number, ended: RoundEnd, 
+/**
+ * Groups the rounds of one game; always `null` in v1.
+ */
+gameId: string | null, 
+/**
+ * The round's Score records, in the order the Stage sent them.
+ */
+records: Array<ScoreRecord>, };

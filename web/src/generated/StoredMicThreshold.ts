@@ -4,10 +4,8 @@ import type { ThresholdSetBy } from "./ThresholdSetBy";
 /**
  * A stored Mic threshold, last write wins.
  */
-export type StoredMicThreshold = {
-  /**
-   * At the reference volume.
-   */
-  referenceDbfs: number;
-  setBy: ThresholdSetBy;
-};
+export type StoredMicThreshold = { 
+/**
+ * At the reference volume.
+ */
+referenceDbfs: number, setBy: ThresholdSetBy, };

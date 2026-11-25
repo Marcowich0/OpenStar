@@ -4,14 +4,12 @@ import type { ScanReport } from "./ScanReport";
 /**
  * Whether a scan runs, and what the last one did.
  */
-export type ScanStatus = {
-  running: boolean;
-  /**
-   * How many scans have finished since the server started.
-   */
-  finished: number;
-  /**
-   * The last finished scan, if any.
-   */
-  last: ScanReport | null;
-};
+export type ScanStatus = { running: boolean, 
+/**
+ * How many scans have finished since the server started.
+ */
+finished: number, 
+/**
+ * The last finished scan, if any.
+ */
+last: ScanReport | null, };

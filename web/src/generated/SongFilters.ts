@@ -7,25 +7,20 @@ import type { LengthRange } from "./LengthRange";
  * listed once whatever their case (as first written), sorted
  * case-insensitively.
  */
-export type SongFilters = {
-  languages: Array<string>;
-  genres: Array<string>;
-  /**
-   * Ascending.
-   */
-  years: Array<number>;
-  editions: Array<string>;
-  creators: Array<string>;
-  /**
-   * The duet values present: `[false]`, `[true]` or `[false, true]`.
-   */
-  duet: Array<boolean>;
-  /**
-   * The has-video values present, as for `duet`.
-   */
-  hasVideo: Array<boolean>;
-  /**
-   * The shortest and longest known length; `None` when no Song has one.
-   */
-  length: LengthRange | null;
-};
+export type SongFilters = { languages: Array<string>, genres: Array<string>, 
+/**
+ * Ascending.
+ */
+years: Array<number>, editions: Array<string>, creators: Array<string>, 
+/**
+ * The duet values present: `[false]`, `[true]` or `[false, true]`.
+ */
+duet: Array<boolean>, 
+/**
+ * The has-video values present, as for `duet`.
+ */
+hasVideo: Array<boolean>, 
+/**
+ * The shortest and longest known length; `None` when no Song has one.
+ */
+length: LengthRange | null, };

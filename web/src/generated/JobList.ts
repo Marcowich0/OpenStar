@@ -4,4 +4,4 @@ import type { Job } from "./Job";
 /**
  * Body of `GET /api/jobs`: every kept job, oldest first.
  */
-export type JobList = { jobs: Array<Job> };
+export type JobList = { jobs: Array<Job>, };

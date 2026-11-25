@@ -5,14 +5,13 @@ import type { StoredMicThreshold } from "./StoredMicThreshold";
 /**
  * What the server keeps for one Mic at one Stage output.
  */
-export type StoredMicSettings = {
-  /**
-   * Present exactly when the Mic is calibrated at this Stage output.
-   */
-  calibration?: StoredCalibration;
-  /**
-   * The Mic threshold, if one was stored. v1 stores one only for Local
-   * mics; Phones ignore it.
-   */
-  micThreshold?: StoredMicThreshold;
-};
+export type StoredMicSettings = { 
+/**
+ * Present exactly when the Mic is calibrated at this Stage output.
+ */
+calibration?: StoredCalibration, 
+/**
+ * The Mic threshold, if one was stored. v1 stores one only for Local
+ * mics; Phones ignore it.
+ */
+micThreshold?: StoredMicThreshold, };

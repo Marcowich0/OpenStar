@@ -7,10 +7,4 @@
  * `LineEnd::line`), never renumbered by earlier operations. Later
  * operations on the same value win. Units are the parser's normalised ones.
  */
-export type TimingOperation =
-  | { op: "setGap"; seconds: number }
-  | { op: "setBpm"; beatsPerMinute: number }
-  | { op: "setVideoGap"; seconds: number }
-  | { op: "setNoteStart"; line: number; start: number }
-  | { op: "setNoteLength"; line: number; length: number }
-  | { op: "setLineEnd"; line: number; beat: number };
+export type TimingOperation = { "op": "setGap", seconds: number, } | { "op": "setBpm", beatsPerMinute: number, } | { "op": "setVideoGap", seconds: number, } | { "op": "setNoteStart", line: number, start: number, } | { "op": "setNoteLength", line: number, length: number, } | { "op": "setLineEnd", line: number, beat: number, };

@@ -13,30 +13,13 @@ import type { UserMessage } from "./UserMessage";
 /**
  * A message the server sends over a WebSocket.
  */
-export type ServerMessage =
-  | { type: "pong"; nonce: number }
-  | { type: "rejected"; reason: UserMessage }
-  | {
-      type: "liveState";
-      stageId: StageId;
-      /**
-       * The current Party, or `null` before the first Stage has opened on
-       * a fresh server.
-       */
-      party: PartySnapshot | null;
-      /**
-       * Whether this connection is the active Stage.
-       */
-      isStage: boolean;
-    }
-  | { type: "partyChanged"; party: PartySnapshot; change: ChangeEvent }
-  | { type: "stageMoved" }
-  | { type: "changed"; topics: Array<ChangeTopic> }
-  | { type: "pitchReading"; mic: MicId; reading: PitchReading }
-  | { type: "clockPing"; mic: MicId; t0: number }
-  | { type: "clockPong"; t0: number; ts: number; epoch: number }
-  | { type: "micClosed"; mic: MicId }
-  | { type: "joinCodeValid"; joinCode: JoinCode }
-  | { type: "phoneStatus"; memberId: PartyMemberId | null }
-  | { type: "leftParty" }
-  | { type: "jobChanged"; job: Job };
+export type ServerMessage = { "type": "pong", nonce: number, } | { "type": "rejected", reason: UserMessage, } | { "type": "liveState", stageId: StageId, 
+/**
+ * The current Party, or `null` before the first Stage has opened on
+ * a fresh server.
+ */
+party: PartySnapshot | null, 
+/**
+ * Whether this connection is the active Stage.
+ */
+isStage: boolean, } | { "type": "partyChanged", party: PartySnapshot, change: ChangeEvent, } | { "type": "stageMoved" } | { "type": "changed", topics: Array<ChangeTopic>, } | { "type": "pitchReading", mic: MicId, reading: PitchReading, } | { "type": "clockPing", mic: MicId, t0: number, } | { "type": "clockPong", t0: number, ts: number, epoch: number, } | { "type": "micClosed", mic: MicId, } | { "type": "joinCodeValid", joinCode: JoinCode, } | { "type": "phoneStatus", memberId: PartyMemberId | null, } | { "type": "leftParty" } | { "type": "jobChanged", job: Job, };

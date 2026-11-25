@@ -6,23 +6,21 @@ import type { SongVideo } from "./SongVideo";
 /**
  * What the Stage plays and shows for a Song.
  */
-export type SongMedia = {
-  audio: MediaFile;
-  /**
-   * `None` when the Song has no video.
-   */
-  video: SongVideo | null;
-  /**
-   * The cover image's URL; `None`: the generated tile.
-   */
-  cover: string | null;
-  /**
-   * The background image's URL (`#BACKGROUND`, else the cover); `None`:
-   * the generated tile.
-   */
-  background: string | null;
-  /**
-   * The generated tile's colour (see [`SongSummary::tile_colour`]).
-   */
-  tileColour: PaletteKey;
-};
+export type SongMedia = { audio: MediaFile, 
+/**
+ * `None` when the Song has no video.
+ */
+video: SongVideo | null, 
+/**
+ * The cover image's URL; `None`: the generated tile.
+ */
+cover: string | null, 
+/**
+ * The background image's URL (`#BACKGROUND`, else the cover); `None`:
+ * the generated tile.
+ */
+background: string | null, 
+/**
+ * The generated tile's colour (see [`SongSummary::tile_colour`]).
+ */
+tileColour: PaletteKey, };

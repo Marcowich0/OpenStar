@@ -3,4 +3,4 @@
 /**
  * The lengths of the Songs in the Library, in seconds.
  */
-export type LengthRange = { minSeconds: number; maxSeconds: number };
+export type LengthRange = { minSeconds: number, maxSeconds: number, };

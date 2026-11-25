@@ -3,10 +3,8 @@
 /**
  * A Mic's Calibration values at one Stage output.
  */
-export type StoredCalibration = {
-  micDelayMs: number;
-  /**
-   * At the reference volume.
-   */
-  bleedLevelDbfs: number;
-};
+export type StoredCalibration = { micDelayMs: number, 
+/**
+ * At the reference volume.
+ */
+bleedLevelDbfs: number, };

@@ -4,28 +4,26 @@ import type { NoteKind } from "./NoteKind";
 /**
  * One syllable to be sung, from a Note line `type start length pitch text`.
  */
-export type Note = {
-  kind: NoteKind;
-  /**
-   * The first beat, relative to `#GAP`.
-   */
-  start: number;
-  /**
-   * How many beats the Note lasts, as written. A length below 1 is made
-   * [`NoteKind::Freestyle`].
-   */
-  length: number;
-  /**
-   * Semitones from C4 (0 = MIDI 60).
-   */
-  pitch: number;
-  /**
-   * The lyric, with its leading and trailing spaces kept (they carry word
-   * boundaries).
-   */
-  text: string;
-  /**
-   * The 1-based line number of the Note line in the file.
-   */
-  line: number;
-};
+export type Note = { kind: NoteKind, 
+/**
+ * The first beat, relative to `#GAP`.
+ */
+start: number, 
+/**
+ * How many beats the Note lasts, as written. A length below 1 is made
+ * [`NoteKind::Freestyle`].
+ */
+length: number, 
+/**
+ * Semitones from C4 (0 = MIDI 60).
+ */
+pitch: number, 
+/**
+ * The lyric, with its leading and trailing spaces kept (they carry word
+ * boundaries).
+ */
+text: string, 
+/**
+ * The 1-based line number of the Note line in the file.
+ */
+line: number, };

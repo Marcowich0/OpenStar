@@ -5,11 +5,8 @@ import type { ProblemSeverity } from "./ProblemSeverity";
 /**
  * One Library problem: a rejected file or a warning, with its reason.
  */
-export type LibraryProblem = {
-  /**
-   * The `.txt`, relative to the Library, with `/` between folders.
-   */
-  path: string;
-  severity: ProblemSeverity;
-  reason: ProblemReason;
-};
+export type LibraryProblem = { 
+/**
+ * The `.txt`, relative to the Library, with `/` between folders.
+ */
+path: string, severity: ProblemSeverity, reason: ProblemReason, };

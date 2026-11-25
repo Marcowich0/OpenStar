@@ -4,22 +4,21 @@ import type { LibraryReadOnly } from "./LibraryReadOnly";
 /**
  * Body of `GET /api/server-info`.
  */
-export type ServerInfo = {
-  /**
-   * The build identifier of the running server.
-   */
-  version: string;
-  /**
-   * The schema version of the database after startup migrations.
-   */
-  schemaVersion: number;
-  /**
-   * Why the Library is read-only, or `null` when it can be written to.
-   */
-  libraryReadOnly: LibraryReadOnly | null;
-  /**
-   * `OPENSTAR_PUBLIC_URL`, or `null` when it is not set: then the join
-   * address is the address the Stage was opened on.
-   */
-  publicUrl: string | null;
-};
+export type ServerInfo = { 
+/**
+ * The build identifier of the running server.
+ */
+version: string, 
+/**
+ * The schema version of the database after startup migrations.
+ */
+schemaVersion: number, 
+/**
+ * Why the Library is read-only, or `null` when it can be written to.
+ */
+libraryReadOnly: LibraryReadOnly | null, 
+/**
+ * `OPENSTAR_PUBLIC_URL`, or `null` when it is not set: then the join
+ * address is the address the Stage was opened on.
+ */
+publicUrl: string | null, };

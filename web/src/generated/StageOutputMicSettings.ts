@@ -5,7 +5,4 @@ import type { MicSettingsEntry } from "./MicSettingsEntry";
  * Body of `GET /api/mic-settings`: every Mic's values at one Stage output.
  * An output nothing was stored for has no entries.
  */
-export type StageOutputMicSettings = {
-  stageOutput: string;
-  mics: Array<MicSettingsEntry>;
-};
+export type StageOutputMicSettings = { stageOutput: string, mics: Array<MicSettingsEntry>, };

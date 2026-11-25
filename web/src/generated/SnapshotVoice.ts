@@ -4,4 +4,4 @@ import type { SnapshotLine } from "./SnapshotLine";
 /**
  * One Voice of a [`NoteSnapshot`].
  */
-export type SnapshotVoice = { lines: Array<SnapshotLine> };
+export type SnapshotVoice = { lines: Array<SnapshotLine>, };

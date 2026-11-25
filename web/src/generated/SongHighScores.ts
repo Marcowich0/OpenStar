@@ -6,4 +6,4 @@ import type { HighScoreTable } from "./HighScoreTable";
  * the Song and Difficulty (Voice 0 first; Easy, Medium, Hard), empty ones
  * included, so a duet always has its two Voices' tables.
  */
-export type SongHighScores = { tables: Array<HighScoreTable> };
+export type SongHighScores = { tables: Array<HighScoreTable>, };

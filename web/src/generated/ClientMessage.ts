@@ -16,58 +16,17 @@ import type { SongId } from "./SongId";
 /**
  * A message a browser sends over its WebSocket.
  */
-export type ClientMessage =
-  | { type: "ping"; nonce: number }
-  | { type: "newParty" }
-  | { type: "pitchReading"; reading: PitchReading }
-  | { type: "clockPing"; t0: number }
-  | {
-      type: "clockPong";
-      mic: MicId;
-      /**
-       * The ping's `t0`, unchanged.
-       */
-      t0: number;
-      /**
-       * The Stage page's `performance.now()` when it answered, in ms.
-       */
-      ts: number;
-      /**
-       * The Stage page's `performance.timeOrigin`, in ms since the Unix
-       * epoch: a new value means the Stage's clock is a new one.
-       */
-      epoch: number;
-    }
-  | {
-      type: "storeCalibration";
-      stageOutput: string;
-      results: Array<CalibrationResult>;
-    }
-  | {
-      type: "setMicThreshold";
-      stageOutput: string;
-      localMicId: string;
-      referenceDbfs: number;
-    }
-  | { type: "hello"; phoneId: PhoneId }
-  | { type: "checkJoinCode"; joinCode: JoinCode }
-  | { type: "join"; phoneId: PhoneId; joinCode: JoinCode; joinAs: JoinAs }
-  | { type: "switchIdentity"; joinAs: JoinAs }
-  | { type: "editMember"; memberId: PartyMemberId; edit: MemberEdit }
-  | {
-      type: "addRequest";
-      songId: SongId;
-      requestedPlayers: Array<PartyMemberId> | null;
-    }
-  | { type: "moveRequest"; requestId: RequestId; to: QueueMove }
-  | {
-      type: "setRequestedPlayers";
-      requestId: RequestId;
-      requestedPlayers: Array<PartyMemberId>;
-    }
-  | { type: "removeRequest"; requestId: RequestId }
-  | { type: "reportMicBlocked"; blocked: boolean }
-  | { type: "leaveParty" }
-  | { type: "removeMember"; memberId: PartyMemberId }
-  | { type: "editLineUp"; requestId: RequestId; edit: LineUpEdit }
-  | { type: "setMyDifficulty"; difficulty: Difficulty };
+export type ClientMessage = { "type": "ping", nonce: number, } | { "type": "newParty" } | { "type": "pitchReading", reading: PitchReading, } | { "type": "clockPing", t0: number, } | { "type": "clockPong", mic: MicId, 
+/**
+ * The ping's `t0`, unchanged.
+ */
+t0: number, 
+/**
+ * The Stage page's `performance.now()` when it answered, in ms.
+ */
+ts: number, 
+/**
+ * The Stage page's `performance.timeOrigin`, in ms since the Unix
+ * epoch: a new value means the Stage's clock is a new one.
+ */
+epoch: number, } | { "type": "storeCalibration", stageOutput: string, results: Array<CalibrationResult>, } | { "type": "setMicThreshold", stageOutput: string, localMicId: string, referenceDbfs: number, } | { "type": "hello", phoneId: PhoneId, } | { "type": "checkJoinCode", joinCode: JoinCode, } | { "type": "join", phoneId: PhoneId, joinCode: JoinCode, joinAs: JoinAs, } | { "type": "switchIdentity", joinAs: JoinAs, } | { "type": "editMember", memberId: PartyMemberId, edit: MemberEdit, } | { "type": "addRequest", songId: SongId, requestedPlayers: Array<PartyMemberId> | null, } | { "type": "moveRequest", requestId: RequestId, to: QueueMove, } | { "type": "setRequestedPlayers", requestId: RequestId, requestedPlayers: Array<PartyMemberId>, } | { "type": "removeRequest", requestId: RequestId, } | { "type": "reportMicBlocked", blocked: boolean, } | { "type": "leaveParty" } | { "type": "removeMember", memberId: PartyMemberId, } | { "type": "editLineUp", requestId: RequestId, edit: LineUpEdit, } | { "type": "setMyDifficulty", difficulty: Difficulty, };

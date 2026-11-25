@@ -4,17 +4,14 @@ import type { HighScoreHolder } from "./HighScoreHolder";
 /**
  * One Profile's High score in a [`HighScoreTable`].
  */
-export type HighScoreEntry = {
-  /**
-   * 1-based. Equal totals share a place and the next place skips
-   * (1, 1, 3).
-   */
-  place: number;
-  holder: HighScoreHolder;
-  total: number;
-  /**
-   * The record was sung against another Note fingerprint than the
-   * Song's current one (an older timing).
-   */
-  olderTiming: boolean;
-};
+export type HighScoreEntry = { 
+/**
+ * 1-based. Equal totals share a place and the next place skips
+ * (1, 1, 3).
+ */
+place: number, holder: HighScoreHolder, total: number, 
+/**
+ * The record was sung against another Note fingerprint than the
+ * Song's current one (an older timing).
+ */
+olderTiming: boolean, };

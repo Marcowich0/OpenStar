@@ -11,39 +11,36 @@ import type { StageId } from "./StageId";
 /**
  * The whole Party, as every browser sees it.
  */
-export type PartySnapshot = {
-  partyId: PartyId;
-  /**
-   * The Stage this Party runs on.
-   */
-  stageId: StageId;
-  joinCode: JoinCode;
-  /**
-   * When the Party started, in milliseconds since the Unix epoch.
-   */
-  startedAtMs: number;
-  /**
-   * Every Party member, in the order they entered.
-   */
-  members: Array<PartyMember>;
-  /**
-   * Every joined Phone, in the order they joined.
-   */
-  phones: Array<JoinedPhone>;
-  /**
-   * The Queue: every Request waiting to be sung, in order.
-   */
-  queue: Array<Request>;
-  /**
-   * The head of the Queue: the Request whose Line-up waits or whose Song
-   * plays. When set it is always the first Request; it never moves and
-   * nothing moves above it. `null` while the song browser shows.
-   */
-  head: RequestId | null;
-  /**
-   * The head's Line-up while it waits for Start (the "Line-up waiting"
-   * state). `null` while the song browser shows. Prefilled from the
-   * head's Request when it becomes the head; it never starts by itself.
-   */
-  lineUp: LineUp | null;
-};
+export type PartySnapshot = { partyId: PartyId, 
+/**
+ * The Stage this Party runs on.
+ */
+stageId: StageId, joinCode: JoinCode, 
+/**
+ * When the Party started, in milliseconds since the Unix epoch.
+ */
+startedAtMs: number, 
+/**
+ * Every Party member, in the order they entered.
+ */
+members: Array<PartyMember>, 
+/**
+ * Every joined Phone, in the order they joined.
+ */
+phones: Array<JoinedPhone>, 
+/**
+ * The Queue: every Request waiting to be sung, in order.
+ */
+queue: Array<Request>, 
+/**
+ * The head of the Queue: the Request whose Line-up waits or whose Song
+ * plays. When set it is always the first Request; it never moves and
+ * nothing moves above it. `null` while the song browser shows.
+ */
+head: RequestId | null, 
+/**
+ * The head's Line-up while it waits for Start (the "Line-up waiting"
+ * state). `null` while the song browser shows. Prefilled from the
+ * head's Request when it becomes the head; it never starts by itself.
+ */
+lineUp: LineUp | null, };

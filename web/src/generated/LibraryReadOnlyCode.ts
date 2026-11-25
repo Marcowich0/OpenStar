@@ -3,5 +3,4 @@
 /**
  * Why the Library is read-only.
  */
-export type LibraryReadOnlyCode =
-  "songsFolderNotWritable" | "songsFolderMissing";
+export type LibraryReadOnlyCode = "songsFolderNotWritable" | "songsFolderMissing";

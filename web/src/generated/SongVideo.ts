@@ -4,5 +4,4 @@ import type { MediaFile } from "./MediaFile";
 /**
  * The Song's video.
  */
-export type SongVideo =
-  { kind: "inAudio" } | { kind: "file"; file: MediaFile; gapSeconds: number };
+export type SongVideo = { "kind": "inAudio" } | { "kind": "file", file: MediaFile, gapSeconds: number, };

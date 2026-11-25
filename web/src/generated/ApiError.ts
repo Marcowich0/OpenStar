@@ -4,4 +4,4 @@ import type { ApiErrorCode } from "./ApiErrorCode";
 /**
  * The body of an HTTP error answer: a code the frontend turns into text.
  */
-export type ApiError = { code: ApiErrorCode };
+export type ApiError = { code: ApiErrorCode, };

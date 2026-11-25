@@ -3,15 +3,14 @@
 /**
  * One media file the Stage plays.
  */
-export type MediaFile = {
-  /**
-   * Served with HTTP `Range` requests.
-   */
-  url: string;
-  /**
-   * Whether the Stage plays the file as it is, decided by its container
-   * and codecs (from ffprobe). `false` means it needs conversion, and also
-   * for a file not probed yet.
-   */
-  native: boolean;
-};
+export type MediaFile = { 
+/**
+ * Served with HTTP `Range` requests.
+ */
+url: string, 
+/**
+ * Whether the Stage plays the file as it is, decided by its container
+ * and codecs (from ffprobe). `false` means it needs conversion, and also
+ * for a file not probed yet.
+ */
+native: boolean, };
