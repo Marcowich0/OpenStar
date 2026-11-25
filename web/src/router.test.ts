@@ -26,6 +26,7 @@ describe("the app's routes", () => {
     ["/admin/library-problems", "/admin/library-problems"],
     ["/admin/profiles", "/admin/profiles"],
     ["/bridge", "/bridge"],
+    ["/stage/sing-test", "/stage/sing-test"],
   ])("%s is served by route %s", (url, routeId) => {
     expect(leafMatch(url)?.routeId).toBe(routeId);
   });
@@ -42,5 +43,11 @@ describe("the app's routes", () => {
     expect(
       match?.routeId === "/" ? match.search.join : "not the Phone route",
     ).toBeUndefined();
+  });
+
+  it("hands the test-only sing screen its case and frozen Song time", () => {
+    const match = leafMatch("/stage/sing-test?case=duet&t=12.5");
+    expect(match?.routeId).toBe("/stage/sing-test");
+    expect(match?.search).toEqual({ case: "duet", t: 12.5 });
   });
 });
