@@ -6,12 +6,25 @@ import { defineConfig } from "vitest/config";
 // (default 8080), so the browser still sees one origin.
 const server = `http://localhost:${process.env.OPENSTAR_PORT ?? "8080"}`;
 
-export default defineConfig({
+// `vite build --mode screenshots` builds only the test-only painter
+// screenshot page (`sing-test.html`, #203) into e2e/generated/, for
+// `just e2e` and `just update-screenshots`. The production build has the one
+// entry `index.html` and never contains that page.
+const SCREENSHOTS_OUT_DIR = "../e2e/generated/screenshot-page";
+
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
   build: {
     // Every asset (Fredoka files, SVG icons) is a file of its own in the
     // build, served by OpenStar, never inlined as a data URL.
     assetsInlineLimit: 0,
+    ...(mode === "screenshots"
+      ? {
+          outDir: SCREENSHOTS_OUT_DIR,
+          emptyOutDir: true,
+          rolldownOptions: { input: "sing-test.html" },
+        }
+      : {}),
   },
   server: {
     // Tests import the shared test cases from the repository's `fixtures/`
@@ -31,4 +44,4 @@ export default defineConfig({
     // so tests can read a stylesheet's text (the theme, the icons).
     css: { include: [/\.css\?raw$/] },
   },
-});
+}));
