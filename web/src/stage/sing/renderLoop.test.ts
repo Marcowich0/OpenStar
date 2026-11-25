@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Note } from "../../generated/Note";
 import type { ParsedSong } from "../../generated/ParsedSong";
 import { frame, singVoices, type DrawList, type SingState } from "./frame";
+import { ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 import { createRenderLoop } from "./renderLoop";
 
@@ -25,7 +26,13 @@ const state: SingState = {
   lanes: [{ colour: "cherry", voice: 0 }],
 };
 
-function setup(options: { avOffset?: number; state?: () => SingState } = {}) {
+function setup(
+  options: {
+    avOffset?: number;
+    state?: () => SingState;
+    frameTime?: () => number;
+  } = {},
+) {
   let now = 0;
   const painted: DrawList[] = [];
   const callbacks: FrameRequestCallback[] = [];
@@ -36,6 +43,7 @@ function setup(options: { avOffset?: number; state?: () => SingState } = {}) {
     paint: (list) => painted.push(list),
     requestFrame: (cb) => callbacks.push(cb),
     cancelFrame: vi.fn(),
+    ...(options.frameTime && { frameTime: options.frameTime }),
   });
   return {
     loop,
@@ -89,5 +97,61 @@ describe("the render loop", () => {
     loop.stop();
     callbacks[2]?.(48);
     expect(painted).toHaveLength(2);
+  });
+});
+
+describe("the render loop's effects", () => {
+  /** One still star at (100, 100) under gravity 1000, alive 2 s. */
+  function withStar() {
+    const effects = new ParticlePool(4, { gravity: 1000 });
+    effects.spawn(100, 100, 0, 0, 0, 2, 10, "star", "cherry", 0);
+    return { ...state, effects };
+  }
+
+  function particleY(list: DrawList | undefined): number | undefined {
+    return list?.find((e) => e.type === "particle")?.y;
+  }
+
+  it("advances the particles by the real time between animation frames, before drawing", () => {
+    const effects = withStar();
+    const { loop, callbacks, painted } = setup({ state: () => effects });
+    loop.start();
+    callbacks[0]?.(1000); // the first frame only notes the time
+    expect(particleY(painted[0])).toBe(100);
+    callbacks[1]?.(1100); // 0.1 s later
+    expect(particleY(painted[1])).toBeCloseTo(100 + 0.5 * 1000 * 0.01, 6);
+    callbacks[2]?.(1107); // 7 ms later, as at 144 Hz
+    expect(particleY(painted[2])).toBeCloseTo(100 + 0.5 * 1000 * 0.107 ** 2, 6);
+  });
+
+  it("does not count the time the loop was stopped", () => {
+    const effects = withStar();
+    const { loop, callbacks, painted } = setup({ state: () => effects });
+    loop.start();
+    callbacks[0]?.(1000);
+    loop.stop();
+    loop.start();
+    callbacks[2]?.(9000);
+    expect(particleY(painted[1])).toBe(100);
+  });
+
+  it("moves particles by its frame time when given one, so a frozen one freezes them", () => {
+    const effects = withStar();
+    const { loop, callbacks, painted } = setup({
+      state: () => effects,
+      frameTime: () => 0,
+    });
+    loop.start();
+    callbacks[0]?.(1000);
+    callbacks[1]?.(2000);
+    expect(particleY(painted[1])).toBe(100);
+  });
+
+  it("moves no particle on a step() of its own", () => {
+    const effects = withStar();
+    const { at, painted } = setup({ state: () => effects });
+    at(1);
+    at(2);
+    expect(particleY(painted[1])).toBe(100);
   });
 });
