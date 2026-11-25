@@ -4,4 +4,4 @@
  * What a [`ServerMessage::Changed`] notice says changed: each topic names
  * HTTP data the frontend refetches.
  */
-export type ChangeTopic = "placeholder";
+export type ChangeTopic = "placeholder" | "library";

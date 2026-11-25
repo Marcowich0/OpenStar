@@ -28,7 +28,7 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, unlock};
+use crate::{AppState, bridge, frontend, library, unlock};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,6 +100,27 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             unlock::heartbeat,
         )
         .add(Method::POST, "/api/lock", NotGuarded, unlock::lock)
+        .add(Method::GET, "/api/songs", NotGuarded, library::songs)
+        .add(Method::GET, "/api/songs/{id}", NotGuarded, library::song)
+        .add(
+            Method::GET,
+            "/api/library/problems",
+            NotGuarded,
+            library::problems,
+        )
+        .add(
+            Method::GET,
+            "/api/library/scan",
+            NotGuarded,
+            library::scan_status,
+        )
+        // Rescan and the Library problems need no PIN (docs/agents/guard-rule.md).
+        .add(
+            Method::POST,
+            "/api/library/rescan",
+            NotGuarded,
+            library::rescan,
+        )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         .add(Method::GET, "/bridge/{file}", NotGuarded, bridge::serve);
     if state.test_routes {

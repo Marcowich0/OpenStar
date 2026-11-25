@@ -44,6 +44,8 @@ enum Command {
     Placeholder {
         reply: oneshot::Sender<StagePlaceholder>,
     },
+    /// HTTP data changed: tell every browser.
+    Changed { topics: Vec<ChangeTopic> },
     /// Stop: drop every connection (their sockets close) and end the task.
     Shutdown { done: oneshot::Sender<()> },
 }
@@ -101,6 +103,11 @@ impl LiveHandle {
         answer.await.ok()
     }
 
+    /// Sends every connected browser a [`ServerMessage::Changed`] notice.
+    pub async fn changed(&self, topics: Vec<ChangeTopic>) {
+        let _ = self.commands.send(Command::Changed { topics }).await;
+    }
+
     /// Stops the task and closes every WebSocket. Returns once it has stopped.
     pub async fn shutdown(&self) {
         let (done, stopped) = oneshot::channel();
@@ -144,6 +151,9 @@ impl LiveState {
                         stage_id: self.current_stage.clone(),
                         placeholder: self.stage().placeholder.clone(),
                     });
+                }
+                Command::Changed { topics } => {
+                    self.hub.send_all(&ServerMessage::Changed { topics });
                 }
                 Command::Shutdown { done } => {
                     drop(self);

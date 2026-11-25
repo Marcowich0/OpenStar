@@ -5,6 +5,7 @@
 //! committed. `just check` fails when the committed files drift.
 
 pub mod admin;
+pub mod library;
 pub mod song;
 
 use serde::{Deserialize, Serialize};
@@ -120,6 +121,9 @@ pub enum ServerMessage {
 pub enum ChangeTopic {
     /// `GET /api/placeholder`.
     Placeholder,
+    /// The Library index: `GET /api/songs`, `GET /api/songs/{id}`,
+    /// `GET /api/library/problems` and `GET /api/library/scan`.
+    Library,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast

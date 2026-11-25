@@ -14,6 +14,17 @@ pub use encoding::TxtEncoding;
 pub use lines::{Line, LineEnding, LineKind};
 use openstar_protocol::song::{ParsedSong, TxtRejection, TxtWarning};
 
+/// The version of what [`parse`] produces. The Library index stores it with
+/// every entry, and a scan re-reads every file indexed by another version, so
+/// raise it whenever the parser's output (parsed Song, warnings, rejections or
+/// encoding detection) changes for some file.
+pub const PARSER_VERSION: u32 = 1;
+
+/// The encoding [`parse`] would decode `bytes` with, for files it rejects.
+pub fn detect_encoding(bytes: &[u8]) -> TxtEncoding {
+    encoding::detect(bytes, &lines::split(bytes)).0
+}
+
 /// A `.txt` that parsed into a playable Song.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TxtFile {
