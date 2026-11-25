@@ -52,6 +52,14 @@ interface Fixtures {
    * browser launch flag.
    */
   openPhone: (options?: PhoneOptions) => Promise<Page>;
+  /**
+   * A Stage page whose browser has Chromium's fake input devices and may use
+   * the microphone, opened on `http://localhost` (not 127.0.0.1): a Stage
+   * there is a secure context without HTTPS. Its own browser, because fake
+   * devices are a launch flag. Chromium gives its fake devices new
+   * `deviceId`s on every page load here, so a reload shows them as new.
+   */
+  micStage: Page;
 }
 
 export const test = base.extend<Fixtures>({
@@ -62,6 +70,25 @@ export const test = base.extend<Fixtures>({
     });
     await use(await context.newPage());
     await context.close();
+  },
+
+  micStage: async ({ baseURL }, use) => {
+    const browser = await chromium.launch({
+      args: [
+        "--use-fake-device-for-media-stream",
+        "--use-fake-ui-for-media-stream",
+        "--autoplay-policy=no-user-gesture-required",
+      ],
+    });
+    const context = await browser.newContext({
+      viewport: STAGE_VIEWPORT,
+      permissions: ["microphone"],
+      ...(baseURL === undefined
+        ? {}
+        : { baseURL: baseURL.replace("//127.0.0.1:", "//localhost:") }),
+    });
+    await use(await context.newPage());
+    await browser.close();
   },
 
   openPhone: async ({ baseURL }, use) => {
