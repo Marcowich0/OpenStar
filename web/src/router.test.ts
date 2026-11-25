@@ -36,12 +36,10 @@ describe("the app's routes", () => {
     expect(match?.search).toEqual({ join: "0427" });
   });
 
-  it("drops a malformed Join code from the QR link", () => {
+  it("keeps a malformed Join code from the QR link, for the Phone to refuse", () => {
     const match = leafMatch("/?join=12ab");
     expect(match?.routeId).toBe("/");
-    expect(
-      match?.routeId === "/" ? match.search.join : "not the Phone route",
-    ).toBeUndefined();
+    expect(match?.search).toEqual({ join: "12ab" });
   });
 
   it("has no route for the test-only sing screen", () => {
