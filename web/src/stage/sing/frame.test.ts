@@ -435,6 +435,9 @@ describe("frame", () => {
           case "headBall":
             colours.push(entry.colour, entry.rim);
             break;
+          case "lyric":
+            colours.push(entry.colour);
+            break;
           case "grid":
             colours.push(entry.colour);
             break;
