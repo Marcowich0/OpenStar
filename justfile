@@ -6,10 +6,25 @@ default: check
 
 # Every fast check: Rust, dependency licences and advisories, TypeScript,
 # Prettier, the generated-types drift check and the fixture rules.
-check: rust-check deny-check web-check format-check drift-check fixtures-check
+check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check
 
-# What CI runs. The end-to-end tests (`just e2e`) join it once they exist.
-ci: check
+# What CI runs: every fast check, then the browser end-to-end tests.
+ci: check e2e
+
+# The browser end-to-end tests: builds the release binary with its frontend,
+# serves it with a temporary appdata and Library, and runs Playwright on Chromium
+# from the pinned Playwright Docker image (scripts/e2e.sh). Needs Docker.
+# Arguments go to `playwright test`, e.g. `just e2e tests/tracer.spec.ts`.
+e2e *args: build e2e-install
+    scripts/e2e.sh {{ args }}
+
+e2e-install:
+    pnpm --dir e2e install --frozen-lockfile
+
+# Lint and type-check the end-to-end suite (it runs only in `just e2e`).
+e2e-check: e2e-install
+    pnpm --dir e2e lint
+    pnpm --dir e2e typecheck
 
 # Format, lint and test the whole Cargo workspace.
 rust-check:
