@@ -22,6 +22,9 @@ pub enum JobKind {
     /// Converts a media file the Stage cannot play into an H.264 + AAC MP4
     /// (an AAC MP4 for audio only) in the appdata cache.
     Conversion,
+    /// Measures a Song's loudness (EBU R128 integrated, in LUFS) over its
+    /// original audio file.
+    Loudness,
 }
 
 /// Where a job stands.

@@ -13,6 +13,7 @@ mod artwork;
 mod conversion;
 mod identity;
 mod index;
+mod loudness;
 mod probe;
 mod probing;
 mod resolve;
@@ -22,6 +23,7 @@ mod search;
 pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;
 pub(crate) use index::song as song_detail;
+pub use loudness::Measurement;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -167,13 +169,10 @@ impl Inner {
                 None
             }
         };
-        self.status.send_modify(|status| {
-            status.running = false;
-            if let Some(report) = report {
-                status.finished += 1;
-                status.last = Some(report);
-            }
-        });
+        // The Songs that left are worked out, and the Party told, before the
+        // status says the scan has ended: whoever waits for `running = false`
+        // then has only the change notice still to come, with no database
+        // read in between.
         if report.is_some() {
             match self.db.call(playable_titles).await {
                 Ok(after) => {
@@ -187,6 +186,16 @@ impl Inner {
                 }
                 Err(error) => tracing::error!(?error, "reading the playable Songs after a scan"),
             }
+        }
+        let finished = report.is_some();
+        self.status.send_modify(|status| {
+            status.running = false;
+            if let Some(report) = report {
+                status.finished += 1;
+                status.last = Some(report);
+            }
+        });
+        if finished {
             self.live.changed(vec![ChangeTopic::Library]).await;
         }
     }
