@@ -1,0 +1,30 @@
+{
+  "description": "Sung as the file says, except Line 5 of Voice 0, sung 2 Beats late. Line suggestions name that Line only, with +2 Beats.",
+  "file": {
+    "gap": 3650,
+    "bpm": 217.4
+  },
+  "sung": {
+    "gap": 3650,
+    "bpm": 217.4,
+    "transpose": 0,
+    "lineShifts": [
+      {
+        "voice": 0,
+        "line": 5,
+        "beats": 2
+      }
+    ]
+  },
+  "seconds": 49,
+  "expect": {
+    "lineSuggestions": [
+      {
+        "voice": 0,
+        "line": 5,
+        "beats": 2
+      }
+    ]
+  },
+  "melody": "melody.json"
+}

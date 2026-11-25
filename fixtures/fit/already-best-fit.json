@@ -1,0 +1,28 @@
+{
+  "description": "Sung exactly as the file says (an octave lower). Both fits return the file's own values: \"Already the best fit\".",
+  "file": {
+    "gap": 3650,
+    "bpm": 217.4
+  },
+  "sung": {
+    "gap": 3650,
+    "bpm": 217.4,
+    "transpose": -12,
+    "lineShifts": []
+  },
+  "seconds": 49,
+  "expect": {
+    "fitToTheSinging": {
+      "gap": 3650,
+      "bpm": 217.4,
+      "exact": true
+    },
+    "offsetOnly": {
+      "gap": 3650,
+      "bpm": 217.4,
+      "exact": true
+    },
+    "lineSuggestions": []
+  },
+  "melody": "melody.json"
+}
