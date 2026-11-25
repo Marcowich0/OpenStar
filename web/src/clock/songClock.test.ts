@@ -449,3 +449,51 @@ describe("songTimeAt(T) for past Stage times", () => {
     expect(clock.songTimeAt(20_001)).toBeNull();
   });
 });
+
+describe("playingAt(T) and lastSeekAt", () => {
+  it("is true only where the Song played: not before play, in a pause or after the history", () => {
+    const s = stage(0);
+    const clock = createSongClock({ media: "audio", now: s.now });
+    s.set(1000);
+    clock.play();
+    s.set(2000);
+    clock.pause();
+    s.set(3000);
+    clock.play();
+    s.set(4000);
+    expect(clock.playingAt(500)).toBe(false);
+    expect(clock.playingAt(1000)).toBe(true);
+    expect(clock.playingAt(1999)).toBe(true);
+    expect(clock.playingAt(2000)).toBe(false);
+    expect(clock.playingAt(2500)).toBe(false);
+    expect(clock.playingAt(3500)).toBe(true);
+    expect(clock.playingAt(4001)).toBe(false);
+    s.set(8500);
+    expect(clock.playingAt(3400)).toBe(false);
+    expect(clock.playingAt(3600)).toBe(true);
+  });
+
+  it("stays true while Song time is held for the media to catch up", () => {
+    const s = stage(0);
+    const clock = createSongClock({ media: "audio", now: s.now });
+    clock.play();
+    s.set(1000);
+    // The media reports 200 ms behind the model: Song time holds still.
+    clock.observeCurrentTime({ currentTime: 0.8, stageTime: 1000 });
+    s.set(1100);
+    expect(clock.songTimeAt(1100)).toBeCloseTo(clock.songTimeAt(1000) ?? NaN, 9);
+    expect(clock.playingAt(1100)).toBe(true);
+  });
+
+  it("remembers the Stage time of the latest seek", () => {
+    const s = stage(0);
+    const clock = createSongClock({ media: "audio", now: s.now });
+    expect(clock.lastSeekAt).toBeNull();
+    s.set(300);
+    clock.seek(12);
+    clock.play();
+    s.set(4000);
+    clock.seek(12);
+    expect(clock.lastSeekAt).toBe(4000);
+  });
+});
