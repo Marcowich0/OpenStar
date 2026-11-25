@@ -1,0 +1,114 @@
+import {
+  Outlet,
+  createBrowserHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  lazyRouteComponent,
+  type RouterHistory,
+} from "@tanstack/react-router";
+
+import { validatePhoneSearch } from "./phone/phoneSearch";
+
+// Every screen is loaded lazily, so each route's code is its own chunk: a
+// Phone downloads only the Phone code. Keep this file free of static imports
+// from `stage/`, `admin/` or `bridge/` (the code-split test checks it).
+
+const rootRoute = createRootRoute({ component: Outlet });
+
+/** `/`: the Phone screens. `/?join=<code>` is the join QR code's link. */
+const phoneRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  validateSearch: validatePhoneSearch,
+  component: lazyRouteComponent(
+    () => import("./phone/PhoneScreen"),
+    "PhoneScreen",
+  ),
+});
+
+/** `/stage`: the Stage. */
+const stageRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stage",
+  component: lazyRouteComponent(
+    () => import("./stage/StageScreen"),
+    "StageScreen",
+  ),
+});
+
+/** `/bridge`: the Mic bridge install page. The server's own files under `/bridge/` are not the app's. */
+const bridgeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/bridge",
+  component: lazyRouteComponent(
+    () => import("./bridge/BridgeScreen"),
+    "BridgeScreen",
+  ),
+});
+
+/** `/admin`: the Admin area, with its four sections as child routes. */
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: lazyRouteComponent(() => import("./admin/AdminArea"), "AdminArea"),
+});
+
+const adminIndexRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/",
+  component: lazyRouteComponent(() => import("./admin/AdminHome"), "AdminHome"),
+});
+
+const downloadsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/downloads",
+  component: lazyRouteComponent(() => import("./admin/Downloads"), "Downloads"),
+});
+
+const songsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/songs",
+  component: lazyRouteComponent(() => import("./admin/Songs"), "Songs"),
+});
+
+const libraryProblemsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/library-problems",
+  component: lazyRouteComponent(
+    () => import("./admin/LibraryProblems"),
+    "LibraryProblems",
+  ),
+});
+
+const profilesRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/profiles",
+  component: lazyRouteComponent(() => import("./admin/Profiles"), "Profiles"),
+});
+
+const routeTree = rootRoute.addChildren([
+  phoneRoute,
+  stageRoute,
+  bridgeRoute,
+  adminRoute.addChildren([
+    adminIndexRoute,
+    downloadsRoute,
+    songsRoute,
+    libraryProblemsRoute,
+    profilesRoute,
+  ]),
+]);
+
+/** The app's router; tests pass a memory history. */
+export function createAppRouter(
+  history: RouterHistory = createBrowserHistory(),
+) {
+  return createRouter({ routeTree, history });
+}
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: ReturnType<typeof createAppRouter>;
+  }
+}
