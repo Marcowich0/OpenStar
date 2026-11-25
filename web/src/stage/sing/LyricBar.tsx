@@ -138,7 +138,11 @@ const NEXT_STYLE: CSSProperties = {
 };
 
 const GOLDEN: ReadonlySet<NoteKind> = new Set(["golden", "goldenRap"]);
-const ITALIC: ReadonlySet<NoteKind> = new Set(["rap", "goldenRap", "freestyle"]);
+const ITALIC: ReadonlySet<NoteKind> = new Set([
+  "rap",
+  "goldenRap",
+  "freestyle",
+]);
 
 /**
  * The fill: the Voice's fill colour up to `--lyric-fill` of the text's width,

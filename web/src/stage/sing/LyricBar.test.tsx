@@ -92,10 +92,7 @@ describe("the lyric bar's look", () => {
 
   it("shows both Voices' current Lines at 60 px in a duet, with no next Line", () => {
     const other = voice([note("Oth"), note("er")], [note("more")]);
-    const { current, next } = mount(
-      [SONG, other],
-      [entry(0, 0), entry(1, 0)],
-    );
+    const { current, next } = mount([SONG, other], [entry(0, 0), entry(1, 0)]);
     expect(current().map((l) => l.textContent)).toEqual([
       "Hello you ",
       "Other",
