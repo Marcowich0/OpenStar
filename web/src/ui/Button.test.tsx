@@ -29,9 +29,12 @@ describe("Button", () => {
     },
   );
 
-  it("breathes when asked to", () => {
+  it("breathes when asked to, only while the browser allows motion", () => {
     render(<Button breathing>Start</Button>);
-    expect(screen.getByRole("button").classList).toContain("animate-breathe");
+    const classes = screen.getByRole("button").classList;
+    // Reduced motion stops the breathing: it is decoration, not a cue.
+    expect(classes).toContain("motion-safe:animate-breathe");
+    expect(classes).not.toContain("animate-breathe");
   });
 
   describe("disabled", () => {
@@ -75,7 +78,7 @@ describe("Button", () => {
           Start
         </Button>,
       );
-      expect(screen.getByRole("button").classList).not.toContain(
+      expect(screen.getByRole("button").className).not.toContain(
         "animate-breathe",
       );
     });

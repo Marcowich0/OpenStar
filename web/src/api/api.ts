@@ -144,6 +144,8 @@ const REFUSAL_CODES = {
   tooManyPlayers: true,
   playerNotInParty: true,
   playerTwice: true,
+  memberSinging: true,
+  useLeaveParty: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

@@ -4,13 +4,14 @@
 // Each lane gets made-up Pitch readings: on pitch, an octave up (drawn folded),
 // a sharp miss, an unvoiced gap, and readings ending 150 ms before the default
 // 6 s, so the line is held to the playhead. The four-Player case's last lane
-// has lost its Mic.
+// has lost its Mic. Every lane has a made-up Player (one a Guest) and Score.
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import { beatAt } from "../../clock/beats";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
+import type { AvatarKey } from "../../generated/AvatarKey";
 import { PALETTE_KEYS } from "../../theme/tokens";
 import type { SingTestCase } from "../../singTest/search";
 import { singVoices, type SingState } from "./frame";
@@ -24,7 +25,7 @@ const PATTERN: [NoteKind, number, number, number][] = [
   ["golden", 6, 3, 2],
   ["normal", 10, 2, 4], // on the playhead at Beat 10
   ["rap", 13, 2, 4],
-  ["golden", 16, 4, 7],
+  ["golden", 16, 4, 6], // a span of 6 keeps one lane's pills ≥ 18 px: stars
   ["goldenRap", 21, 2, 5],
   ["freestyle", 24, 3, 3],
   ["normal", 28, 1, 0],
@@ -55,6 +56,18 @@ const LANES: Record<SingTestCase, number[]> = {
   eight: [0, 0, 0, 0, 0, 0, 0, 0],
   duet: [0, 1],
 };
+
+/** Made-up Players, in lane order: [name, avatar, Score]. The second is a Guest. */
+const PLAYERS: [string, AvatarKey, number][] = [
+  ["Mia", "star", 4120],
+  ["Bo", "moon", 3875],
+  ["Alexandra", "rocket", 2950],
+  ["Kai", "cat", 1630],
+  ["Lou", "flower", 920],
+  ["Noor", "guitar", 7310],
+  ["Sam", "ghost", 0],
+  ["Tess", "planet", 10000],
+];
 
 /** Readings run from here to here, every 10 ms (Song time, ms). */
 const SUNG_FROM_MS = 2500;
@@ -89,9 +102,23 @@ function readings(notes: readonly Note[], cents: number): PitchBuffer {
   return buffer;
 }
 
+function player(i: number) {
+  const [name, key, score] = PLAYERS[i] ?? ["Pat", "note", 0];
+  return {
+    name,
+    avatar: { kind: "builtIn" as const, key },
+    guest: i === 1,
+    score,
+  };
+}
+
 export function syntheticSing(name: SingTestCase): SingState {
+  // Only the duet has a second Voice, so only its headers carry "· V1".
   const voices = singVoices({
-    voices: [{ lines: voice(0, 0) }, { lines: voice(5, 2) }],
+    voices:
+      name === "duet"
+        ? [{ lines: voice(0, 0) }, { lines: voice(5, 2) }]
+        : [{ lines: voice(0, 0) }],
   });
   const lanes = LANES[name];
   return {
@@ -100,6 +127,7 @@ export function syntheticSing(name: SingTestCase): SingState {
     lanes: lanes.map((v, i) => ({
       colour: PALETTE_KEYS[i] ?? "cherry",
       voice: v,
+      player: player(i),
       trace: {
         readings: readings(voices[v]?.notes ?? [], 20 * i),
         micThresholdDbfs: -45,

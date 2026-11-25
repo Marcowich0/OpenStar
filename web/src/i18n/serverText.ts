@@ -65,6 +65,8 @@ export const userMessageText = byCode<UserMessage>({
   tooManyPlayers: ({ params }) => t("userMessage.tooManyPlayers", params),
   playerNotInParty: () => t("userMessage.playerNotInParty"),
   playerTwice: () => t("userMessage.playerTwice"),
+  memberSinging: () => t("userMessage.memberSinging"),
+  useLeaveParty: () => t("userMessage.useLeaveParty"),
 });
 
 /** An accepted change to the Party, as a toast. */
@@ -91,6 +93,11 @@ export const partyEventText = byCode<PartyEvent>({
     t("partyEvent.requestRemoved", { song: params.title }),
   requestedPlayersChanged: ({ params }) =>
     t("partyEvent.requestedPlayersChanged", { song: params.title }),
+  memberLeft: ({ params }) =>
+    t("toast.memberLeft", {
+      actor: params.name,
+      colour: colourName(params.colour),
+    }),
   micBlocked: ({ params }) => t("partyEvent.micBlocked", { name: params.name }),
   micOpened: ({ params }) => t("partyEvent.micOpened", { name: params.name }),
 });

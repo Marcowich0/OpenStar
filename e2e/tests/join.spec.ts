@@ -14,17 +14,23 @@ async function stageJoinCode(stage: Page): Promise<string> {
   return (await code.textContent()) ?? "";
 }
 
-/** A Profile with a name no other test uses (the server is shared). */
+/**
+ * A Profile with a name no other test uses (the server is shared). Each test
+ * gives its own favourite colour, so that no other member holds it and the
+ * Phone goes straight to the Remote, without the "You're <Colour> tonight"
+ * notice.
+ */
 async function createProfile(
   request: APIRequestContext,
   prefix: string,
+  favouriteColour: string,
 ): Promise<string> {
   const name = `${prefix} ${String(Date.now() % 100000)}`;
   const response = await request.post("/api/profiles", {
     data: {
       name,
       avatar: { kind: "builtIn", key: "rocket" },
-      favouriteColour: "teal",
+      favouriteColour,
     },
   });
   expect(response.ok()).toBe(true);
@@ -54,7 +60,7 @@ test("a Phone joins by the Join code on the pad as a Profile and rejoins silentl
   request,
 }) => {
   const code = await stageJoinCode(stage);
-  const name = await createProfile(request, "Pad");
+  const name = await createProfile(request, "Pad", "grape");
 
   const phone = await openPhone();
   await phone.goto("/");
@@ -91,7 +97,7 @@ test("the QR link skips the pad, and a remembered Profile joins with one tap", a
   request,
 }) => {
   const code = await stageJoinCode(stage);
-  const name = await createProfile(request, "QR");
+  const name = await createProfile(request, "QR", "tangerine");
 
   const phone = await openPhone();
   await phone.goto(`/?join=${otherCode(code)}`);

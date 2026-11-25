@@ -60,6 +60,9 @@
   --color-blob-blue: #cdebff;
   --color-blob-pink: #ffd6dc;
   --color-blob-green: #d9f7e6;
+  /* The sing screen's frosted lanes (#55): a darker ledge and a soft shadow. */
+  --color-lane-ledge: rgba(43, 45, 66, 0.18);
+  --color-lane-shadow: rgba(0, 0, 0, 0.18);
 
   /* Radii: buttons, chips and pills use `rounded-full`; cards 36–52 px. */
   --radius-card-sm: 36px;

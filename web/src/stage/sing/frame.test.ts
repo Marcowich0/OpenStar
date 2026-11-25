@@ -97,6 +97,7 @@ describe("frame", () => {
         width: 1800,
         height: 170,
         notesX: 320,
+        radius: 40,
         colour: "cherry",
         lost: null,
         separator: {
@@ -300,6 +301,108 @@ describe("frame", () => {
     expect(pillFor(list, 8, 4).x).toBe(1350 + 4 * 34);
   });
 
+  it("draws the pitch grid every 2 semitones across the lane's range, faint ink, 2 px", () => {
+    // Pitches 0 to 6 → −2 to 8; 126 px inside, bottom at 850.
+    const grids = frame(solo, 3, oneLane).filter((e) => e.type === "grid");
+    expect(grids).toHaveLength(1);
+    const grid = grids[0];
+    expect(grid).toMatchObject({
+      lane: 0,
+      left: 320,
+      right: 1860,
+      colour: "--color-ink",
+      alpha: 0.07,
+      width: 2,
+    });
+    const ys = grid?.type === "grid" ? grid.ys : [];
+    expect(ys).toHaveLength(6);
+    [850, 824.8, 799.6, 774.4, 749.2, 724].forEach((y, i) => {
+      expect(ys[i]).toBeCloseTo(y, 9);
+    });
+  });
+
+  it("draws the grid inside the lane's clip, before its pills", () => {
+    const types = frame(solo, 3, oneLane).map((e) => e.type);
+    expect(types.indexOf("grid")).toBeGreaterThan(types.indexOf("lane"));
+    expect(types.indexOf("grid")).toBeLessThan(types.indexOf("pill"));
+  });
+
+  it("clips a lane's Notes to its rounded shape: radius min(40, height / 2)", () => {
+    const lane = (layout: ReturnType<typeof laneLayout>) =>
+      frame(solo, 3, layout).find((e) => e.type === "lane");
+    expect(lane(oneLane)).toMatchObject({ radius: 40 });
+    const small = [{ ...oneLane[0], height: 60 }] as ReturnType<
+      typeof laneLayout
+    >;
+    expect(lane(small)).toMatchObject({ radius: 30 });
+  });
+
+  it("puts a white star near the left end of a golden pill at least 18 px tall", () => {
+    // Pill height 18.9 px (see above).
+    const golden = pillFor(frame(solo, 3, oneLane), 8);
+    expect(golden.star).not.toBeNull();
+    expect(golden.star?.colour).toBe("--color-white");
+    expect(golden.star?.x).toBeCloseTo(golden.x + golden.height / 2, 9);
+    expect(golden.star?.y).toBeCloseTo(golden.y + golden.height / 2, 9);
+    expect(golden.star?.outer).toBeLessThan(golden.height / 2);
+    // Normal pills have none; nor does a golden pill under 18 px.
+    expect(pillFor(frame(solo, 3, oneLane), 4).star).toBeNull();
+    const short = state(
+      [{ colour: "sky", voice: 0 }],
+      [[note("golden", 4, 2, 0), note("normal", 8, 2, 7)]],
+    ); // 189 / 11 ≈ 17.2 px
+    expect(pillFor(frame(short, 3, oneLane), 4).star).toBeNull();
+    // A passed golden pill is grey and loses its star.
+    expect(pillFor(frame(solo, 7.5, oneLane), 8).star).toBeNull();
+  });
+
+  it("sweeps a shimmer band across each golden pill left to right every 1.5 s from its start, until it passes", () => {
+    const band = (t: number) => pillFor(frame(solo, t, oneLane), 8).shimmer;
+    const at = (t: number) => {
+      const pill = pillFor(frame(solo, t, oneLane), 8);
+      const s = pill.shimmer;
+      if (!s) throw new Error("no shimmer");
+      // Where the band is across its sweep: 0 entering left, 1 leaving right.
+      return (s.x - pill.x + s.width) / (pill.width + s.width);
+    };
+    // The golden Note at Beat 8 starts at 5 s; each pill sweeps in its own phase.
+    expect(band(3)).toMatchObject({ colour: "--color-white" });
+    expect(at(3)).toBeCloseTo(2 / 3, 9);
+    expect(at(5)).toBeCloseTo(0, 9);
+    expect(at(5.75)).toBeCloseTo(0.5, 9);
+    expect(at(6.125)).toBeCloseTo(0.75, 9);
+    expect(at(6.5)).toBeCloseTo(0, 9);
+    // Normal and passed pills do not shimmer; golden Rap does.
+    expect(pillFor(frame(solo, 3, oneLane), 4).shimmer).toBeNull();
+    expect(pillFor(frame(solo, 3, oneLane), 17).shimmer).not.toBeNull();
+    expect(band(7.5)).toBeNull();
+  });
+
+  it("draws the progress bar across the top: 80 px in, 20 px down, about 10 px tall", () => {
+    // The last Note ends at Beat 62: Song time 1 + 62 / 2 = 32 s.
+    const progress = (t: number, s: SingState = solo) =>
+      frame(s, t, oneLane).filter((e) => e.type === "progress");
+    expect(progress(16)).toEqual([
+      {
+        type: "progress",
+        x: 80,
+        y: 20,
+        width: 1760,
+        height: 10,
+        fraction: 0.5,
+        track: "--color-white",
+        trackAlpha: 0.5,
+        fill: "--color-yellow",
+      },
+    ]);
+    expect(progress(-3)[0]).toMatchObject({ fraction: 0 });
+    expect(progress(40)[0]).toMatchObject({ fraction: 1 });
+    // The Song's own length wins over the last Note's end.
+    expect(progress(10, { ...solo, lengthSeconds: 40 })[0]).toMatchObject({
+      fraction: 0.25,
+    });
+  });
+
   it("names colours only by palette key or token, never by a colour value", () => {
     const duet = state(
       [
@@ -323,12 +426,20 @@ describe("frame", () => {
             if (entry.fill?.type === "solid") colours.push(entry.fill.colour);
             if (entry.fill?.type === "vertical")
               colours.push(entry.fill.top, entry.fill.bottom);
+            if (entry.star) colours.push(entry.star.colour);
+            if (entry.shimmer) colours.push(entry.shimmer.colour);
             break;
           case "pitchLine":
             colours.push(entry.hit.colour, entry.hit.edge, entry.miss.colour);
             break;
           case "headBall":
             colours.push(entry.colour, entry.rim);
+            break;
+          case "grid":
+            colours.push(entry.colour);
+            break;
+          case "progress":
+            colours.push(entry.track, entry.fill);
             break;
           case "laneEnd":
             break;
