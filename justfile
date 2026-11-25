@@ -4,8 +4,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 default: check
 
-# Every fast check: Rust, TypeScript and the generated-types drift check.
-check: rust-check web-check drift-check
+# Every fast check: Rust, dependency licences and advisories, TypeScript,
+# Prettier, the generated-types drift check and the fixture rules.
+check: rust-check deny-check web-check format-check drift-check fixtures-check
 
 # What CI runs. The end-to-end tests (`just e2e`) join it once they exist.
 ci: check
@@ -15,6 +16,27 @@ rust-check:
     cargo fmt --all --check
     cargo clippy --workspace --all-targets --locked -- -D warnings
     cargo test --workspace --locked
+
+# Fail on a dependency with a licence deny.toml does not allow, or with a
+# RustSec advisory. Needs cargo-deny (see the CI workflow for the pinned version).
+deny-check:
+    cargo deny --locked check licenses advisories
+
+# Prettier over every file type it knows in the repo (.prettierignore lists the
+# exceptions). Rust is formatted by rustfmt in rust-check.
+format-check: web-install
+    web/node_modules/.bin/prettier --check .
+
+# Format everything: rustfmt and Prettier.
+fmt: web-install
+    cargo fmt --all
+    web/node_modules/.bin/prettier --write .
+
+# Refuse audio or video under fixtures/ outside a directory with an
+# ATTRIBUTION.md (fixtures/README.md has the rules), after testing the guard.
+fixtures-check:
+    scripts/check-fixture-media.test.sh >/dev/null
+    scripts/check-fixture-media.sh
 
 # Lint, type-check and test the frontend.
 web-check: web-install
