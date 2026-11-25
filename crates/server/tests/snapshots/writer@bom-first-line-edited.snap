@@ -1,0 +1,18 @@
+---
+source: crates/server/tests/txt_writer.rs
+description: bom-first-line-edited
+---
+(
+    Utf8,
+    [
+        ChangedLine {
+            line: 1,
+            old: Some(
+                "#BPM:300",
+            ),
+            new: Some(
+                "#BPM:310",
+            ),
+        },
+    ],
+)

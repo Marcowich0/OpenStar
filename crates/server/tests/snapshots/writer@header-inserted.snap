@@ -1,0 +1,23 @@
+---
+source: crates/server/tests/txt_writer.rs
+description: header-inserted
+---
+(
+    Utf8,
+    [
+        ChangedLine {
+            line: 5,
+            old: None,
+            new: Some(
+                "#GAP:1250.5",
+            ),
+        },
+        ChangedLine {
+            line: 6,
+            old: None,
+            new: Some(
+                "#VIDEOGAP:-0.25",
+            ),
+        },
+    ],
+)

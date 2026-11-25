@@ -2,6 +2,7 @@
 
 /**
  * What a [`ServerMessage::Changed`] notice says changed: each topic names
- * HTTP data the frontend refetches.
+ * HTTP data the frontend refetches. Each area adds a topic per HTTP
+ * resource (library, profiles, downloads, ...).
  */
-export type ChangeTopic = "placeholder" | "library";
+export type ChangeTopic = "library";

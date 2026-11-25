@@ -63,7 +63,7 @@ pub struct Endpoint {
 /// is an HTTP endpoint instead.
 pub fn ws_access(message: &ClientMessage) -> Access {
     match message {
-        ClientMessage::Ping { .. } | ClientMessage::SetPlaceholder { .. } => Access::NotGuarded,
+        ClientMessage::Ping { .. } | ClientMessage::NewParty => Access::NotGuarded,
     }
 }
 
@@ -79,12 +79,6 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/server-info",
             NotGuarded,
             crate::server_info,
-        )
-        .add(
-            Method::GET,
-            "/api/placeholder",
-            NotGuarded,
-            crate::placeholder,
         )
         .add(
             Method::GET,
@@ -122,6 +116,8 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             library::rescan,
         )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
+        // Takes the Stage, but needs Stage trust (#186), not an Unlock.
+        .add(Method::GET, "/ws/stage", NotGuarded, crate::stage_websocket)
         .add(Method::GET, "/bridge/{file}", NotGuarded, bridge::serve);
     if state.test_routes {
         routes = routes

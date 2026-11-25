@@ -28,7 +28,17 @@ const MIGRATIONS: &[&str] = &[
         pin_fingerprint BLOB NOT NULL,
         last_used_ms    INTEGER NOT NULL
     ) STRICT;",
-    // 3: the Library index, one row per candidate `.txt` (see `library::index`).
+    // 3: the current Party of each Stage (v1 has one Stage). A new Party
+    // replaces the row; later Party tables hang off `parties.id`. Drops the
+    // placeholder live state that stood in for the Party.
+    "CREATE TABLE parties (
+        id            TEXT PRIMARY KEY NOT NULL,
+        stage_id      TEXT NOT NULL UNIQUE,
+        join_code     TEXT NOT NULL,
+        started_at_ms INTEGER NOT NULL
+    ) STRICT;
+    DELETE FROM server_meta WHERE key LIKE 'placeholder:%';",
+    // 4: the Library index, one row per candidate `.txt` (see `library::index`).
     // Paths are relative to the Library with `/` between folders; problem and
     // reference lists are JSON; `*_path` are the resolved file references.
     "CREATE TABLE library_files (

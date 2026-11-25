@@ -42,10 +42,20 @@ describe("the browser's live store", () => {
   it("can be read synchronously, without a subscription, as a render loop does", () => {
     const socket = FakeWebSocket.made[0];
     socket?.open();
-    socket?.receive({ type: "liveState", stageId: "main", placeholder: "Hi" });
+    socket?.receive({
+      type: "liveState",
+      stageId: "main",
+      party: null,
+      isStage: false,
+    });
 
     const state = readLive();
     expect(state.connection).toBe("open");
-    expect(state.stage).toEqual({ stageId: "main", placeholder: "Hi" });
+    expect(state.stage).toEqual({
+      stageId: "main",
+      party: null,
+      isStage: false,
+      stageMoved: false,
+    });
   });
 });
