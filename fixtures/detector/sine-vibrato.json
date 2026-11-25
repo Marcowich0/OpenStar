@@ -1,0 +1,28 @@
+{
+  "description": "Sines from C2 to C6 with 5.5 Hz, ±50 cent vibrato.",
+  "sampleRates": [44100, 48000],
+  "blockLen": 128,
+  "waveform": "sine",
+  "durationS": 0.5,
+  "vibrato": { "rateHz": 5.5, "depthCents": 50 },
+  "signals": [
+    { "midi": 36, "levelDbfs": -20 },
+    { "midi": 40, "levelDbfs": -12 },
+    { "midi": 43, "levelDbfs": -30 },
+    { "midi": 45, "levelDbfs": -20 },
+    { "midi": 48, "levelDbfs": -12 },
+    { "midi": 52, "levelDbfs": -30 },
+    { "midi": 55, "levelDbfs": -20 },
+    { "midi": 57, "levelDbfs": -12 },
+    { "midi": 60, "levelDbfs": -30 },
+    { "midi": 64, "levelDbfs": -20 },
+    { "midi": 67, "levelDbfs": -12 },
+    { "midi": 69, "levelDbfs": -30 },
+    { "midi": 72, "levelDbfs": -20 },
+    { "midi": 76, "levelDbfs": -12 },
+    { "midi": 79, "levelDbfs": -30 },
+    { "midi": 81, "levelDbfs": -20 },
+    { "midi": 84, "levelDbfs": -12 }
+  ],
+  "limits": { "medianCentsMax": 5, "p99CentsMax": 25, "loudnessToleranceDb": 0.5 }
+}
