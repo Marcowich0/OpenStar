@@ -106,10 +106,89 @@ export function micsScreenOrder<C extends BrowserChannel>(
   );
 }
 
+/** A kept Local mic re-keyed to the channel it now appears on. */
+export interface Rekey {
+  localMic: LocalMic;
+  channel: BrowserChannel;
+}
+
+/** How the kept Local mics meet the channels the Stage browser sees. */
+export interface LocalMicMatch {
+  /** Missing Local mics of this browser found again by exact label + channel. */
+  rekeys: Rekey[];
+  /** Kept Local mics whose id is not present and that matched nothing. */
+  notFound: LocalMic[];
+  /** Channels of open devices that are not yet a Local mic, nor re-keyed. */
+  newChannels: BrowserChannel[];
+}
+
+/**
+ * Id matching on the browser path. A kept Local mic is present while its
+ * device is listed under its stored `deviceId` (and this Stage browser). If
+ * it is not, a Local mic of this Stage browser is matched by exact label and
+ * channel, but only when exactly one channel that is not yet a Local mic
+ * fits, and no other missing Local mic fits that channel too; it is then
+ * re-keyed. Labels are compared exactly, never fuzzily. A decision waits
+ * until every device with that label is open (its channel count known).
+ */
+export function matchLocalMics({
+  stageBrowser,
+  devices,
+  open,
+  kept,
+}: {
+  stageBrowser: string;
+  devices: readonly BrowserDevice[];
+  /** Channel count of each open device. */
+  open: ReadonlyMap<string, number>;
+  kept: readonly LocalMic[];
+}): LocalMicMatch {
+  const keptIds = new Set(kept.map((m) => m.localMicId));
+  const listed = new Set(devices.map((d) => d.deviceId));
+  const present = (m: LocalMic) =>
+    m.source.stageBrowser === stageBrowser && listed.has(m.source.deviceId);
+  const unkept = devices.flatMap((device) => {
+    const count = open.get(device.deviceId);
+    return count === undefined
+      ? []
+      : browserChannels(stageBrowser, device, count).filter(
+          (c) => !keptIds.has(c.localMicId),
+        );
+  });
+  const missing = kept.filter((m) => !present(m));
+  const fits = (m: LocalMic, c: BrowserChannel) =>
+    m.source.stageBrowser === stageBrowser &&
+    c.source.label === m.source.label &&
+    c.source.channel === m.source.channel;
+  const allOpen = (label: string) =>
+    devices.every((d) => d.label !== label || open.has(d.deviceId));
+
+  const rekeys: Rekey[] = [];
+  for (const localMic of missing) {
+    if (!allOpen(localMic.source.label)) continue;
+    const candidates = unkept.filter((c) => fits(localMic, c));
+    const [only] = candidates;
+    if (
+      only !== undefined &&
+      candidates.length === 1 &&
+      missing.filter((m) => fits(m, only)).length === 1
+    )
+      rekeys.push({ localMic, channel: only });
+  }
+  const rekeyed = new Set(rekeys.map((r) => r.localMic.localMicId));
+  const taken = new Set(rekeys.map((r) => r.channel.localMicId));
+  return {
+    rekeys,
+    notFound: missing.filter((m) => !rekeyed.has(m.localMicId)),
+    newChannels: unkept.filter((c) => !taken.has(c.localMicId)),
+  };
+}
+
 /**
  * The devices the Stage browser keeps open: every device with a switched-on
- * Local mic of this Stage browser, and while the Mics screen is open every
- * device, for its meters.
+ * Local mic of this Stage browser, every device whose label is that of a
+ * missing switched-on Local mic of this Stage browser (so it can be
+ * re-keyed), and while the Mics screen is open every device, for its meters.
  */
 export function devicesToOpen({
   stageBrowser,
@@ -122,14 +201,20 @@ export function devicesToOpen({
   kept: readonly LocalMic[];
   micsScreenOpen: boolean;
 }): Set<string> {
-  const on = new Set(
-    kept
-      .filter((m) => m.switchedOn && m.source.stageBrowser === stageBrowser)
-      .map((m) => m.source.deviceId),
+  const listed = new Set(devices.map((d) => d.deviceId));
+  const on = kept.filter(
+    (m) => m.switchedOn && m.source.stageBrowser === stageBrowser,
+  );
+  const onIds = new Set(on.map((m) => m.source.deviceId));
+  const missingLabels = new Set(
+    on.filter((m) => !listed.has(m.source.deviceId)).map((m) => m.source.label),
   );
   return new Set(
     devices
-      .filter((d) => micsScreenOpen || on.has(d.deviceId))
+      .filter(
+        (d) =>
+          micsScreenOpen || onIds.has(d.deviceId) || missingLabels.has(d.label),
+      )
       .map((d) => d.deviceId),
   );
 }

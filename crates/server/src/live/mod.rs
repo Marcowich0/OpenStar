@@ -501,6 +501,27 @@ impl LiveState {
                     crate::local_mics::switch(self.db.clone(), local_mic_id, source, switched_on);
                 self.mic_settings_write(id, stored).await;
             }
+            Ok(ClientMessage::SetLocalMicName {
+                local_mic_id,
+                source,
+                name,
+            }) => {
+                let stored = crate::local_mics::rename(self.db.clone(), local_mic_id, source, name);
+                self.mic_settings_write(id, stored).await;
+            }
+            Ok(ClientMessage::RelinkLocalMic {
+                local_mic_id,
+                new_local_mic_id,
+                source,
+            }) => {
+                let relinked = crate::local_mics::relink(
+                    self.db.clone(),
+                    local_mic_id,
+                    new_local_mic_id,
+                    source,
+                );
+                self.refusable_mic_settings_write(id, relinked).await;
+            }
             Ok(ClientMessage::Hello { phone_id }) => {
                 if !phone_id.is_valid() {
                     self.reject(id, UserMessage::InvalidMessage);
@@ -638,14 +659,25 @@ impl LiveState {
         id: ConnectionId,
         write: impl Future<Output = anyhow::Result<()>>,
     ) {
+        self.refusable_mic_settings_write(id, async { write.await.map(Ok) })
+            .await;
+    }
+
+    /// [`Self::mic_settings_write`] for a write that may refuse with a code.
+    async fn refusable_mic_settings_write(
+        &mut self,
+        id: ConnectionId,
+        write: impl Future<Output = anyhow::Result<Result<(), UserMessage>>>,
+    ) {
         if self.stage().connection != Some(id) {
             self.reject(id, UserMessage::NotTheStage);
             return;
         }
         match write.await {
-            Ok(()) => self.hub.send_all(&ServerMessage::Changed {
+            Ok(Ok(())) => self.hub.send_all(&ServerMessage::Changed {
                 topics: vec![ChangeTopic::MicSettings],
             }),
+            Ok(Err(refused)) => self.reject(id, refused),
             Err(error) => {
                 tracing::error!(?error, "storing Mic settings");
                 self.reject(id, UserMessage::ServerError);

@@ -6,6 +6,7 @@ import {
   browserInputDevices,
   devicesToOpen,
   localMicName,
+  matchLocalMics,
   micsScreenOrder,
   stageBrowserId,
   type BrowserChannel,
@@ -187,6 +188,164 @@ describe("which devices are open", () => {
         micsScreenOpen: true,
       }),
     ).toEqual(new Set(["dongle", "webcam"]));
+  });
+});
+
+describe("id matching on the browser path", () => {
+  // The dongle as it was kept, and as Chromium lists it again with a new
+  // deviceId (a reload, cleared site data, a renamed source).
+  const keptLeft = channel("dongle-old", "USB Audio", 0);
+  const keptRight = channel("dongle-old", "USB Audio", 1);
+  const newLeft = channel("dongle-new", "USB Audio", 0);
+  const newRight = channel("dongle-new", "USB Audio", 1);
+  const dongleNew = { deviceId: "dongle-new", label: "USB Audio" };
+  const twin = { deviceId: "twin", label: "USB Audio" };
+
+  it("finds a Local mic by its stored deviceId", () => {
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [{ deviceId: "dongle-old", label: "USB Audio" }],
+      open: new Map([["dongle-old", 2]]),
+      kept: [kept(keptLeft, true, "Red mic")],
+    });
+    expect(match.rekeys).toEqual([]);
+    expect(match.notFound).toEqual([]);
+    expect(match.newChannels).toEqual([keptRight]);
+  });
+
+  it("re-keys a Local mic whose id is gone to the one channel with the same exact label and channel", () => {
+    const red = kept(keptRight, true, "Red mic");
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [dongleNew],
+      open: new Map([["dongle-new", 2]]),
+      kept: [red],
+    });
+    expect(match.rekeys).toEqual([{ localMic: red, channel: newRight }]);
+    expect(match.notFound).toEqual([]);
+    expect(match.newChannels).toEqual([newLeft]);
+  });
+
+  it("matches nothing when two channels fit, so the Local mic is not found", () => {
+    const red = kept(keptLeft, true, "Red mic");
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [dongleNew, twin],
+      open: new Map([
+        ["dongle-new", 2],
+        ["twin", 2],
+      ]),
+      kept: [red],
+    });
+    expect(match.rekeys).toEqual([]);
+    expect(match.notFound).toEqual([red]);
+    expect(match.newChannels.map((c) => c.localMicId)).toEqual([
+      newLeft.localMicId,
+      newRight.localMicId,
+      channel("twin", "USB Audio", 0).localMicId,
+      channel("twin", "USB Audio", 1).localMicId,
+    ]);
+  });
+
+  it("matches nothing when two missing Local mics fit the same channel", () => {
+    const red = kept(keptLeft, true, "Red mic");
+    const blue = kept(channel("other-old", "USB Audio", 0), true, "Blue mic");
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [dongleNew],
+      open: new Map([["dongle-new", 2]]),
+      kept: [red, blue],
+    });
+    expect(match.rekeys).toEqual([]);
+    expect(match.notFound).toEqual([red, blue]);
+  });
+
+  it("attempts no fuzzy label match: a changed label is not found", () => {
+    const red = kept(keptLeft, true, "Red mic");
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [{ deviceId: "dongle-pro", label: "USB Audio Pro" }],
+      open: new Map([["dongle-pro", 2]]),
+      kept: [red],
+    });
+    expect(match.rekeys).toEqual([]);
+    expect(match.notFound).toEqual([red]);
+  });
+
+  it("never re-keys to a channel that is already a Local mic", () => {
+    const red = kept(keptLeft, true, "Red mic");
+    const taken = kept(newLeft, false);
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [dongleNew],
+      open: new Map([["dongle-new", 2]]),
+      kept: [red, taken],
+    });
+    expect(match.rekeys).toEqual([]);
+    expect(match.notFound).toEqual([red]);
+    expect(match.newChannels).toEqual([newRight]);
+  });
+
+  it("waits until every device with that label is open before it decides", () => {
+    const red = kept(keptLeft, true, "Red mic");
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [dongleNew, twin],
+      open: new Map([["dongle-new", 2]]),
+      kept: [red],
+    });
+    expect(match.rekeys).toEqual([]);
+    expect(match.notFound).toEqual([red]);
+  });
+
+  it("re-keys only this Stage browser's Local mics, and shows another's as not found", () => {
+    const elsewhere = kept(
+      browserChannels(
+        "other-stage",
+        { deviceId: "x", label: "USB Audio" },
+        2,
+      )[0] as BrowserChannel,
+      true,
+      "Their mic",
+    );
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [dongleNew],
+      open: new Map([["dongle-new", 2]]),
+      kept: [elsewhere],
+    });
+    expect(match.rekeys).toEqual([]);
+    expect(match.notFound).toEqual([elsewhere]);
+    expect(match.newChannels).toEqual([newLeft, newRight]);
+  });
+
+  it("does not call a kept Local mic of a present but closed device not found", () => {
+    const red = kept(keptLeft, false, "Red mic");
+    const match = matchLocalMics({
+      stageBrowser: "stage",
+      devices: [{ deviceId: "dongle-old", label: "USB Audio" }],
+      open: new Map(),
+      kept: [red],
+    });
+    expect(match.notFound).toEqual([]);
+    expect(match.newChannels).toEqual([]);
+  });
+});
+
+describe("which devices are open, for a missing Local mic", () => {
+  it("includes every device with the label of a missing switched-on Local mic of this browser, so it can be re-keyed", () => {
+    const missing = channel("dongle-old", "USB Audio", 0);
+    expect(
+      devicesToOpen({
+        stageBrowser: "stage",
+        devices: [
+          { deviceId: "dongle-new", label: "USB Audio" },
+          { deviceId: "webcam", label: "Webcam Mic" },
+        ],
+        kept: [kept(missing, true)],
+        micsScreenOpen: false,
+      }),
+    ).toEqual(new Set(["dongle-new"]));
   });
 });
 
