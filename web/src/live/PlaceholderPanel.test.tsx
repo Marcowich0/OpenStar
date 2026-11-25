@@ -80,7 +80,7 @@ describe("PlaceholderPanel", () => {
     expect(sent).toEqual([{ type: "setPlaceholder", text: "Hello room" }]);
   });
 
-  it("shows a rejection by its code", () => {
+  it("shows a rejection as catalogue text", () => {
     const { store, live } = fakeStore();
     render(<PlaceholderPanel store={store} />);
     live((h) => {
@@ -90,7 +90,7 @@ describe("PlaceholderPanel", () => {
       });
     });
     expect(screen.getByTestId("rejection")).toHaveTextContent(
-      "placeholderTooLong",
+      "The text can be at most 1,000 characters long",
     );
   });
 });

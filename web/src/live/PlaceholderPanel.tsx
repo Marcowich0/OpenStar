@@ -1,7 +1,16 @@
 import { useState, type SyntheticEvent } from "react";
 
+import { userMessageText } from "../i18n/serverText";
+import { t, type MessageKey } from "../i18n/t";
+import type { LiveConnection } from "./liveState";
 import type { LiveStore } from "./liveStore";
 import { liveStore, useLiveState } from "./useLive";
+
+const CONNECTION_TEXT = {
+  connecting: "live.connecting",
+  open: "live.open",
+  reconnecting: "live.reconnecting",
+} as const satisfies Record<LiveConnection, MessageKey>;
 
 /**
  * Shows and changes the placeholder live state that every connected browser
@@ -22,22 +31,22 @@ export function PlaceholderPanel({
 
   return (
     <section>
-      <p data-testid="live-connection">WebSocket: {live.connection}</p>
+      <p data-testid="live-connection">{t(CONNECTION_TEXT[live.connection])}</p>
       <p data-testid="placeholder">{live.stage?.placeholder ?? ""}</p>
       <form onSubmit={submit}>
         <input
-          aria-label="Placeholder"
+          aria-label={t("live.placeholderLabel")}
           value={draft}
           onChange={(event) => {
             setDraft(event.target.value);
           }}
         />
         <button type="submit" disabled={live.connection !== "open"}>
-          Share
+          {t("live.share")}
         </button>
       </form>
       {live.lastRejection && (
-        <p data-testid="rejection">{live.lastRejection.code}</p>
+        <p data-testid="rejection">{userMessageText(live.lastRejection)}</p>
       )}
     </section>
   );
