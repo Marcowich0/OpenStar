@@ -3,3 +3,7 @@
 /web/dist/
 /.appdata/
 /.songs/
+# insta writes these when a snapshot changes; review with `cargo insta review` or
+# rerun with INSTA_UPDATE=always, then commit the .snap file.
+*.snap.new
+*.pending-snap

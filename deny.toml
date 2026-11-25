@@ -1,0 +1,36 @@
+# `cargo deny check licenses advisories`, run by `just check`.
+# Docs: https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Check every crate any target or feature can pull in.
+all-features = true
+
+[advisories]
+# Every RustSec advisory (vulnerability, unsound, unmaintained) fails the check.
+# To accept one, add its ID with a reason:
+#   ignore = [{ id = "RUSTSEC-YYYY-NNNN", reason = "..." }]
+ignore = []
+
+[licenses]
+# OpenStar is Apache-2.0. Only permissive licences that let it stay so are allowed;
+# add another permissive licence here when a dependency first needs it.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "MIT",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.93
+
+# A licence that is not on the list above is allowed only for the crate named
+# here. Every exception carries a `# Reason:` comment saying why it is acceptable.
+exceptions = [
+    # Reason: `unicode-ident` (needed by proc-macro2 and syn) embeds the Unicode
+    # Character Database tables. The Unicode licence is permissive and only asks
+    # that its notice is kept.
+    { crate = "unicode-ident", allow = ["Unicode-3.0"] },
+]
