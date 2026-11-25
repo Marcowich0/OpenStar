@@ -1,0 +1,158 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: body/note-types.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Placeholder Title" Lf,
+              2 Header "#ARTIST:Placeholder Artist" Lf,
+              3 Header "#MP3:audio.mp3" Lf,
+              4 Header "#BPM:300" Lf,
+              5 Body ": 0 4 0 Nor" Lf,
+              6 Body "* 4 4 2 Gol" Lf,
+              7 Body "R 8 4 0 Rap" Lf,
+              8 Body "G 12 4 0 Grap" Lf,
+              9 Body "F 16 4 0 Free" Lf,
+             10 Body "- 22" Lf,
+             11 Body ": 24 0 0 zero" Lf,
+             12 Body ": 24 4 0 one" Lf,
+             13 Body ":\t26 4 2\tover" Lf,
+        ],
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: Unversioned,
+                version: None,
+                encoding: None,
+                title: "Placeholder Title",
+                artist: "Placeholder Artist",
+                audio_reference: Some(
+                    "audio.mp3",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: None,
+                video: None,
+                cover: None,
+                background: None,
+                vocals: None,
+                instrumental: None,
+                beats_per_minute: 1200.0,
+                gap_seconds: 0.0,
+                start_seconds: None,
+                end_seconds: None,
+                video_gap_seconds: None,
+                preview_start_seconds: None,
+                medley_start_beat: None,
+                medley_end_beat: None,
+                year: None,
+                genre: None,
+                genres: [],
+                language: None,
+                languages: [],
+                edition: None,
+                editions: [],
+                creator: None,
+                creators: [],
+                p1: None,
+                p2: None,
+                unknown_headers: [],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "Nor",
+                                    line: 5,
+                                },
+                                Note {
+                                    kind: Golden,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "Gol",
+                                    line: 6,
+                                },
+                                Note {
+                                    kind: Rap,
+                                    start: 8,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "Rap",
+                                    line: 7,
+                                },
+                                Note {
+                                    kind: GoldenRap,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "Grap",
+                                    line: 8,
+                                },
+                                Note {
+                                    kind: Freestyle,
+                                    start: 16,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "Free",
+                                    line: 9,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 22,
+                                    line: 10,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Freestyle,
+                                    start: 24,
+                                    length: 0,
+                                    pitch: 0,
+                                    text: "zero",
+                                    line: 11,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 24,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "one",
+                                    line: 12,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 26,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "over",
+                                    line: 13,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [
+            ZeroLengthNote {
+                line: 11,
+            },
+            OverlappingNotes {
+                line: 13,
+                earlier_line: 12,
+            },
+        ],
+    },
+)

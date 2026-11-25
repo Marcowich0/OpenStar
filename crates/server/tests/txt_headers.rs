@@ -78,7 +78,7 @@ fn blank_lines_are_skipped_everywhere_including_the_first_line() {
     let file = accept(&format!(
         "\n   \n{BASE}\t\n#GAP:500\n: 0 4 0 La\n\n  \n: 8 4 2 la\nE\n"
     ));
-    assert_eq!(file.headers.gap_seconds, 0.5);
+    assert_eq!(file.song.headers.gap_seconds, 0.5);
     assert_eq!(body_texts(&file), vec![": 0 4 0 La", ": 8 4 2 la"]);
     assert_eq!(kinds(&file)[0].1, LineKind::Blank);
     assert_eq!(kinds(&file)[1].1, LineKind::Blank);
@@ -87,7 +87,7 @@ fn blank_lines_are_skipped_everywhere_including_the_first_line() {
 #[test]
 fn the_header_ends_at_the_first_non_hash_line() {
     let file = accept(&format!("{BASE}: 0 4 0 La\n#GAP:500\n: 8 4 2 la\nE\n"));
-    assert_eq!(file.headers.gap_seconds, 0.0);
+    assert_eq!(file.song.headers.gap_seconds, 0.0);
     assert_eq!(
         body_texts(&file),
         vec![": 0 4 0 La", "#GAP:500", ": 8 4 2 la"]
@@ -117,8 +117,8 @@ fn a_value_runs_from_the_first_colon_to_the_end_and_is_trimmed() {
     let file = accept(&format!(
         "#TITLE:  Part 1: The Beginning  \n#ARTIST:A\n#BPM:100\n#VIDEO: v.mp4 \n{BODY}"
     ));
-    assert_eq!(file.headers.title, "Part 1: The Beginning");
-    assert_eq!(file.headers.video.as_deref(), Some("v.mp4"));
+    assert_eq!(file.song.headers.title, "Part 1: The Beginning");
+    assert_eq!(file.song.headers.video.as_deref(), Some("v.mp4"));
 }
 
 #[test]
@@ -126,16 +126,16 @@ fn keys_compare_case_insensitively_and_are_trimmed() {
     let file = accept(&format!(
         "#title:T\n# Artist :A\n#bPm:100\n#Gap:250\n{BODY}"
     ));
-    assert_eq!(file.headers.title, "T");
-    assert_eq!(file.headers.artist, "A");
-    assert_eq!(file.headers.gap_seconds, 0.25);
+    assert_eq!(file.song.headers.title, "T");
+    assert_eq!(file.song.headers.artist, "A");
+    assert_eq!(file.song.headers.gap_seconds, 0.25);
 }
 
 #[test]
 fn an_empty_value_is_the_same_as_an_absent_header() {
     let file = accept(&format!("{BASE}#GAP:   \n#VIDEO:\n{BODY}"));
-    assert_eq!(file.headers.gap_seconds, 0.0);
-    assert_eq!(file.headers.video, None);
+    assert_eq!(file.song.headers.gap_seconds, 0.0);
+    assert_eq!(file.song.headers.video, None);
     assert!(file.warnings.is_empty());
 
     assert_eq!(
@@ -154,7 +154,7 @@ fn lines_without_a_colon_and_unknown_keys_are_kept_as_unknown_headers() {
         "#COMMENT\n{BASE}#AUTHOR:Someone:else\n#Custom:\n{BODY}"
     ));
     assert_eq!(
-        file.headers.unknown_headers,
+        file.song.headers.unknown_headers,
         vec![
             UnknownHeader {
                 line: 1,
@@ -179,7 +179,7 @@ fn lines_without_a_colon_and_unknown_keys_are_kept_as_unknown_headers() {
 #[test]
 fn a_repeated_header_keeps_the_last_value_with_a_warning() {
     let file = accept(&format!("{BASE}#GAP:100\n#gap:200\n{BODY}"));
-    assert_eq!(file.headers.gap_seconds, 0.2);
+    assert_eq!(file.song.headers.gap_seconds, 0.2);
     assert_eq!(
         file.warnings,
         vec![TxtWarning::DuplicateHeader {
@@ -194,7 +194,7 @@ fn repeated_list_headers_are_joined_and_split_for_filtering() {
     let file = accept(&format!(
         "{BASE}#GENRE:Pop, Rock\n#GENRE:Jazz\n#LANGUAGE:English\n#EDITION:One,,Two \n#CREATOR:X\n#CREATOR:Y\n{BODY}"
     ));
-    let h = &file.headers;
+    let h = &file.song.headers;
     assert_eq!(h.genre.as_deref(), Some("Pop, Rock, Jazz"));
     assert_eq!(h.genres, vec!["Pop", "Rock", "Jazz"]);
     assert_eq!(h.languages, vec!["English"]);
@@ -209,7 +209,7 @@ fn decimal_headers_accept_a_comma_or_a_point() {
     let file = accept(&format!(
         "#TITLE:T\n#ARTIST:A\n#BPM:217,4\n#GAP:3650,5\n#START:12.5\n#VIDEOGAP:-1,25\n#PREVIEWSTART:30,75\n{BODY}"
     ));
-    let h = &file.headers;
+    let h = &file.song.headers;
     assert!((h.beats_per_minute - 869.6).abs() < 1e-9);
     assert!((h.gap_seconds - 3.6505).abs() < 1e-9);
     assert_eq!(h.start_seconds, Some(12.5));
@@ -222,7 +222,7 @@ fn an_unparsable_optional_number_is_absent_with_a_warning() {
     let file = accept(&format!(
         "{BASE}#GAP:soon\n#START:1.2.3\n#END:12000.5\n#YEAR:nineties\n#MEDLEYSTARTBEAT:x\n{BODY}"
     ));
-    let h = &file.headers;
+    let h = &file.song.headers;
     assert_eq!(h.gap_seconds, 0.0);
     assert_eq!(h.start_seconds, None);
     assert_eq!(h.end_seconds, None);
@@ -253,7 +253,7 @@ fn units_are_normalised_to_seconds_and_real_beats() {
     let file = accept(&format!(
         "#TITLE:T\n#ARTIST:A\n#BPM:150\n#GAP:2000\n#START:5\n#END:185000\n#VIDEOGAP:0.5\n#PREVIEWSTART:42\n#MEDLEYSTARTBEAT:120\n#MEDLEYENDBEAT:480\n#YEAR:1999\n{BODY}"
     ));
-    let h = &file.headers;
+    let h = &file.song.headers;
     assert_eq!(h.beats_per_minute, 600.0);
     assert_eq!(h.gap_seconds, 2.0);
     assert_eq!(h.start_seconds, Some(5.0));
@@ -284,6 +284,7 @@ fn bpm_is_required_and_at_least_one_real_beat_per_minute() {
     );
     assert_eq!(
         accept(&format!("#TITLE:T\n#ARTIST:A\n#BPM:0.25\n{BODY}"))
+            .song
             .headers
             .beats_per_minute,
         1.0
@@ -295,8 +296,8 @@ fn p1_and_p2_win_over_the_duet_singer_aliases() {
     let file = accept(&format!(
         "{BASE}#DUETSINGERP1:Old One\n#DUETSINGERP2:Old Two\n#P2:New Two\n{BODY}"
     ));
-    assert_eq!(file.headers.p1.as_deref(), Some("Old One"));
-    assert_eq!(file.headers.p2.as_deref(), Some("New Two"));
+    assert_eq!(file.song.headers.p1.as_deref(), Some("Old One"));
+    assert_eq!(file.song.headers.p2.as_deref(), Some("New Two"));
 }
 
 #[test]
@@ -305,24 +306,24 @@ fn the_audio_reference_follows_the_generation() {
     let v1 = accept(&format!(
         "#VERSION:1.0.0\n#TITLE:T\n#ARTIST:A\n#BPM:100\n{both}{BODY}"
     ));
-    assert_eq!(v1.headers.audio_reference.as_deref(), Some("new.m4a"));
+    assert_eq!(v1.song.headers.audio_reference.as_deref(), Some("new.m4a"));
     let unversioned = accept(&format!("#TITLE:T\n#ARTIST:A\n#BPM:100\n{both}{BODY}"));
     assert_eq!(
-        unversioned.headers.audio_reference.as_deref(),
+        unversioned.song.headers.audio_reference.as_deref(),
         Some("old.mp3")
     );
     let only_audio = accept(&format!(
         "#TITLE:T\n#ARTIST:A\n#BPM:100\n#AUDIO:new.m4a\n{BODY}"
     ));
     assert_eq!(
-        only_audio.headers.audio_reference.as_deref(),
+        only_audio.song.headers.audio_reference.as_deref(),
         Some("new.m4a")
     );
     let v1_only_mp3 = accept(&format!(
         "#VERSION:1.1.0\n#TITLE:T\n#ARTIST:A\n#BPM:100\n#MP3:old.mp3\n{BODY}"
     ));
     assert_eq!(
-        v1_only_mp3.headers.audio_reference.as_deref(),
+        v1_only_mp3.song.headers.audio_reference.as_deref(),
         Some("old.mp3")
     );
 }
@@ -331,13 +332,16 @@ fn the_audio_reference_follows_the_generation() {
 fn a_folder_named_artist_dash_title_supplies_missing_artist_and_title() {
     let body = format!("#BPM:100\n{BODY}");
     let file = parse(body.as_bytes(), "Some Artist - A Title - Live").unwrap();
-    assert_eq!(file.headers.artist, "Some Artist");
-    assert_eq!(file.headers.title, "A Title - Live");
+    assert_eq!(file.song.headers.artist, "Some Artist");
+    assert_eq!(file.song.headers.title, "A Title - Live");
 
     let own_title = format!("#TITLE:Own\n#BPM:100\n{BODY}");
     let file = parse(own_title.as_bytes(), "Some Artist - A Title").unwrap();
     assert_eq!(
-        (file.headers.artist.as_str(), file.headers.title.as_str()),
+        (
+            file.song.headers.artist.as_str(),
+            file.song.headers.title.as_str()
+        ),
         ("Some Artist", "Own")
     );
 
@@ -355,13 +359,17 @@ fn a_folder_named_artist_dash_title_supplies_missing_artist_and_title() {
 fn generations_are_read_from_version() {
     let unversioned = accept(&format!("{BASE}{BODY}"));
     assert_eq!(
-        unversioned.headers.generation,
+        unversioned.song.headers.generation,
         FormatGeneration::Unversioned
     );
-    assert_eq!(unversioned.headers.version, None);
+    assert_eq!(unversioned.song.headers.version, None);
     for version in ["1.0.0", "1.1.0", "1.2.0", " 1.10.3 "] {
         let file = accept(&format!("#VERSION:{version}\n{BASE}{BODY}"));
-        assert_eq!(file.headers.generation, FormatGeneration::V1, "{version}");
+        assert_eq!(
+            file.song.headers.generation,
+            FormatGeneration::V1,
+            "{version}"
+        );
     }
 }
 
@@ -401,5 +409,5 @@ fn relative_mode_is_rejected() {
 #[test]
 fn encoding_is_kept_as_written() {
     let file = accept(&format!("#ENCODING:CP1252\n{BASE}{BODY}"));
-    assert_eq!(file.headers.encoding.as_deref(), Some("CP1252"));
+    assert_eq!(file.song.headers.encoding.as_deref(), Some("CP1252"));
 }
