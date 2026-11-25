@@ -20,6 +20,8 @@ Ok(
              13 Body "* 12 4 4 Lo" Lf,
              14 End "E" Lf,
         ],
+        encoding: Utf8,
+        bom: false,
         song: ParsedSong {
             headers: SongHeaders {
                 generation: Unversioned,

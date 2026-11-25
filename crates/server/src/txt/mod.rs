@@ -1,14 +1,16 @@
 //! Reading an UltraStar `.txt`: the lossless line model, the headers and
 //! the body.
 //!
-//! [`parse`] splits a file into lines, classifies them (header, body, `E`,
-//! after `E`, blank), interprets the headers and parses the body into
-//! Voices, Lines and Notes.
+//! [`parse`] splits a file into lines, detects its encoding, classifies the
+//! lines (header, body, `E`, after `E`, blank), interprets the headers and
+//! parses the body into Voices, Lines and Notes.
 
 mod body;
+mod encoding;
 mod headers;
 mod lines;
 
+pub use encoding::TxtEncoding;
 pub use lines::{Line, LineEnding, LineKind};
 use openstar_protocol::song::{ParsedSong, TxtRejection, TxtWarning};
 
@@ -17,7 +19,13 @@ use openstar_protocol::song::{ParsedSong, TxtRejection, TxtWarning};
 pub struct TxtFile {
     /// Every physical line of the file, in order; concatenating each line's
     /// bytes and ending gives back the file byte for byte.
+    /// The first line's bytes start with the BOM when [`TxtFile::bom`] is set.
     pub lines: Vec<Line>,
+    /// The encoding the file was decoded with; every write reuses it.
+    pub encoding: TxtEncoding,
+    /// Whether the file starts with a UTF-8 BOM. The BOM is part of no header
+    /// or text, only of the first line's bytes.
+    pub bom: bool,
     /// The headers, Voices, Lines and Notes.
     pub song: ParsedSong,
     /// Warnings in line order.
@@ -36,17 +44,23 @@ impl TxtFile {
 /// holding the file; a folder named `Artist - Title` supplies a missing
 /// `#ARTIST` or `#TITLE`.
 ///
-/// The bytes are read as UTF-8 for now (invalid sequences are replaced);
-/// encoding detection replaces [`decode`].
+/// The encoding is detected once, before parsing (see [`TxtEncoding`]); in
+/// UTF-8, invalid sequences are replaced.
 pub fn parse(bytes: &[u8], folder_name: &str) -> Result<TxtFile, TxtRejection> {
+    let split = lines::split(bytes);
+    let (encoding, bom) = encoding::detect(bytes, &split);
     let mut lines = Vec::new();
     let mut header_lines = Vec::new();
     let mut body_lines = Vec::new();
     let mut phase = LineKind::Header;
 
-    for (index, (bytes, ending)) in lines::split(bytes).into_iter().enumerate() {
+    for (index, (bytes, ending)) in split.into_iter().enumerate() {
         let number = u32::try_from(index + 1).unwrap_or(u32::MAX);
-        let text = decode(&bytes);
+        let text = if index == 0 && bom {
+            encoding.decode(&bytes[encoding::BOM.len()..])
+        } else {
+            encoding.decode(&bytes)
+        };
         let trimmed = text.trim();
         let kind = if phase == LineKind::AfterEnd {
             LineKind::AfterEnd
@@ -75,12 +89,9 @@ pub fn parse(bytes: &[u8], folder_name: &str) -> Result<TxtFile, TxtRejection> {
     let voices = body::parse(body_lines, &mut warnings)?;
     Ok(TxtFile {
         lines,
+        encoding,
+        bom,
         song: ParsedSong { headers, voices },
         warnings,
     })
-}
-
-/// Turns one line's bytes into text.
-fn decode(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).into_owned()
 }

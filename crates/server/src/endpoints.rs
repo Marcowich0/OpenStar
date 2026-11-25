@@ -63,7 +63,7 @@ pub struct Endpoint {
 /// is an HTTP endpoint instead.
 pub fn ws_access(message: &ClientMessage) -> Access {
     match message {
-        ClientMessage::Ping { .. } => Access::NotGuarded,
+        ClientMessage::Ping { .. } | ClientMessage::SetPlaceholder { .. } => Access::NotGuarded,
     }
 }
 

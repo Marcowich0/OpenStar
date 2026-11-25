@@ -17,6 +17,8 @@ Ok(
              10 End "E" CrLf,
              11 AfterEnd "Anything after E is ignored." Lf,
         ],
+        encoding: Utf8,
+        bom: false,
         song: ParsedSong {
             headers: SongHeaders {
                 generation: Unversioned,

@@ -1,0 +1,87 @@
+{
+  "description": "Hand-built beatAt cases. gapSeconds and beatsPerMinute are the parser's normalised SongHeaders fields (#GAP / 1000 and #BPM x 4), so one Beat lasts 60 / beatsPerMinute = 15 / #BPM seconds and Beat b covers Song time [gapSeconds + b x 60 / beatsPerMinute, gapSeconds + (b + 1) x 60 / beatsPerMinute).",
+  "beatAt": [
+    {
+      "name": "the first Beat starts at GAP",
+      "file": "#GAP:500 #BPM:120",
+      "gapSeconds": 0.5,
+      "beatsPerMinute": 480,
+      "songTime": 0.5,
+      "beat": 0
+    },
+    {
+      "name": "inside a Beat",
+      "file": "#GAP:500 #BPM:120",
+      "gapSeconds": 0.5,
+      "beatsPerMinute": 480,
+      "songTime": 0.8,
+      "beat": 2
+    },
+    {
+      "name": "exactly on a Beat boundary belongs to the later Beat",
+      "file": "#GAP:500 #BPM:120",
+      "gapSeconds": 0.5,
+      "beatsPerMinute": 480,
+      "songTime": 0.875,
+      "beat": 3
+    },
+    {
+      "name": "just before a Beat boundary belongs to the earlier Beat",
+      "file": "#GAP:500 #BPM:120",
+      "gapSeconds": 0.5,
+      "beatsPerMinute": 480,
+      "songTime": 0.874999,
+      "beat": 2
+    },
+    {
+      "name": "before GAP the Beats are negative",
+      "file": "#GAP:500 #BPM:120",
+      "gapSeconds": 0.5,
+      "beatsPerMinute": 480,
+      "songTime": 0.4,
+      "beat": -1
+    },
+    {
+      "name": "no GAP",
+      "file": "#BPM:300",
+      "gapSeconds": 0,
+      "beatsPerMinute": 1200,
+      "songTime": 10,
+      "beat": 200
+    }
+  ],
+  "noteTimes": [
+    {
+      "name": "Vincent before the fix: a Note at Beat 400",
+      "file": "#GAP:3650 #BPM:217.4",
+      "gapSeconds": 3.65,
+      "beatsPerMinute": 869.6,
+      "beat": 400,
+      "songTime": 31.248896044
+    },
+    {
+      "name": "Vincent after the fix: the same Note at Beat 400",
+      "file": "#GAP:753 #BPM:216.26",
+      "gapSeconds": 0.753,
+      "beatsPerMinute": 865.04,
+      "beat": 400,
+      "songTime": 28.497381763
+    },
+    {
+      "name": "Vincent before the fix: a Note at Beat 1000",
+      "file": "#GAP:3650 #BPM:217.4",
+      "gapSeconds": 3.65,
+      "beatsPerMinute": 869.6,
+      "beat": 1000,
+      "songTime": 72.64724011
+    },
+    {
+      "name": "Vincent after the fix: the same Note at Beat 1000",
+      "file": "#GAP:753 #BPM:216.26",
+      "gapSeconds": 0.753,
+      "beatsPerMinute": 865.04,
+      "beat": 1000,
+      "songTime": 70.113954407
+    }
+  ]
+}

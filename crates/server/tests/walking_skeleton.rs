@@ -2,7 +2,7 @@
 //! the real axum app in-process on temporary songs and appdata folders, over
 //! real HTTP and WebSocket.
 
-use openstar_protocol::{ClientMessage, RejectCode, ServerInfo, ServerMessage};
+use openstar_protocol::{ClientMessage, ServerInfo, ServerMessage, UserMessage};
 use openstar_test_harness::TestApp;
 
 #[tokio::test]
@@ -19,6 +19,11 @@ async fn websocket_ping_gets_a_pong_with_the_same_nonce() {
     let app = TestApp::start().await;
 
     let mut socket = app.connect_ws().await;
+    // The first message on every connection is the live state.
+    assert!(matches!(
+        socket.recv().await,
+        ServerMessage::LiveState { .. }
+    ));
     socket.send(&ClientMessage::Ping { nonce: 42 }).await;
 
     assert_eq!(socket.recv().await, ServerMessage::Pong { nonce: 42 });
@@ -63,12 +68,13 @@ async fn a_message_that_is_not_a_client_message_is_rejected_with_a_code() {
     let app = TestApp::start().await;
 
     let mut socket = app.connect_ws().await;
+    let _live_state = socket.recv().await;
     socket.send_text(r#"{"type":"sing"}"#).await;
 
     assert_eq!(
         socket.recv().await,
         ServerMessage::Rejected {
-            code: RejectCode::InvalidMessage
+            reason: UserMessage::InvalidMessage
         }
     );
 }
