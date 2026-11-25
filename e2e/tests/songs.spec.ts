@@ -1,22 +1,14 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
-import { expect, test } from "../fixtures";
+import { expect, newParty, test } from "../fixtures";
 
 // The Songs tab and the Request sheet (#148): a Phone finds a Song by search
 // and chip, opens the Request sheet, toggles who sings and adds it to the
 // Queue; both Phones see it as a toast.
 
-/** The Stage's current Join code. */
-async function stageJoinCode(stage: Page): Promise<string> {
-  await stage.goto("/stage");
-  const code = stage.getByTestId("party-join-code");
-  await expect(code).toHaveText(/^\d{4}$/);
-  return (await code.textContent()) ?? "";
-}
-
 /**
- * A Profile with a name no other test uses, and a favourite colour no other
- * test's Profile holds (the server and its Party are shared).
+ * A Profile with a name no other test uses (the server is shared). Its
+ * favourite colour is free: the test starts a New party first.
  */
 async function createProfile(
   request: APIRequestContext,
@@ -44,7 +36,7 @@ async function joinAs(phone: Page, code: string, name: string) {
 
 /**
  * Removes every Request in the Queue over a second socket of the Phone, so
- * the shared Party's Queue is empty again for the other tests.
+ * the Stage is back on the song browser for the next test.
  */
 async function emptyQueue(phone: Page) {
   await phone.evaluate(
@@ -84,7 +76,7 @@ test("a Phone finds a Song on the Songs tab and adds it with the Request sheet",
   openPhone,
   request,
 }) => {
-  const code = await stageJoinCode(stage);
+  const code = await newParty(stage);
   const picker = await createProfile(request, "Picker", "mint");
   const partner = await createProfile(request, "Partner", "navy");
 

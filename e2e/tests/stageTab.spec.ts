@@ -1,18 +1,11 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
-import { expect, FIXTURE_SONGS, test } from "../fixtures";
+import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
 
 // The Phone's Stage tab (#118): the waiting Line-up edited from the sofa
 // through the seat sheet, seen on a second Phone, and Start. The Request is
 // added over a second socket of the Phone itself, like `remote.spec.ts`.
-// Its Profiles use the favourite colours cocoa and forest.
-
-async function stageJoinCode(stage: Page): Promise<string> {
-  await stage.goto("/stage");
-  const code = stage.getByTestId("party-join-code");
-  await expect(code).toHaveText(/^\d{4}$/);
-  return (await code.textContent()) ?? "";
-}
+// It starts a New party first, so its Profiles' colours are free.
 
 async function createProfile(
   request: APIRequestContext,
@@ -81,7 +74,7 @@ test("a Phone seats itself on its own Mic from the Stage tab and presses Start",
   openPhone,
   request,
 }) => {
-  const code = await stageJoinCode(stage);
+  const code = await newParty(stage);
   const singer = await createProfile(request, "Singer", "cocoa");
   const friend = await createProfile(request, "Friend", "forest");
   const { songs } = (await (await request.get("/api/songs")).json()) as {
@@ -152,7 +145,8 @@ test("a Phone seats itself on its own Mic from the Stage tab and presses Start",
     await start.click();
     await expect(theirs.getByText("Up next: who sings?")).toHaveCount(0);
   } finally {
-    // Leave the shared Party's Queue as the other tests expect it: empty.
+    // Stop the Song and empty the Queue: the next test's New party needs the
+    // Stage on a scene that opens People.
     const party = await sendFromPhone(theirs, {
       type: "controlSong",
       requestId,

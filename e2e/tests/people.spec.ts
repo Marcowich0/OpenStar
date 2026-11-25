@@ -1,23 +1,15 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
-import { expect, test } from "../fixtures";
+import { expect, newParty, test } from "../fixtures";
 
 // The People tab, the Me sheet and leaving the Party (#119): one Phone
 // changes its colour from the Me sheet, removes the other Phone's member
-// with a press and hold, and then leaves itself. Both end outside the
-// shared Party, so their colours are free again for the other tests.
-
-/** The Stage's current Join code. */
-async function stageJoinCode(stage: Page): Promise<string> {
-  await stage.goto("/stage");
-  const code = stage.getByTestId("party-join-code");
-  await expect(code).toHaveText(/^\d{4}$/);
-  return (await code.textContent()) ?? "";
-}
+// with a press and hold, and then leaves itself. It starts a New party
+// first, so its Profiles' colours are free.
 
 /**
- * A Profile with a name no other test uses, and a favourite colour no other
- * test's Profile holds (the server and its Party are shared).
+ * A Profile with a name no other test uses (the server is shared). Its
+ * favourite colour is free: the test starts a New party first.
  */
 async function createProfile(
   request: APIRequestContext,
@@ -48,7 +40,7 @@ test("a Phone manages itself from the Me sheet and frees colours from the People
   openPhone,
   request,
 }) => {
-  const code = await stageJoinCode(stage);
+  const code = await newParty(stage);
   const keeper = await createProfile(request, "Keeper", "mint");
   const guest = await createProfile(request, "Visitor", "forest");
 
