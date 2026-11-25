@@ -362,6 +362,9 @@ export function createPainter(
           case "laneEnd":
             ctx.restore();
             break;
+          case "lyric":
+            // DOM text: the render loop writes it to the lyric bar.
+            break;
         }
       }
     },
