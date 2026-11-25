@@ -15,6 +15,7 @@ mod live;
 mod local_mics;
 mod mic_bridges;
 pub mod mic_settings;
+mod pin_wait;
 mod profiles;
 pub mod scores;
 pub mod stage_outputs;
@@ -62,9 +63,10 @@ struct AppState {
     scanner: Scanner,
     /// The time source for every timed rule (the Unlock's idle time).
     clock: Clock,
-    /// The fingerprint of the running Admin PIN; Unlocks made with another
-    /// PIN no longer count.
-    pin_fingerprint: Arc<[u8]>,
+    /// The running Admin PIN (its fingerprint: Unlocks made with another PIN
+    /// no longer count) and the shared wrong-guess wait every PIN check goes
+    /// through.
+    admin_pin: pin_wait::AdminPin,
     /// Whether the test-only routes are mounted.
     test_routes: bool,
 }
@@ -110,7 +112,7 @@ impl Server {
                 live,
                 jobs,
                 clock: Clock::system(),
-                pin_fingerprint: unlock::pin_fingerprint(config.admin_pin.expose()).into(),
+                admin_pin: pin_wait::AdminPin::new(config.admin_pin.expose()),
                 test_routes: false,
             },
             migrations_applied: opened.migrations_applied,
@@ -198,9 +200,15 @@ impl Server {
             jobs.shutdown().await;
             live.shutdown().await;
         };
-        axum::serve(with_nodelay(listener), self.router())
-            .with_graceful_shutdown(shutdown)
-            .await
+        // The peer address reaches handlers as `ConnectInfo`, for the log
+        // line of a wrong Admin PIN guess.
+        axum::serve(
+            with_nodelay(listener),
+            self.router()
+                .into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .with_graceful_shutdown(shutdown)
+        .await
     }
 }
 
