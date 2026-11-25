@@ -11,7 +11,6 @@ import { profilesQuery } from "../../api/queries";
 import type { Difficulty } from "../../generated/Difficulty";
 import type { PartyMember } from "../../generated/PartyMember";
 import type { PhoneId } from "../../generated/PhoneId";
-import type { Seat } from "../../generated/Seat";
 import { colourName } from "../../i18n/colourNames";
 import { difficultyName } from "../../i18n/seatNames";
 import { t } from "../../i18n/t";
@@ -23,21 +22,13 @@ import { Sheet } from "../../ui/Sheet";
 import type { MemberLook } from "../memberLook";
 import { LeaveParty } from "./LeaveParty";
 import { setMyDifficulty } from "./memberRequests";
-import { myDifficulty, showsAdminLink } from "./people";
+import { myDifficulty, playingSeats, showsAdminLink } from "./people";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "medium", "hard"];
 
 function isDifficulty(key: unknown): key is Difficulty {
   return DIFFICULTIES.some((d) => d === key);
 }
-
-/**
- * The seats of the Song that plays now. The snapshot carries no playing
- * Song yet: #87 (playing a Request) adds `party.playing`, and then this is
- * `party.playing ? (party.lineUp?.seats ?? null) : null`, so the Admin link
- * hides while this Phone is a Mic mid-Song.
- */
-const PLAYING_SEATS: readonly Seat[] | null = null;
 
 const selectParty = (state: LiveState) => state.stage?.party ?? null;
 
@@ -160,7 +151,7 @@ export function MeButton({
             </button>
             <LeaveParty store={store} member={member} />
           </div>
-          {showsAdminLink(me.phoneId, PLAYING_SEATS) ? (
+          {showsAdminLink(me.phoneId, playingSeats(party)) ? (
             <a
               href="/admin"
               className="self-center rounded-full px-4 py-2 text-base font-semibold text-ink-2 underline outline-none focus-visible:outline-6 focus-visible:outline-yellow"

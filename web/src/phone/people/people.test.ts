@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { PartyMember } from "../../generated/PartyMember";
 import type { Profile } from "../../generated/Profile";
 import type { Seat } from "../../generated/Seat";
-import { myDifficulty, peopleRows, showsAdminLink } from "./people";
+import {
+  myDifficulty,
+  peopleRows,
+  playingSeats,
+  showsAdminLink,
+} from "./people";
+import type { PartySnapshot } from "../../generated/PartySnapshot";
 
 const profile = (id: number, name: string, more: Partial<Profile> = {}) =>
   ({
@@ -114,5 +120,36 @@ describe("the Me sheet's Admin link", () => {
     expect(showsAdminLink("phone-a", [seat(2, null), seat(1, "phone-a")])).toBe(
       false,
     );
+  });
+});
+
+describe("the playing Song's seats", () => {
+  const lineUp = {
+    requestId: 1,
+    duet: false,
+    seats: [seat(1, "phone-a")],
+    canStart: true,
+    warnings: [],
+  };
+  const party = (playing: boolean): PartySnapshot => ({
+    partyId: "p",
+    stageId: "main",
+    joinCode: "4821",
+    startedAtMs: 1,
+    members: [bo],
+    phones: [],
+    queue: [],
+    head: 1,
+    lineUp,
+    playing: playing ? { requestId: 1, songId: 40, paused: false } : null,
+    results: null,
+  });
+
+  it("are none while the Line-up only waits", () => {
+    expect(playingSeats(party(false))).toBeNull();
+  });
+
+  it("are the Line-up's seats while its Song plays", () => {
+    expect(playingSeats(party(true))).toEqual(lineUp.seats);
   });
 });

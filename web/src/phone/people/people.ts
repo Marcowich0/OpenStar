@@ -4,6 +4,7 @@
 import type { Difficulty } from "../../generated/Difficulty";
 import type { PartyMember } from "../../generated/PartyMember";
 import type { PartyMemberId } from "../../generated/PartyMemberId";
+import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { PhoneId } from "../../generated/PhoneId";
 import type { Profile } from "../../generated/Profile";
 import type { Seat } from "../../generated/Seat";
@@ -76,6 +77,16 @@ export function myDifficulty(
         null
       );
   }
+}
+
+/**
+ * The seats of the Song that plays now (fixed at Start, kept in the
+ * Line-up), or `null` while none plays.
+ */
+export function playingSeats(
+  party: PartySnapshot | null,
+): readonly Seat[] | null {
+  return party?.playing ? (party.lineUp?.seats ?? null) : null;
 }
 
 /**
