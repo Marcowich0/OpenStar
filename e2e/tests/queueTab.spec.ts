@@ -180,13 +180,13 @@ test("the Queue tab reorders, changes singers and removes, and every Phone follo
     sheet = await openCard(theirs, second.title);
     await sheet.getByRole("button", { name: "Change singers" }).click();
     const singers = theirs.getByRole("dialog", { name: second.title });
-    await singers.getByRole("button", { name: new RegExp(adder) }).click();
+    await singers.getByRole("button", { name: new RegExp(mover) }).click();
     await singers.getByRole("button", { name: "Save singers" }).click();
     await expect(
       mine.getByRole("status", { name: "Party changes" }),
     ).toContainText(`${mover} changed who sings ${second.title}`);
     await expect(cards(mine).nth(1)).toContainText(
-      new RegExp(`${adder} · added by ${adder}`),
+      new RegExp(`${adder}, ${mover} · added by ${adder}`),
     );
 
     // Remove from the Queue is a press and hold.
