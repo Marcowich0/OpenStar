@@ -3,12 +3,14 @@
 
 mod bridge;
 pub mod build_id;
+pub mod clock;
 mod config;
 pub mod db;
 mod frontend;
 pub mod healthcheck;
 mod startup;
 pub mod txt;
+mod unlock;
 
 use std::path::PathBuf;
 
@@ -17,13 +19,14 @@ use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use std::sync::Arc;
 
 use openstar_protocol::{ClientMessage, LibraryReadOnly, RejectCode, ServerInfo, ServerMessage};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 
+use clock::Clock;
 pub use config::{Config, Secret, UsdbCredentials};
 use db::Database;
 
@@ -38,6 +41,13 @@ struct AppState {
     config: Arc<Config>,
     /// Why the Library is read-only, if it is; fixed at startup.
     library_read_only: Option<LibraryReadOnly>,
+    /// The time source for every timed rule (the Unlock's idle time).
+    clock: Clock,
+    /// The fingerprint of the running Admin PIN; Unlocks made with another
+    /// PIN no longer count.
+    pin_fingerprint: Arc<[u8]>,
+    /// Whether the test-only routes are mounted.
+    test_routes: bool,
 }
 
 /// A started server: the database is open and migrated, nothing is served yet.
@@ -67,6 +77,9 @@ impl Server {
                 bridge_dir: PathBuf::from(bridge::DEFAULT_BRIDGE_DIR),
                 config: Arc::new(config.clone()),
                 library_read_only,
+                clock: Clock::system(),
+                pin_fingerprint: unlock::pin_fingerprint(config.admin_pin.expose()).into(),
+                test_routes: false,
             },
             migrations_applied: opened.migrations_applied,
         })
@@ -77,6 +90,23 @@ impl Server {
     #[must_use]
     pub fn with_bridge_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.state.bridge_dir = dir.into();
+        self
+    }
+
+    /// Runs every timed rule on `clock` instead of the system clock, so
+    /// integration tests can move time forward.
+    #[must_use]
+    pub fn with_clock(mut self, clock: Clock) -> Self {
+        self.state.clock = clock;
+        self
+    }
+
+    /// Mounts the routes that exist only for tests: `POST /api/test/guarded`,
+    /// a guarded endpoint that does nothing. Never called by `main`.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn with_test_routes(mut self) -> Self {
+        self.state.test_routes = true;
         self
     }
 
@@ -99,9 +129,19 @@ impl Server {
 
     /// The axum app.
     pub fn router(&self) -> Router {
-        Router::new()
+        let mut router = Router::new()
             .route("/healthz", get(healthz))
             .route("/api/server-info", get(server_info))
+            .route(
+                "/api/unlock",
+                get(unlock::unlock_status).post(unlock::attempt),
+            )
+            .route("/api/unlock/heartbeat", post(unlock::heartbeat))
+            .route("/api/lock", post(unlock::lock));
+        if self.state.test_routes {
+            router = router.route("/api/test/guarded", post(unlock::test_guarded));
+        }
+        router
             .route("/ws", get(websocket))
             .route("/bridge/{file}", get(bridge::serve))
             .fallback(frontend::serve)

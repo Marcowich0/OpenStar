@@ -37,7 +37,7 @@ async fn json_endpoint_answers_with_server_info() {
         .unwrap();
     assert_eq!(response.status(), 200);
     let info: ServerInfo = response.json().await.unwrap();
-    assert_eq!(info.schema_version, 1);
+    assert_eq!(info.schema_version, openstar::db::SCHEMA_VERSION);
     assert!(!info.version.is_empty());
 }
 
@@ -76,7 +76,10 @@ async fn a_second_start_applies_no_migrations() {
     let (appdata, songs) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
 
     let first = start(appdata.path(), songs.path()).await;
-    assert_eq!(first.migrations_applied, 1);
+    assert_eq!(
+        first.migrations_applied,
+        openstar::db::SCHEMA_VERSION as usize
+    );
 
     let second = start(appdata.path(), songs.path()).await;
     assert_eq!(second.migrations_applied, 0);
