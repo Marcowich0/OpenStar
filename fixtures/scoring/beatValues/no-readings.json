@@ -1,0 +1,19 @@
+{
+  "description": "a Beat with no readings is no voice, beside a Beat with one voiced reading",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "songStartMs": 1000,
+  "micDelayMs": 100,
+  "micThresholdDbfs": -40,
+  "firstBeat": 0,
+  "lastBeat": 2,
+  "readings": [
+    { "captureTime": 1750, "pitch": 60.5, "clarity": 0.9, "loudness": -20 }
+  ],
+  "beatValues": [
+    { "kind": "noVoice" },
+    { "kind": "pitch", "pitch": 60.5 },
+    { "kind": "noVoice" }
+  ]
+}
