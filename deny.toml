@@ -20,6 +20,9 @@ allow = [
     "BSD-2-Clause",
     "BSD-3-Clause",
     "BSL-1.0",
+    # ISC: MIT-style, permissive. Needed by the TLS stack of the USDB client
+    # (rustls-webpki, untrusted, aws-lc-rs, aws-lc-sys).
+    "ISC",
     "MIT",
     # The Unicode licence: permissive, it only asks that its notice is kept. Needed
     # by unicode-ident (proc-macro2, syn) and the ICU crates (url, idna) that the
@@ -32,4 +35,9 @@ confidence-threshold = 0.93
 
 # A licence that is not on the list above is allowed only for the crate named
 # here. Every exception carries a `# Reason:` comment saying why it is acceptable.
-exceptions = []
+exceptions = [
+    # Reason: the Mozilla root-certificate list as data, under a permissive
+    # data licence (no copyleft, no conditions beyond keeping the notice);
+    # pulled in by rustls-platform-verifier for the USDB client's TLS.
+    { crate = "webpki-root-certs", allow = ["CDLA-Permissive-2.0"] },
+]
