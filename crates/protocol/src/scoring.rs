@@ -10,7 +10,7 @@ use ts_rs::TS;
 
 use crate::library::{SongId, SongIdentity};
 use crate::party::PartyId;
-use crate::profile::{Difficulty, ProfileId};
+use crate::profile::{Avatar, Difficulty, PaletteKey, ProfileId};
 use crate::song::NoteKind;
 
 /// What one Player sang in one Beat, independent of the Note and the
@@ -259,6 +259,74 @@ pub struct ScoreRecord {
     pub beat_range: BeatRange,
     pub note_fingerprint: NoteFingerprint,
     pub beat_values: Vec<BeatValue>,
+    /// The record became its Profile's High score for this (Song, Voice,
+    /// Difficulty) when it was stored: it counts (see [`HighScoreTable`]) and
+    /// its total is strictly higher than every earlier counted record of the
+    /// Profile there, or there was none. Never set for a Guest.
+    pub new_high_score: bool,
+}
+
+/// One table of a Song's High scores: one (Song identity, Voice,
+/// Difficulty). A record counts only when it belongs to a Profile, is
+/// Finished (not unfinished), has a total above 0 and is in `normal` mode; a
+/// mic lost record counts.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct HighScoreTable {
+    /// The Voice: an index into the parsed Song's `voices` (0 = `P1`).
+    pub voice: u32,
+    pub difficulty: Difficulty,
+    /// The top 10 Profiles, best first, each once with its best counted
+    /// record; empty when no record counts.
+    pub entries: Vec<HighScoreEntry>,
+}
+
+/// One Profile's High score in a [`HighScoreTable`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct HighScoreEntry {
+    /// 1-based. Equal totals share a place and the next place skips
+    /// (1, 1, 3).
+    pub place: u32,
+    pub holder: HighScoreHolder,
+    pub total: u32,
+    /// The record was sung against another Note fingerprint than the
+    /// Song's current one (an older timing).
+    pub older_timing: bool,
+}
+
+/// The Profile holding a High score, as tables and Song rows show it:
+/// outside any Party, so with its favourite colour.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct HighScoreHolder {
+    pub profile_id: ProfileId,
+    pub name: String,
+    pub avatar: Avatar,
+    pub favourite_colour: PaletteKey,
+}
+
+/// A Song's top High score at any Difficulty and either Voice, for its row
+/// in the Song list. Of equal totals, the one set first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct TopHighScore {
+    pub holder: HighScoreHolder,
+    pub total: u32,
+}
+
+/// The answer to `GET /api/songs/{id}/high-scores`: one table per Voice of
+/// the Song and Difficulty (Voice 0 first; Easy, Medium, Hard), empty ones
+/// included, so a duet always has its two Voices' tables.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SongHighScores {
+    pub tables: Vec<HighScoreTable>,
 }
 
 #[cfg(test)]

@@ -18,4 +18,11 @@ export type ScoreRecord = { id: ScoreRecordId, roundId: RoundId, partyId: PartyI
 /**
  * When the record was stored, in milliseconds since the Unix epoch.
  */
-recordedAtMs: number, total: number, notes: number, golden: number, lineBonus: number, micKind: MicKind, mode: RoundMode, unfinished: boolean, micLost: boolean, beatRange: BeatRange, noteFingerprint: NoteFingerprint, beatValues: Array<BeatValue>, };
+recordedAtMs: number, total: number, notes: number, golden: number, lineBonus: number, micKind: MicKind, mode: RoundMode, unfinished: boolean, micLost: boolean, beatRange: BeatRange, noteFingerprint: NoteFingerprint, beatValues: Array<BeatValue>, 
+/**
+ * The record became its Profile's High score for this (Song, Voice,
+ * Difficulty) when it was stored: it counts (see [`HighScoreTable`]) and
+ * its total is strictly higher than every earlier counted record of the
+ * Profile there, or there was none. Never set for a Guest.
+ */
+newHighScore: boolean, };
