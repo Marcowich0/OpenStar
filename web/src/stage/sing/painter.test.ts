@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Note } from "../../generated/Note";
 import type { TokenRef } from "../../theme/tokens";
-import type { DrawList, LaneEntry, PillEntry, PlayheadEntry } from "./frame";
+import type {
+  DrawList,
+  HeadBallEntry,
+  LaneEntry,
+  PillEntry,
+  PitchLineEntry,
+  PlayheadEntry,
+  TracePoint,
+} from "./frame";
 import { createPainter, referenceTransform } from "./painter";
 import painterSource from "./painter.ts?raw";
 
@@ -61,6 +69,7 @@ const lane: LaneEntry = {
   height: 170,
   notesX: 320,
   colour: "cherry",
+  lost: null,
   separator: {
     x: 318,
     top: 724,
@@ -213,6 +222,135 @@ describe("the painter", () => {
       ["lineTo", 600, 872],
       ["stroke"],
       ["set", "globalAlpha", 1],
+    ]);
+  });
+
+  it("washes a lost lane in its grey before clipping its Notes", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint(
+      [{ ...lane, lost: { colour: "--color-slate", alpha: 0.55, radius: 40 } }],
+      view,
+    );
+    const wash = calls.findIndex(([name]) => name === "roundRect");
+    expect(calls.slice(wash - 3, wash + 3)).toEqual([
+      ["set", "globalAlpha", 0.55],
+      ["set", "fillStyle", "value(--color-slate)"],
+      ["beginPath"],
+      ["roundRect", 60, 702, 1800, 170, 40],
+      ["fill"],
+      ["set", "globalAlpha", 1],
+    ]);
+    expect(wash).toBeLessThan(calls.findIndex(([name]) => name === "clip"));
+  });
+
+  it("strokes a pitch line's hits in the Party colour over an ink edge, and misses thin", () => {
+    const point = (x: number, hit: boolean): TracePoint => ({
+      songTime: x,
+      pitch: 0,
+      x,
+      y: 800,
+      hit,
+      guessed: false,
+    });
+    const line: PitchLineEntry = {
+      type: "pitchLine",
+      lane: 0,
+      // Hit 10 → 20 → 30, miss 30 → 40, hit 40 → 50.
+      points: [
+        point(10, true),
+        point(20, true),
+        point(30, true),
+        point(40, false),
+        point(50, true),
+      ],
+      hit: { colour: "cherry", width: 12, edge: "--color-ink", edgeWidth: 17 },
+      miss: { colour: "--color-ink", alpha: 0.22, width: 6.6 },
+    };
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint([line], view);
+    const strokes = (style: string, width: number) => {
+      const start = calls.findIndex(
+        (c, i) =>
+          c[1] === "strokeStyle" &&
+          c[2] === style &&
+          calls[i + 1]?.[2] === width,
+      );
+      const end = calls.findIndex((c, i) => i > start && c[0] === "stroke");
+      return calls.slice(start, end + 1).filter(([n]) => n !== "set");
+    };
+    const hitPath = [
+      ["beginPath"],
+      ["moveTo", 10, 800],
+      ["lineTo", 20, 800],
+      ["lineTo", 30, 800],
+      ["moveTo", 40, 800],
+      ["lineTo", 50, 800],
+      ["stroke"],
+    ];
+    expect(strokes("value(--color-ink)", 17).slice(1)).toEqual(hitPath);
+    expect(strokes("value(cherry)", 12).slice(1)).toEqual(hitPath);
+    expect(strokes("value(--color-ink)", 6.6).slice(1)).toEqual([
+      ["beginPath"],
+      ["moveTo", 30, 800],
+      ["lineTo", 40, 800],
+      ["stroke"],
+    ]);
+    // The edge goes down first, under the coloured stroke; caps and joins round.
+    const order = calls.filter((c) => c[1] === "lineWidth").map((c) => c[2]);
+    expect(order.indexOf(17)).toBeLessThan(order.indexOf(12));
+    expect(calls).toContainEqual(["set", "lineCap", "round"]);
+    expect(calls).toContainEqual(["set", "lineJoin", "round"]);
+    expect(calls).toContainEqual(["set", "globalAlpha", 0.22]);
+  });
+
+  it("draws a one-point pitch line as a dot", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint(
+      [
+        {
+          type: "pitchLine",
+          lane: 0,
+          points: [
+            { songTime: 1, pitch: 0, x: 5, y: 6, hit: true, guessed: false },
+          ],
+          hit: {
+            colour: "cherry",
+            width: 12,
+            edge: "--color-ink",
+            edgeWidth: 17,
+          },
+          miss: { colour: "--color-ink", alpha: 0.22, width: 6.6 },
+        },
+      ],
+      view,
+    );
+    expect(calls).toContainEqual(["moveTo", 5, 6]);
+    expect(calls).toContainEqual(["lineTo", 5, 6]);
+  });
+
+  it("fills the head ball in the Party colour with a white rim", () => {
+    const ball: HeadBallEntry = {
+      type: "headBall",
+      lane: 0,
+      x: 600,
+      y: 780,
+      pitch: 0,
+      radius: 14,
+      colour: "cherry",
+      rim: "--color-white",
+      rimWidth: 3,
+    };
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint([ball], view);
+    expect(calls.slice(3)).toEqual([
+      ["beginPath"],
+      ["arc", 600, 780, 14, 0, 2 * Math.PI],
+      ["set", "fillStyle", "value(cherry)"],
+      ["fill"],
+      ["set", "strokeStyle", "value(--color-white)"],
+      ["set", "lineWidth", 3],
+      ["setLineDash", []],
+      ["stroke"],
     ]);
   });
 
