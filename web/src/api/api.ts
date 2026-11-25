@@ -125,6 +125,13 @@ const REFUSAL_CODES = {
   jobInterrupted: true,
   toolNotFound: true,
   toolFailed: true,
+  songNotInLibrary: true,
+  songPreparing: true,
+  requestNotFound: true,
+  requestCannotMove: true,
+  tooManyPlayers: true,
+  playerNotInParty: true,
+  playerTwice: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

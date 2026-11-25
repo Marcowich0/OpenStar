@@ -14,6 +14,18 @@ export const en = {
   "join.enterCode": "Enter the Join code",
   "join.code": "Join code {code}",
 
+  // The shared input pieces in `ui/`: the hold button and the number pad.
+  "hold.hint": "Hold for a moment",
+  "numberPad.joinCode": "Join code",
+  "numberPad.codeRefused": "That code is not on the Stage",
+  "numberPad.adminPin": "Admin PIN",
+  "numberPad.pinEntered": {
+    one: "{count, number} digit entered",
+    other: "{count, number} digits entered",
+  },
+  "numberPad.delete": "Delete",
+  "numberPad.ok": "OK",
+
   // The walking skeleton's server check (shown on the Phone and the Stage).
   "server.loading": "Asking the server…",
   "server.failed": "The server did not answer",
@@ -73,6 +85,14 @@ export const en = {
   "userMessage.toolNotFound": "{tool} is not installed on the server",
   "userMessage.toolFailed": "{tool} failed with exit code {exitCode, number}",
   "userMessage.toolStopped": "{tool} was stopped before it finished",
+  "userMessage.songNotInLibrary": "That Song is not in the Library",
+  "userMessage.songPreparing":
+    "That Song is still being prepared. Try again in a moment",
+  "userMessage.requestNotFound": "That Song is no longer in the Queue",
+  "userMessage.requestCannotMove": "That Song cannot move there",
+  "userMessage.tooManyPlayers": "At most {max, number} Players can sing a Song",
+  "userMessage.playerNotInParty": "Someone you picked is not in the Party",
+  "userMessage.playerTwice": "Someone is picked twice",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
@@ -112,6 +132,12 @@ export const en = {
   "partyEvent.partyStarted": "New party started, Join code {joinCode}",
   "partyEvent.memberJoined": "{name} joined the Party in {colour}",
   "partyEvent.phoneJoined": "{name} joined on another Phone",
+  "partyEvent.requestAdded": "{song} was added to the Queue",
+  "partyEvent.requestMovedUp": "{song} moved up",
+  "partyEvent.requestMovedDown": "{song} moved down",
+  "partyEvent.requestPlayNext": "{song} plays next",
+  "partyEvent.requestRemoved": "{song} was removed from the Queue",
+  "partyEvent.requestedPlayersChanged": "The singers of {song} changed",
   "toast.songMovedUp": "{actor} moved {song} up",
   "toast.backOnMic": "{actor} is back on the mic",
   // A colour parameter is always a palette display name (`colourName`).

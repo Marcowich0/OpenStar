@@ -1,11 +1,12 @@
 //! Persisting the live state in SQLite, so it survives a restart: the
 //! current Party of each Stage in `parties`, its members in `party_members`
-//! and its joined Phones in `joined_phones`.
+//! its joined Phones in `joined_phones` and its Queue in `queue_requests`.
 
+use openstar_protocol::library::SongId;
 use openstar_protocol::profile::{PaletteKey, ProfileId};
 use openstar_protocol::{
     Identity, JoinCode, JoinedPhone, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
-    StageId,
+    Request, RequestId, RequestKind, StageId,
 };
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension};
@@ -33,6 +34,8 @@ pub async fn load_party(
                         started_at_ms: row.get(2)?,
                         members: Vec::new(),
                         phones: Vec::new(),
+                        queue: Vec::new(),
+                        head: None,
                     })
                 },
             )
@@ -42,6 +45,10 @@ pub async fn load_party(
         };
         party.members = load_members(conn, &party.party_id)?;
         party.phones = load_phones(conn, &party.party_id)?;
+        party.queue = load_queue(conn, &party.party_id)?;
+        // Until the results screen (#87) is kept, a stored Queue always has
+        // its first Request as the head.
+        party.head = party.queue.first().map(|r| r.request_id);
         party::refresh_on_phone(&mut party);
         Ok(Some(party))
     })
@@ -87,6 +94,100 @@ fn load_phones(conn: &Connection, party_id: &PartyId) -> rusqlite::Result<Vec<Jo
             })
         })?
         .collect()
+}
+
+fn load_queue(conn: &Connection, party_id: &PartyId) -> rusqlite::Result<Vec<Request>> {
+    let mut statement = conn.prepare(
+        "SELECT id, kind, song_id, requested_players, adder FROM queue_requests
+         WHERE party_id = ?1 ORDER BY position",
+    )?;
+    statement
+        .query_map([&party_id.0], |row| {
+            let kind: String = row.get(1)?;
+            let players: String = row.get(3)?;
+            Ok(Request {
+                request_id: RequestId(row.get(0)?),
+                kind: RequestKind::from_key(&kind).ok_or_else(|| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        1,
+                        Type::Text,
+                        format!("unknown Request kind {kind:?}").into(),
+                    )
+                })?,
+                song_id: SongId(row.get(2)?),
+                requested_players: serde_json::from_str(&players).map_err(|error| {
+                    rusqlite::Error::FromSqlConversionFailure(3, Type::Text, error.into())
+                })?,
+                adder: row.get::<_, Option<u32>>(4)?.map(PartyMemberId),
+            })
+        })?
+        .collect()
+}
+
+fn players_json(players: &[PartyMemberId]) -> String {
+    serde_json::to_string(players).unwrap_or_else(|_| "[]".to_owned())
+}
+
+/// Stores a new Request at the end of the Queue of `party_id` and returns
+/// its new id. `request.request_id` is ignored.
+pub async fn insert_request(
+    db: &Database,
+    party_id: &PartyId,
+    request: &Request,
+) -> anyhow::Result<RequestId> {
+    let party_id = party_id.clone();
+    let request = request.clone();
+    db.call(move |conn| {
+        conn.query_row(
+            "INSERT INTO queue_requests (party_id, position, kind, song_id, requested_players, adder)
+             VALUES (?1, (SELECT COALESCE(MAX(position) + 1, 0) FROM queue_requests WHERE party_id = ?1),
+                     ?2, ?3, ?4, ?5)
+             RETURNING id",
+            (
+                &party_id.0,
+                request.kind.as_str(),
+                request.song_id.0,
+                players_json(&request.requested_players),
+                request.adder.map(|m| m.0),
+            ),
+            |row| row.get(0).map(RequestId),
+        )
+    })
+    .await
+}
+
+/// Stores the Queue of `party` as it is now: Requests no longer in it are
+/// deleted, the others get their place and requested Players. One
+/// transaction.
+pub async fn save_queue(db: &Database, party: &PartySnapshot) -> anyhow::Result<()> {
+    let party_id = party.party_id.clone();
+    let queue = party.queue.clone();
+    db.call(move |conn| {
+        let tx = conn.transaction()?;
+        let kept: Vec<u32> = queue.iter().map(|r| r.request_id.0).collect();
+        tx.execute(
+            "DELETE FROM queue_requests WHERE party_id = ?1
+             AND id NOT IN (SELECT value FROM json_each(?2))",
+            (
+                &party_id.0,
+                serde_json::to_string(&kept).unwrap_or_default(),
+            ),
+        )?;
+        for (position, request) in queue.iter().enumerate() {
+            tx.execute(
+                "UPDATE queue_requests SET position = ?1, requested_players = ?2
+                 WHERE id = ?3 AND party_id = ?4",
+                (
+                    i64::try_from(position).unwrap_or(i64::MAX),
+                    players_json(&request.requested_players),
+                    request.request_id.0,
+                    &party_id.0,
+                ),
+            )?;
+        }
+        tx.commit()
+    })
+    .await
 }
 
 /// Makes `party` the current Party of its Stage, replacing the one before

@@ -11,6 +11,7 @@
  */
 
 :root {
+  --icon-backspace: url("./backspace.svg");
   --icon-close: url("./close.svg");
   --icon-lock: url("./lock.svg");
 }

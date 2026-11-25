@@ -25,6 +25,8 @@ pub fn start_party(
         started_at_ms: now_ms,
         members: Vec::new(),
         phones: Vec::new(),
+        queue: Vec::new(),
+        head: None,
     })
 }
 

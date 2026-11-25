@@ -36,6 +36,8 @@ const party = (joinCode: string): PartySnapshot => ({
   startedAtMs: 1,
   members: [],
   phones: [],
+  queue: [],
+  head: null,
 });
 
 describe("PartyPanel", () => {

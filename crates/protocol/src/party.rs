@@ -12,7 +12,17 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::StageId;
+use crate::library::SongId;
 use crate::profile::{PaletteKey, ProfileId};
+
+/// How many seats a Line-up has, and so how many requested Players a
+/// Request may name. 4 in v1. Nothing else hard-codes it: no database CHECK,
+/// fixed-size array or generated type.
+pub const SEATS: usize = 4;
+
+// The ceiling is the twelve Party colours: no two Players of a Line-up may
+// share a colour.
+const _: () = assert!(SEATS >= 1 && SEATS <= PaletteKey::ALL.len());
 
 /// Names one Party. A new Party always gets a new id; Score records keep it,
 /// so Guests can be told apart across evenings.
@@ -128,6 +138,78 @@ pub struct PartySnapshot {
     pub members: Vec<PartyMember>,
     /// Every joined Phone, in the order they joined.
     pub phones: Vec<JoinedPhone>,
+    /// The Queue: every Request waiting to be sung, in order.
+    pub queue: Vec<Request>,
+    /// The head of the Queue: the Request whose Line-up waits or whose Song
+    /// plays. When set it is always the first Request; it never moves and
+    /// nothing moves above it. `null` while the song browser shows.
+    pub head: Option<RequestId>,
+}
+
+/// Names one Request. Never reused, also across Parties.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RequestId(pub u32);
+
+/// What a Request asks for. Always `song` in v1; later game modes add kinds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum RequestKind {
+    Song,
+}
+
+impl RequestKind {
+    /// The key stored in SQLite and sent on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Song => "song",
+        }
+    }
+
+    pub fn from_key(key: &str) -> Option<Self> {
+        (key == "song").then_some(Self::Song)
+    }
+}
+
+/// One entry of the Queue: a Library Song and the Players asked to sing it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Request {
+    pub request_id: RequestId,
+    pub kind: RequestKind,
+    pub song_id: SongId,
+    /// The Party members asked to sing it, in order; at most [`SEATS`], no
+    /// member twice, possibly none.
+    pub requested_players: Vec<PartyMemberId>,
+    /// The Party member who added it, or `null` when the Stage added it.
+    pub adder: Option<PartyMemberId>,
+}
+
+/// Where a Request moves in the Queue. There is no arbitrary reorder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum QueueMove {
+    /// One place up, never above the head.
+    Up,
+    /// One place down.
+    Down,
+    /// Directly after the head (to the top when there is no head).
+    Next,
+}
+
+/// The parameters of every Queue change event: which Request, and its Song
+/// with the title it had at that moment (so a removed Request still names
+/// its Song).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RequestChange {
+    pub request_id: RequestId,
+    pub song_id: SongId,
+    pub title: String,
 }
 
 /// Who made a change: the Stage, or the Party member using the Phone that
@@ -172,6 +254,18 @@ pub enum PartyEvent {
         member_id: PartyMemberId,
         name: String,
     },
+    /// A Request was added at the end of the Queue.
+    RequestAdded(RequestChange),
+    /// A Request moved one place up.
+    RequestMovedUp(RequestChange),
+    /// A Request moved one place down.
+    RequestMovedDown(RequestChange),
+    /// A Request moved to directly after the head (Play next).
+    RequestPlayNext(RequestChange),
+    /// A Request left the Queue because someone removed it.
+    RequestRemoved(RequestChange),
+    /// A Request's requested Players changed.
+    RequestedPlayersChanged(RequestChange),
 }
 
 /// One accepted change: who made it and what it was.

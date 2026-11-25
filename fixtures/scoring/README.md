@@ -1,8 +1,8 @@
 # Scoring cases
 
-Cases for Beats, reading placement and (from #54) Beat values. Vitest runs them
+Cases for Beats, reading placement and (from #54) Beat values and the scorer. Vitest runs them
 (`web/src/clock/beats.test.ts`, `web/src/clock/placement.test.ts`,
-`web/src/scoring/beatValues.test.ts`); a second
+`web/src/scoring/beatValues.test.ts`, `web/src/scoring/scorer.test.ts`); a second
 implementation (for example the server rescoring) runs the same files.
 
 ## `beats.json`: `beatAt`
@@ -60,3 +60,31 @@ passes the Mic threshold at or above it, and is voiced when it also has a pitch 
 clarity ≥ 0.8. With _n_ readings and _h_ = ⌈_n_ / 2⌉: _n_ = 0 → no voice; ≥ _h_ voiced →
 pitch, the lower median (index ⌊(_k_ − 1) / 2⌋ of the _k_ voiced pitches sorted
 ascending); else ≥ _h_ passing the threshold → voice without pitch; else no voice.
+
+## `scorer/*.json`: judging Beats against a Voice's Notes
+
+Each file is one Song's Voices and one or more Players, each scored alone against
+one Voice from stored Beat values.
+
+| Field                          | Meaning                                                                                                                                                    |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gapSeconds`, `beatsPerMinute` | The Beat grid, as in `beats.json`; `file` shows the headers as written.                                                                                    |
+| `startSeconds`                 | `#START` in seconds, or `null`. A Note whose first Beat starts before it is not scored.                                                                    |
+| `voices`                       | The parsed Song's Voices: `lines`, each with `notes` (`kind` as the generated `NoteKind`, `start` and `length` in Beats, `pitch` with 0 = C4, as written). |
+| `players[].voice`              | The index of the Voice the Player sings.                                                                                                                   |
+| `players[].difficulty`         | `easy`, `medium` or `hard`.                                                                                                                                |
+| `players[].range`              | Optional Beat range `{ firstBeat, lastBeat }`, both included; absent means the whole Voice.                                                                |
+| `players[].firstBeat`          | The Beat the first stored value belongs to; the values follow one per Beat.                                                                                |
+| `players[].beatValues`         | The stored Beat values, compactly: `null` no voice, `"voice"` voice without pitch, a number a pitch (fractional MIDI note number).                         |
+| `players[].expected`           | The range used (`firstBeat`, `lastBeat`), `voiceValue`, the `notes` and `golden` sums, and the judged Beats split into `hitBeats` and `missedBeats`.       |
+| `comment`                      | Optional, at file or Player level: how the expected values were worked out by hand.                                                                        |
+
+The rules (#54): a scored Note has factor > 0 (Normal 1, Golden 2, Rap 1, Golden Rap 2,
+Freestyle 0), length > 0, lies wholly inside the range and does not start before
+`#START`. voiceValue = Σ length × factor over them; a hit Beat earns 9000 / voiceValue ×
+factor, to the Notes sum (Normal, Rap) or the golden sum (Golden, Golden Rap). A Beat is
+judged once, for the first scored Note covering it in the Voice's Note order; Beats no
+scored Note covers are not judged. Rap and Golden Rap hit on voice without pitch or a
+pitch; Normal and Golden hit on a pitch with |d'| ≤ tolerance (Easy 250, Medium 150,
+Hard 50 cents), d = (sung − Note pitch) × 100, d' = d − 1200 × ⌊(d + 600) / 1200⌋. The
+whole Voice runs from the first Beat of its first Note to the last Beat of its last Note.
