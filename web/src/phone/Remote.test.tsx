@@ -1,5 +1,12 @@
 import { QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "../api/queryClient";
@@ -9,6 +16,8 @@ import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { Profile } from "../generated/Profile";
 import type { Request } from "../generated/Request";
 import type { ServerMessage } from "../generated/ServerMessage";
+import type { SongFilters } from "../generated/SongFilters";
+import type { SongSummary } from "../generated/SongSummary";
 import type { LiveClientOptions } from "../live/liveClient";
 import { createLiveStore } from "../live/liveStore";
 import { Remote } from "./Remote";
@@ -38,7 +47,12 @@ const PROFILES: Profile[] = [
 const SONGS: Record<number, unknown> = {
   40: {
     id: 40,
-    song: { headers: { title: "Valerie", artist: "Amy Winehouse" } },
+    song: {
+      headers: { title: "Valerie", artist: "Amy Winehouse", year: 2006 },
+      voices: [{ lines: [] }],
+    },
+    lengthSeconds: 200,
+    preparing: false,
     media: { cover: null, background: null, tileColour: "teal" },
   },
 };
@@ -94,11 +108,77 @@ const waiting: PartySnapshot = {
   },
 };
 
+const summary = (
+  id: number,
+  title: string,
+  artist: string,
+  more: Partial<SongSummary> = {},
+): SongSummary => ({
+  id,
+  path: `${artist} - ${title}/song.txt`,
+  artist,
+  title,
+  duet: false,
+  identity: { kind: "artistTitle", artist, title, duet: false },
+  lengthSeconds: 200,
+  hasVideo: false,
+  preparing: false,
+  cover: null,
+  tileColour: "teal",
+  topHighScore: null,
+  year: null,
+  ...more,
+});
+
+/** The Library's listed Songs, by artist, then title. */
+const LIBRARY: SongSummary[] = [
+  summary(41, "Islands", "The xx", { duet: true, year: 2009 }),
+  summary(40, "Valerie", "Amy Winehouse", {
+    year: 2006,
+    topHighScore: {
+      holder: {
+        profileId: 7,
+        name: "Bo",
+        avatar: { kind: "builtIn", key: "cat" },
+        favouriteColour: "cherry",
+      },
+      total: 8120,
+    },
+  }),
+  summary(42, "Africa", "Toto", { year: 1982, preparing: true }),
+];
+
+const FILTERS: SongFilters = {
+  languages: ["English"],
+  genres: ["Pop", "Rock"],
+  years: [1982, 2006, 2009],
+  editions: [],
+  creators: [],
+  duet: [false, true],
+  hasVideo: [false],
+  length: { minSeconds: 200, maxSeconds: 200 },
+};
+
+/** Each `GET /api/songs` the Phone made, as its URL query. */
+let songLists: URLSearchParams[] = [];
+
 beforeEach(() => {
+  songLists = [];
   vi.stubGlobal(
     "fetch",
     vi.fn((input: string | URL) => {
-      const path = new URL(input, "http://openstar.test").pathname;
+      const url = new URL(input, "http://openstar.test");
+      const path = url.pathname;
+      if (path === "/api/songs") {
+        songLists.push(url.searchParams);
+        const search = url.searchParams.get("search")?.toLowerCase() ?? "";
+        const songs = LIBRARY.filter((s) =>
+          `${s.artist} ${s.title}`.toLowerCase().includes(search),
+        );
+        return Promise.resolve(Response.json({ songs, filters: FILTERS }));
+      }
+      if (/^\/api\/songs\/\d+\/high-scores$/.test(path))
+        return Promise.resolve(Response.json({ tables: [] }));
       const song = /^\/api\/songs\/(\d+)$/.exec(path);
       if (song) return Promise.resolve(Response.json(SONGS[Number(song[1])]));
       return Promise.resolve(Response.json(PROFILES));
@@ -218,15 +298,140 @@ describe("the Remote frame", () => {
     expect(screen.queryByRole("button", { name: /Line-up/ })).toBeNull();
   });
 
-  it("offers no guarded action: only the tabs, and the strip to the Stage tab", async () => {
+  it("offers no guarded action: only the tabs, the Songs tab, and the strip to the Stage tab", async () => {
     const { sent } = renderRemote(waiting);
     fireEvent.click(screen.getByRole("tab", { name: "Songs" }));
     await screen.findByRole("button", { name: /Line-up for Valerie/ });
-    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual([
-      expect.stringContaining("Line-up for Valerie"),
-    ]);
+    // Only the selected tab's panel is rendered.
+    const songs = screen.getByRole("tabpanel");
+    expect(
+      screen
+        .getAllByRole("button")
+        .filter((button) => !songs.contains(button))
+        .map((b) => b.textContent),
+    ).toEqual([expect.stringContaining("Line-up for Valerie")]);
     expect(sent).toEqual([]);
     expect(selected()).toBe("songs");
+  });
+});
+
+describe("the Songs tab", () => {
+  const songList = () => screen.getByRole("list", { name: "Songs" });
+  const row = (title: string) =>
+    within(songList())
+      .getAllByRole("listitem")
+      .find((item) => within(item).queryByText(title) !== null);
+
+  it("has a search box, filter chips and the Library's Songs", async () => {
+    renderRemote(idle);
+    expect(
+      screen.getByRole("searchbox", { name: "Search songs or artists" }),
+    ).toBeInTheDocument();
+    await screen.findByText("Valerie");
+    const chips = screen.getByRole("group", { name: "Filters" });
+    expect(
+      within(chips)
+        .getAllByRole("button")
+        .map((chip) => chip.textContent),
+    ).toEqual([
+      "All",
+      "Duets",
+      "English",
+      "Pop",
+      "Rock",
+      "2009",
+      "2006",
+      "1982",
+    ]);
+    expect(within(chips).getByRole("button", { name: "All" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      within(songList())
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      expect.stringMatching(/Islands.*The xx.*Duet.*2009/),
+      expect.stringMatching(/Valerie.*Amy Winehouse.*2006.*Best 8,120/),
+      expect.stringMatching(/Africa.*Toto.*Preparing.*1982/),
+    ]);
+    const valerie = row("Valerie");
+    expect(valerie && within(valerie).getByTestId("cover")).toBeInTheDocument();
+    expect(
+      valerie && within(valerie).getByRole("button", { name: "Add Valerie" }),
+    ).toBeInTheDocument();
+  });
+
+  it("searches by song or artist", async () => {
+    renderRemote(idle);
+    await screen.findByText("Valerie");
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "Search songs or artists" }),
+      { target: { value: "amy" } },
+    );
+    await waitFor(() => {
+      expect(within(songList()).getAllByRole("listitem")).toHaveLength(1);
+    });
+    expect(songList()).toHaveTextContent("Valerie");
+    expect(songLists.at(-1)?.get("search")).toBe("amy");
+  });
+
+  it("filters with a chip, and All turns the filters off", async () => {
+    renderRemote(idle);
+    await screen.findByText("Valerie");
+    const chips = screen.getByRole("group", { name: "Filters" });
+    fireEvent.click(within(chips).getByRole("button", { name: "Duets" }));
+    await waitFor(() => {
+      expect(songLists.at(-1)?.get("duet")).toBe("true");
+    });
+    expect(
+      within(chips).getByRole("button", { name: "Duets" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(within(chips).getByRole("button", { name: "All" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    fireEvent.click(within(chips).getByRole("button", { name: "Pop" }));
+    await waitFor(() => {
+      expect(songLists.at(-1)?.get("genre")).toBe("Pop");
+    });
+    expect(songLists.at(-1)?.get("duet")).toBe("true");
+
+    fireEvent.click(within(chips).getByRole("button", { name: "All" }));
+    expect(within(chips).getByRole("button", { name: "All" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(chips).getByRole("button", { name: "Pop" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    // Back to the first list, which is still cached.
+    expect(songLists[0]?.toString()).toBe("");
+  });
+
+  it("opens the Request sheet from a row or its + button, and closes it on a tap outside", async () => {
+    renderRemote(idle);
+    fireEvent.click(await screen.findByRole("button", { name: "Add Valerie" }));
+    expect(
+      await screen.findByRole("dialog", { name: "Valerie" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Add to the Queue" }),
+    ).toBeInTheDocument();
+
+    const veil = screen.getByTestId("sheet-veil");
+    fireEvent.pointerDown(veil);
+    fireEvent.click(veil);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Valerie/ }));
+    expect(
+      await screen.findByRole("dialog", { name: "Valerie" }),
+    ).toBeInTheDocument();
   });
 });
 

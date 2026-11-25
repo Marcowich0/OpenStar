@@ -222,6 +222,27 @@ describe("a Phone's own changes", () => {
     }
   });
 
+  it("say where this Phone's own new Request is in the Queue", () => {
+    const request = (requestId: number) => ({
+      requestId,
+      kind: "song" as const,
+      songId: 9,
+      requestedPlayers: [],
+      adder: 1,
+    });
+    const queued = {
+      ...party,
+      queue: [1, 2, 4, 5, 3].map(request),
+      head: 1,
+    };
+    const toast = byMember(1, { code: "requestAdded", params: africa });
+    const content = toastContent(toast, queued, profiles, 1);
+    expect(content.parts.map((part) => part.text).join("")).toBe(
+      "Africa added, number 5",
+    );
+    expect(content.parts[0]).toEqual({ text: "Africa", param: "song" });
+  });
+
   it("say “you” for changes about this Phone's member", () => {
     expect(
       mine(

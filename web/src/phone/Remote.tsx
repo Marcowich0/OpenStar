@@ -21,6 +21,7 @@ import {
   statusStrip,
   type RemoteTab,
 } from "./remoteFrame";
+import { SongsTab } from "./songs/SongsTab";
 import { StatusStrip } from "./StatusStrip";
 
 /** Each tab's label and icon, in `REMOTE_TABS` order. */
@@ -42,7 +43,8 @@ function isRemoteTab(key: unknown): key is RemoteTab {
  * logo and this Phone's own avatar, the four tabs at the bottom with the
  * Queue's badge, the status strip above them, and the toasts at the top. It
  * opens on the Stage tab while a Line-up waits, on Songs otherwise. The
- * tabs' contents and the Me sheet come with later tickets.
+ * Songs tab is `SongsTab`; the other tabs' contents and the Me sheet come
+ * with later tickets.
  */
 export function Remote({ store }: { store: LiveStore }) {
   const member = useLive(phoneMember, store);
@@ -76,7 +78,9 @@ export function Remote({ store }: { store: LiveStore }) {
         ) : null}
       </TopBar>
       {REMOTE_TABS.map((id) => (
-        <TabPanel key={id} id={id} className="grow px-5 outline-none" />
+        <TabPanel key={id} id={id} className="grow px-5 pb-4 outline-none">
+          {id === "songs" && <SongsTab store={store} />}
+        </TabPanel>
       ))}
       <div className="sticky bottom-0 flex flex-col">
         {strip && (

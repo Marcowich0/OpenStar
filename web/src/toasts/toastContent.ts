@@ -147,15 +147,23 @@ export function toastContent(
           ? tParts("toast.youMicOpened")
           : tParts("partyEvent.micOpened", { name: event.params.name }),
       };
-    case "requestAdded":
+    case "requestAdded": {
+      // This Phone's own new Request says where it is: "Africa added, number 5".
+      const place =
+        party?.queue.findIndex((r) => r.requestId === event.params.requestId) ??
+        -1;
       return queueChange(
         actor,
         mine,
         event.params,
         (name, song) => tParts("toast.requestAdded", { actor: name, song }),
         (song) => tParts("partyEvent.requestAdded", { song }),
-        (song) => tParts("toast.youRequestAdded", { song }),
+        (song) =>
+          place < 0
+            ? tParts("toast.youRequestAdded", { song })
+            : tParts("toast.youRequestAddedAt", { song, number: place + 1 }),
       );
+    }
     case "requestMovedUp":
       return queueChange(
         actor,

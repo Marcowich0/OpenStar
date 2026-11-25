@@ -4,8 +4,9 @@ import { expect, FIXTURE_SONGS, test } from "../fixtures";
 
 // The Remote frame (#117): the Queue tab's badge, the status strip while a
 // Line-up waits, the Stage tab as the default tab then, and the toasts, in
-// the second person for the Phone's own change. No screen adds Requests yet,
-// so the test sends `addRequest` over a second socket of the Phone itself.
+// the second person for the Phone's own change. It sends `addRequest` over
+// a second socket of the Phone itself (`songs.spec.ts` adds from the Songs
+// tab).
 
 /** The Stage's current Join code. */
 async function stageJoinCode(stage: Page): Promise<string> {
@@ -111,7 +112,7 @@ test("the Remote shows the Queue badge, the waiting Line-up and every change as 
     // with the actor's name and avatar on the other.
     await expect(
       mine.getByRole("status", { name: "Party changes" }),
-    ).toContainText(`You added ${song.title}`);
+    ).toContainText(`${song.title} added, number 1`);
     const toasts = theirs.getByRole("status", { name: "Party changes" });
     await expect(toasts).toContainText(`${adder} added ${song.title}`);
     await expect(
