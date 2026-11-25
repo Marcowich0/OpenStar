@@ -1,8 +1,8 @@
 # The Library scan's edge cases
 
 The scan tests (`crates/server/tests/library_scan.rs`) copy this folder into a
-temporary Library, then create every file listed in `media.list` there as an empty
-file (media is never committed). Placeholder lyrics only. The fixture Library
+temporary Library, then create every file listed in `media.list` there as a tiny generated
+placeholder (`openstar_test_harness::placeholder_media`; media is never committed). Placeholder lyrics only. The fixture Library
 the e2e suite serves, with generated audio, is `fixtures/library/`.
 
 | `.txt`                                      | What it covers                                                                              |

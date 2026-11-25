@@ -13,11 +13,11 @@ use openstar_protocol::{
 };
 use openstar_test_harness::{TestApp, WsClient};
 
-/// Writes a playable Song (`song.txt` + empty `song.mp3`) into `folder`;
+/// Writes a playable Song (`song.txt` + a placeholder `song.mp3`) into `folder`;
 /// with `duet`, it has two Voices.
 fn write_song(folder: &Path, title: &str, duet: bool) {
     std::fs::create_dir_all(folder).unwrap();
-    std::fs::write(folder.join("song.mp3"), b"").unwrap();
+    openstar_test_harness::placeholder_media(&folder.join("song.mp3")).unwrap();
     let body = if duet {
         "P1\n: 0 4 0 La\nP2\n: 8 4 0 Lo\nE\n"
     } else {

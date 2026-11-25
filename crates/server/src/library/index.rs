@@ -11,8 +11,8 @@
 use super::identity;
 use super::search::Listed;
 use openstar_protocol::library::{
-    LibraryProblem, MediaFile, ProblemReason, ProblemSeverity, SongDetail, SongId, SongIdentity,
-    SongMedia, SongSummary, SongVideo,
+    FileProblem, LibraryProblem, MediaFile, ProblemReason, ProblemSeverity, SongDetail, SongId,
+    SongIdentity, SongMedia, SongSummary, SongVideo,
 };
 use openstar_protocol::song::ParsedSong;
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -246,6 +246,92 @@ pub(crate) fn store_media(
         resolved(Role::Vocals),
         resolved(Role::Instrumental),
     ])?;
+    refresh(tx, &Refresh::Row(path))
+}
+
+/// Which rows [`refresh`] updates.
+pub(crate) enum Refresh<'a> {
+    All,
+    /// The row of this `.txt`.
+    Row(&'a str),
+    /// The rows that play or show this media file.
+    Media(&'a str),
+}
+
+/// Updates what follows a row's media conversions (see
+/// `library::conversion`): `preparing` while its audio converts,
+/// `conversion_problems` (audio that could not be converted is a
+/// rejection, video a warning), `playable` (no rejection), and `has_video`
+/// (a `#VIDEO` file that, once probed readable, holds video, and whose
+/// conversion did not fail).
+pub(crate) fn refresh(conn: &Connection, rows: &Refresh<'_>) -> rusqlite::Result<()> {
+    let (filter, param) = match rows {
+        Refresh::All => ("1", None),
+        Refresh::Row(path) => ("path = ?1", Some(*path)),
+        Refresh::Media(path) => ("(audio_path = ?1 OR video_path = ?1)", Some(*path)),
+    };
+    let sql = format!(
+        "SELECT id, song IS NOT NULL, file_problems, audio_path, video_path,
+             (SELECT state FROM media_conversions c WHERE c.path = audio_path),
+             (SELECT state FROM media_conversions c WHERE c.path = video_path),
+             (SELECT container IS NULL OR video_codec IS NOT NULL
+              FROM media_probes p WHERE p.path = video_path)
+         FROM library_files WHERE {filter}"
+    );
+    let mut select = conn.prepare_cached(&sql)?;
+    let mut update = conn.prepare_cached(
+        "UPDATE library_files SET preparing = ?2, conversion_problems = ?3, playable = ?4,
+             has_video = ?5
+         WHERE id = ?1",
+    )?;
+    let read = |row: &rusqlite::Row<'_>| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, bool>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, Option<String>>(3)?,
+            row.get::<_, Option<String>>(4)?,
+            row.get::<_, Option<String>>(5)?,
+            row.get::<_, Option<String>>(6)?,
+            row.get::<_, Option<bool>>(7)?,
+        ))
+    };
+    let rows: Vec<_> = match param {
+        Some(path) => select.query_map([path], read)?.collect::<Result<_, _>>()?,
+        None => select.query_map([], read)?.collect::<Result<_, _>>()?,
+    };
+    for (id, parsed, file_problems, audio, video, audio_state, video_state, video_stream) in rows {
+        let mut problems: Vec<Problem> = Vec::new();
+        let audio_failed = audio_state.as_deref() == Some("failed");
+        let separate_video = video.is_some() && video != audio;
+        let video_failed = separate_video && video_state.as_deref() == Some("failed");
+        if let (true, Some(file)) = (audio_failed, &audio) {
+            problems.push((
+                ProblemSeverity::Rejection,
+                ProblemReason::File(FileProblem::AudioNotConverted { file: file.clone() }),
+            ));
+        }
+        if let (true, Some(file)) = (video_failed, &video) {
+            problems.push((
+                ProblemSeverity::Warning,
+                ProblemReason::File(FileProblem::VideoNotConverted { file: file.clone() }),
+            ));
+        }
+        let playable = parsed
+            && !audio_failed
+            && !decode_problems(&file_problems)
+                .iter()
+                .any(|(severity, _)| *severity == ProblemSeverity::Rejection);
+        let preparing = parsed && audio_state.as_deref() == Some("converting");
+        let has_video = video.is_some() && video_stream.unwrap_or(true) && !video_failed;
+        update.execute(params![
+            id,
+            preparing,
+            encode_problems(&problems),
+            playable,
+            has_video
+        ])?;
+    }
     Ok(())
 }
 
@@ -268,7 +354,7 @@ pub(crate) fn remove(tx: &Transaction<'_>, ids: &[i64]) -> rusqlite::Result<()> 
 pub(crate) fn listed(conn: &Connection) -> rusqlite::Result<Vec<Listed>> {
     let mut statement = conn.prepare(
         "SELECT id, path, artist, title, duet, identity, length_seconds, has_video,
-             cover_path IS NOT NULL, year, languages, genres, editions, creators
+             cover_path IS NOT NULL, year, languages, genres, editions, creators, preparing
          FROM (
              SELECT *, ROW_NUMBER() OVER (
                  PARTITION BY identity ORDER BY mtime_ns DESC, id
@@ -290,6 +376,7 @@ pub(crate) fn listed(conn: &Connection) -> rusqlite::Result<Vec<Listed>> {
                 duet: row.get(4)?,
                 length_seconds: row.get(6)?,
                 has_video: row.get(7)?,
+                preparing: row.get(14)?,
                 cover: image_url(id, MediaRole::Cover, row.get(8)?),
                 tile_colour: super::artwork::tile_colour(&identity),
                 identity,
@@ -312,7 +399,10 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
              audio_path, video_path, cover_path IS NOT NULL, background_path IS NOT NULL,
              has_video,
              (SELECT native FROM media_probes p WHERE p.path = audio_path),
-             (SELECT native FROM media_probes p WHERE p.path = video_path)
+             (SELECT native FROM media_probes p WHERE p.path = video_path),
+             preparing, conversion_problems,
+             (SELECT state FROM media_conversions c WHERE c.path = audio_path),
+             (SELECT state FROM media_conversions c WHERE c.path = video_path)
          FROM library_files
          WHERE id = ?1 AND playable",
         [id.0],
@@ -327,19 +417,29 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
                 })?;
             let mut problems = decode_problems(&row.get::<_, String>(2)?);
             problems.extend(decode_problems(&row.get::<_, String>(3)?));
+            problems.extend(decode_problems(&row.get::<_, String>(14)?));
             let identity = decode_identity(row, 4)?;
             let audio_path: String = row.get(6)?;
             let video_path: Option<String> = row.get(7)?;
             let has_video: bool = row.get(10)?;
-            let audio_native: Option<bool> = row.get(11)?;
-            let video_native: Option<bool> = row.get(12)?;
+            // A converted copy is served in the file's place, and plays.
+            let converted = |state: Option<String>| state.as_deref() == Some("done");
+            let audio_state: Option<String> = row.get(15)?;
+            let video_state: Option<String> = row.get(16)?;
+            let audio_native =
+                row.get::<_, Option<bool>>(11)?.unwrap_or(false) || converted(audio_state);
+            let video_ready = video_state.as_deref().is_none_or(|s| s == "done");
+            let video_native =
+                row.get::<_, Option<bool>>(12)?.unwrap_or(false) || converted(video_state);
             let video = match video_path {
                 Some(_) if !has_video => None,
                 Some(video) if video == audio_path => Some(SongVideo::InAudio),
+                // Still converting: the Song plays over its background or cover.
+                Some(_) if !video_ready => None,
                 Some(_) => Some(SongVideo::File {
                     file: MediaFile {
                         url: media_url(id, MediaRole::Video),
-                        native: video_native.unwrap_or(false),
+                        native: video_native,
                     },
                     gap_seconds: song.headers.video_gap_seconds.unwrap_or(0.0),
                 }),
@@ -348,7 +448,7 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
             let media = SongMedia {
                 audio: MediaFile {
                     url: media_url(id, MediaRole::Audio),
-                    native: audio_native.unwrap_or(false),
+                    native: audio_native,
                 },
                 video,
                 cover: image_url(id, MediaRole::Cover, row.get(8)?),
@@ -362,6 +462,7 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
                 song,
                 identity,
                 length_seconds: row.get(5)?,
+                preparing: row.get(13)?,
                 media,
                 warnings: problems.into_iter().map(|(_, reason)| reason).collect(),
             })
@@ -455,17 +556,19 @@ pub(crate) fn identity_present(
     .query_row([identity::key(identity)], |row| row.get(0))
 }
 
-/// Every Library problem, by path: the parser's first, then the references'.
+/// Every Library problem, by path: the parser's first, then the
+/// references', then the conversions'.
 pub(crate) fn problems(conn: &Connection) -> rusqlite::Result<Vec<LibraryProblem>> {
     let mut statement = conn.prepare(
-        "SELECT path, txt_problems, file_problems FROM library_files
-         WHERE txt_problems != '[]' OR file_problems != '[]'
+        "SELECT path, txt_problems, file_problems, conversion_problems FROM library_files
+         WHERE txt_problems != '[]' OR file_problems != '[]' OR conversion_problems != '[]'
          ORDER BY path",
     )?;
     let rows = statement.query_map([], |row| {
         let path: String = row.get(0)?;
         let mut problems = decode_problems(&row.get::<_, String>(1)?);
         problems.extend(decode_problems(&row.get::<_, String>(2)?));
+        problems.extend(decode_problems(&row.get::<_, String>(3)?));
         Ok(problems
             .into_iter()
             .map(|(severity, reason)| LibraryProblem {

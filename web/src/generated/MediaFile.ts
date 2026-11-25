@@ -9,8 +9,10 @@ export type MediaFile = {
  */
 url: string, 
 /**
- * Whether the Stage plays the file as it is, decided by its container
- * and codecs (from ffprobe). `false` means it needs conversion, and also
- * for a file not probed yet.
+ * Whether the Stage plays the file served at `url`, decided by its
+ * container and codecs (from ffprobe). A file converted into the cache
+ * is served in its place at the same URL, and is native. `false` means
+ * it needs conversion (not converted yet), and also for a file not
+ * probed yet.
  */
 native: boolean, };

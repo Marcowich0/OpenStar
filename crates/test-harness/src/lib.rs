@@ -30,7 +30,7 @@ mod usdb;
 mod ytdlp;
 
 pub use app::{AppFolders, TestApp, TestAppBuilder, WsClient};
-pub use media::{Media, Signal};
+pub use media::{Media, Signal, placeholder_media};
 pub use usdb::{FakeUsdb, RecordedRequest, Scripted};
 pub use ytdlp::{YtDlpStub, YtDlpStubBehaviour};
 

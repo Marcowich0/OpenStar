@@ -13,10 +13,10 @@ use openstar_protocol::{
 };
 use openstar_test_harness::{TestApp, WsClient};
 
-/// Writes a playable Song (`song.txt` + empty `song.mp3`) into `folder`.
+/// Writes a playable Song (`song.txt` + a placeholder `song.mp3`) into `folder`.
 fn write_song(folder: &Path, artist: &str, title: &str) {
     std::fs::create_dir_all(folder).unwrap();
-    std::fs::write(folder.join("song.mp3"), b"").unwrap();
+    openstar_test_harness::placeholder_media(&folder.join("song.mp3")).unwrap();
     std::fs::write(
         folder.join("song.txt"),
         format!("#ARTIST:{artist}\n#TITLE:{title}\n#MP3:song.mp3\n#BPM:200\n: 0 4 0 La\nE\n"),

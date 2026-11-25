@@ -118,6 +118,13 @@ impl TestAppBuilder {
         self
     }
 
+    /// Puts `dir` first on the `PATH` the app runs tools with, for stand-in
+    /// tools (an `ffmpeg` that waits or fails). Replaces [`Self::ytdlp_stub`]'s folder.
+    pub fn tools_first(mut self, dir: &Path) -> Self {
+        self.path_prefix = Some(dir.to_path_buf());
+        self
+    }
+
     /// Sets another settings variable. Variables the harness owns (the
     /// folders, the port, USDB) cannot be overridden this way.
     pub fn var(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {

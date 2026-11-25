@@ -1,6 +1,6 @@
 //! The Library scan and its index, through the real app over HTTP and the
 //! WebSocket, on a copy of `fixtures/library-scan/` (see its README for what each
-//! `.txt` covers). Media files are created empty at test time.
+//! `.txt` covers). Media files are tiny placeholders generated at test time.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -46,7 +46,7 @@ fn library_folders() -> AppFolders {
     {
         let path = songs.join(line);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(path, b"").unwrap();
+        openstar_test_harness::placeholder_media(&path).unwrap();
     }
     folders
 }
@@ -262,7 +262,7 @@ async fn a_rescan_rereads_only_new_and_changed_files_and_drops_gone_ones() {
     std::fs::remove_file(songs.join("Missing Audio/missing.txt")).unwrap();
     // New: read.
     std::fs::create_dir_all(songs.join("New")).unwrap();
-    std::fs::write(songs.join("New/shared.mp3"), b"").unwrap();
+    openstar_test_harness::placeholder_media(&songs.join("New/shared.mp3")).unwrap();
     std::fs::copy(
         songs.join("Two In One/duet.txt"),
         songs.join("New/new duet.txt"),
@@ -343,7 +343,8 @@ async fn another_parser_version_in_the_index_rereads_every_file() {
 async fn audio_that_appears_later_makes_an_unchanged_txt_playable() {
     let app = start_on_library().await;
     scanned(&app, 1).await;
-    std::fs::write(app.songs_dir().join("Missing Audio/NOT-THERE.mp3"), b"").unwrap();
+    openstar_test_harness::placeholder_media(&app.songs_dir().join("Missing Audio/NOT-THERE.mp3"))
+        .unwrap();
     rescan(&app).await;
     let report = scanned(&app, 2).await;
     assert_eq!(report.read, 0);

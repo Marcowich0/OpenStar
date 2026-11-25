@@ -1,6 +1,6 @@
 //! The Library lookup the Queue asks before it takes a Request: is this Song
 //! in the Library, and can it be queued now? A trait, so tests can stand in
-//! for states the real index cannot reach yet ("preparing" comes with #144).
+//! for any state without a Library.
 
 use openstar_protocol::library::SongId;
 use rusqlite::{Connection, OptionalExtension};
@@ -11,10 +11,6 @@ pub enum SongLookup {
     /// No playable Song has this id.
     NotInLibrary,
     /// In the Library, but its audio is still being prepared: not queueable yet.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "the index reports \"preparing\" from #144 on")
-    )]
     Preparing { title: String },
     /// In the Library and queueable; `duet` when it has two Voices.
     Ready { title: String, duet: bool },
@@ -40,20 +36,24 @@ pub trait Songs: Send + Sync + 'static {
     fn lookup(&self, conn: &Connection, id: SongId) -> rusqlite::Result<SongLookup>;
 }
 
-/// The real lookup: the Library index. #144 adds "preparing" here.
+/// The real lookup: the Library index. A Song whose audio still converts
+/// is "preparing".
 pub struct LibraryIndex;
 
 impl Songs for LibraryIndex {
     fn lookup(&self, conn: &Connection, id: SongId) -> rusqlite::Result<SongLookup> {
-        let found: Option<(Option<String>, bool)> = conn
+        let found: Option<(Option<String>, bool, bool)> = conn
             .query_row(
-                "SELECT title, duet FROM library_files WHERE id = ?1 AND playable = 1",
+                "SELECT title, duet, preparing FROM library_files WHERE id = ?1 AND playable = 1",
                 [id.0],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
             )
             .optional()?;
         Ok(match found {
-            Some((title, duet)) => SongLookup::Ready {
+            Some((title, _, true)) => SongLookup::Preparing {
+                title: title.unwrap_or_default(),
+            },
+            Some((title, duet, false)) => SongLookup::Ready {
                 title: title.unwrap_or_default(),
                 duet,
             },

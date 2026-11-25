@@ -1,5 +1,6 @@
-# Media files the scan tests create (empty) in their copy of this Library,
-# one path per line, relative to the Library. No media is committed here.
+# Media files the scan tests create in their copy of this Library,
+# one path per line, relative to the Library, as tiny generated placeholders
+# (`openstar_test_harness::placeholder_media`). No media is committed here.
 Placeholder Artist - First Song/audio.mp3
 Placeholder Artist - First Song/cover.jpg
 Nested/Deeper/Second/media/track.ogg

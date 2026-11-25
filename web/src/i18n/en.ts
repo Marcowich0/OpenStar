@@ -217,6 +217,20 @@ export const en = {
     "Line {line, number}: the Note overlaps the one on line {earlierLine, number}",
   "txtWarning.unknownBodyLine": "Line {line, number} is not understood",
 
+  "fileProblem.missingAudioReference":
+    "Neither #MP3 nor #AUDIO names the audio",
+  "fileProblem.audioNotFound":
+    "#{header} names {reference}, which is not found",
+  "fileProblem.mediaNotFound":
+    "#{header} names {reference}, which is not found",
+  "fileProblem.unreadableFile": "The file could not be read",
+  "fileProblem.unreadableMetadata":
+    "The metadata.json could not be read, so the Song is identified by its artist and title",
+  "fileProblem.audioNotConverted":
+    "The audio {file} does not play on the Stage and could not be converted",
+  "fileProblem.videoNotConverted":
+    "The video {file} does not play on the Stage and could not be converted, so the Song plays over its background",
+
   // Toasts: structured events from the server, rendered on the Stage and Phones.
   "partyEvent.partyStarted": "New party started, Join code {joinCode}",
   "partyEvent.memberJoined": "{name} joined the Party in {colour}",
