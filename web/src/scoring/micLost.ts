@@ -78,7 +78,7 @@ export function createMicWatch(since: number): MicWatch {
   const check = (t: number) => {
     if (t < lastAt) {
       throw new Error(
-        `Mic event at ${t} ms is before the last one (${lastAt} ms)`,
+        `Mic event at ${String(t)} ms is before the last one (${String(lastAt)} ms)`,
       );
     }
   };

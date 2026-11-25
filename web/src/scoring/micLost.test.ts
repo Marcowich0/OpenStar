@@ -5,6 +5,8 @@ import { createMicWatch, micLost, type MicEvent } from "./micLost";
 // Times are Stage time in ms. The 1 s limit is #54's "Mic lost after no
 // readings for 1 s"; the literals below are that spec value, not the constant.
 const reading = (at: number): MicEvent => ({ kind: "reading", at });
+/** Events from several sources, merged into Stage-time order. */
+const inOrder = (events: MicEvent[]) => [...events].sort((a, b) => a.at - b.at);
 const readingsEvery = (stepMs: number, from: number, to: number) => {
   const events: MicEvent[] = [];
   for (let at = from; at <= to; at += stepMs) events.push(reading(at));
@@ -81,11 +83,11 @@ describe("a hidden page", () => {
   });
 
   it("comes back with the visible signal", () => {
-    const events: MicEvent[] = [
+    const events = inOrder([
       ...readingsEvery(10, 0, 900),
       { kind: "pageHidden", at: 100 },
       { kind: "pageVisible", at: 600 },
-    ].sort((a, b) => a.at - b.at);
+    ]);
     expect(micLost(events, { since: 0, now: 599 }).lostNow).toBe(true);
     expect(micLost(events, { since: 0, now: 600 })).toEqual({
       lostNow: false,
@@ -129,19 +131,21 @@ describe("the 1 s rule after coming back", () => {
 
 describe("lost at any moment since the Song start", () => {
   it("stays set after the Mic comes back, for every kind of loss", () => {
-    const back: MicEvent[][] = [
-      [reading(0), reading(1200), ...readingsEvery(10, 1210, 5000)],
+    const back = (
       [
-        ...readingsEvery(10, 0, 5000),
-        { kind: "connectionClosed", at: 1005 },
-        { kind: "connectionBack", at: 1006 },
-      ],
-      [
-        ...readingsEvery(10, 0, 5000),
-        { kind: "pageHidden", at: 1005 },
-        { kind: "pageVisible", at: 1006 },
-      ],
-    ].map((events) => [...events].sort((a, b) => a.at - b.at));
+        [reading(0), reading(1200), ...readingsEvery(10, 1210, 5000)],
+        [
+          ...readingsEvery(10, 0, 5000),
+          { kind: "connectionClosed", at: 1005 },
+          { kind: "connectionBack", at: 1006 },
+        ],
+        [
+          ...readingsEvery(10, 0, 5000),
+          { kind: "pageHidden", at: 1005 },
+          { kind: "pageVisible", at: 1006 },
+        ],
+      ] satisfies MicEvent[][]
+    ).map(inOrder);
     for (const events of back) {
       expect(micLost(events, { since: 0, now: 5000 })).toEqual({
         lostNow: false,
@@ -151,12 +155,12 @@ describe("lost at any moment since the Song start", () => {
   });
 
   it("ignores a loss that ended before the start", () => {
-    const events: MicEvent[] = [
+    const events = inOrder([
       { kind: "connectionClosed", at: 0 },
       { kind: "connectionBack", at: 400 },
       reading(100),
       ...readingsEvery(10, 410, 3000),
-    ].sort((a, b) => a.at - b.at);
+    ]);
     expect(micLost(events, { since: 500, now: 3000 }).lostSince).toBe(false);
     const silentBefore = [reading(0), ...readingsEvery(10, 2000, 4000)];
     expect(micLost(silentBefore, { since: 2005, now: 4000 }).lostSince).toBe(
@@ -169,11 +173,11 @@ describe("lost at any moment since the Song start", () => {
   });
 
   it("counts a loss still going on at the start", () => {
-    const events: MicEvent[] = [
+    const events = inOrder([
       { kind: "pageHidden", at: 0 },
       { kind: "pageVisible", at: 600 },
       ...readingsEvery(10, 0, 3000),
-    ].sort((a, b) => a.at - b.at);
+    ]);
     expect(micLost(events, { since: 500, now: 3000 })).toEqual({
       lostNow: false,
       lostSince: true,
@@ -246,7 +250,9 @@ describe("the live watch", () => {
   it("refuses events out of Stage-time order", () => {
     const watch = createMicWatch(0);
     watch.event("reading", 100);
-    expect(() => watch.event("reading", 99)).toThrow();
+    expect(() => {
+      watch.event("reading", 99);
+    }).toThrow();
     expect(() => watch.lostAt(50)).toThrow();
   });
 });
