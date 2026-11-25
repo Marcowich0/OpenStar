@@ -267,6 +267,27 @@ impl LiveState {
                     None => self.reject(id, UserMessage::ServerError),
                 }
             }
+            Ok(ClientMessage::StoreCalibration {
+                stage_output,
+                results,
+            }) => {
+                let stored =
+                    crate::mic_settings::store_calibration(self.db.clone(), stage_output, results);
+                self.mic_settings_write(id, stored).await;
+            }
+            Ok(ClientMessage::SetMicThreshold {
+                stage_output,
+                local_mic_id,
+                reference_dbfs,
+            }) => {
+                let stored = crate::mic_settings::set_threshold_by_hand(
+                    self.db.clone(),
+                    stage_output,
+                    local_mic_id,
+                    reference_dbfs,
+                );
+                self.mic_settings_write(id, stored).await;
+            }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
         }
     }
@@ -294,6 +315,29 @@ impl LiveState {
             Err(error) => {
                 tracing::error!(?error, "starting a Party");
                 None
+            }
+        }
+    }
+
+    /// Runs a Mic settings write if `id` is the active Stage, then tells
+    /// every connection Mic settings changed. Anyone else is refused and
+    /// nothing is written.
+    async fn mic_settings_write(
+        &mut self,
+        id: ConnectionId,
+        write: impl Future<Output = anyhow::Result<()>>,
+    ) {
+        if self.stage().connection != Some(id) {
+            self.reject(id, UserMessage::NotTheStage);
+            return;
+        }
+        match write.await {
+            Ok(()) => self.hub.send_all(&ServerMessage::Changed {
+                topics: vec![ChangeTopic::MicSettings],
+            }),
+            Err(error) => {
+                tracing::error!(?error, "storing Mic settings");
+                self.reject(id, UserMessage::ServerError);
             }
         }
     }

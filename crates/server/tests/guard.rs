@@ -274,7 +274,19 @@ async fn a_writable_library_lets_an_unlocked_library_write_through() {
 /// Every WebSocket client message, one sample per variant. The completeness
 /// check below fails when a variant is added without a sample here.
 fn every_client_message() -> Vec<ClientMessage> {
-    vec![ClientMessage::Ping { nonce: 0 }, ClientMessage::NewParty]
+    vec![
+        ClientMessage::Ping { nonce: 0 },
+        ClientMessage::NewParty,
+        ClientMessage::StoreCalibration {
+            stage_output: String::new(),
+            results: Vec::new(),
+        },
+        ClientMessage::SetMicThreshold {
+            stage_output: String::new(),
+            local_mic_id: String::new(),
+            reference_dbfs: -40.0,
+        },
+    ]
 }
 
 #[test]

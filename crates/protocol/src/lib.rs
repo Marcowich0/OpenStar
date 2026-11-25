@@ -6,6 +6,7 @@
 
 pub mod admin;
 pub mod jobs;
+pub mod mics;
 pub mod party;
 pub mod profile;
 pub mod song;
@@ -60,7 +61,7 @@ pub enum LibraryReadOnlyCode {
 pub struct StageId(pub String);
 
 /// A message a browser sends over its WebSocket.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -73,6 +74,21 @@ pub enum ClientMessage {
     /// Starts a new Party with a new Join code. Accepted only from the
     /// active Stage; needs no Admin PIN.
     NewParty,
+    /// Stores a Calibration run's successful results at `stage_output`, one
+    /// per Mic included; a Mic left out keeps every value it had. Accepted
+    /// only from the active Stage; needs no Admin PIN.
+    StoreCalibration {
+        stage_output: String,
+        results: Vec<mics::CalibrationResult>,
+    },
+    /// Sets a Local mic's Mic threshold by hand at `stage_output`, in dBFS at
+    /// the reference volume. Accepted only from the active Stage; needs no
+    /// Admin PIN.
+    SetMicThreshold {
+        stage_output: String,
+        local_mic_id: String,
+        reference_dbfs: f64,
+    },
 }
 
 /// A message the server sends over a WebSocket.
@@ -123,6 +139,8 @@ pub enum ServerMessage {
 pub enum ChangeTopic {
     /// `GET /api/profiles` and `GET /api/profiles/{id}`.
     Profiles,
+    /// `GET /api/mic-settings`.
+    MicSettings,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast

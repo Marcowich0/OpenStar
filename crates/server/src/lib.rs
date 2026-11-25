@@ -11,6 +11,7 @@ mod frontend;
 pub mod healthcheck;
 pub mod jobs;
 mod live;
+pub mod mic_settings;
 mod profiles;
 mod startup;
 pub mod txt;
