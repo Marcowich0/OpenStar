@@ -99,7 +99,7 @@ function setup({
   };
   const reconnect = () => {
     act(() => {
-      handlers?.onConnection("closed");
+      handlers?.onConnection("reconnecting");
     });
     becomeStage(true);
   };

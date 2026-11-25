@@ -24,6 +24,7 @@ import type { MicBridges } from "../generated/MicBridges";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
+import { createBridgeLevels } from "./bridgeLevels";
 import {
   createLocalMicCapture,
   type CaptureSnapshot,
@@ -57,6 +58,12 @@ export interface LocalMicsApi {
   rename: (channel: LocalMicChannel, name: string) => void;
   /** Find it: `channel` takes over Local mic `localMicId`; saved at once. */
   relink: (localMicId: string, channel: LocalMicChannel) => void;
+  /**
+   * A Mic bridge Local mic's latest level in dBFS, as its bridge sent it
+   * (`null`: none lately). Bridges send levels for switched-on channels,
+   * and for all while the Mics screen is open.
+   */
+  bridgeLevelDbfs: (localMicId: string) => number | null;
 }
 
 const NO_BRIDGES: MicBridges = { bridges: [], requests: [] };
@@ -78,6 +85,7 @@ const noCapture: LocalMicsApi = {
   setSwitchedOn: () => {},
   bridges: NO_BRIDGES,
   approveBridge: () => {},
+  bridgeLevelDbfs: () => null,
   match: NO_MATCH,
   rename: () => {},
   relink: () => {},
@@ -90,6 +98,7 @@ export function useLocalMics(): LocalMicsApi {
 }
 
 const selectIsStage = (live: LiveState) => live.stage?.isStage ?? false;
+const selectConnected = (live: LiveState) => live.connection === "open";
 const NO_SUBSCRIPTION = () => () => {};
 const idleSnapshot = () => IDLE;
 
@@ -116,6 +125,29 @@ export function LocalMicsProvider({
   const capture = isStage ? made : null;
   const [micsScreenOpen, setMicsScreenOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  // The server tells the Mic bridges whether the Mics screen is open, so
+  // they open every interface and meter every channel while it is. Said
+  // again on every connect: a new connection starts closed.
+  const connected = useLive(selectConnected, store);
+  useEffect(() => {
+    if (isStage && connected)
+      store.send({ type: "setMicsScreenOpen", open: micsScreenOpen });
+  }, [store, isStage, connected, micsScreenOpen]);
+
+  // The levels the bridges send, kept outside React for the meters.
+  const [levels] = useState(createBridgeLevels);
+  useEffect(
+    () =>
+      store.onLocalMicLevels((received) => {
+        levels.receive(received, performance.now());
+      }),
+    [store, levels],
+  );
+  const bridgeLevelDbfs = useCallback(
+    (localMicId: string) => levels.levelDbfs(localMicId, performance.now()),
+    [levels],
+  );
 
   // Every device closes when this browser stops being the Stage.
   useEffect(() => {
@@ -273,6 +305,7 @@ export function LocalMicsProvider({
       match,
       rename,
       relink,
+      bridgeLevelDbfs,
     }),
     [
       capture,
@@ -285,6 +318,7 @@ export function LocalMicsProvider({
       match,
       rename,
       relink,
+      bridgeLevelDbfs,
     ],
   );
   return <LocalMicsContext value={api}>{children}</LocalMicsContext>;
