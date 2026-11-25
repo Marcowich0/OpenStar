@@ -20,6 +20,20 @@ export default defineConfig({
     ["html", { open: "never", outputFolder: "playwright-report" }],
   ],
   outputDir: "test-results",
+  // Screenshot baselines (#203) are committed under tests/__screenshots__/.
+  // Only `just update-screenshots` writes them; every other run compares, and
+  // a missing baseline fails too. On a mismatch test-results/ holds the
+  // expected, actual and diff images (CI keeps them as an artifact).
+  updateSnapshots: "none",
+  snapshotPathTemplate: "{testDir}/__screenshots__/{testFileName}/{arg}{ext}",
+  expect: {
+    // Exact: the shots come from the one pinned Playwright image.
+    toHaveScreenshot: {
+      threshold: 0,
+      maxDiffPixels: 0,
+      animations: "disabled",
+    },
+  },
   use: {
     baseURL,
     trace: "retain-on-failure",

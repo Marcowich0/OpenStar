@@ -226,26 +226,31 @@ pub(crate) fn edit_in(
 }
 
 /// Records that the Profile sang at `at` on `difficulty`: its last sung time
-/// and last Difficulty. The seam for storing Score records (#54); false when
-/// no Profile has this id.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "called when Score records are stored (#54)")
-)]
-pub(crate) async fn record_sung(
+/// and last Difficulty. Storing a Score record calls it inside its
+/// transaction; false when no Profile has this id.
+pub(crate) fn record_sung_in(
+    conn: &Connection,
+    id: ProfileId,
+    difficulty: Difficulty,
+    at: i64,
+) -> rusqlite::Result<bool> {
+    let changed = conn.execute(
+        "UPDATE profiles SET last_difficulty = ?1, last_sung_ms = ?2 WHERE id = ?3",
+        params![difficulty.as_str(), at, id.0],
+    )?;
+    Ok(changed > 0)
+}
+
+/// [`record_sung_in`] on its own.
+#[cfg(test)]
+async fn record_sung(
     db: &Database,
     id: ProfileId,
     difficulty: Difficulty,
     at: i64,
 ) -> anyhow::Result<bool> {
-    db.call(move |conn| {
-        let changed = conn.execute(
-            "UPDATE profiles SET last_difficulty = ?1, last_sung_ms = ?2 WHERE id = ?3",
-            params![difficulty.as_str(), at, id.0],
-        )?;
-        Ok(changed > 0)
-    })
-    .await
+    db.call(move |conn| record_sung_in(conn, id, difficulty, at))
+        .await
 }
 
 fn get_in(conn: &Connection, id: ProfileId) -> rusqlite::Result<Option<Profile>> {

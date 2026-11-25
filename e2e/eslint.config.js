@@ -3,7 +3,7 @@ import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 export default defineConfig(
-  { ignores: ["playwright-report", "test-results"] },
+  { ignores: ["playwright-report", "test-results", "generated"] },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
   {
