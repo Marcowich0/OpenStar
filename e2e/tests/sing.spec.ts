@@ -123,7 +123,9 @@ test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and 
   );
   let skipped = false;
   try {
-    await start.click();
+    // Space presses Start (the Line-up's key; a pointer click waits on the
+    // button's animations).
+    await stage.keyboard.press(" ");
     await expect(frame).toHaveAttribute("data-scene", "sing");
     await expect(stage.locator('[data-sing-scene="singing"]')).toBeVisible();
     await expect(
@@ -150,7 +152,10 @@ test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and 
       requestId,
       control: "pause",
     });
-    await expect(stage.getByRole("status")).toHaveText("Paused");
+    // (A toast is a status too.)
+    await expect(
+      stage.getByRole("status").filter({ hasText: /^Paused$/ }),
+    ).toBeVisible();
     await expect.poll(async () => (await media(stage))[0]?.playing).toBe(false);
     const paused = await mediaTime(stage);
     await stage.waitForTimeout(400);
@@ -224,7 +229,9 @@ test("End stops the Song and raises its end once: the Stage shows the results", 
   );
   let ended = false;
   try {
-    await start.click();
+    // Space presses Start (the Line-up's key; a pointer click waits on the
+    // button's animations).
+    await stage.keyboard.press(" ");
     await expect(frame).toHaveAttribute("data-scene", "sing");
     await expect.poll(() => mediaTime(stage)).toBeGreaterThan(0.5);
 
