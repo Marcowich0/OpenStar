@@ -15,11 +15,7 @@ struct Running {
 }
 
 async fn start(appdata: &Path, songs: &Path) -> Running {
-    let config = Config {
-        port: 0,
-        appdata_dir: appdata.to_path_buf(),
-        songs_dir: songs.to_path_buf(),
-    };
+    let config = Config::for_tests(appdata, songs);
     let server = Server::start(&config).await.expect("server starts");
     let migrations_applied = server.migrations_applied();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

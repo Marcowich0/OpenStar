@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 
-import type { ServerInfo } from "./generated/ServerInfo";
-import type { ServerMessage } from "./generated/ServerMessage";
-import { initialRoundTrip, ping, receive, type RoundTrip } from "./roundTrip";
+import type { ServerInfo } from "../generated/ServerInfo";
+import type { ServerMessage } from "../generated/ServerMessage";
+import { initialRoundTrip, ping, receive, type RoundTrip } from "../roundTrip";
 
 type Info =
   | { status: "loading" }
   | { status: "loaded"; info: ServerInfo }
   | { status: "failed" };
 
-/** The walking skeleton's page: the JSON endpoint's answer and one WebSocket round trip. */
-export function App() {
+/** The walking skeleton's check: the JSON endpoint's answer and one WebSocket round trip. */
+export function ServerStatus() {
   const [info, setInfo] = useState<Info>({ status: "loading" });
   const [roundTrip, setRoundTrip] = useState<RoundTrip>(initialRoundTrip);
 
@@ -50,14 +50,13 @@ export function App() {
   }, []);
 
   return (
-    <main>
-      <h1>OpenStar</h1>
+    <>
       <p data-testid="server-info">
         {info.status === "loaded"
           ? `Server ${info.info.version}, schema ${String(info.info.schemaVersion)}`
           : info.status}
       </p>
       <p data-testid="round-trip">WebSocket: {roundTrip.status}</p>
-    </main>
+    </>
   );
 }

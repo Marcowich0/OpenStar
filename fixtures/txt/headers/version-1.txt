@@ -1,0 +1,25 @@
+#VERSION:1.2.0
+#TITLE:Placeholder Title
+#ARTIST:Placeholder Artist
+#MP3:audio.mp3
+#AUDIO:video.mp4
+#VOCALS:vocals.mp3
+#INSTRUMENTAL:instrumental.mp3
+#BPM:250
+#GAP:800
+#START:3.5
+#END:95000
+#PREVIEWSTART:42.25
+#MEDLEYSTARTBEAT:64
+#MEDLEYENDBEAT:256
+#EDITION:Placeholder Edition
+#CREATOR:Placeholder Creator
+#P1:Voice One
+#P2:Voice Two
+#DUETSINGERP1:Ignored Alias
+: 0 4 0 La
+: 4 4 2 la
+- 10
+* 12 4 4 Lo
+F 16 2 0 ~
+E
