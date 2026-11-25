@@ -50,6 +50,8 @@ const handlers: CodeHandlers<UserMessage> = {
   requestPlaying: () => t("userMessage.requestPlaying"),
   difficultyLocked: () => t("userMessage.difficultyLocked"),
   noResults: () => t("userMessage.noResults"),
+  notABridge: () => t("userMessage.notABridge"),
+  bridgeRequestNotFound: () => t("userMessage.bridgeRequestNotFound"),
 };
 
 // A code the Rust side adds (here `queueFull`) fails until it is mapped.

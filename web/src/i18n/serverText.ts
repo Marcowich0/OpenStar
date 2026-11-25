@@ -80,6 +80,8 @@ export const userMessageText = byCode<UserMessage>({
   requestPlaying: () => t("userMessage.requestPlaying"),
   difficultyLocked: () => t("userMessage.difficultyLocked"),
   noResults: () => t("userMessage.noResults"),
+  notABridge: () => t("userMessage.notABridge"),
+  bridgeRequestNotFound: () => t("userMessage.bridgeRequestNotFound"),
 });
 
 /** An accepted change to the Party, as a toast. */

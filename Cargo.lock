@@ -952,6 +952,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "openstar-mic-bridge"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "futures-util",
+ "insta",
+ "openstar",
+ "openstar-protocol",
+ "openstar-test-harness",
+ "proptest",
+ "reqwest",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tokio",
+ "tokio-tungstenite 0.30.0",
+]
+
+[[package]]
 name = "openstar-protocol"
 version = "0.0.0"
 dependencies = [
