@@ -60,7 +60,10 @@ async fn step(socket: &mut WsClient, step: VolumeStep) {
 /// A Phone joined to the Party as a Guest, past its own status.
 async fn joined_phone(app: &TestApp, code: &JoinCode) -> WsClient {
     let mut phone = app.connect_ws().await;
-    assert!(matches!(recv(&mut phone).await, ServerMessage::LiveState { .. }));
+    assert!(matches!(
+        recv(&mut phone).await,
+        ServerMessage::LiveState { .. }
+    ));
     phone
         .send(&ClientMessage::Join {
             phone_id: PhoneId("4b1d8f0e-0000-4000-8000-000000000001".into()),
@@ -77,9 +80,7 @@ async fn joined_phone(app: &TestApp, code: &JoinCode) -> WsClient {
     loop {
         match recv(&mut phone).await {
             ServerMessage::Volume { .. } => {}
-            ServerMessage::PhoneStatus {
-                member_id: Some(_),
-            } => return phone,
+            ServerMessage::PhoneStatus { member_id: Some(_) } => return phone,
             other => panic!("expected the Phone's status, got {other:?}"),
         }
     }
@@ -135,7 +136,10 @@ async fn a_joined_remote_steps_the_volume_with_no_pin_and_every_browser_hears_it
     // A browser that connects now is told the current value after the
     // live state.
     let mut late = app.connect_ws().await;
-    assert!(matches!(recv(&mut late).await, ServerMessage::LiveState { .. }));
+    assert!(matches!(
+        recv(&mut late).await,
+        ServerMessage::LiveState { .. }
+    ));
     assert_eq!(recv(&mut late).await, volume(85, false));
 
     // A Phone that has not joined is not a Remote.
@@ -162,7 +166,10 @@ async fn only_the_stage_reports_its_output_and_no_step_lands_before_it_has() {
     );
 
     let mut other = app.connect_ws().await;
-    assert!(matches!(recv(&mut other).await, ServerMessage::LiveState { .. }));
+    assert!(matches!(
+        recv(&mut other).await,
+        ServerMessage::LiveState { .. }
+    ));
     report(&mut other, "elsewhere", "Speakers").await;
     assert_eq!(
         recv(&mut other).await,

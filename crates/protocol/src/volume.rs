@@ -35,7 +35,7 @@ impl VolumeStep {
         match self {
             Self::Up => (below + VOLUME_STEP).min(VOLUME_MAX),
             Self::Down if below < volume => below,
-            Self::Down => below.saturating_sub(VOLUME_STEP).max(VOLUME_MIN),
+            Self::Down => below.saturating_sub(VOLUME_STEP),
         }
     }
 }
