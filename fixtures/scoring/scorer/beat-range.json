@@ -1,0 +1,55 @@
+{
+  "description": "a Beat range other than the whole Voice: only Notes and Beats inside it are judged, and voiceValue counts only its Notes",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "startSeconds": null,
+  "voices": [
+    {
+      "lines": [
+        {
+          "notes": [
+            { "kind": "normal", "start": 0, "length": 2, "pitch": 0 },
+            { "kind": "normal", "start": 4, "length": 2, "pitch": 0 },
+            { "kind": "golden", "start": 8, "length": 2, "pitch": 0 }
+          ]
+        }
+      ]
+    }
+  ],
+  "comment": "The whole Voice is Beats 0–9 (voiceValue 2 + 2 + 4 = 8). With the range 3–7 only the Note at Beat 4 is inside: voiceValue 2, 4500 per hit Beat, and Beats 0, 1, 8, 9 are never judged.",
+  "players": [
+    {
+      "voice": 0,
+      "difficulty": "medium",
+      "range": { "firstBeat": 3, "lastBeat": 7 },
+      "firstBeat": 0,
+      "beatValues": [60, 60, 60, 60, 60, 60, 60, 60, 60, 60],
+      "expected": {
+        "firstBeat": 3,
+        "lastBeat": 7,
+        "voiceValue": 2,
+        "notes": 9000,
+        "golden": 0,
+        "hitBeats": [4, 5],
+        "missedBeats": []
+      }
+    },
+    {
+      "voice": 0,
+      "difficulty": "medium",
+      "firstBeat": 0,
+      "beatValues": [60, 60, 60, 60, 60, 60, 60, 60, 60, 60],
+      "comment": "The default range is the whole Voice: 1125 × factor per hit Beat.",
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 9,
+        "voiceValue": 8,
+        "notes": 4500,
+        "golden": 4500,
+        "hitBeats": [0, 1, 4, 5, 8, 9],
+        "missedBeats": []
+      }
+    }
+  ]
+}
