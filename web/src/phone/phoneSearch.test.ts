@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validatePhoneSearch } from "./phoneSearch";
+import { isJoinCode, validatePhoneSearch } from "./phoneSearch";
 
 describe("the Phone route's search validator", () => {
   it("keeps a well-formed Join code", () => {
@@ -15,15 +15,34 @@ describe("the Phone route's search validator", () => {
   it.each([
     ["too short", "123"],
     ["too long", "12345"],
-    ["not digits", "12a4"],
+    ["not digits", "12ab"],
     ["padded", " 1234"],
-    ["a short number", 427],
-    ["a fraction", 1234.5],
+  ])(
+    "keeps a malformed Join code (%s), so the Phone can say it is not on the Stage",
+    (_, join) => {
+      expect(validatePhoneSearch({ join })).toEqual({ join });
+    },
+  );
+
+  it("keeps a short number as its digits", () => {
+    expect(validatePhoneSearch({ join: 427 })).toEqual({ join: "427" });
+  });
+
+  it.each([
     ["empty", ""],
+    ["a fraction", 1234.5],
     ["an object", { code: "1234" }],
     ["a list", ["1234"]],
-  ])("drops a malformed Join code (%s)", (_, join) => {
+  ])("drops a Join code that is no text (%s)", (_, join) => {
     expect(validatePhoneSearch({ join })).toEqual({});
+  });
+
+  it.each([
+    ["4 digits", "0427", true],
+    ["3 digits", "427", false],
+    ["letters", "12ab", false],
+  ])("tells a Join code apart from other text (%s)", (_, text, ok) => {
+    expect(isJoinCode(text)).toBe(ok);
   });
 
   it("has no Join code when there is none", () => {

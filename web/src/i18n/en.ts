@@ -27,6 +27,33 @@ export const en = {
   "join.someoneElse": "Someone else",
   "join.profilesLoading": "Loading the Profiles…",
   "join.profilesFailed": "The Profiles could not be loaded",
+  "join.colourTonight": "You're {colour} tonight",
+  "join.usualColourHeld":
+    "{holder} already has {favourite}, your usual colour. You get it back at the next Party",
+  "join.usualColourTaken":
+    "Someone already has {favourite}, your usual colour. You get it back at the next Party",
+  "join.letsGo": "Let's go",
+  "join.pickAnotherColour": "Pick another colour",
+  "join.freeColours": "Free colours",
+  "join.takeColour": "Take {colour}",
+  "join.partyFull": "The Party is full",
+  "join.partyFullWhy":
+    "All 12 colours are taken tonight. Someone who is done singing can tap Leave party on their phone, or be removed from the Party people list.",
+  "join.tryAgain": "Try again",
+  "join.back": "Back",
+  "joinForm.newGuest": "New Guest",
+  "joinForm.name": "Name",
+  "joinForm.namePlaceholder": "Your name for tonight",
+  "joinForm.colour": "Colour",
+  "joinForm.colourHint": "Crossed out ones are taken tonight",
+  "joinForm.picture": "Picture",
+  "joinForm.pictureNumber": "Picture {number, number}",
+  "joinForm.areYou": "Are you {name}?",
+  "joinForm.profileName": "That name belongs to a Profile.",
+  "joinForm.yes": "Yes",
+  "joinForm.nameTakenTonight": "Someone already has that name tonight",
+  "joinForm.join": "Join",
+  "joinForm.joinAs": "Join as {name}",
   "remote.tabs": "Remote",
   "remote.songs": "Songs",
   "remote.queue": "Queue",
@@ -153,6 +180,8 @@ export const en = {
   "userMessage.tooManyPlayers": "At most {max, number} Players can sing a Song",
   "userMessage.playerNotInParty": "Someone you picked is not in the Party",
   "userMessage.playerTwice": "Someone is picked twice",
+  "userMessage.memberSinging": "They are singing: take them off the Song first",
+  "userMessage.useLeaveParty": "To leave the Party, use Leave party",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
@@ -214,12 +243,12 @@ export const en = {
   "toast.requestPlayNext": "{actor} made {song} play next",
   "toast.requestRemoved": "{actor} removed {song}",
   "toast.requestedPlayersChanged": "{actor} changed who sings {song}",
+  // A colour parameter is always a palette display name (`colourName`).
+  "toast.memberLeft": "{actor} left the Party. {colour} is free",
   // Toasts whose sender is not built yet: the server ticket that adds the
   // `PartyEvent` code maps it to one of these in `stage/toasts/toastContent.ts`.
   "toast.backOnMic": "{actor} is back on the mic",
   "toast.localMicBack": "{mic} is back on {actor}'s seat",
-  // A colour parameter is always a palette display name (`colourName`).
-  "toast.memberLeft": "{actor} left the Party. {colour} is free",
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",
   "toast.requestDroppedSongGone":
     "{song} left the Library and was taken off the Queue",

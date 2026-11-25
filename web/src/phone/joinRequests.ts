@@ -4,6 +4,9 @@
 
 import type { JoinAs } from "../generated/JoinAs";
 import type { JoinCode } from "../generated/JoinCode";
+import type { PaletteKey } from "../generated/PaletteKey";
+import type { PartyMember } from "../generated/PartyMember";
+import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PhoneId } from "../generated/PhoneId";
 import type { UserMessage } from "../generated/UserMessage";
 import type { LiveState } from "../live/liveState";
@@ -60,7 +63,7 @@ export function checkJoinCode(
 }
 
 export type JoinResult =
-  { ok: true } | { ok: false; reason: UserMessage | null };
+  { ok: true; member: PartyMember } | { ok: false; reason: UserMessage | null };
 
 /**
  * Joins this Phone to the current Party. Succeeds once the server says the
@@ -74,7 +77,36 @@ export function joinParty(
   return request<JoinResult>(
     store,
     { type: "join", ...join },
-    (state) => (phoneMember(state) === null ? undefined : { ok: true }),
+    (state) => {
+      const member = phoneMember(state);
+      return member === null ? undefined : { ok: true, member };
+    },
+    (reason) => ({ ok: false, reason }),
+    { ok: false, reason: null },
+  );
+}
+
+export type EditResult =
+  { ok: true } | { ok: false; reason: UserMessage | null };
+
+/**
+ * Gives a Party member another colour (for a Profile it becomes its
+ * favourite too). Succeeds once the member has it.
+ */
+export function editMemberColour(
+  store: LiveStore,
+  memberId: PartyMemberId,
+  colour: PaletteKey,
+): Promise<EditResult> {
+  return request<EditResult>(
+    store,
+    { type: "editMember", memberId, edit: { colour } },
+    (state) =>
+      state.stage?.party?.members.some(
+        (m) => m.memberId === memberId && m.colour === colour,
+      )
+        ? { ok: true }
+        : undefined,
     (reason) => ({ ok: false, reason }),
     { ok: false, reason: null },
   );

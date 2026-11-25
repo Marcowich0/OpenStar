@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { profilesQuery } from "../api/queries";
+import type { JoinAs } from "../generated/JoinAs";
 import type { PartyMember } from "../generated/PartyMember";
 import type { Profile } from "../generated/Profile";
 import type { UserMessage } from "../generated/UserMessage";
@@ -9,16 +10,10 @@ import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
-import {
-  phoneId,
-  rememberProfile,
-  rememberedProfileId,
-  type PhoneStorage,
-} from "../live/phoneId";
+import { rememberedProfileId, type PhoneStorage } from "../live/phoneId";
 import { useLive } from "../live/useLive";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
-import { joinParty } from "./joinRequests";
 import { TopBar } from "./Logo";
 import { whosSinging } from "./whosSinging";
 
@@ -27,28 +22,25 @@ const selectMembers = (state: LiveState) =>
   state.stage?.party?.members ?? NO_MEMBERS;
 
 export interface WhosSingingProps {
-  /** The Join code the server confirmed. */
-  joinCode: string;
   store: LiveStore;
   storage: PhoneStorage;
-  /** The code stopped being the Party's (a new Party started meanwhile). */
-  onCodeRefused: () => void;
-  /** Opens the New Profile form (the next ticket's). */
-  onNewProfile?: () => void;
-  /** Opens the Guest form (the next ticket's). */
-  onGuest?: () => void;
+  /** Joins; resolves to a problem to show, or `null` when it is handled. */
+  onJoin: (joinAs: JoinAs) => Promise<UserMessage | null>;
+  /** Opens the New Profile form. */
+  onNewProfile: () => void;
+  /** Opens the Guest form. */
+  onGuest: () => void;
 }
 
 /**
  * "Who's singing?": the remembered Profile with one big button, or the grid
  * of every Profile, then "New Profile" and "I'm a Guest". Picking a Profile
- * joins the Phone as it and remembers it on the Phone.
+ * joins the Phone as it.
  */
 export function WhosSinging({
-  joinCode,
   store,
   storage,
-  onCodeRefused,
+  onJoin,
   onNewProfile,
   onGuest,
 }: WhosSingingProps) {
@@ -63,18 +55,9 @@ export function WhosSinging({
     if (pending) return;
     setPending(true);
     setProblem(null);
-    void joinParty(store, {
-      phoneId: phoneId(storage),
-      joinCode,
-      joinAs: { kind: "profile", profileId: profile.id },
-    }).then((result) => {
-      if (result.ok) {
-        rememberProfile(storage, profile.id);
-        return;
-      }
+    void onJoin({ kind: "profile", profileId: profile.id }).then((result) => {
       setPending(false);
-      if (result.reason?.code === "joinCodeWrong") onCodeRefused();
-      else setProblem(result.reason ?? { code: "serverError" });
+      setProblem(result);
     });
   }
 
@@ -182,18 +165,10 @@ export function WhosSinging({
         </ul>
         <div className="mt-6 flex flex-col gap-4">
           {problemText}
-          <Button
-            className="w-full"
-            isDisabled={onNewProfile === undefined}
-            {...(onNewProfile ? { onPress: onNewProfile } : {})}
-          >
+          <Button className="w-full" onPress={onNewProfile}>
             {t("join.newProfile")}
           </Button>
-          <Button
-            className="w-full"
-            isDisabled={onGuest === undefined}
-            {...(onGuest ? { onPress: onGuest } : {})}
-          >
+          <Button className="w-full" onPress={onGuest}>
             {t("join.guest")}
           </Button>
         </div>
