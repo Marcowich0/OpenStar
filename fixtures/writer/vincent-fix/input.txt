@@ -1,0 +1,19 @@
+#TITLE:Placeholder Title
+#ARTIST:Placeholder Artist
+#LANGUAGE:English
+#EDITION:Placeholder
+#GENRE:Pop
+#YEAR:1971
+#MP3:Placeholder Artist - Placeholder Title.mp4
+#COVER:Placeholder Artist - Placeholder Title [CO].jpg
+#VIDEO:Placeholder Artist - Placeholder Title.mp4
+#BPM:217.4
+#GAP:3650
+: 0 4 2 Star
+: 4 2 4 ry 
+* 8 6 5 night
+- 16
+: 18 3 0 la
+: 22 2 0  la
+F 26 4 0 ~
+E

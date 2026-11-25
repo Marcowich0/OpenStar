@@ -1,0 +1,11 @@
+[
+  {
+    "op": "insertNote",
+    "after": 6,
+    "kind": "golden",
+    "start": 8,
+    "length": 4,
+    "pitch": 4,
+    "text": "lo"
+  }
+]
