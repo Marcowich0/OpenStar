@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use openstar::{Config, Server};
+use openstar_protocol::jobs::JobKind;
 use openstar_protocol::library::ScanStatus;
 use openstar_protocol::{ClientMessage, ServerMessage};
 use serde::de::DeserializeOwned;
@@ -454,7 +455,10 @@ impl WsClient {
             .expect("sending on the WebSocket");
     }
 
-    /// Waits up to five seconds for the next [`ServerMessage`].
+    /// Waits up to five seconds for the next [`ServerMessage`], past the
+    /// [`ServerMessage::JobChanged`] of Song loudness measurements: every
+    /// Library with audio queues them after a scan, at times no test
+    /// controls. Tests of those jobs read `GET /api/jobs`.
     pub async fn recv(&mut self) -> ServerMessage {
         loop {
             let message = tokio::time::timeout(WAIT, self.socket.next())
@@ -464,8 +468,14 @@ impl WsClient {
                 .expect("reading the WebSocket");
             match message {
                 Message::Text(text) => {
-                    return serde_json::from_str(&text)
+                    let message: ServerMessage = serde_json::from_str(&text)
                         .unwrap_or_else(|e| panic!("not a ServerMessage: {text}: {e}"));
+                    if let ServerMessage::JobChanged { job } = &message
+                        && job.kind == JobKind::Loudness
+                    {
+                        continue;
+                    }
+                    return message;
                 }
                 Message::Close(frame) => panic!("the WebSocket closed: {frame:?}"),
                 _ => continue,

@@ -20,7 +20,7 @@ use openstar_protocol::song::{FormatGeneration, SongHeaders};
 use super::index::{self, Media, ReadFile, Reference, Role, Stored};
 use super::resolve::Resolver;
 use super::{artwork, identity};
-use super::{conversion, probing};
+use super::{conversion, loudness, probing};
 use crate::db::Database;
 use crate::jobs::{Jobs, Slot};
 use crate::txt;
@@ -147,6 +147,7 @@ pub(crate) async fn run(
     };
     report.probed = count(probed.len());
     conversion::sync(db, jobs, appdata_dir, probed).await?;
+    loudness::sync(db, jobs, root).await?;
     Ok(Some(report))
 }
 

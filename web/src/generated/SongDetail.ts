@@ -25,6 +25,11 @@ noteFingerprint: NoteFingerprint, identity: SongIdentity, lengthSeconds: number 
  */
 preparing: boolean, media: SongMedia, 
 /**
+ * The EBU R128 integrated loudness of the Song's audio file in LUFS;
+ * `null` while it is not measured (the Song plays at unity gain).
+ */
+loudnessLufs: number | null, 
+/**
  * The Song's warnings; it plays anyway.
  */
 warnings: Array<ProblemReason>, };

@@ -93,6 +93,7 @@ pub enum AfterRestart {
 pub enum JobParams {
     Test(TestJob),
     Conversion(crate::library::Conversion),
+    Loudness(crate::library::Measurement),
 }
 
 impl JobParams {
@@ -100,13 +101,14 @@ impl JobParams {
         match self {
             Self::Test(_) => JobKind::Test,
             Self::Conversion(_) => JobKind::Conversion,
+            Self::Loudness(_) => JobKind::Loudness,
         }
     }
 
     pub fn lane(&self) -> Lane {
         match self {
             Self::Test(job) => job.lane,
-            Self::Conversion(_) => Lane::Ffmpeg,
+            Self::Conversion(_) | Self::Loudness(_) => Lane::Ffmpeg,
         }
     }
 
@@ -116,6 +118,8 @@ impl JobParams {
             Self::Test(_) => AfterRestart::StartAgain,
             // It removes what an interrupted run left in the cache first.
             Self::Conversion(_) => AfterRestart::StartAgain,
+            // It picks its file again when it starts.
+            Self::Loudness(_) => AfterRestart::StartAgain,
         }
     }
 
@@ -123,6 +127,7 @@ impl JobParams {
         match self {
             Self::Test(job) => job.run(ctx).await,
             Self::Conversion(job) => job.run(ctx).await,
+            Self::Loudness(job) => job.run(ctx).await,
         }
     }
 }
