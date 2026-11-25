@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ClientMessage } from "../generated/ClientMessage";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { LiveClientOptions } from "./liveClient";
+import { initialLiveState, receive } from "./liveState";
 import { createLiveStore } from "./liveStore";
 
 function start() {
@@ -66,5 +67,23 @@ describe("live store", () => {
     const { store, sent } = start();
     store.send({ type: "setPlaceholder", text: "Yo" });
     expect(sent).toEqual([{ type: "setPlaceholder", text: "Yo" }]);
+  });
+
+  it("hands every server message to the reducer", () => {
+    const { store, server } = start();
+    const messages: ServerMessage[] = [
+      { type: "liveState", stageId: "main", placeholder: "Hi" },
+      {
+        type: "rejected",
+        reason: { code: "placeholderTooLong", params: { maxLength: 1000 } },
+      },
+      { type: "placeholderChanged", stageId: "main", placeholder: "Yo" },
+      { type: "changed", topics: ["placeholder"] },
+      { type: "pong", nonce: 9 },
+    ];
+    for (const message of messages) server(message);
+    expect(store.getSnapshot()).toEqual(
+      messages.reduce(receive, initialLiveState),
+    );
   });
 });

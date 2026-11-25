@@ -39,6 +39,9 @@ export function createLiveStore(
 
   const client = connect({
     onMessage(message) {
+      // Every server message goes to the reducer, except Pitch readings:
+      // #127 routes those to their Player's ring buffer here, before the
+      // reducer, so they never cause a React render.
       if (message.type === "changed") {
         for (const topic of message.topics) {
           for (const listener of topicListeners.get(topic) ?? []) listener();
