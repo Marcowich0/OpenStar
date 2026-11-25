@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use openstar::{Config, Server};
+use openstar_protocol::library::ScanStatus;
 use openstar_protocol::{ClientMessage, ServerMessage};
 use serde::de::DeserializeOwned;
 use tempfile::TempDir;
@@ -28,6 +29,10 @@ const NO_USDB: &str = "http://127.0.0.1:9";
 
 /// How long a WebSocket receive or a graceful stop may take before the test fails.
 const WAIT: Duration = Duration::from_secs(5);
+
+/// How long the start-up Library scan may take; generous, since other builds
+/// may load the machine.
+const SCAN_WAIT: Duration = Duration::from_secs(30);
 
 /// The temporary songs and appdata folders of a [`TestApp`]. They are removed
 /// when this value is dropped.
@@ -178,12 +183,15 @@ struct Serving {
     task: JoinHandle<std::io::Result<()>>,
 }
 
-/// Runs the startup steps with `vars` as the only settings, then serves on `listener`.
+/// Runs the startup steps with `vars` as the only settings, then serves on
+/// `listener`, and returns once the start-up Library scan has ended, so its
+/// `changed` notice never reaches a test's WebSocket unasked.
 async fn serve(
     vars: &BTreeMap<String, String>,
     test_routes: bool,
     listener: tokio::net::TcpListener,
 ) -> Serving {
+    let addr = listener.local_addr().expect("the bound address");
     let config = Config::from_vars(|name| vars.get(name).cloned())
         .expect("the harness's settings are valid");
     let mut server = Server::start(&config).await.expect("the app starts");
@@ -195,6 +203,7 @@ async fn serve(
     let task = tokio::spawn(server.serve_with_shutdown(listener, async move {
         let _ = shutdown_rx.await;
     }));
+    wait_for_the_start_up_scan(addr).await;
     Serving {
         migrations_applied,
         shutdown,
@@ -221,6 +230,33 @@ async fn bind_again(addr: SocketAddr) -> tokio::net::TcpListener {
                 "binding {addr} again: {e} (drop the WsClients that are still open before restart)"
             ),
         }
+    }
+}
+
+/// Polls `GET /api/library/scan` until no scan runs. The scan starts before
+/// the first request is answered, so a first answer never predates it.
+async fn wait_for_the_start_up_scan(addr: SocketAddr) {
+    let url = format!("http://{addr}/api/library/scan");
+    let http = reqwest::Client::new();
+    let deadline = tokio::time::Instant::now() + SCAN_WAIT;
+    loop {
+        let status: ScanStatus = http
+            .get(&url)
+            .send()
+            .await
+            .and_then(reqwest::Response::error_for_status)
+            .unwrap_or_else(|e| panic!("GET {url}: {e}"))
+            .json()
+            .await
+            .unwrap_or_else(|e| panic!("GET {url}: decoding the body: {e}"));
+        if !status.running {
+            return;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the start-up Library scan did not end within {SCAN_WAIT:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(5)).await;
     }
 }
 
@@ -361,6 +397,8 @@ impl TestApp {
         self.shut_down().await;
         let listener = bind_again(self.addr).await;
         let serving = serve(&self.vars, self.test_routes, listener).await;
+        // Connections kept alive to the stopped app are dead: start afresh.
+        self.http = reqwest::Client::new();
         self.migrations_applied = serving.migrations_applied;
         self.shutdown = Some(serving.shutdown);
         self.task = Some(serving.task);
