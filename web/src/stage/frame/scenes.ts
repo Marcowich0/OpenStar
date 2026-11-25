@@ -32,11 +32,16 @@ export const SCENE_RULES: Record<SceneId, SceneRules> = {
 };
 
 /**
- * The scene for the Stage state. `sing` and `results` are picked once the
- * Party state says a Song plays or has ended (#164, #182 add that state).
+ * The scene for the Stage state, from the Party state the server sends:
+ * the results of the Song that just ended, else the sing screen while the
+ * head's Song plays (paused or not), else the head's waiting Line-up, else
+ * the song browser.
  */
 export function pickScene(stage: StageState | null): SceneId {
   if (stage?.stageMoved) return "stageMoved";
-  if (stage?.party?.head != null) return "lineUp";
+  const party = stage?.party;
+  if (party?.results != null) return "results";
+  if (party?.playing != null) return "sing";
+  if (party?.head != null) return "lineUp";
   return "songBrowser";
 }
