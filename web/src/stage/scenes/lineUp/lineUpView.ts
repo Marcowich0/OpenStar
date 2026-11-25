@@ -7,8 +7,10 @@ import type { Difficulty } from "../../../generated/Difficulty";
 import type { LineUp } from "../../../generated/LineUp";
 import type { LineUpWarning } from "../../../generated/LineUpWarning";
 import type { MicKey } from "../../../generated/MicKey";
+import type { PartyMember } from "../../../generated/PartyMember";
 import type { PartyMemberId } from "../../../generated/PartyMemberId";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
+import type { Profile } from "../../../generated/Profile";
 import type { SeatVoice } from "../../../generated/SeatVoice";
 import type { SongId } from "../../../generated/SongId";
 
@@ -148,4 +150,53 @@ export function micChoices(
     };
   });
   return [...phones, ...locals];
+}
+
+const byName = new Intl.Collator(undefined, { sensitivity: "base" });
+
+/**
+ * The Who list's Profiles that are not Party members yet: by their most
+ * recent Score record, newest first; those that never sang follow, by name.
+ */
+export function profilesToEnter(
+  members: readonly PartyMember[],
+  profiles: readonly Profile[] | undefined,
+): Profile[] {
+  const inParty = new Set(
+    members.flatMap((m) =>
+      m.identity.kind === "profile" ? [m.identity.profileId] : [],
+    ),
+  );
+  return (profiles ?? [])
+    .filter((p) => !inParty.has(p.id))
+    .sort((a, b) => {
+      if (a.lastSungAt !== null && b.lastSungAt !== null)
+        return b.lastSungAt - a.lastSungAt;
+      if (a.lastSungAt !== null) return -1;
+      if (b.lastSungAt !== null) return 1;
+      return byName.compare(a.name, b.name);
+    });
+}
+
+/** The gap between a field and its pick list, and the frame's margin. */
+const PICK_LIST_GAP = 16;
+const FRAME_MARGIN = 20;
+const FRAME_HEIGHT = 1080;
+
+/**
+ * Where a pick list of `height` goes, as its top relative to the field's
+ * top (all in reference px): under the field when it fits, else above it,
+ * else as low as it fits inside the frame.
+ */
+export function pickListTop(
+  anchor: { top: number; bottom: number },
+  height: number,
+): number {
+  const below = anchor.bottom + PICK_LIST_GAP;
+  if (below + height <= FRAME_HEIGHT - FRAME_MARGIN) return below - anchor.top;
+  const above = anchor.top - PICK_LIST_GAP - height;
+  if (above >= FRAME_MARGIN) return above - anchor.top;
+  return (
+    Math.max(FRAME_MARGIN, FRAME_HEIGHT - FRAME_MARGIN - height) - anchor.top
+  );
 }
