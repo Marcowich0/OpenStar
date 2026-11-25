@@ -16,6 +16,7 @@ mod local_mics;
 pub mod mic_settings;
 mod profiles;
 pub mod scores;
+pub mod stage_outputs;
 mod startup;
 pub mod txt;
 mod unlock;

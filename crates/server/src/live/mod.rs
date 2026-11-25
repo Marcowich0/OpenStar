@@ -29,6 +29,7 @@ use std::sync::Arc;
 
 use openstar_protocol::library::SongId;
 use openstar_protocol::mics::MicKey;
+use openstar_protocol::volume::VolumeStep;
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
@@ -40,6 +41,7 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::db::Database;
 use crate::profiles::{self, Refused};
+use crate::stage_outputs::{self, StageOutput};
 use hub::{Connection, ConnectionId, Hub};
 use party::Joined;
 use songs::{LibraryIndex, SongLookup, Songs};
@@ -263,6 +265,9 @@ struct Stage {
     last_local_mics: HashMap<PartyMemberId, String>,
     /// The connection that is the active Stage, while one is open.
     connection: Option<ConnectionId>,
+    /// The Stage output the active Stage last reported, with its OpenStar
+    /// volume. Gone when that Stage closes or another becomes the Stage.
+    output: Option<(StageOutput, u8)>,
 }
 
 /// Owned by the task alone.
@@ -314,6 +319,7 @@ impl LiveState {
                 party,
                 last_local_mics,
                 connection: None,
+                output: None,
             },
         );
         Ok(Self {
@@ -391,6 +397,8 @@ impl LiveState {
             if let Some(previous) = self.stage_mut().connection.replace(id) {
                 self.hub.send_to(previous, &ServerMessage::StageMoved);
             }
+            // The new Stage reports its own output.
+            self.stage_mut().output = None;
             if self.stage().party.is_none() {
                 started = self.start_party(now_ms).await;
             }
@@ -401,6 +409,15 @@ impl LiveState {
             is_stage: self.stage().connection == Some(id),
         };
         self.hub.send_to(id, &live_state);
+        if let Some((_, volume)) = self.stage().output {
+            self.hub.send_to(
+                id,
+                &ServerMessage::Volume {
+                    volume,
+                    stepped: false,
+                },
+            );
+        }
         if let Some(change) = started {
             self.party_changed(change);
         }
@@ -413,6 +430,7 @@ impl LiveState {
         let stage = self.stage_mut();
         if stage.connection == Some(id) {
             stage.connection = None;
+            stage.output = None;
         }
         if self.mics.remove(&id) {
             self.send_to_stage(&ServerMessage::MicClosed { mic: mic_id(id) });
@@ -500,6 +518,21 @@ impl LiveState {
                 let stored =
                     crate::local_mics::switch(self.db.clone(), local_mic_id, source, switched_on);
                 self.mic_settings_write(id, stored).await;
+            }
+            Ok(ClientMessage::ReportStageOutput {
+                stage_browser,
+                stage_output,
+            }) => {
+                let output = StageOutput {
+                    stage_browser,
+                    stage_output,
+                };
+                let result = self.report_stage_output(id, output).await;
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::StepVolume { step }) => {
+                let result = self.step_volume(id, step).await;
+                self.refuse_on_error(id, result);
             }
             Ok(ClientMessage::Hello { phone_id }) => {
                 if !phone_id.is_valid() {
@@ -651,6 +684,46 @@ impl LiveState {
                 self.reject(id, UserMessage::ServerError);
             }
         }
+    }
+
+    /// The active Stage reports its Stage output: the volume becomes that
+    /// output's stored one (80 when none is), and every connection hears it.
+    async fn report_stage_output(
+        &mut self,
+        id: ConnectionId,
+        output: StageOutput,
+    ) -> Result<(), UserMessage> {
+        if self.stage().connection != Some(id) {
+            return Err(UserMessage::NotTheStage);
+        }
+        let volume = stage_outputs::volume(&self.db, &output)
+            .await
+            .map_err(|error| server_error(&error, "reading the OpenStar volume"))?;
+        self.stage_mut().output = Some((output, volume));
+        self.hub.send_all(&ServerMessage::Volume {
+            volume,
+            stepped: false,
+        });
+        Ok(())
+    }
+
+    /// One step of the OpenStar volume from the Stage or a joined Phone,
+    /// stored at the Stage's current output; every connection hears it.
+    async fn step_volume(&mut self, id: ConnectionId, step: VolumeStep) -> Result<(), UserMessage> {
+        self.remote_actor(id)?;
+        let Some((output, volume)) = self.stage().output.clone() else {
+            return Err(UserMessage::NoStage);
+        };
+        let volume = step.apply(volume);
+        stage_outputs::set_volume(&self.db, &output, volume)
+            .await
+            .map_err(|error| server_error(&error, "storing the OpenStar volume"))?;
+        self.stage_mut().output = Some((output, volume));
+        self.hub.send_all(&ServerMessage::Volume {
+            volume,
+            stepped: true,
+        });
+        Ok(())
     }
 
     /// Whether `code` is the current Party's Join code. Wrong codes are not

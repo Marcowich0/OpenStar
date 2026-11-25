@@ -13,6 +13,7 @@ pub mod pitch;
 pub mod profile;
 pub mod scoring;
 pub mod song;
+pub mod volume;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -126,6 +127,24 @@ pub enum ClientMessage {
         source: mics::LocalMicSource,
         switched_on: bool,
     },
+    /// The Stage reports its current Stage output: its Stage browser id and
+    /// the output key (the default `audiooutput` label without "Default - ").
+    /// Sent whenever it becomes the Stage and whenever the output changes.
+    /// The server switches to that output's stored OpenStar volume (80 when
+    /// none is stored) and sends every connection a
+    /// [`ServerMessage::Volume`]. Accepted only from the active Stage; needs
+    /// no Admin PIN.
+    ReportStageOutput {
+        stage_browser: String,
+        stage_output: String,
+    },
+    /// Turns the OpenStar volume one step up or down, from the Stage or any
+    /// Remote, with no Admin PIN. The server stores it at the Stage's
+    /// current output and sends every connection a [`ServerMessage::Volume`].
+    /// Refused with [`UserMessage::NotInParty`] for a Phone that has not
+    /// joined, and [`UserMessage::NoStage`] while no Stage has reported its
+    /// output.
+    StepVolume { step: volume::VolumeStep },
     /// Presents the browser's Phone id. A Phone sends it every time its
     /// WebSocket opens, before anything else. A Phone already in the current
     /// Party is back in at once with the same identity (silent rejoin). The
@@ -286,6 +305,13 @@ pub enum ServerMessage {
     /// longer is (a new Party started, or its Party member left or was
     /// removed): it needs the Join code to come back.
     LeftParty,
+    /// The Stage's current OpenStar volume (0 to 100), sent to every
+    /// connection when the Stage reports its output and on every step, and to
+    /// a new connection after its [`ServerMessage::LiveState`] while a Stage
+    /// has reported its output. `stepped` is true when a
+    /// [`ClientMessage::StepVolume`] changed it (the Stage shows its volume
+    /// pill then), false when the output changed or a browser connected.
+    Volume { volume: u8, stepped: bool },
     /// A background job was queued, started, made progress or ended (sent to
     /// every connection).
     JobChanged { job: jobs::Job },

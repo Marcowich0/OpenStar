@@ -75,6 +75,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::SetMicThreshold { .. }
         // Switching a Local mic on or off deletes nothing.
         | ClientMessage::SetLocalMicSwitchedOn { .. }
+        // The OpenStar volume is everyone's, from the Stage or any Remote.
+        | ClientMessage::ReportStageOutput { .. }
+        | ClientMessage::StepVolume { .. }
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
         | ClientMessage::Join { .. }

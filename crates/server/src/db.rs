@@ -317,6 +317,16 @@ const MIGRATIONS: &[&str] = &[
         mtime_ns INTEGER NOT NULL,
         lufs     REAL
     ) STRICT, WITHOUT ROWID;",
+    // 20: what is kept per (Stage browser, Stage output) (see
+    // `stage_outputs`): the OpenStar volume, 0 to 100. Not linked to
+    // `parties`, so New party keeps it. The A/V offset (#161) belongs here
+    // too.
+    "CREATE TABLE stage_outputs (
+        stage_browser TEXT NOT NULL,
+        stage_output  TEXT NOT NULL,
+        volume        INTEGER NOT NULL CHECK (volume BETWEEN 0 AND 100),
+        PRIMARY KEY (stage_browser, stage_output)
+    ) STRICT, WITHOUT ROWID;",
 ];
 
 /// The schema version this build migrates to.
