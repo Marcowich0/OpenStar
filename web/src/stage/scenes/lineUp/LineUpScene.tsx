@@ -15,13 +15,16 @@ import type { LineUpEdit } from "../../../generated/LineUpEdit";
 import type { PartyMemberId } from "../../../generated/PartyMemberId";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
 import type { SongId } from "../../../generated/SongId";
+import type { SeatWho } from "../../../generated/SeatWho";
 import type { SongSummary } from "../../../generated/SongSummary";
+import type { UserMessage } from "../../../generated/UserMessage";
 import { lineUpWarningText } from "../../../i18n/serverText";
 import { t } from "../../../i18n/t";
 import type { LiveState } from "../../../live/liveState";
 import { useLive } from "../../../live/useLive";
 import { useLocalMics } from "../../../mics/LocalMics";
 import { localMicName } from "../../../mics/localMics";
+import { request } from "../../../phone/joinRequests";
 import { memberLook } from "../../../phone/memberLook";
 import { Button } from "../../../ui/Button";
 import { Cover } from "../../../ui/Cover";
@@ -103,6 +106,30 @@ function LineUpBody({
       requestId: lineUp.requestId,
       edit: change,
     });
+  };
+  // Seats someone who enters the Party, and waits for the server: done once
+  // a member who was not in the Party sits in that seat, or the Line-up is
+  // gone; a refusal comes back to show in the list.
+  const seatNew = (seat: number, who: SeatWho): Promise<UserMessage | null> => {
+    const before = new Set(party.members.map((m) => m.memberId));
+    const change: LineUpEdit =
+      seat < lineUp.seats.length
+        ? { kind: "setWho", seat, who }
+        : { kind: "addSeat", who };
+    return request<UserMessage | null>(
+      store,
+      { type: "editLineUp", requestId: lineUp.requestId, edit: change },
+      (state) => {
+        const now = state.stage?.party?.lineUp;
+        if (now?.requestId !== lineUp.requestId) return null;
+        const sitter = now.seats[seat]?.memberId;
+        if (sitter === undefined || before.has(sitter)) return undefined;
+        close();
+        return null;
+      },
+      (reason) => reason,
+      null,
+    );
   };
   const start = () => {
     store.send({
@@ -206,6 +233,7 @@ function LineUpBody({
                       nameOf={nameOf}
                       profiles={profiles}
                       onClose={close}
+                      onSeat={(who) => seatNew(index, who)}
                       onPick={(memberId) => {
                         close();
                         edit({
@@ -253,6 +281,7 @@ function LineUpBody({
                   nameOf={nameOf}
                   profiles={profiles}
                   onClose={close}
+                  onSeat={(who) => seatNew(lineUp.seats.length, who)}
                   onPick={(memberId) => {
                     close();
                     edit({
