@@ -93,6 +93,26 @@ enum Command {
         edit: ProfileEdit,
         reply: oneshot::Sender<anyhow::Result<Result<Profile, Refused>>>,
     },
+    /// Songs left the Library (deleted in the Admin area, or gone at a
+    /// Rescan), each with the title it had there: their queued Requests are
+    /// dropped. The playing Request is not: a Song that plays cannot be
+    /// deleted, and one gone at a Rescan plays on until it ends or is
+    /// skipped.
+    SongsLeft { songs: Vec<(SongId, String)> },
+    /// Whether Song `song_id` plays on the Stage now (a Song delete is
+    /// refused then).
+    #[cfg_attr(not(test), expect(dead_code))]
+    SongPlaying {
+        song_id: SongId,
+        reply: oneshot::Sender<bool>,
+    },
+    /// The Admin area deletes a Profile: a Party member leaves the Party
+    /// first, in the same transaction. Refused while it sings in the
+    /// playing Song.
+    DeleteProfile {
+        id: ProfileId,
+        reply: oneshot::Sender<anyhow::Result<Result<(), Refused>>>,
+    },
     /// Stop: drop every connection (their sockets close) and end the task.
     Shutdown { done: oneshot::Sender<()> },
 }
@@ -183,6 +203,43 @@ impl LiveHandle {
         let (reply, answer) = oneshot::channel();
         self.commands
             .send(Command::EditProfile { id, edit, reply })
+            .await
+            .map_err(|_| anyhow::anyhow!("the live-state task has stopped"))?;
+        answer.await?
+    }
+
+    /// Tells the Party that these Songs left the Library, each with the
+    /// title it had there (see [`Command::SongsLeft`]): their queued
+    /// Requests are dropped, each with a change event naming the Song.
+    pub async fn songs_left(&self, songs: Vec<(SongId, String)>) {
+        if !songs.is_empty() {
+            let _ = self.commands.send(Command::SongsLeft { songs }).await;
+        }
+    }
+
+    /// Whether Song `song_id` plays on the Stage now; false once the task
+    /// has stopped. The seam #190's Song delete asks.
+    #[cfg_attr(not(test), expect(dead_code))]
+    pub async fn song_playing(&self, song_id: SongId) -> bool {
+        let (reply, answer) = oneshot::channel();
+        if self
+            .commands
+            .send(Command::SongPlaying { song_id, reply })
+            .await
+            .is_err()
+        {
+            return false;
+        }
+        answer.await.unwrap_or(false)
+    }
+
+    /// Deletes Profile `id` and its Score records (see
+    /// [`Command::DeleteProfile`]). `Refused::NotFound` when there is no
+    /// such Profile, `Refused::Party(ProfileSinging)` while it sings.
+    pub async fn delete_profile(&self, id: ProfileId) -> anyhow::Result<Result<(), Refused>> {
+        let (reply, answer) = oneshot::channel();
+        self.commands
+            .send(Command::DeleteProfile { id, reply })
             .await
             .map_err(|_| anyhow::anyhow!("the live-state task has stopped"))?;
         answer.await?
@@ -298,6 +355,13 @@ impl LiveState {
                 }
                 Command::EditProfile { id, edit, reply } => {
                     let _ = reply.send(self.edit_profile(id, edit).await);
+                }
+                Command::SongsLeft { songs } => self.songs_left(songs).await,
+                Command::SongPlaying { song_id, reply } => {
+                    let _ = reply.send(self.song_playing(song_id));
+                }
+                Command::DeleteProfile { id, reply } => {
+                    let _ = reply.send(self.delete_profile(id).await);
                 }
                 Command::Shutdown { done } => {
                     drop(self);
@@ -884,6 +948,59 @@ impl LiveState {
         }
     }
 
+    /// Deletes Profile `id` (the Admin area): a Party member leaves the
+    /// Party (see [`party::delete_profile`]) in the same transaction as the
+    /// Profile and its Score records go. Every Phone that used it is told
+    /// it left the Party, and everyone hears of it, the Stage included.
+    async fn delete_profile(&mut self, id: ProfileId) -> anyhow::Result<Result<(), Refused>> {
+        let Some(profile) = profiles::get(&self.db, id).await? else {
+            return Ok(Err(Refused::NotFound));
+        };
+        let mut party = self.stage().party.clone();
+        let left = match party.as_mut().map(|party| party::delete_profile(party, id)) {
+            Some(Err(message)) => return Ok(Err(Refused::Party(message))),
+            Some(Ok(left)) => left,
+            None => None,
+        };
+        let leaving = party
+            .clone()
+            .zip(left.as_ref().map(|left| left.member.member_id));
+        let deleted = self
+            .db
+            .call(move |conn| {
+                let tx = conn.transaction()?;
+                if let Some((party, member_id)) = &leaving {
+                    store::save_leave_in(&tx, party, *member_id)?;
+                }
+                let deleted = profiles::delete_in(&tx, id)?;
+                tx.commit()?;
+                Ok(deleted)
+            })
+            .await?;
+        if !deleted {
+            return Ok(Err(Refused::NotFound));
+        }
+        // The Profile's Score records left the High score tables too.
+        self.hub.send_all(&ServerMessage::Changed {
+            topics: vec![ChangeTopic::Profiles, ChangeTopic::Library],
+        });
+        if let (Some(party), Some(left)) = (party, left) {
+            let member_id = left.member.member_id;
+            self.stage_mut().party = Some(party);
+            self.out_of_party(member_id, &left.phones);
+            self.party_changed(ChangeEvent {
+                actor: Actor::Admin,
+                event: PartyEvent::ProfileDeleted {
+                    member_id,
+                    name: profile.name,
+                    avatar: profile.avatar,
+                    colour: left.member.colour,
+                },
+            });
+        }
+        Ok(Ok(()))
+    }
+
     /// Edits Party member `member_id` inside the Party, from connection
     /// `id` (a Remote command). The colour must be free; for a Profile it
     /// becomes the favourite too, and the name and avatar change the
@@ -1175,21 +1292,8 @@ impl LiveState {
         store::save_leave(&self.db, &party, member_id)
             .await
             .map_err(|error| server_error(&error, "storing a member leaving"))?;
-        let stage = self.stage_mut();
-        stage.party = Some(party);
-        stage.last_local_mics.remove(&member_id);
-        for phone in &left.phones {
-            self.blocked_phones.remove(phone);
-        }
-        let out: Vec<ConnectionId> = self
-            .phones
-            .iter()
-            .filter(|(_, phone)| left.phones.contains(phone))
-            .map(|(&id, _)| id)
-            .collect();
-        for id in out {
-            self.hub.send_to(id, &ServerMessage::LeftParty);
-        }
+        self.stage_mut().party = Some(party);
+        self.out_of_party(member_id, &left.phones);
         self.party_changed(ChangeEvent {
             actor,
             event: PartyEvent::MemberLeft {
@@ -1200,6 +1304,25 @@ impl LiveState {
             },
         });
         Ok(())
+    }
+
+    /// After member `member_id` left the current Party (already stored and
+    /// applied): forgets what was kept about it and its Phones, and tells
+    /// every connection of those Phones that it left the Party.
+    fn out_of_party(&mut self, member_id: PartyMemberId, phones: &[PhoneId]) {
+        self.stage_mut().last_local_mics.remove(&member_id);
+        for phone in phones {
+            self.blocked_phones.remove(phone);
+        }
+        let out: Vec<ConnectionId> = self
+            .phones
+            .iter()
+            .filter(|(_, phone)| phones.contains(phone))
+            .map(|(&id, _)| id)
+            .collect();
+        for id in out {
+            self.hub.send_to(id, &ServerMessage::LeftParty);
+        }
     }
 
     /// Edits the waiting Line-up of Request `request_id`, from connection
@@ -1634,6 +1757,59 @@ impl LiveState {
         party.head = party.queue.first().map(|request| request.request_id);
         self.commit_queue(party, actor, PartyEvent::ResultsClosed)
             .await
+    }
+
+    /// Songs left the Library: every queued Request for one of them, except
+    /// the playing Request, leaves the Queue, one change event each, naming
+    /// the Song by the title it had in the Library.
+    async fn songs_left(&mut self, songs: Vec<(SongId, String)>) {
+        let titles: HashMap<SongId, String> = songs.into_iter().collect();
+        loop {
+            let Some(mut party) = self.stage().party.clone() else {
+                return;
+            };
+            let playing = party.playing.as_ref().map(|playing| playing.request_id);
+            let Some(request) = party
+                .queue
+                .iter()
+                .find(|request| {
+                    titles.contains_key(&request.song_id) && Some(request.request_id) != playing
+                })
+                .cloned()
+            else {
+                return;
+            };
+            if let Err(error) = queue::remove(&mut party, request.request_id) {
+                tracing::error!(?error, "dropping a Request whose Song left the Library");
+                return;
+            }
+            let change = RequestChange {
+                request_id: request.request_id,
+                song_id: request.song_id,
+                title: titles[&request.song_id].clone(),
+            };
+            if self
+                .commit_queue(
+                    party,
+                    Actor::Admin,
+                    PartyEvent::RequestDroppedSongGone(change),
+                )
+                .await
+                .is_err()
+            {
+                // Logged by `commit_queue`; the Request stays queued.
+                return;
+            }
+        }
+    }
+
+    /// Whether Song `song_id` plays on the Stage now.
+    fn song_playing(&self, song_id: SongId) -> bool {
+        self.stage()
+            .party
+            .as_ref()
+            .and_then(|party| party.playing.as_ref())
+            .is_some_and(|playing| playing.song_id == song_id)
     }
 
     /// Tells the active Stage to act on the head's Song.
@@ -2142,6 +2318,10 @@ mod tests {
                 }),
             )
             .await;
+        assert!(
+            !state.song_playing(SongId(1)),
+            "a queued Song does not play yet"
+        );
         let party = state.stage().party.clone().unwrap();
         let request_id = party.head.unwrap();
         // Bo has never sung, so the seat takes the first free Local mic.
@@ -2164,6 +2344,9 @@ mod tests {
             )
             .await;
         assert!(state.stage().party.as_ref().unwrap().playing.is_some());
+        // The Party answers whether a Song plays: a Song delete asks it.
+        assert!(state.song_playing(SongId(1)));
+        assert!(!state.song_playing(SongId(2)));
         let remembered = HashMap::from([(PartyMemberId(1), "red".to_owned())]);
         assert_eq!(state.stage().last_local_mics, remembered);
         drop(state);
@@ -2171,6 +2354,19 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(state.stage().last_local_mics, remembered);
+    }
+
+    #[tokio::test]
+    async fn the_handle_answers_that_nothing_plays_without_a_song() {
+        let dir = tempfile::tempdir().unwrap();
+        let opened = Database::open(dir.path()).await.unwrap();
+        let live = LiveHandle::start(opened.database).await.unwrap();
+        assert!(!live.song_playing(SongId(1)).await);
+        live.shutdown().await;
+        assert!(
+            !live.song_playing(SongId(1)).await,
+            "a stopped task plays nothing"
+        );
     }
 
     #[tokio::test]

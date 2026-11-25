@@ -424,18 +424,27 @@ pub async fn save_leave(
     let party = party.clone();
     db.call(move |conn| {
         let tx = conn.transaction()?;
-        tx.execute(
-            "DELETE FROM party_members WHERE party_id = ?1 AND member_id = ?2",
-            (&party.party_id.0, member_id.0),
-        )?;
-        tx.execute(
-            "DELETE FROM last_local_mics WHERE party_id = ?1 AND member_id = ?2",
-            (&party.party_id.0, member_id.0),
-        )?;
-        save_queue_in(&tx, &party)?;
+        save_leave_in(&tx, &party, member_id)?;
         tx.commit()
     })
     .await
+}
+
+/// [`save_leave`] inside the caller's transaction; the caller commits.
+pub fn save_leave_in(
+    conn: &Connection,
+    party: &PartySnapshot,
+    member_id: PartyMemberId,
+) -> rusqlite::Result<()> {
+    conn.execute(
+        "DELETE FROM party_members WHERE party_id = ?1 AND member_id = ?2",
+        (&party.party_id.0, member_id.0),
+    )?;
+    conn.execute(
+        "DELETE FROM last_local_mics WHERE party_id = ?1 AND member_id = ?2",
+        (&party.party_id.0, member_id.0),
+    )?;
+    save_queue_in(conn, party)
 }
 
 /// Makes `party` the current Party of its Stage, replacing the one before

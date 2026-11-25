@@ -147,6 +147,7 @@ const REFUSAL_CODES = {
   playerNotInParty: true,
   playerTwice: true,
   memberSinging: true,
+  profileSinging: true,
   useLeaveParty: true,
   lineUpNotWaiting: true,
   seatNotFound: true,
