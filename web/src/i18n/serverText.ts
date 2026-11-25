@@ -84,6 +84,12 @@ export const userMessageText = byCode<UserMessage>({
   noResults: () => t("userMessage.noResults"),
   notABridge: () => t("userMessage.notABridge"),
   bridgeRequestNotFound: () => t("userMessage.bridgeRequestNotFound"),
+  adminPinWait: ({ params: { secondsLeft } }) =>
+    secondsLeft < 60
+      ? t("userMessage.adminPinWaitSeconds", { count: secondsLeft })
+      : t("userMessage.adminPinWaitMinutes", {
+          count: Math.ceil(secondsLeft / 60),
+        }),
 });
 
 /** An accepted change to the Party, as a toast. */

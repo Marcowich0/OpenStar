@@ -382,6 +382,14 @@ export const en = {
   "userMessage.notABridge": "Only a Mic bridge can do that",
   "userMessage.bridgeRequestNotFound":
     "That Mic bridge is no longer waiting for approval",
+  "userMessage.adminPinWaitSeconds": {
+    one: "Too many wrong PINs. Try again in {count, number} second",
+    other: "Too many wrong PINs. Try again in {count, number} seconds",
+  },
+  "userMessage.adminPinWaitMinutes": {
+    one: "Too many wrong PINs. Try again in {count, number} minute",
+    other: "Too many wrong PINs. Try again in {count, number} minutes",
+  },
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
