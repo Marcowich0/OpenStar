@@ -2,12 +2,16 @@
 // Line as DOM text and re-renders it only when that Line changes; the render
 // loop hands every frame's draw list to `LyricDriver.apply`, which writes the
 // current Note's fill fraction to the `--lyric-fill` CSS custom property on
-// its text, bypassing React. The bar's look (sizes, the next Line, the lift
-// and the pop-in) is #215's.
+// its text, bypassing React. The bar's look is #215's: a frosted bar with
+// the current Line large and the next one small below it (both Voices'
+// current Lines in a duet), golden and italic Notes, the 6 px lift of the
+// Note being sung and the pop-in of a new Line.
 
-import { memo, useSyncExternalStore } from "react";
+import { memo, useSyncExternalStore, type CSSProperties } from "react";
 
 import { tokenVar } from "../../theme/tokens";
+import type { Note } from "../../generated/Note";
+import type { NoteKind } from "../../generated/NoteKind";
 import type { DrawList, LyricColour, LyricEntry, SingVoice } from "./frame";
 
 /** Between the render loop and the lyric text. */
@@ -109,17 +113,87 @@ export function createLyricDriver(): LyricDriver {
   };
 }
 
+/** The bar (#55), in the 1920 × 1080 reference frame. */
+const BAR_STYLE: CSSProperties = {
+  position: "absolute",
+  left: "50%",
+  bottom: "34px",
+  translate: "-50% 0",
+  background: "color-mix(in srgb, var(--color-white) 86%, transparent)",
+  backdropFilter: "blur(14px)",
+  WebkitBackdropFilter: "blur(14px)",
+  borderRadius: "52px",
+  padding: "10px 60px 16px",
+  boxShadow: "var(--shadow-ledge-lyric)",
+  lineHeight: 1.1,
+  textAlign: "center",
+};
+
+const CURRENT_STYLE: CSSProperties = { fontSize: "78px", fontWeight: 700 };
+const DUET_STYLE: CSSProperties = { fontSize: "60px", fontWeight: 700 };
+const NEXT_STYLE: CSSProperties = {
+  fontSize: "36px",
+  fontWeight: 600,
+  color: "var(--color-mute)",
+};
+
+const GOLDEN: ReadonlySet<NoteKind> = new Set(["golden", "goldenRap"]);
+const ITALIC: ReadonlySet<NoteKind> = new Set([
+  "rap",
+  "goldenRap",
+  "freestyle",
+]);
+
 /**
  * The fill: the Voice's fill colour up to `--lyric-fill` of the text's width,
- * ink after it, clipped to the glyphs.
+ * the unsung colour after it, clipped to the glyphs. The inline padding,
+ * taken back by the margin, lets the background reach an italic or bold
+ * glyph's overhang, which `background-clip: text` would otherwise cut off.
  */
 const SYLLABLE_STYLE = {
   backgroundImage:
-    "linear-gradient(90deg, var(--lyric-fill-colour) calc(var(--lyric-fill, 0) * 100%), var(--color-ink) 0)",
+    "linear-gradient(90deg, var(--lyric-fill-colour) calc(var(--lyric-fill, 0) * 100%), var(--lyric-unsung) 0)",
   backgroundClip: "text",
   WebkitBackgroundClip: "text",
   color: "transparent",
+  paddingInline: "0.1em",
+  marginInline: "-0.1em",
 } as const;
+
+/** One style per Note look, so a Line change allocates no styles. */
+const NOTE_STYLES = new Map<string, CSSProperties>();
+function noteStyle(kind: NoteKind): CSSProperties {
+  const golden = GOLDEN.has(kind);
+  const italic = ITALIC.has(kind);
+  const key = `${String(golden)}:${String(italic)}`;
+  let style = NOTE_STYLES.get(key);
+  if (!style) {
+    style = {
+      ...SYLLABLE_STYLE,
+      "--lyric-unsung": golden
+        ? "var(--color-golden-text)"
+        : "var(--color-ink)",
+      fontStyle: italic ? "italic" : undefined,
+    } as CSSProperties;
+    NOTE_STYLES.set(key, style);
+  }
+  return style;
+}
+
+const ITALIC_STYLE: CSSProperties = { fontStyle: "italic" };
+
+/** The next Line: plain text in mute, Rap and Freestyle Notes in italics. */
+function NextLine({ notes }: { notes: readonly Note[] }) {
+  return (
+    <div data-lyric-next className="animate-line-in" style={NEXT_STYLE}>
+      {notes.map((note, i) => (
+        <span key={i} style={ITALIC.has(note.kind) ? ITALIC_STYLE : undefined}>
+          {note.text}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export const LyricBar = memo(function LyricBar({
   voices,
@@ -130,10 +204,15 @@ export const LyricBar = memo(function LyricBar({
 }) {
   const lines = useSyncExternalStore(driver.subscribe, driver.lines);
   const duet = voices.length > 1;
+  const shown = voices.some((voice, v) => voice.lines[lines[v] ?? -1]);
+  const single = voices[0];
+  const next = duet ? undefined : single?.lines[(lines[0] ?? -1) + 1];
   return (
     <div
       data-lyric-bar
-      className={`absolute right-0 bottom-[34px] left-0 flex flex-col items-center font-bold text-ink ${duet ? "text-[60px]" : "text-[78px]"}`}
+      hidden={!shown}
+      className="whitespace-pre text-ink"
+      style={BAR_STYLE}
     >
       {voices.map((voice, v) => {
         const index = lines[v] ?? -1;
@@ -145,16 +224,23 @@ export const LyricBar = memo(function LyricBar({
               driver.attach(v, el);
             }}
             data-lyric-line
-            className="leading-tight whitespace-pre"
+            className="animate-line-in"
+            style={duet ? DUET_STYLE : CURRENT_STYLE}
           >
             {line?.notes.map((note, i) => (
-              <span key={i} data-lyric-note style={SYLLABLE_STYLE}>
+              <span
+                key={i}
+                data-lyric-note
+                className="inline-block transition-[translate] duration-200 data-singing:-translate-y-[6px]"
+                style={noteStyle(note.kind)}
+              >
                 {note.text}
               </span>
             ))}
           </div>
         );
       })}
+      {next && <NextLine key={(lines[0] ?? -1) + 1} notes={next.notes} />}
     </div>
   );
 });
