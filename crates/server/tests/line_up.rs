@@ -4,7 +4,7 @@
 
 use std::path::Path;
 
-use openstar_protocol::library::{SongId, SongSummary};
+use openstar_protocol::library::{SongId, SongList, SongSummary};
 use openstar_protocol::mics::MicKey;
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
 use openstar_protocol::{
@@ -37,7 +37,7 @@ async fn app_with_songs() -> (TestApp, SongId, SongId) {
     write_song(&app.songs_dir().join("Solo"), "Solo", false);
     write_song(&app.songs_dir().join("Duet"), "Duet", true);
     app.restart().await;
-    let songs: Vec<SongSummary> = app.get_json("/api/songs").await;
+    let songs: Vec<SongSummary> = app.get_json::<SongList>("/api/songs").await.songs;
     let id = |title: &str| {
         songs
             .iter()
