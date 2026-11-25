@@ -121,6 +121,17 @@ export function toastContent(
           ? tParts("toast.youChanged")
           : tParts("partyEvent.memberChanged", { name: event.params.name }),
       };
+    case "memberLeft": {
+      // The member is gone from the snapshot, so its look comes with the event.
+      const { name, avatar, colour } = event.params;
+      return {
+        actor: { name, avatar, colour },
+        parts: tParts("toast.memberLeft", {
+          actor: name,
+          colour: colourName(colour),
+        }),
+      };
+    }
     case "micBlocked":
       return {
         actor: memberLook(party, profiles, event.params.memberId),

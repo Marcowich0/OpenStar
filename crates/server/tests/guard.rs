@@ -344,6 +344,10 @@ fn every_client_message() -> Vec<ClientMessage> {
             request_id: RequestId(1),
         },
         ClientMessage::ReportMicBlocked { blocked: true },
+        ClientMessage::LeaveParty,
+        ClientMessage::RemoveMember {
+            member_id: PartyMemberId(1),
+        },
     ]
 }
 

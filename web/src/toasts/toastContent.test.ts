@@ -4,7 +4,6 @@ import type { PartyEvent } from "../generated/PartyEvent";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { Profile } from "../generated/Profile";
 import type { Toast } from "../live/toasts";
-import { colourName } from "../i18n/colourNames";
 import { tParts, type TextPart } from "../i18n/t";
 import { BOLD_PARAMS, toastContent } from "./toastContent";
 
@@ -107,6 +106,29 @@ describe("a toast's content", () => {
     });
     expect(text(toast)).toBe("Mia joined the Party in Mint");
     expect(toastContent(toast, party, profiles).actor?.colour).toBe("mint");
+  });
+
+  it("shows a member who left with the look they had, from the event alone", () => {
+    // Lukas is no longer in the snapshot; Bo removed him.
+    const toast = byMember(1, {
+      code: "memberLeft",
+      params: {
+        memberId: 5,
+        name: "Lukas",
+        avatar: { kind: "builtIn", key: "moon" },
+        colour: "tangerine",
+      },
+    });
+    const content = toastContent(toast, party, profiles);
+    expect(text(toast)).toBe("Lukas left the Party. Tangerine is free");
+    expect(content.parts.filter((part) => part.param === "actor")).toEqual([
+      { text: "Lukas", param: "actor" },
+    ]);
+    expect(content.actor).toEqual({
+      name: "Lukas",
+      avatar: { kind: "builtIn", key: "moon" },
+      colour: "tangerine",
+    });
   });
 
   it("falls back to the text without the actor while their name is unknown", () => {
@@ -236,15 +258,6 @@ describe("toasts whose sender is not built yet", () => {
     parts
       .filter((part) => part.param && BOLD_PARAMS.has(part.param))
       .map((part) => part.text);
-
-  it("says a member left and names the colour that is free", () => {
-    const parts = tParts("toast.memberLeft", {
-      actor: "Lukas",
-      colour: colourName("cocoa"),
-    });
-    expect(join(parts)).toBe("Lukas left the Party. Cocoa is free");
-    expect(bold(parts)).toEqual(["Lukas"]);
-  });
 
   it("says a mic is back", () => {
     expect(join(tParts("toast.backOnMic", { actor: "Mia" }))).toBe(
