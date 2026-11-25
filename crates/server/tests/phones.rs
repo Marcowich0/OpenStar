@@ -288,6 +288,8 @@ async fn a_second_phone_on_a_member_adds_no_member_even_when_the_party_is_full()
     let app = TestApp::start().await;
     let (_stage, party) = first_stage(&app).await;
     let mut socket = phone(&app).await;
+    // Made before the Party fills: a full Party refuses creating a Profile.
+    let late = create_profile(&app, "Late", PaletteKey::Cherry).await;
     let mut profiles = Vec::new();
     for (n, colour) in PaletteKey::ALL.into_iter().enumerate() {
         let profile = create_profile(&app, &format!("P{n}"), colour).await;
@@ -296,7 +298,6 @@ async fn a_second_phone_on_a_member_adds_no_member_even_when_the_party_is_full()
     }
 
     // Twelve colours held: a Profile not yet in the Party is refused.
-    let late = create_profile(&app, "Late", PaletteKey::Cherry).await;
     socket.send(&join(99, &party.join_code, &late)).await;
     assert_eq!(recv(&mut socket).await, rejected(UserMessage::PartyFull));
 

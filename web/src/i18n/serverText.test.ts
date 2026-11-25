@@ -59,6 +59,12 @@ describe("server texts", () => {
         params: { memberId: 1, name: "Bo" },
       }),
     ).toBe("Bo joined on another Phone");
+    expect(
+      partyEventText({
+        code: "memberChanged",
+        params: { memberId: 1, name: "Bo" },
+      }),
+    ).toBe("Bo changed their name, look or colour");
     const africa = { requestId: 4, songId: 12, title: "Africa" };
     expect(partyEventText({ code: "requestMovedUp", params: africa })).toBe(
       "Africa moved up",
@@ -84,6 +90,15 @@ describe("server texts", () => {
     expect(userMessageText({ code: "partyFull" })).toBe("Party is full");
     expect(userMessageText({ code: "notInParty" })).toBe(
       "Join the Party first",
+    );
+    expect(
+      userMessageText({ code: "nameTakenTonight", params: { memberId: 2 } }),
+    ).toBe("Someone already has that name tonight");
+    expect(userMessageText({ code: "colourTaken" })).toBe(
+      "Someone else has that colour tonight",
+    );
+    expect(userMessageText({ code: "memberNotFound" })).toBe(
+      "That person is no longer in the Party",
     );
   });
 
