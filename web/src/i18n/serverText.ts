@@ -36,6 +36,13 @@ export const userMessageText = byCode<UserMessage>({
   invalidMessage: () => t("userMessage.invalidMessage"),
   notTheStage: () => t("userMessage.notTheStage"),
   serverError: () => t("userMessage.serverError"),
+  jobCancelled: () => t("userMessage.jobCancelled"),
+  jobInterrupted: () => t("userMessage.jobInterrupted"),
+  toolNotFound: ({ params }) => t("userMessage.toolNotFound", params),
+  toolFailed: ({ params: { tool, exitCode } }) =>
+    exitCode === null
+      ? t("userMessage.toolStopped", { tool })
+      : t("userMessage.toolFailed", { tool, exitCode }),
 });
 
 /** An accepted change to the Party, as a toast. */

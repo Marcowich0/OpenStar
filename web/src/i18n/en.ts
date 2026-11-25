@@ -54,6 +54,11 @@ export const en = {
   "userMessage.invalidMessage": "The server could not read that message",
   "userMessage.notTheStage": "Only the Stage can do that",
   "userMessage.serverError": "Something went wrong on the server",
+  "userMessage.jobCancelled": "Cancelled",
+  "userMessage.jobInterrupted": "A server restart interrupted this",
+  "userMessage.toolNotFound": "{tool} is not installed on the server",
+  "userMessage.toolFailed": "{tool} failed with exit code {exitCode, number}",
+  "userMessage.toolStopped": "{tool} was stopped before it finished",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
