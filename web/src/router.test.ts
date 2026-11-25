@@ -19,6 +19,7 @@ function leafMatch(url: string) {
 describe("the app's routes", () => {
   it.each([
     ["/stage", "/stage"],
+    ["/stage/playback?song=3", "/stage/playback"],
     ["/", "/"],
     ["/admin", "/admin/"],
     ["/admin/downloads", "/admin/downloads"],
@@ -40,6 +41,13 @@ describe("the app's routes", () => {
     const match = leafMatch("/?join=12ab");
     expect(match?.routeId).toBe("/");
     expect(match?.search).toEqual({ join: "12ab" });
+  });
+
+  it("hands the Song to play to the playback view", () => {
+    expect(leafMatch("/stage/playback?song=3")?.search).toEqual({ song: 3 });
+    expect(leafMatch("/stage/playback?song=x")?.search).toEqual({
+      song: undefined,
+    });
   });
 
   it("has no route for the test-only sing screen", () => {

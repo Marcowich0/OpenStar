@@ -24,18 +24,21 @@ describe("who reads the Song's position", () => {
   });
 
   it("reads songTime() only in the render loop", () => {
+    // And in the playback view's readout (#155), until the sing scene plays
+    // Songs (#164).
     expect(filesMatching(/\.songTime\s*\(/)).toEqual([
+      "src/stage/playback/PlaybackCheck.tsx",
       "src/stage/sing/renderLoop.ts",
     ]);
   });
 
   it("reads the media element's position nowhere but in the Song clock's observations", () => {
-    // `currentTime` and `mediaTime` reach the clock as observations; the media
-    // owner (#53) that samples the element is to be added here when it lands.
+    // `currentTime` and `mediaTime` reach the clock as observations from the
+    // playback adapter, the one owner of the media element (#155).
     expect(
       filesMatching(
         /\.currentTime\b|\.mediaTime\b|requestVideoFrameCallback\s*\(/,
       ),
-    ).toEqual(["src/clock/songClock.ts"]);
+    ).toEqual(["src/clock/songClock.ts", "src/playback/mediaPlayback.ts"]);
   });
 });
