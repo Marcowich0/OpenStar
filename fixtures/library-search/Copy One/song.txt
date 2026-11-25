@@ -1,0 +1,10 @@
+#TITLE:Copied Song
+#ARTIST:Gamma
+#MP3:audio.mp3
+#LANGUAGE:English
+#YEAR:2010
+#CREATOR:carol
+#END:120000
+#BPM:300
+: 0 4 0 La
+E

@@ -6,6 +6,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import type { ProfileId } from "../generated/ProfileId";
 import type { SongId } from "../generated/SongId";
+import type { SongQuery } from "../generated/SongQuery";
 import { api } from "./api";
 
 /** `GET /api/server-info`: the server's version, schema and Library state. */
@@ -29,16 +30,25 @@ export function profileQuery(id: ProfileId) {
   });
 }
 
-/** `GET /api/songs`: every playable Song in the Library index. */
-export const songsQuery = queryOptions({
-  queryKey: ["songs"],
-  queryFn: ({ signal }) => api("GET /api/songs", { signal }),
-});
+/** The prefix of every Song query's key: the lists' and each Song's. */
+export const songsKey = ["songs"] as const;
 
-/** `GET /api/songs/{id}`: one playable Song. Its key starts with the list's. */
+/**
+ * `GET /api/songs`: the playable Songs that match `query` (search and
+ * filters; empty: every one), and the values each filter can take. Each
+ * query has its own cache entry under `songsKey`.
+ */
+export function songsQuery(query: SongQuery = {}) {
+  return queryOptions({
+    queryKey: [...songsKey, "list", query],
+    queryFn: ({ signal }) => api("GET /api/songs", { query, signal }),
+  });
+}
+
+/** `GET /api/songs/{id}`: one playable Song. Its key starts with `songsKey`. */
 export function songQuery(id: SongId) {
   return queryOptions({
-    queryKey: ["songs", id],
+    queryKey: [...songsKey, id],
     queryFn: ({ signal }) =>
       api("GET /api/songs/{id}", { params: { id: String(id) }, signal }),
   });

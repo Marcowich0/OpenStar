@@ -1,0 +1,9 @@
+#TITLE:Never Listed
+#ARTIST:Delta
+#MP3:missing.mp3
+#LANGUAGE:French
+#GENRE:Metal
+#YEAR:1970
+#BPM:300
+: 0 4 0 La
+E

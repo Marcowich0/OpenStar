@@ -39,9 +39,9 @@ async function hear(phone: Page): Promise<{ peak: number; hz: number }> {
 test("the Library is the fixture Library, with one rejected file", async ({
   request,
 }) => {
-  const songs = (await (await request.get("/api/songs")).json()) as {
-    path: string;
-  }[];
+  const { songs } = (await (await request.get("/api/songs")).json()) as {
+    songs: { path: string }[];
+  };
   expect(songs.map((s) => s.path).sort()).toEqual(
     [
       FIXTURE_SONGS.steadyTone,

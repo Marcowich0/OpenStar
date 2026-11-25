@@ -11,7 +11,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use openstar_protocol::library::{
-    MediaFile, ScanReport, ScanStatus, SongDetail, SongSummary, SongVideo,
+    MediaFile, ScanReport, ScanStatus, SongDetail, SongList, SongSummary, SongVideo,
 };
 use openstar_test_harness::{AppFolders, Media, TestApp};
 
@@ -63,7 +63,7 @@ async fn rescan(app: &TestApp, finished: u32) -> ScanReport {
 }
 
 async fn summary(app: &TestApp, folder: &str) -> SongSummary {
-    let songs: Vec<SongSummary> = app.get_json("/api/songs").await;
+    let songs: Vec<SongSummary> = app.get_json::<SongList>("/api/songs").await.songs;
     let path = format!("{folder}/song.txt");
     songs
         .into_iter()
