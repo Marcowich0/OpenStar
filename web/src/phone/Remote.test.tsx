@@ -222,7 +222,7 @@ function renderRemote(snapshot: PartySnapshot) {
   );
   render(
     <QueryClientProvider client={createQueryClient()}>
-      <Remote store={store} />
+      <Remote store={store} phoneId="bo-phone" />
     </QueryClientProvider>,
   );
   /** Another Remote, the Stage or this Phone changed the Party. */

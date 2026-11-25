@@ -81,9 +81,9 @@ export function PhonePageView({
     // Calibrating and the mic takeover come with their tickets; until then
     // the Remote shows.
     case "calibrating":
-      return <Remote store={store} me={me} />;
+      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
     case "micTakeover":
-      return <Remote store={store} me={me} />;
+      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
     case "remote":
       if (meScreen?.kind === "switch")
         return (
@@ -125,6 +125,6 @@ export function PhonePageView({
             }}
           />
         );
-      return <Remote store={store} me={me} />;
+      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
   }
 }
