@@ -22,6 +22,30 @@ use crate::song::{ParsedSong, TxtRejection, TxtWarning};
 #[ts(export)]
 pub struct SongId(pub u32);
 
+/// What Score records and High scores attach to: the Song's USDB id when
+/// its folder has a `metadata.json` with one, otherwise its normalised artist
+/// and title plus whether it is a duet. Computed from the content only, so it
+/// survives renamed and moved folders. Two Songs with equal identities are
+/// duplicates.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum SongIdentity {
+    /// The id of the Song on USDB (`apiId` in `metadata.json`).
+    Usdb { usdb_id: u32 },
+    /// Artist and title, each normalised (Unicode NFKC, case-folded, trimmed,
+    /// every whitespace run collapsed to one space), and the duet flag.
+    ArtistTitle {
+        artist: String,
+        title: String,
+        duet: bool,
+    },
+}
+
 /// One playable Song in the list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -34,6 +58,7 @@ pub struct SongSummary {
     pub title: String,
     /// Whether the Song has two Voices.
     pub duet: bool,
+    pub identity: SongIdentity,
 }
 
 /// One playable Song in full: the parsed `.txt` with units in seconds and
@@ -46,6 +71,7 @@ pub struct SongDetail {
     /// The `.txt`, relative to the Library, with `/` between folders.
     pub path: String,
     pub song: ParsedSong,
+    pub identity: SongIdentity,
     /// The Song's warnings; it plays anyway.
     pub warnings: Vec<ProblemReason>,
 }
@@ -107,6 +133,10 @@ pub enum FileProblem {
     MediaNotFound { header: String, reference: String },
     /// Rejection: the `.txt` could not be read.
     UnreadableFile,
+    /// Warning: the `metadata.json` beside the `.txt` could not be read, is
+    /// not JSON, or its `apiId` is not a USDB id. The Song is identified by
+    /// its artist and title instead.
+    UnreadableMetadata,
 }
 
 /// What a scan did.
@@ -158,6 +188,19 @@ mod tests {
         assert_eq!(
             warning,
             ProblemReason::Warning(TxtWarning::ZeroLengthNote { line: 3 })
+        );
+        let identity = SongIdentity::ArtistTitle {
+            artist: "a".into(),
+            title: "b".into(),
+            duet: true,
+        };
+        assert_eq!(
+            serde_json::to_string(&identity).unwrap(),
+            r#"{"kind":"artistTitle","artist":"a","title":"b","duet":true}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&SongIdentity::Usdb { usdb_id: 7 }).unwrap(),
+            r#"{"kind":"usdb","usdbId":7}"#
         );
         let rejection: ProblemReason = serde_json::from_str(r#"{"code":"missingBpm"}"#).unwrap();
         assert_eq!(

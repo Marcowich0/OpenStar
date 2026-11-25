@@ -15,6 +15,7 @@ use std::time::UNIX_EPOCH;
 use openstar_protocol::library::{FileProblem, ProblemReason, ProblemSeverity, ScanReport};
 use openstar_protocol::song::{FormatGeneration, SongHeaders};
 
+use super::identity;
 use super::index::{self, Media, ReadFile, Reference, Role, Stored};
 use super::resolve::Resolver;
 use crate::db::Database;
@@ -341,5 +342,28 @@ fn resolve(resolver: &mut Resolver, folder: &Path, references: Vec<Reference>) -
         }
     }
     media.references = references;
+    media.usdb_id = read_usdb_id(resolver, folder, &mut media);
     media
+}
+
+/// The USDB id from the `metadata.json` in `folder`, if there is one. An
+/// unreadable one is a warning, and the Song is identified without it.
+fn read_usdb_id(resolver: &mut Resolver, folder: &Path, media: &mut Media) -> Option<u32> {
+    let path = resolver.resolve(folder, identity::METADATA_FILE)?;
+    let read = std::fs::read(resolver.root().join(&path))
+        .map_err(|error| tracing::warn!(%path, %error, "reading a metadata.json"))
+        .and_then(|bytes| {
+            identity::usdb_id(&bytes)
+                .map_err(|_| tracing::warn!(%path, "a metadata.json without a usable apiId"))
+        });
+    match read {
+        Ok(usdb_id) => usdb_id,
+        Err(()) => {
+            media.problems.push((
+                ProblemSeverity::Warning,
+                ProblemReason::File(FileProblem::UnreadableMetadata),
+            ));
+            None
+        }
+    }
 }

@@ -7,6 +7,7 @@
 //! filesystem watcher. When a scan finishes, every browser is sent a
 //! [`ChangeTopic::Library`] notice.
 
+mod identity;
 mod index;
 mod resolve;
 mod scan;
@@ -182,6 +183,7 @@ pub(crate) async fn rescan(State(state): State<AppState>) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openstar_protocol::library::SongIdentity;
 
     async fn scanner(songs: &std::path::Path, appdata: &std::path::Path) -> Scanner {
         let db = Database::open(appdata).await.unwrap().database;
@@ -243,5 +245,95 @@ mod tests {
         assert_eq!(status.finished, 0, "a failed scan reports nothing");
         let problems = missing.inner.db.call(|c| index::problems(c)).await.unwrap();
         assert_eq!(problems.len(), 1);
+    }
+
+    fn present(scanner: &Scanner, identity: SongIdentity) -> impl Future<Output = bool> {
+        let db = scanner.inner.db.clone();
+        async move {
+            db.call(move |c| index::identity_present(c, &identity))
+                .await
+                .unwrap()
+        }
+    }
+
+    async fn rescanned(scanner: &Scanner) {
+        scanner.request();
+        finished(scanner).await;
+    }
+
+    fn write_song(folder: &std::path::Path, artist: &str, title: &str, duet: bool) {
+        std::fs::create_dir_all(folder).unwrap();
+        std::fs::write(folder.join("song.mp3"), b"").unwrap();
+        let body = if duet {
+            "P1\n: 0 4 0 La\nP2\n: 4 4 2 lo\nE\n"
+        } else {
+            ": 0 4 0 La\nE\n"
+        };
+        std::fs::write(
+            folder.join("song.txt"),
+            format!("#ARTIST:{artist}\n#TITLE:{title}\n#MP3:song.mp3\n#BPM:200\n{body}"),
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn the_index_answers_whether_an_identity_is_in_the_library() {
+        let songs = tempfile::tempdir().unwrap();
+        let appdata = tempfile::tempdir().unwrap();
+        let folder = songs.path().join("Some Folder");
+        write_song(&folder, "The  Band", "Song", false);
+        std::fs::write(folder.join("metadata.json"), br#"{"apiId": 42}"#).unwrap();
+        write_song(&songs.path().join("Other"), "Ｔhe Band ", "SONG", true);
+        let scanner = scanner(songs.path(), appdata.path()).await;
+        rescanned(&scanner).await;
+
+        let usdb = SongIdentity::Usdb { usdb_id: 42 };
+        let duet = SongIdentity::ArtistTitle {
+            artist: "the band".into(),
+            title: "song".into(),
+            duet: true,
+        };
+        let solo = SongIdentity::ArtistTitle {
+            artist: "the band".into(),
+            title: "song".into(),
+            duet: false,
+        };
+        assert!(present(&scanner, usdb.clone()).await);
+        assert!(present(&scanner, duet.clone()).await);
+        assert!(
+            !present(&scanner, solo).await,
+            "the Song with a USDB id is not also its artist and title"
+        );
+
+        // Moved away: absent. Back under another name: present again.
+        let away = appdata.path().join("away");
+        std::fs::rename(&folder, &away).unwrap();
+        rescanned(&scanner).await;
+        assert!(!present(&scanner, usdb.clone()).await);
+        assert!(present(&scanner, duet.clone()).await);
+        std::fs::create_dir(songs.path().join("Renamed")).unwrap();
+        std::fs::rename(&away, songs.path().join("Renamed/Deeper")).unwrap();
+        rescanned(&scanner).await;
+        assert!(present(&scanner, usdb).await);
+    }
+
+    #[tokio::test]
+    async fn a_song_that_stops_playing_is_not_present() {
+        let songs = tempfile::tempdir().unwrap();
+        let appdata = tempfile::tempdir().unwrap();
+        let folder = songs.path().join("A");
+        write_song(&folder, "A", "B", false);
+        let scanner = scanner(songs.path(), appdata.path()).await;
+        rescanned(&scanner).await;
+        let identity = SongIdentity::ArtistTitle {
+            artist: "a".into(),
+            title: "b".into(),
+            duet: false,
+        };
+        assert!(present(&scanner, identity.clone()).await);
+
+        std::fs::remove_file(folder.join("song.mp3")).unwrap();
+        rescanned(&scanner).await;
+        assert!(!present(&scanner, identity.clone()).await);
     }
 }

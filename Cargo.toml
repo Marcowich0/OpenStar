@@ -26,6 +26,8 @@ encoding_rs = "=0.8.44"
 futures-util = "=0.3.34"
 getrandom = "=0.4.3"
 html-escape = "=0.3.1"
+icu_casemap = "=2.4.0"
+icu_normalizer = "=2.4.0"
 insta = { version = "=1.49.0", features = ["json"] }
 mime_guess = "=2.0.5"
 proptest = "=1.12.0"

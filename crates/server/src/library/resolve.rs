@@ -28,6 +28,11 @@ impl Resolver {
         }
     }
 
+    /// The Library's folder.
+    pub(crate) fn root(&self) -> &Path {
+        &self.root
+    }
+
     /// The file `reference` names, as a path relative to the Library with
     /// `/` between segments, or `None` when it is not found.
     /// `txt_folder` is the folder holding the `.txt`, relative to the Library.
