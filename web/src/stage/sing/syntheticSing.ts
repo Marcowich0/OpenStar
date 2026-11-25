@@ -113,8 +113,12 @@ function player(i: number) {
 }
 
 export function syntheticSing(name: SingTestCase): SingState {
+  // Only the duet has a second Voice, so only its headers carry "· V1".
   const voices = singVoices({
-    voices: [{ lines: voice(0, 0) }, { lines: voice(5, 2) }],
+    voices:
+      name === "duet"
+        ? [{ lines: voice(0, 0) }, { lines: voice(5, 2) }]
+        : [{ lines: voice(0, 0) }],
   });
   const lanes = LANES[name];
   return {

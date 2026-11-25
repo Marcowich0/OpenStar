@@ -174,8 +174,10 @@ export function createPainter(
     }
     let gradient = bands.get(width);
     if (!gradient) {
-      // A clear stop of the same colour, so the edges fade without a grey fringe.
-      const clear = `color-mix(in srgb, ${value} 0%, transparent)`;
+      // A nearly clear stop of the same colour, so the edges fade without a
+      // grey fringe (canvas gradients do not premultiply). At 0 % color-mix
+      // gives transparent black, which is exactly that fringe.
+      const clear = `color-mix(in srgb, ${value} 1%, transparent)`;
       gradient = ctx.createLinearGradient(0, 0, width, 0);
       gradient.addColorStop(0, clear);
       gradient.addColorStop(0.5, value);

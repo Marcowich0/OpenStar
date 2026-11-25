@@ -221,10 +221,12 @@ function LaneHeader({
 }) {
   const player = lane?.player;
   const sizes = laneHeaderSizes(rect.height);
+  // The two-column headers (210 px) are tighter, so a 5-digit Score fits.
+  const narrow = rect.notesX - rect.x < 240;
   return (
     <div
       data-lane-header
-      className="absolute flex items-center gap-3.5 pr-3 pl-[18px] text-ink"
+      className={`absolute flex items-center text-ink ${narrow ? "gap-2 pr-1.5 pl-3" : "gap-3.5 pr-3 pl-[18px]"}`}
       style={{
         left: `${String(rect.x)}px`,
         top: `${String(rect.y)}px`,

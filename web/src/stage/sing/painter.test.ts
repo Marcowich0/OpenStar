@@ -249,9 +249,9 @@ describe("the painter", () => {
     painter.paint([shining], view);
     expect(gradients).toHaveLength(1);
     expect(gradients[0]?.stops).toEqual([
-      [0, "color-mix(in srgb, value(--color-white) 0%, transparent)"],
+      [0, "color-mix(in srgb, value(--color-white) 1%, transparent)"],
       [0.5, "value(--color-white)"],
-      [1, "color-mix(in srgb, value(--color-white) 0%, transparent)"],
+      [1, "color-mix(in srgb, value(--color-white) 1%, transparent)"],
     ]);
     expect(calls).toContainEqual(["createLinearGradient", 0, 0, 48, 0]);
     const drawn = calls.filter(([name]) => name !== "createLinearGradient");
