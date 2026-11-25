@@ -2,13 +2,15 @@
 # `just e2e`: runs the Playwright suite in e2e/ against the built binary.
 #
 # Starts target/release/openstar (built by `just build`, frontend embedded) on a
-# free port of this machine, with a temporary appdata folder and a temporary copy
-# of the fixture Library as its songs folder, then runs Playwright from the pinned
-# official Playwright Docker image on the host network, and stops everything
-# afterwards. Extra arguments go to `playwright test` (for example a file name or
-# `--grep`).
+# free port of this machine, with a temporary appdata folder and the fixture
+# Library (fixtures/library/, its audio generated from its Notes) in a
+# temporary songs folder, writes the fake mic WAVs into e2e/generated/mic/,
+# then runs Playwright from the pinned official Playwright Docker image on the
+# host network, and stops everything afterwards. Extra arguments go to
+# `playwright test` (for example a file name or `--grep`).
 #
-# Needs Docker, and e2e/node_modules (`just e2e-install`).
+# Needs Docker, ffmpeg, the openstar-harness binary (`just harness-build`) and
+# e2e/node_modules (`just e2e-install`).
 set -euo pipefail
 
 # Keep in step with @playwright/test in e2e/package.json: the image's browsers
@@ -17,9 +19,10 @@ readonly PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f0
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 binary="${CARGO_TARGET_DIR:-$root/target}/release/openstar"
-library="$root/fixtures/library"
+harness="${CARGO_TARGET_DIR:-$root/target}/debug/openstar-harness"
 
 [ -x "$binary" ] || { echo "e2e: $binary is missing: run 'just build' (or 'just e2e')" >&2; exit 1; }
+[ -x "$harness" ] || { echo "e2e: $harness is missing: run 'just harness-build' (or 'just e2e')" >&2; exit 1; }
 [ -d "$root/e2e/node_modules" ] || { echo "e2e: e2e/node_modules is missing: run 'just e2e-install'" >&2; exit 1; }
 command -v docker >/dev/null || { echo "e2e: docker is not installed; 'just e2e' runs Playwright in Docker" >&2; exit 1; }
 
@@ -35,8 +38,11 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 mkdir "$work/appdata"
-# The fixture Library (#202) when it exists; an empty Library until then.
-if [ -d "$library" ]; then cp -R "$library" "$work/songs"; else mkdir "$work/songs"; fi
+# The fixture Library with its generated audio, and the fake mic WAVs the
+# Phones' Chromium plays (e2e/ is mounted into the Playwright container).
+"$harness" fixture-library "$work/songs" >/dev/null
+rm -rf "$root/e2e/generated/mic"
+"$harness" fake-mic "$root/e2e/generated/mic" >/dev/null
 
 port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
 base_url="http://127.0.0.1:$port"

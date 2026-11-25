@@ -14,6 +14,18 @@ export const en = {
   "join.enterCode": "Enter the Join code",
   "join.code": "Join code {code}",
 
+  // The shared input pieces in `ui/`: the hold button and the number pad.
+  "hold.hint": "Hold for a moment",
+  "numberPad.joinCode": "Join code",
+  "numberPad.codeRefused": "That code is not on the Stage",
+  "numberPad.adminPin": "Admin PIN",
+  "numberPad.pinEntered": {
+    one: "{count, number} digit entered",
+    other: "{count, number} digits entered",
+  },
+  "numberPad.delete": "Delete",
+  "numberPad.ok": "OK",
+
   // The walking skeleton's server check (shown on the Phone and the Stage).
   "server.loading": "Asking the server…",
   "server.failed": "The server did not answer",

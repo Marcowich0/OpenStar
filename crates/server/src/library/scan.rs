@@ -4,7 +4,8 @@
 //! candidate; `<name>.txt.orig` is not. A candidate is read and parsed only
 //! when it is new, its size or mtime changed, or it was indexed by another
 //! parser version; the references of every other parsed candidate are
-//! resolved again. Indexed files that have gone are removed. The work runs on
+//! resolved again. Indexed files that have gone are removed. Then the media
+//! the Songs name is probed ([`probing`]). The work runs on
 //! blocking threads in small batches, so the stored index keeps being served.
 
 use std::path::{Path, PathBuf};
@@ -15,10 +16,12 @@ use std::time::UNIX_EPOCH;
 use openstar_protocol::library::{FileProblem, ProblemReason, ProblemSeverity, ScanReport};
 use openstar_protocol::song::{FormatGeneration, SongHeaders};
 
-use super::identity;
 use super::index::{self, Media, ReadFile, Reference, Role, Stored};
+use super::probing;
 use super::resolve::Resolver;
+use super::{artwork, identity};
 use crate::db::Database;
+use crate::jobs::Slot;
 use crate::txt;
 
 /// How many files one batch reads, or re-resolves, before it is stored.
@@ -41,6 +44,7 @@ pub(crate) async fn run(
     db: &Database,
     root: &Path,
     parser_version: u32,
+    slot: &Slot,
     cancelled: &Arc<AtomicBool>,
 ) -> anyhow::Result<Option<ScanReport>> {
     let stored = db.call(|conn| index::load(conn)).await?;
@@ -67,10 +71,11 @@ pub(crate) async fn run(
         }
     }
     let gone: Vec<i64> = stored.values().map(|entry| entry.id).collect();
-    let report = ScanReport {
+    let mut report = ScanReport {
         read: count(to_read.len()),
         unchanged: count(unchanged.len()),
         removed: count(gone.len()),
+        probed: 0,
     };
 
     for batch in chunks(to_read) {
@@ -133,6 +138,10 @@ pub(crate) async fn run(
         tx.commit()
     })
     .await?;
+    match probing::run(db, root, slot, cancelled).await? {
+        Some(probed) => report.probed = probed,
+        None => return Ok(None),
+    }
     Ok(Some(report))
 }
 
@@ -203,7 +212,7 @@ fn slash_path(path: &Path) -> String {
         .join("/")
 }
 
-fn mtime_ns(metadata: &std::fs::Metadata) -> i64 {
+pub(super) fn mtime_ns(metadata: &std::fs::Metadata) -> i64 {
     let Ok(modified) = metadata.modified() else {
         return 0;
     };
@@ -343,7 +352,32 @@ fn resolve(resolver: &mut Resolver, folder: &Path, references: Vec<Reference>) -
     }
     media.references = references;
     media.usdb_id = read_usdb_id(resolver, folder, &mut media);
+    choose_artwork(resolver, folder, &mut media);
     media
+}
+
+/// The cover and background by the fallback rules (see [`artwork`]). A
+/// `#COVER` or `#BACKGROUND` that names something other than an image is
+/// passed over.
+fn choose_artwork(resolver: &mut Resolver, folder: &Path, media: &mut Media) {
+    let header = |role: Role| {
+        media
+            .resolved
+            .iter()
+            .find(|(r, path)| *r == role && artwork::is_image(path))
+            .map(|(_, path)| path.clone())
+    };
+    let images: Vec<String> = resolver
+        .names(folder)
+        .into_iter()
+        .filter(|name| artwork::is_image(name))
+        .filter(|name| resolver.resolve(folder, name).is_some())
+        .collect();
+    media.cover = match header(Role::Cover) {
+        Some(path) => Some(path),
+        None => artwork::cover(None, &images).and_then(|name| resolver.resolve(folder, name)),
+    };
+    media.background = header(Role::Background).or_else(|| media.cover.clone());
 }
 
 /// The USDB id from the `metadata.json` in `folder`, if there is one. An

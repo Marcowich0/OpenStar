@@ -152,7 +152,26 @@ const MIGRATIONS: &[&str] = &[
         adder             INTEGER
     ) STRICT;
     CREATE INDEX queue_requests_party ON queue_requests (party_id, position);",
-    // 11: Guests. A member is a Profile (`profile_id` set, the guest columns
+    // 11: Song media (see `library::probe`). `media_probes` keeps ffprobe's
+    // answer per audio or video file (path relative to the Library), valid
+    // while its size and mtime are unchanged; `container` is NULL when
+    // ffprobe could not read the file. From here on `cover_path` and
+    // `background_path` of `library_files` are the chosen cover and
+    // background (by the fallback rules), not the header references;
+    // `length_seconds` is `#END` or the audio's duration.
+    "CREATE TABLE media_probes (
+        path             TEXT PRIMARY KEY,
+        size             INTEGER NOT NULL,
+        mtime_ns         INTEGER NOT NULL,
+        container        TEXT,
+        audio_codec      TEXT,
+        video_codec      TEXT,
+        duration_seconds REAL,
+        native           INTEGER NOT NULL
+    ) STRICT, WITHOUT ROWID;
+     ALTER TABLE library_files ADD COLUMN length_seconds REAL;
+     ALTER TABLE library_files ADD COLUMN has_video INTEGER NOT NULL DEFAULT 0;",
+    // 12: Guests. A member is a Profile (`profile_id` set, the guest columns
     // NULL) or a Guest (`profile_id` NULL, its name, avatar and Difficulty
     // here). A Guest goes with its Party like every member. Unique Guest
     // names (ignoring case) are kept by the live-state task.

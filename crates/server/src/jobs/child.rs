@@ -33,6 +33,17 @@ pub struct Slot {
 }
 
 impl Slot {
+    /// A slot outside the lanes, for the Library scan's ffprobe calls. The
+    /// scan runs one at a time and probes one file at a time, so it needs no
+    /// cap of its own; `cancel` kills the running child once it turns true.
+    pub(crate) fn outside_lanes(tool_path: Option<String>, cancel: watch::Receiver<bool>) -> Self {
+        Self {
+            lane: Lane::Ffmpeg,
+            tool_path,
+            cancel,
+        }
+    }
+
     /// A child process running `program`, found on the settings' `PATH`.
     pub fn command(&self, program: &str) -> ToolCommand<'_> {
         ToolCommand {
