@@ -59,6 +59,13 @@ export const en = {
   "remote.queue": "Queue",
   "remote.stage": "Stage",
   "remote.people": "People",
+  // The Remote frame's status strip and Queue badge (`phone/`).
+  "remote.queueWithCount": {
+    one: "Queue, {count, number} Request",
+    other: "Queue, {count, number} Requests",
+  },
+  "remote.lineUpFor": "Line-up for {song}",
+  "remote.waitingForStart": "Waiting for Start",
 
   // The shared input pieces in `ui/`: the hold button and the number pad.
   "hold.hint": "Hold for a moment",
@@ -264,7 +271,7 @@ export const en = {
   "lineUpWarning.micBlocked": "{name}'s mic is blocked",
   "lineUpWarning.duetNeedsVoice":
     "A duet needs someone on Voice {voice, number}",
-  // Stage toasts that name the Remote's Party member (`stage/toasts/`).
+  // Toasts that name the Remote's Party member (`toasts/`).
   "toast.list": "Party changes",
   "toast.requestAdded": "{actor} added {song}",
   "toast.requestMovedUp": "{actor} moved {song} up",
@@ -272,6 +279,18 @@ export const en = {
   "toast.requestPlayNext": "{actor} made {song} play next",
   "toast.requestRemoved": "{actor} removed {song}",
   "toast.requestedPlayersChanged": "{actor} changed who sings {song}",
+  // A Phone's own changes, in the second person (`phone/PhoneToasts.tsx`).
+  "toast.youRequestAdded": "You added {song}",
+  "toast.youRequestMovedUp": "You moved {song} up",
+  "toast.youRequestMovedDown": "You moved {song} down",
+  "toast.youRequestPlayNext": "You made {song} play next",
+  "toast.youRequestRemoved": "You removed {song}",
+  "toast.youRequestedPlayersChanged": "You changed who sings {song}",
+  "toast.youJoined": "You joined the Party in {colour}",
+  "toast.youPhoneJoined": "You joined on one more Phone",
+  "toast.youChanged": "You changed your name, look or colour",
+  "toast.youMicBlocked": "Your mic is blocked",
+  "toast.youMicOpened": "Your mic is on",
   // A colour parameter is always a palette display name (`colourName`).
   "toast.memberLeft": "{actor} left the Party. {colour} is free",
   "toast.lineUpChanged": "{actor} changed the Line-up",
@@ -279,7 +298,7 @@ export const en = {
   "toast.seatVoice": "{actor} put {name} on Voice {voice, number}",
   "toast.seatDifficulty": "{actor} set {name} to {difficulty}",
   // Toasts whose sender is not built yet: the server ticket that adds the
-  // `PartyEvent` code maps it to one of these in `stage/toasts/toastContent.ts`.
+  // `PartyEvent` code maps it to one of these in `toasts/toastContent.ts`.
   "toast.backOnMic": "{actor} is back on the mic",
   "toast.localMicBack": "{mic} is back on {actor}'s seat",
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",

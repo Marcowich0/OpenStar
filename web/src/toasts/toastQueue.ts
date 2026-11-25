@@ -1,6 +1,7 @@
-// How long a Stage toast lives (v1 spec #55, "Toasts"). The live store keeps
-// which toasts exist (at most `MAX_TOASTS`, oldest first, `live/toasts.ts`);
-// this says what a shown toast looks like at each age.
+// How long a toast lives, on the Stage and on a Phone (v1 spec #55 and #49,
+// "Toasts"). The live store keeps which toasts exist (at most `MAX_TOASTS`,
+// oldest first, `live/toasts.ts`); this says what a shown toast looks like at
+// each age.
 
 /** The pop-in with the spring easing. */
 export const TOAST_POP_IN_MS = 450;
