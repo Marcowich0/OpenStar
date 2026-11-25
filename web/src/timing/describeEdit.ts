@@ -38,6 +38,42 @@ export type EditDescription =
       readonly toGapMs: number;
       readonly fromBpm: number;
       readonly toBpm: number;
+    }
+  | {
+      /** A Line selection shifted (dragged, nudged or a Line suggestion). */
+      readonly kind: "shiftLines";
+      readonly voice: number;
+      /** Indices into the Voice's `lines`. */
+      readonly firstLine: number;
+      readonly lastLine: number;
+      /** The first Note's start Beat before and after. */
+      readonly fromBeat: number;
+      readonly toBeat: number;
+    }
+  | {
+      readonly kind: "stretchLines";
+      readonly voice: number;
+      readonly firstLine: number;
+      readonly lastLine: number;
+      readonly factor: number;
+    }
+  | {
+      readonly kind: "moveNote";
+      readonly voice: number;
+      /** Index into the Voice's `lines`. */
+      readonly lineIndex: number;
+      /** The Note's lyric, trimmed. */
+      readonly text: string;
+      readonly fromBeat: number;
+      readonly toBeat: number;
+    }
+  | {
+      readonly kind: "noteLength";
+      readonly voice: number;
+      readonly lineIndex: number;
+      readonly text: string;
+      readonly fromLength: number;
+      readonly toLength: number;
     };
 
 /**
@@ -81,5 +117,55 @@ export function describeEdit(d: EditDescription): string {
         fromGap: d.fromGapMs,
         toGap: d.toGapMs,
       });
+    case "shiftLines":
+      return byBeats(d.toBeat - d.fromBeat, {
+        later: "timing.edit.shiftLinesLater",
+        earlier: "timing.edit.shiftLinesEarlier",
+        lines: linesText(d.firstLine, d.lastLine),
+      });
+    case "stretchLines":
+      return t("timing.edit.stretchLines", {
+        lines: linesText(d.firstLine, d.lastLine),
+        factor: d.factor,
+      });
+    case "moveNote":
+      return byBeats(d.toBeat - d.fromBeat, {
+        later: "timing.edit.moveNoteLater",
+        earlier: "timing.edit.moveNoteEarlier",
+        lines: noteText(d.text, d.lineIndex),
+      });
+    case "noteLength":
+      return t("timing.edit.noteLength", {
+        note: noteText(d.text, d.lineIndex),
+        from: d.fromLength,
+        count: d.toLength,
+      });
   }
+}
+
+/** "Line 3" or "Lines 3–5" (indices are 0-based, the text 1-based). */
+function linesText(first: number, last: number): string {
+  return first === last
+    ? t("timing.lines.one", { line: first + 1 })
+    : t("timing.lines.range", { first: first + 1, last: last + 1 });
+}
+
+/** "Note “la” in Line 3". */
+function noteText(text: string, lineIndex: number): string {
+  return t("timing.note", { text, line: lineIndex + 1 });
+}
+
+/** "+2 beats" or "−1 beat" after `lines`, by the sign of `beats`. */
+function byBeats(
+  beats: number,
+  keys: {
+    later: "timing.edit.shiftLinesLater" | "timing.edit.moveNoteLater";
+    earlier: "timing.edit.shiftLinesEarlier" | "timing.edit.moveNoteEarlier";
+    lines: string;
+  },
+): string {
+  return t(beats < 0 ? keys.earlier : keys.later, {
+    what: keys.lines,
+    count: Math.abs(beats),
+  });
 }
