@@ -4,6 +4,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { openstarPlugin } from "./lint/noLiteralJsxText.js";
+
 export default defineConfig(
   { ignores: ["dist", "src/generated"] },
   js.configs.recommended,
@@ -24,5 +26,13 @@ export default defineConfig(
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/no-floating-promises": "error",
     },
+  },
+  {
+    // Every word on screen goes through t() (src/i18n/t.ts). Tests and type
+    // tests are not on screen.
+    files: ["src/**/*.tsx"],
+    ignores: ["src/**/*.test.tsx", "src/**/*.typetest.tsx"],
+    plugins: { openstar: openstarPlugin },
+    rules: { "openstar/no-literal-jsx-text": "error" },
   },
 );

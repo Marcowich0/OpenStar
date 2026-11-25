@@ -1,0 +1,5 @@
+{
+  "//": "So the ESLint project service finds OpenStar's own lint rules; `tsc -p lint` type-checks them.",
+  "extends": "../tsconfig.node.json",
+  "include": ["."]
+}
