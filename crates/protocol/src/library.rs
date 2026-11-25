@@ -11,19 +11,23 @@
 //! - `GET /api/songs/{id}/media/{role}`: the Song's `audio`, `video`,
 //!   `cover` or `background` file, with HTTP `Range` requests; the URLs in
 //!   [`SongMedia`] and [`SongSummary`] point here.
+//! - `GET /api/songs/{id}/high-scores`: the Song's High score tables, as
+//!   [`crate::scoring::SongHighScores`]; `404` for an id that is not a
+//!   playable Song.
 //! - `GET /api/library/problems`: every [`LibraryProblem`].
 //! - `GET /api/library/scan`: the [`ScanStatus`].
 //! - `POST /api/library/rescan`: starts a Rescan unless one is running, and
 //!   answers `202` with the [`ScanStatus`]. Needs no Admin PIN.
 //!
-//! When a scan finishes, every browser gets a `changed` notice with
-//! [`crate::ChangeTopic::Library`].
+//! When a scan finishes, and when a stored round adds Score records (High
+//! scores in Song rows and tables), every browser gets a `changed` notice
+//! with [`crate::ChangeTopic::Library`].
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::profile::PaletteKey;
-use crate::scoring::NoteFingerprint;
+use crate::scoring::{NoteFingerprint, TopHighScore};
 use crate::song::{ParsedSong, TxtRejection, TxtWarning};
 
 /// Names one indexed `.txt` while it stays in the Library.
@@ -80,6 +84,9 @@ pub struct SongSummary {
     /// same across scans and restarts. Shown without a cover, or when the
     /// cover does not load.
     pub tile_colour: PaletteKey,
+    /// The Song's top High score at any Difficulty and either Voice; `None`
+    /// when no record of its identity counts.
+    pub top_high_score: Option<TopHighScore>,
 }
 
 /// A search over the Library and its filters, sent as the URL query of

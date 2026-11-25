@@ -4,20 +4,22 @@
 //! The server never scores. The Stage sends a round's outcome
 //! (`POST /api/rounds`); [`store_in`] keeps it in one transaction.
 
+use std::collections::HashMap;
+
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use openstar_protocol::UserMessage;
-use openstar_protocol::library::SongIdentity;
+use openstar_protocol::library::{SongId, SongIdentity};
 use openstar_protocol::party::PartyId;
-use openstar_protocol::profile::{Difficulty, ProfileId};
+use openstar_protocol::profile::{Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::scoring::{
-    BeatRange, BeatValue, NoteFingerprint, NoteSnapshot, RoundEnd, RoundId, RoundOutcome,
-    ScorePlayer, ScoreRecord, ScoreRecordId, SnapshotLine, SnapshotNote, SnapshotVoice,
-    StoredRound,
+    BeatRange, BeatValue, HighScoreEntry, HighScoreHolder, HighScoreTable, NoteFingerprint,
+    NoteSnapshot, RoundEnd, RoundId, RoundOutcome, ScorePlayer, ScoreRecord, ScoreRecordId,
+    SnapshotLine, SnapshotNote, SnapshotVoice, SongHighScores, StoredRound, TopHighScore,
 };
 use openstar_protocol::song::ParsedSong;
+use openstar_protocol::{ChangeTopic, UserMessage};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use serde::Serialize;
@@ -226,6 +228,40 @@ pub fn rounds(conn: &Connection) -> rusqlite::Result<Vec<StoredRound>> {
     Ok(rounds)
 }
 
+/// The SQL condition under which a record of `score_records` (named by
+/// `alias`) counts toward High scores: a Profile's, Finished, above 0, in
+/// `normal` mode. A mic lost record counts. A Voice without scored Notes
+/// always scores 0, so it never counts.
+macro_rules! counted {
+    ($alias:literal) => {
+        concat!(
+            $alias,
+            ".profile_id IS NOT NULL AND NOT ",
+            $alias,
+            ".unfinished AND ",
+            $alias,
+            ".total > 0 AND ",
+            $alias,
+            ".mode = 'normal'"
+        )
+    };
+}
+
+/// The "new high score" flag of record `r`, as SQL: it counts, and its total
+/// is strictly higher than every earlier counted record (lower id) of its
+/// Profile for the same (Song identity, Voice, Difficulty). Earlier records
+/// never change, so the flag is the one decided when `r` was stored, and it
+/// is computed from the records instead of being a second copy.
+const NEW_HIGH_SCORE: &str = concat!(
+    "(",
+    counted!("r"),
+    " AND r.total > COALESCE((SELECT MAX(e.total) FROM score_records e
+         WHERE e.song_identity = r.song_identity AND e.profile_id = r.profile_id
+         AND e.voice = r.voice AND e.difficulty = r.difficulty AND e.id < r.id AND ",
+    counted!("e"),
+    "), 0))"
+);
+
 /// The stored round `id` with its records, in the order they were sent.
 pub fn round(conn: &Connection, id: RoundId) -> rusqlite::Result<Option<StoredRound>> {
     let Some(mut round) = conn
@@ -251,15 +287,132 @@ pub fn round(conn: &Connection, id: RoundId) -> rusqlite::Result<Option<StoredRo
         return Ok(None);
     };
     round.records = conn
-        .prepare(
+        .prepare(&format!(
             "SELECT id, round_id, party_id, song_identity, profile_id, guest_name, voice,
                  difficulty, recorded_at_ms, total, notes, golden, line_bonus, mic_kind, mode,
-                 unfinished, mic_lost, first_beat, last_beat, note_fingerprint, beat_values
-             FROM score_records WHERE round_id = ?1 ORDER BY id",
-        )?
+                 unfinished, mic_lost, first_beat, last_beat, note_fingerprint, beat_values,
+                 {NEW_HIGH_SCORE}
+             FROM score_records r WHERE round_id = ?1 ORDER BY id"
+        ))?
         .query_map([id.0], read_record)?
         .collect::<rusqlite::Result<_>>()?;
     Ok(Some(round))
+}
+
+/// Every Difficulty, in the order tables are listed.
+const DIFFICULTIES: [Difficulty; 3] = [Difficulty::Easy, Difficulty::Medium, Difficulty::Hard];
+
+/// How many Profiles a High score table shows.
+pub const HIGH_SCORE_TABLE_LENGTH: usize = 10;
+
+/// The High score tables of the Song with `identity`, `voices` Voices and
+/// current fingerprint `current`: one per Voice and Difficulty. Records
+/// show only through a Song in the Library, so the caller looks the Song up
+/// first; a Song that left the Library has no tables to ask for.
+pub fn high_score_tables(
+    conn: &Connection,
+    identity: &SongIdentity,
+    voices: u32,
+    current: &NoteFingerprint,
+) -> rusqlite::Result<SongHighScores> {
+    let mut statement = conn.prepare_cached(concat!(
+        "SELECT r.profile_id, p.name, p.avatar_kind, p.avatar_ref, p.favourite_colour,
+             r.total, r.note_fingerprint
+         FROM (
+             SELECT *, ROW_NUMBER() OVER (PARTITION BY profile_id ORDER BY total DESC, id)
+                 AS best
+             FROM score_records r
+             WHERE song_identity = ?1 AND voice = ?2 AND difficulty = ?3 AND ",
+        counted!("r"),
+        "
+         ) r
+         JOIN profiles p ON p.id = r.profile_id
+         WHERE r.best = 1
+         ORDER BY r.total DESC, r.id
+         LIMIT ?4"
+    ))?;
+    let key = library::identity_key(identity);
+    let length = i64::try_from(HIGH_SCORE_TABLE_LENGTH).unwrap_or(i64::MAX);
+    let mut tables = Vec::new();
+    for voice in 0..voices {
+        for difficulty in DIFFICULTIES {
+            let rows = statement
+                .query_map(params![key, voice, difficulty.as_str(), length], |row| {
+                    let fingerprint: String = row.get(6)?;
+                    Ok((
+                        read_holder(row, 0)?,
+                        row.get::<_, u32>(5)?,
+                        fingerprint != current.0,
+                    ))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let mut entries: Vec<HighScoreEntry> = Vec::with_capacity(rows.len());
+            for (n, (holder, total, older_timing)) in rows.into_iter().enumerate() {
+                let place = match entries.last() {
+                    Some(previous) if previous.total == total => previous.place,
+                    _ => u32::try_from(n + 1).unwrap_or(u32::MAX),
+                };
+                entries.push(HighScoreEntry {
+                    place,
+                    holder,
+                    total,
+                    older_timing,
+                });
+            }
+            tables.push(HighScoreTable {
+                voice,
+                difficulty,
+                entries,
+            });
+        }
+    }
+    Ok(SongHighScores { tables })
+}
+
+/// The top High score of every Song identity that has one, by identity key
+/// (`library::identity_key`): the highest counted record at any Difficulty
+/// and Voice, the earliest of equal totals. Identities not in the Library
+/// are included; the Song list only asks for the Songs it lists.
+pub(crate) fn top_high_scores(
+    conn: &Connection,
+) -> rusqlite::Result<HashMap<String, TopHighScore>> {
+    let mut statement = conn.prepare_cached(concat!(
+        "SELECT r.profile_id, p.name, p.avatar_kind, p.avatar_ref, p.favourite_colour,
+             r.total, r.song_identity
+         FROM (
+             SELECT *, ROW_NUMBER() OVER (PARTITION BY song_identity ORDER BY total DESC, id)
+                 AS top
+             FROM score_records r WHERE ",
+        counted!("r"),
+        "
+         ) r
+         JOIN profiles p ON p.id = r.profile_id
+         WHERE r.top = 1"
+    ))?;
+    statement
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(6)?,
+                TopHighScore {
+                    holder: read_holder(row, 0)?,
+                    total: row.get(5)?,
+                },
+            ))
+        })?
+        .collect()
+}
+
+/// A [`HighScoreHolder`] from columns `first..first + 5`: Profile id, name,
+/// avatar kind and reference, favourite colour.
+fn read_holder(row: &Row<'_>, first: usize) -> rusqlite::Result<HighScoreHolder> {
+    let colour: String = row.get(first + 4)?;
+    Ok(HighScoreHolder {
+        profile_id: ProfileId(row.get(first)?),
+        name: row.get(first + 1)?,
+        avatar: profiles::read_avatar(row, first + 2)?,
+        favourite_colour: PaletteKey::from_key(&colour)
+            .ok_or_else(|| profiles::unknown(first + 4, "palette key", &colour))?,
+    })
 }
 
 /// The Note snapshot stored for `fingerprint`, if one is.
@@ -315,6 +468,7 @@ fn read_record(row: &Row<'_>) -> rusqlite::Result<ScoreRecord> {
                 "malformed Beat values".into(),
             )
         })?,
+        new_high_score: row.get(21)?,
     })
 }
 
@@ -429,7 +583,13 @@ pub(crate) async fn store_round(
         })
         .await;
     match stored {
-        Ok(Ok(round)) => (StatusCode::CREATED, Json(round)).into_response(),
+        Ok(Ok(round)) => {
+            if !round.records.is_empty() {
+                // Song rows and High score tables may have changed.
+                state.live.changed(vec![ChangeTopic::Library]).await;
+            }
+            (StatusCode::CREATED, Json(round)).into_response()
+        }
         Ok(Err(refused)) => refused.into_response(),
         Err(error) => {
             tracing::error!(?error, "storing a round");
@@ -438,6 +598,32 @@ pub(crate) async fn store_round(
                 Json(UserMessage::ServerError),
             )
                 .into_response()
+        }
+    }
+}
+
+/// `GET /api/songs/{id}/high-scores`: the playable Song's High score
+/// tables; `404` for any other id.
+pub(crate) async fn song_high_scores(
+    State(state): State<AppState>,
+    Path(id): Path<u32>,
+) -> Response {
+    let tables = state
+        .db
+        .call(move |conn| {
+            let Some(song) = library::song_detail(conn, SongId(id))? else {
+                return Ok(None);
+            };
+            let voices = u32::try_from(song.song.voices.len()).unwrap_or(u32::MAX);
+            high_score_tables(conn, &song.identity, voices, &song.note_fingerprint).map(Some)
+        })
+        .await;
+    match tables {
+        Ok(Some(tables)) => Json(tables).into_response(),
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(error) => {
+            tracing::error!(?error, "reading High scores");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
