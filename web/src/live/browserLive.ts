@@ -1,6 +1,7 @@
 import { createLiveClient, liveUrl } from "./liveClient";
 import type { LiveState } from "./liveState";
 import { createLiveStore, type LiveStore } from "./liveStore";
+import { phoneId, type PhoneStorage } from "./phoneId";
 
 let browserStore: LiveStore | null = null;
 
@@ -11,11 +12,34 @@ let browserStore: LiveStore | null = null;
  * connection.
  */
 export function liveStore(): LiveStore {
-  browserStore ??= createLiveStore((handlers) =>
-    createLiveClient({ url: liveUrl(window.location), ...handlers }),
+  browserStore ??= createLiveStore(
+    (handlers) =>
+      createLiveClient({ url: liveUrl(window.location), ...handlers }),
+    () => ({ type: "hello", phoneId: phoneId(browserStorage()) }),
   );
   return browserStore;
 }
+
+/** The browser's local storage; reading it can throw when it is blocked. */
+function browserStorage(): PhoneStorage {
+  try {
+    return window.localStorage;
+  } catch {
+    return blockedStorage;
+  }
+}
+
+const blockedStorage: PhoneStorage = {
+  getItem: () => {
+    throw new Error("local storage is blocked");
+  },
+  setItem: () => {
+    throw new Error("local storage is blocked");
+  },
+  removeItem: () => {
+    throw new Error("local storage is blocked");
+  },
+};
 
 /**
  * The current live state, read synchronously: no subscription and no React

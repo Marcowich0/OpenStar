@@ -7,7 +7,7 @@ import type { LiveClientOptions } from "./liveClient";
 import { initialLiveState, receive } from "./liveState";
 import { createLiveStore } from "./liveStore";
 
-function start() {
+function start(hello?: () => ClientMessage) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
   const sent: ClientMessage[] = [];
@@ -20,7 +20,7 @@ function start() {
       },
       close: () => {},
     };
-  });
+  }, hello);
   const server = (message: ServerMessage) => {
     handlers?.onMessage(message);
   };
@@ -65,6 +65,17 @@ describe("live store", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it("presents the Phone id each time the socket opens", () => {
+    const hello: ClientMessage = { type: "hello", phoneId: "phone-1" };
+    const { connection, sent } = start(() => hello);
+    expect(sent).toEqual([]);
+    connection("open");
+    expect(sent).toEqual([hello]);
+    connection("reconnecting");
+    connection("open");
+    expect(sent).toEqual([hello, hello]);
+  });
+
   it("sends through the client", () => {
     const { store, sent } = start();
     store.send({ type: "newParty" });
@@ -83,6 +94,8 @@ describe("live store", () => {
           stageId: "main",
           joinCode: "0427",
           startedAtMs: 1,
+          members: [],
+          phones: [],
         },
         change: {
           actor: { kind: "stage" },

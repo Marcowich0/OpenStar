@@ -65,6 +65,9 @@ export const en = {
     "A Profile name can be at most {maxLength, number} characters long",
   "userMessage.profileNameTaken": "A Profile with that name already exists",
   "userMessage.profileNotFound": "That Profile no longer exists",
+  "userMessage.joinCodeWrong": "That code is not on the Stage",
+  "userMessage.partyFull": "Party is full",
+  "userMessage.notInParty": "Join the Party first",
   "userMessage.jobCancelled": "Cancelled",
   "userMessage.jobInterrupted": "A server restart interrupted this",
   "userMessage.toolNotFound": "{tool} is not installed on the server",
@@ -107,6 +110,8 @@ export const en = {
 
   // Toasts: structured events from the server, rendered on the Stage and Phones.
   "partyEvent.partyStarted": "New party started, Join code {joinCode}",
+  "partyEvent.memberJoined": "{name} joined the Party in {colour}",
+  "partyEvent.phoneJoined": "{name} joined on another Phone",
   "toast.songMovedUp": "{actor} moved {song} up",
   "toast.backOnMic": "{actor} is back on the mic",
   // A colour parameter is always a palette display name (`colourName`).

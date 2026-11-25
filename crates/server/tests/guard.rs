@@ -7,7 +7,8 @@ use std::path::Path;
 use openstar::endpoints::{Access, Endpoint, Library, ws_access};
 use openstar::{Config, Server};
 use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest};
-use openstar_protocol::{ClientMessage, MicId, PitchReading};
+use openstar_protocol::profile::ProfileId;
+use openstar_protocol::{ClientMessage, JoinAs, JoinCode, MicId, PhoneId, PitchReading};
 use reqwest::StatusCode;
 
 struct App {
@@ -300,6 +301,19 @@ fn every_client_message() -> Vec<ClientMessage> {
             stage_output: String::new(),
             local_mic_id: String::new(),
             reference_dbfs: -40.0,
+        },
+        ClientMessage::Hello {
+            phone_id: PhoneId("phone".to_owned()),
+        },
+        ClientMessage::CheckJoinCode {
+            join_code: JoinCode("0000".to_owned()),
+        },
+        ClientMessage::Join {
+            phone_id: PhoneId("phone".to_owned()),
+            join_code: JoinCode("0000".to_owned()),
+            join_as: JoinAs::Profile {
+                profile_id: ProfileId(1),
+            },
         },
     ]
 }

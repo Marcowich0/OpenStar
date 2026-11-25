@@ -70,7 +70,10 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::ClockPong { .. }
         // Calibrate mics and setting a Mic threshold need no Admin PIN.
         | ClientMessage::StoreCalibration { .. }
-        | ClientMessage::SetMicThreshold { .. } => Access::NotGuarded,
+        | ClientMessage::SetMicThreshold { .. }
+        | ClientMessage::Hello { .. }
+        | ClientMessage::CheckJoinCode { .. }
+        | ClientMessage::Join { .. } => Access::NotGuarded,
     }
 }
 
