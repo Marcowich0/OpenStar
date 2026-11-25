@@ -202,6 +202,28 @@ async fn serve(
     }
 }
 
+/// Binds the stopped app's address again. The server's side of a connection
+/// the client has not closed yet (a pooled HTTP connection, a WebSocket the
+/// test still holds) stays in FIN-WAIT-2 and blocks the bind until the client
+/// closes it, so this retries for a while.
+async fn bind_again(addr: SocketAddr) -> tokio::net::TcpListener {
+    let deadline = tokio::time::Instant::now() + WAIT;
+    loop {
+        match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => return listener,
+            Err(e)
+                if e.kind() == std::io::ErrorKind::AddrInUse
+                    && tokio::time::Instant::now() < deadline =>
+            {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            Err(e) => panic!(
+                "binding {addr} again: {e} (drop the WsClients that are still open before restart)"
+            ),
+        }
+    }
+}
+
 /// The process's `PATH` with `prefix` in front of it.
 fn tool_path(prefix: Option<&Path>) -> String {
     let rest = std::env::var_os("PATH").unwrap_or_default();
@@ -337,9 +359,7 @@ impl TestApp {
     /// new connection is told the reloaded live state.
     pub async fn restart(&mut self) {
         self.shut_down().await;
-        let listener = tokio::net::TcpListener::bind(self.addr)
-            .await
-            .unwrap_or_else(|e| panic!("binding {} again: {e}", self.addr));
+        let listener = bind_again(self.addr).await;
         let serving = serve(&self.vars, self.test_routes, listener).await;
         self.migrations_applied = serving.migrations_applied;
         self.shutdown = Some(serving.shutdown);

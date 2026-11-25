@@ -306,6 +306,7 @@ async fn a_job_interrupted_by_a_restart_runs_again_from_the_start() {
     )
     .await;
 
+    drop(socket);
     app.restart().await;
 
     // Job state survived: both jobs are still known after the restart.
@@ -336,6 +337,7 @@ async fn a_kind_that_does_not_run_again_fails_when_a_restart_interrupts_it() {
     let id = enqueue(&app, &interrupted).await;
     follow(&mut socket, id, |s| matches!(s, JobState::Running { .. })).await;
 
+    drop(socket);
     app.restart().await;
 
     let list: JobList = app.get_json("/api/jobs").await;
