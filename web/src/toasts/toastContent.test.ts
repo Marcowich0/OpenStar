@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { PartyEvent } from "../../generated/PartyEvent";
-import type { PartySnapshot } from "../../generated/PartySnapshot";
-import type { Profile } from "../../generated/Profile";
-import type { Toast } from "../../live/toasts";
-import { tParts, type TextPart } from "../../i18n/t";
+import type { PartyEvent } from "../generated/PartyEvent";
+import type { PartySnapshot } from "../generated/PartySnapshot";
+import type { Profile } from "../generated/Profile";
+import type { Toast } from "../live/toasts";
+import { tParts, type TextPart } from "../i18n/t";
 import { BOLD_PARAMS, toastContent } from "./toastContent";
 
 const party: PartySnapshot = {
@@ -68,7 +68,7 @@ const text = (toast: Toast, given = party, known = profiles) =>
     .parts.map((part) => part.text)
     .join("");
 
-describe("a Stage toast's content", () => {
+describe("a toast's content", () => {
   it("names the Remote's Party member and the Song", () => {
     const content = toastContent(
       byMember(1, { code: "requestMovedUp", params: africa }),
@@ -212,6 +212,102 @@ describe("a Stage toast's content", () => {
     expect(content.parts.map((part) => part.text).join("")).toBe(
       "New party started, Join code 4821",
     );
+  });
+});
+
+describe("a Phone's own changes", () => {
+  // This Phone's Party member is Bo (member 1).
+  const mine = (toast: Toast) =>
+    toastContent(toast, party, profiles, 1)
+      .parts.map((part) => part.text)
+      .join("");
+
+  it("toast in the second person, with the Phone's own avatar", () => {
+    const toast = byMember(1, { code: "requestMovedUp", params: africa });
+    const content = toastContent(toast, party, profiles, 1);
+    expect(content.parts).toEqual([
+      { text: "You moved " },
+      { text: "Africa", param: "song" },
+      { text: " up" },
+    ]);
+    expect(content.actor?.name).toBe("Bo");
+  });
+
+  it("say “you” for every Queue change", () => {
+    const cases: [PartyEvent["code"], string][] = [
+      ["requestAdded", "You added Africa"],
+      ["requestMovedUp", "You moved Africa up"],
+      ["requestMovedDown", "You moved Africa down"],
+      ["requestPlayNext", "You made Africa play next"],
+      ["requestRemoved", "You removed Africa"],
+      ["requestedPlayersChanged", "You changed who sings Africa"],
+    ];
+    for (const [code, expected] of cases) {
+      const event = { code, params: africa } as PartyEvent;
+      expect(mine(byMember(1, event))).toBe(expected);
+    }
+  });
+
+  it("say “you” for changes about this Phone's member", () => {
+    expect(
+      mine(
+        byMember(1, {
+          code: "memberJoined",
+          params: { memberId: 1, name: "Bo", colour: "tangerine" },
+        }),
+      ),
+    ).toBe("You joined the Party in Tangerine");
+    expect(
+      mine(
+        byMember(1, {
+          code: "phoneJoined",
+          params: { memberId: 1, name: "Bo" },
+        }),
+      ),
+    ).toBe("You joined on one more Phone");
+    expect(
+      mine(
+        byMember(1, {
+          code: "memberChanged",
+          params: { memberId: 1, name: "Bo" },
+        }),
+      ),
+    ).toBe("You changed your name, look or colour");
+    expect(
+      mine(
+        byMember(1, {
+          code: "micBlocked",
+          params: { memberId: 1, name: "Bo" },
+        }),
+      ),
+    ).toBe("Your mic is blocked");
+    expect(
+      mine(
+        byMember(1, { code: "micOpened", params: { memberId: 1, name: "Bo" } }),
+      ),
+    ).toBe("Your mic is on");
+  });
+
+  it("stay in the third person for other members and the Stage", () => {
+    expect(mine(byMember(2, { code: "requestMovedUp", params: africa }))).toBe(
+      "Mia moved Africa up",
+    );
+    expect(
+      mine({
+        id: 0,
+        actor: { kind: "stage" },
+        event: { code: "requestRemoved", params: africa },
+      }),
+    ).toBe("Africa was removed from the Queue");
+  });
+
+  it("say “you” even while this Phone's Profile is not loaded", () => {
+    const toast = byMember(1, { code: "requestRemoved", params: africa });
+    const content = toastContent(toast, party, [], 1);
+    expect(content.parts.map((part) => part.text).join("")).toBe(
+      "You removed Africa",
+    );
+    expect(content.actor).toBeNull();
   });
 });
 

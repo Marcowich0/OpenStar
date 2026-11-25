@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-aria-components";
 
 import { profilesQuery } from "../api/queries";
 import { t, type MessageKey } from "../i18n/t";
 import type { IconName } from "../icons/icons";
+import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
 import { Avatar } from "../ui/Avatar";
@@ -11,31 +13,58 @@ import { Icon } from "../ui/Icon";
 import { TopBar } from "./Logo";
 import { memberLook } from "./memberLook";
 import { phoneMember } from "./phonePage";
+import { PhoneToasts } from "./PhoneToasts";
+import {
+  defaultTab,
+  queueCount,
+  REMOTE_TABS,
+  statusStrip,
+  type RemoteTab,
+} from "./remoteFrame";
+import { StatusStrip } from "./StatusStrip";
 
-/** The Remote's four tabs, in order. */
-const TABS = [
-  { id: "songs", label: "remote.songs", icon: "music" },
-  { id: "queue", label: "remote.queue", icon: "list" },
-  { id: "stage", label: "remote.stage", icon: "tv" },
-  { id: "people", label: "remote.people", icon: "people" },
-] as const satisfies readonly {
-  id: string;
-  label: MessageKey;
-  icon: IconName;
-}[];
+/** Each tab's label and icon, in `REMOTE_TABS` order. */
+const TABS = {
+  songs: { label: "remote.songs", icon: "music" },
+  queue: { label: "remote.queue", icon: "list" },
+  stage: { label: "remote.stage", icon: "tv" },
+  people: { label: "remote.people", icon: "people" },
+} as const satisfies Record<RemoteTab, { label: MessageKey; icon: IconName }>;
+
+const selectParty = (state: LiveState) => state.stage?.party ?? null;
+
+function isRemoteTab(key: unknown): key is RemoteTab {
+  return REMOTE_TABS.some((tab) => tab === key);
+}
 
 /**
  * The Remote's frame (v1 spec #49, "The Remote frame"): the top bar with the
- * logo and this Phone's own avatar, and the four tabs at the bottom. The
- * tabs' contents, the status strip and the Me sheet come with later tickets.
+ * logo and this Phone's own avatar, the four tabs at the bottom with the
+ * Queue's badge, the status strip above them, and the toasts at the top. It
+ * opens on the Stage tab while a Line-up waits, on Songs otherwise. The
+ * tabs' contents and the Me sheet come with later tickets.
  */
 export function Remote({ store }: { store: LiveStore }) {
   const member = useLive(phoneMember, store);
+  const party = useLive(selectParty, store);
   const profiles = useQuery(profilesQuery);
   const look = member ? memberLook(member, profiles.data) : null;
+  // Picked once, when the Remote opens; after that the person picks.
+  const [tab, setTab] = useState<RemoteTab>(() =>
+    defaultTab(selectParty(store.getSnapshot())),
+  );
+  const strip = statusStrip(party, tab);
+  const count = queueCount(party);
 
   return (
-    <Tabs defaultSelectedKey="songs" className="flex min-h-dvh flex-col">
+    <Tabs
+      selectedKey={tab}
+      onSelectionChange={(key) => {
+        if (isRemoteTab(key)) setTab(key);
+      }}
+      className="flex min-h-dvh flex-col"
+    >
+      <PhoneToasts store={store} />
       <TopBar>
         {member && look ? (
           <Avatar
@@ -46,27 +75,49 @@ export function Remote({ store }: { store: LiveStore }) {
           />
         ) : null}
       </TopBar>
-      {TABS.map((tab) => (
-        <TabPanel key={tab.id} id={tab.id} className="grow px-5 outline-none" />
+      {REMOTE_TABS.map((id) => (
+        <TabPanel key={id} id={id} className="grow px-5 outline-none" />
       ))}
-      <TabList
-        aria-label={t("remote.tabs")}
-        className="sticky bottom-0 flex bg-white px-1.5 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom,0px))] shadow-[0_-4px_0_var(--color-ledge)]"
-      >
-        {TABS.map((tab) => (
-          <Tab
-            key={tab.id}
-            id={tab.id}
-            className="group flex flex-1 cursor-pointer flex-col items-center gap-1 rounded-card-sm py-1.5 text-sm font-semibold text-mute outline-none data-focus-visible:outline-4 data-focus-visible:outline-yellow data-selected:text-ink"
-          >
-            <Icon
-              name={tab.icon}
-              className="size-7 transition-transform group-data-selected:scale-115 group-data-selected:text-red"
-            />
-            {t(tab.label)}
-          </Tab>
-        ))}
-      </TabList>
+      <div className="sticky bottom-0 flex flex-col">
+        {strip && (
+          <StatusStrip
+            strip={strip}
+            onOpenStage={() => {
+              setTab("stage");
+            }}
+          />
+        )}
+        <TabList
+          aria-label={t("remote.tabs")}
+          className="flex bg-white px-1.5 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom,0px))] shadow-[0_-4px_0_var(--color-ledge)]"
+        >
+          {REMOTE_TABS.map((id) => {
+            const { label, icon } = TABS[id];
+            const badge = id === "queue" && count > 0;
+            return (
+              <Tab
+                key={id}
+                id={id}
+                {...(badge
+                  ? { "aria-label": t("remote.queueWithCount", { count }) }
+                  : {})}
+                className="group relative flex flex-1 cursor-pointer flex-col items-center gap-1 rounded-card-sm py-1.5 text-sm font-semibold text-mute outline-none data-focus-visible:outline-4 data-focus-visible:outline-yellow data-selected:text-ink"
+              >
+                <Icon
+                  name={icon}
+                  className="size-7 transition-transform group-data-selected:scale-115 group-data-selected:text-red"
+                />
+                {t(label)}
+                {badge && (
+                  <span className="absolute top-0 left-[56%] rounded-full bg-red px-1.5 text-xs font-semibold text-white">
+                    {count}
+                  </span>
+                )}
+              </Tab>
+            );
+          })}
+        </TabList>
+      </div>
     </Tabs>
   );
 }

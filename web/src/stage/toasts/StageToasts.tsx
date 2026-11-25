@@ -6,7 +6,6 @@
 // above the lanes.
 
 import { useQuery } from "@tanstack/react-query";
-import { Fragment, useEffect, useState } from "react";
 
 import { profilesQuery } from "../../api/queries";
 import { t } from "../../i18n/t";
@@ -16,8 +15,9 @@ import type { Toast } from "../../live/toasts";
 import { useLive } from "../../live/useLive";
 import { Avatar } from "../../ui/Avatar";
 import { ReferenceBox } from "../frame/ReferenceBox";
-import { BOLD_PARAMS, toastContent, type ToastContent } from "./toastContent";
-import { TOAST_LEAVE_MS, TOAST_STAY_MS, toastPhase } from "./toastQueue";
+import { toastContent, type ToastContent } from "../../toasts/toastContent";
+import { ToastText } from "../../toasts/ToastText";
+import { useToastPhase } from "../../toasts/useToastPhase";
 
 /** Where the stack starts, in reference px from the top. */
 const TOP = 150;
@@ -74,8 +74,6 @@ function ToastStack({
   );
 }
 
-const PHASE_CHANGES = [TOAST_STAY_MS, TOAST_STAY_MS + TOAST_LEAVE_MS];
-
 function ToastPill({
   id,
   store,
@@ -85,22 +83,7 @@ function ToastPill({
   store: LiveStore;
   content: ToastContent;
 }) {
-  // Its age since it appeared, moved on at each change of phase.
-  const [age, setAge] = useState(0);
-  useEffect(() => {
-    const timers = PHASE_CHANGES.map((at) =>
-      setTimeout(() => {
-        setAge(at);
-      }, at),
-    );
-    return () => {
-      for (const timer of timers) clearTimeout(timer);
-    };
-  }, []);
-  const phase = toastPhase(age);
-  useEffect(() => {
-    if (phase === "gone") store.dismissToast(id);
-  }, [phase, id, store]);
+  const phase = useToastPhase(id, store);
 
   const { actor, parts } = content;
   return (
@@ -121,17 +104,7 @@ function ToastPill({
           />
         </span>
       )}
-      <span>
-        {parts.map((part, index) =>
-          part.param !== undefined && BOLD_PARAMS.has(part.param) ? (
-            <b key={index} className="font-bold">
-              {part.text}
-            </b>
-          ) : (
-            <Fragment key={index}>{part.text}</Fragment>
-          ),
-        )}
-      </span>
+      <ToastText parts={parts} />
     </li>
   );
 }

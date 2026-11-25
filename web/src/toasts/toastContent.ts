@@ -1,19 +1,19 @@
-// What a Stage toast says and whose avatar it carries (v1 spec #55,
-// "Toasts"). The server sends a code plus parameters; the actor's name and
+// What a toast says and whose avatar it carries, on the Stage and on a Phone
+// (v1 spec #55 and #49, "Toasts"). The server sends a code plus parameters; the actor's name and
 // look come from the Party snapshot (a Guest) or the Profiles (a Profile),
 // and the text from the catalogue through `tParts`, so names and Song titles
 // can be set in bold. No English comes from the server.
 
-import type { Avatar } from "../../generated/Avatar";
-import type { PartyMemberId } from "../../generated/PartyMemberId";
-import type { PartySnapshot } from "../../generated/PartySnapshot";
-import type { Profile } from "../../generated/Profile";
-import type { RequestChange } from "../../generated/RequestChange";
-import { colourName } from "../../i18n/colourNames";
-import { difficultyName, voiceNumber } from "../../i18n/seatNames";
-import { tParts, type TextPart } from "../../i18n/t";
-import type { Toast } from "../../live/toasts";
-import type { PaletteKey } from "../../theme/tokens";
+import type { Avatar } from "../generated/Avatar";
+import type { PartyMemberId } from "../generated/PartyMemberId";
+import type { PartySnapshot } from "../generated/PartySnapshot";
+import type { Profile } from "../generated/Profile";
+import type { RequestChange } from "../generated/RequestChange";
+import { colourName } from "../i18n/colourNames";
+import { difficultyName, voiceNumber } from "../i18n/seatNames";
+import { tParts, type TextPart } from "../i18n/t";
+import type { Toast } from "../live/toasts";
+import type { PaletteKey } from "../theme/tokens";
 
 /** The Party member a toast is about: drawn as its avatar at the left. */
 export interface ToastActor {
@@ -57,27 +57,41 @@ export function memberLook(
     : null;
 }
 
-/** A Queue change: "Bo moved Africa up", or without the actor while unknown. */
+/**
+ * A Queue change: "Bo moved Africa up", "You moved Africa up" for this
+ * Phone's own change, or without the actor while unknown.
+ */
 function queueChange(
   actor: ToastActor | null,
+  mine: boolean,
   params: RequestChange,
   withActor: (actor: string, song: string) => TextPart[],
   withoutActor: (song: string) => TextPart[],
+  byYou: (song: string) => TextPart[],
 ): ToastContent {
+  if (mine) return { actor, parts: byYou(params.title) };
   return actor
     ? { actor, parts: withActor(actor.name, params.title) }
     : { actor: null, parts: withoutActor(params.title) };
 }
 
+/**
+ * `me` is this Phone's own Party member: its changes, and changes about it,
+ * toast in the second person ("You moved Africa up"). The Stage passes none.
+ */
 export function toastContent(
   toast: Toast,
   party: PartySnapshot | null,
   profiles: readonly Profile[],
+  me: PartyMemberId | null = null,
 ): ToastContent {
   const actor =
     toast.actor.kind === "member"
       ? memberLook(party, profiles, toast.actor.memberId)
       : null;
+  const mine =
+    me !== null && toast.actor.kind === "member" && toast.actor.memberId === me;
+  const isMe = (memberId: PartyMemberId) => me !== null && memberId === me;
   const { event } = toast;
   switch (event.code) {
     case "partyStarted":
@@ -85,20 +99,28 @@ export function toastContent(
     case "memberJoined":
       return {
         actor: memberLook(party, profiles, event.params.memberId),
-        parts: tParts("partyEvent.memberJoined", {
-          name: event.params.name,
-          colour: colourName(event.params.colour),
-        }),
+        parts: isMe(event.params.memberId)
+          ? tParts("toast.youJoined", {
+              colour: colourName(event.params.colour),
+            })
+          : tParts("partyEvent.memberJoined", {
+              name: event.params.name,
+              colour: colourName(event.params.colour),
+            }),
       };
     case "phoneJoined":
       return {
         actor: memberLook(party, profiles, event.params.memberId),
-        parts: tParts("partyEvent.phoneJoined", { name: event.params.name }),
+        parts: isMe(event.params.memberId)
+          ? tParts("toast.youPhoneJoined")
+          : tParts("partyEvent.phoneJoined", { name: event.params.name }),
       };
     case "memberChanged":
       return {
         actor: memberLook(party, profiles, event.params.memberId),
-        parts: tParts("partyEvent.memberChanged", { name: event.params.name }),
+        parts: isMe(event.params.memberId)
+          ? tParts("toast.youChanged")
+          : tParts("partyEvent.memberChanged", { name: event.params.name }),
       };
     case "memberLeft": {
       // The member is gone from the snapshot, so its look comes with the event.
@@ -114,55 +136,71 @@ export function toastContent(
     case "micBlocked":
       return {
         actor: memberLook(party, profiles, event.params.memberId),
-        parts: tParts("partyEvent.micBlocked", { name: event.params.name }),
+        parts: isMe(event.params.memberId)
+          ? tParts("toast.youMicBlocked")
+          : tParts("partyEvent.micBlocked", { name: event.params.name }),
       };
     case "micOpened":
       return {
         actor: memberLook(party, profiles, event.params.memberId),
-        parts: tParts("partyEvent.micOpened", { name: event.params.name }),
+        parts: isMe(event.params.memberId)
+          ? tParts("toast.youMicOpened")
+          : tParts("partyEvent.micOpened", { name: event.params.name }),
       };
     case "requestAdded":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.requestAdded", { actor: name, song }),
         (song) => tParts("partyEvent.requestAdded", { song }),
+        (song) => tParts("toast.youRequestAdded", { song }),
       );
     case "requestMovedUp":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.requestMovedUp", { actor: name, song }),
         (song) => tParts("partyEvent.requestMovedUp", { song }),
+        (song) => tParts("toast.youRequestMovedUp", { song }),
       );
     case "requestMovedDown":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.requestMovedDown", { actor: name, song }),
         (song) => tParts("partyEvent.requestMovedDown", { song }),
+        (song) => tParts("toast.youRequestMovedDown", { song }),
       );
     case "requestPlayNext":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.requestPlayNext", { actor: name, song }),
         (song) => tParts("partyEvent.requestPlayNext", { song }),
+        (song) => tParts("toast.youRequestPlayNext", { song }),
       );
     case "requestRemoved":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.requestRemoved", { actor: name, song }),
         (song) => tParts("partyEvent.requestRemoved", { song }),
+        (song) => tParts("toast.youRequestRemoved", { song }),
       );
     case "requestedPlayersChanged":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) =>
           tParts("toast.requestedPlayersChanged", { actor: name, song }),
         (song) => tParts("partyEvent.requestedPlayersChanged", { song }),
+        (song) => tParts("toast.youRequestedPlayersChanged", { song }),
       );
     case "lineUpChanged":
       return actor
