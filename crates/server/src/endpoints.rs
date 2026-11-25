@@ -28,7 +28,7 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, jobs, mic_settings, profiles, unlock};
+use crate::{AppState, bridge, frontend, jobs, library, mic_settings, profiles, unlock};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -125,6 +125,27 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             profiles::edit_profile,
         )
         .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
+        .add(Method::GET, "/api/songs", NotGuarded, library::songs)
+        .add(Method::GET, "/api/songs/{id}", NotGuarded, library::song)
+        .add(
+            Method::GET,
+            "/api/library/problems",
+            NotGuarded,
+            library::problems,
+        )
+        .add(
+            Method::GET,
+            "/api/library/scan",
+            NotGuarded,
+            library::scan_status,
+        )
+        // Rescan and the Library problems need no PIN (docs/agents/guard-rule.md).
+        .add(
+            Method::POST,
+            "/api/library/rescan",
+            NotGuarded,
+            library::rescan,
+        )
         // Anyone reads Mic settings; the Stage writes them over its WebSocket.
         .add(
             Method::GET,
