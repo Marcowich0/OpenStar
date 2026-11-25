@@ -3,6 +3,7 @@ import type { ParsedSong } from "./ParsedSong";
 import type { ProblemReason } from "./ProblemReason";
 import type { SongId } from "./SongId";
 import type { SongIdentity } from "./SongIdentity";
+import type { SongMedia } from "./SongMedia";
 
 /**
  * One playable Song in full: the parsed `.txt` with units in seconds and
@@ -12,7 +13,7 @@ export type SongDetail = { id: SongId,
 /**
  * The `.txt`, relative to the Library, with `/` between folders.
  */
-path: string, song: ParsedSong, identity: SongIdentity, 
+path: string, song: ParsedSong, identity: SongIdentity, lengthSeconds: number | null, media: SongMedia, 
 /**
  * The Song's warnings; it plays anyway.
  */

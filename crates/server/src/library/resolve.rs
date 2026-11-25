@@ -76,11 +76,26 @@ impl Resolver {
         )
     }
 
-    /// The entry of `folder` named `name`: exactly, else ignoring case.
-    fn find(&mut self, folder: &Path, name: &str) -> Option<OsString> {
+    /// The names of the entries of `folder` (relative to the Library),
+    /// sorted; empty when it cannot be listed. Pass a name to
+    /// [`Self::resolve`] to learn whether it is a file inside the Library.
+    pub(crate) fn names(&mut self, folder: &Path) -> Vec<String> {
+        let mut names: Vec<String> = self
+            .listing(folder)
+            .map(|listing| {
+                listing
+                    .iter()
+                    .filter_map(|name| name.to_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default();
+        names.sort_unstable();
+        names
+    }
+
+    fn listing(&mut self, folder: &Path) -> Option<&Vec<OsString>> {
         let root = &self.root;
-        let listing = self
-            .listings
+        self.listings
             .entry(folder.to_owned())
             .or_insert_with(|| {
                 std::fs::read_dir(root.join(folder)).ok().map(|entries| {
@@ -89,7 +104,12 @@ impl Resolver {
                         .collect()
                 })
             })
-            .as_ref()?;
+            .as_ref()
+    }
+
+    /// The entry of `folder` named `name`: exactly, else ignoring case.
+    fn find(&mut self, folder: &Path, name: &str) -> Option<OsString> {
+        let listing = self.listing(folder)?;
         if let Some(exact) = listing.iter().find(|entry| entry.as_os_str() == name) {
             return Some(exact.clone());
         }
