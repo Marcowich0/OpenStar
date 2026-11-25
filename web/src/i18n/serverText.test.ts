@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { colourName } from "./colourNames";
+import { en } from "./en";
+import type { PaletteKey } from "../theme/tokens";
 import { t } from "./t";
 import {
   apiErrorText,
@@ -83,11 +86,17 @@ describe("toasts", () => {
   // with `byCode` the same way.
   type ToastEvent =
     | { code: "songMovedUp"; params: { actor: string; song: string } }
-    | { code: "backOnMic"; params: { actor: string } };
+    | { code: "backOnMic"; params: { actor: string } }
+    | { code: "memberLeft"; params: { actor: string; colour: PaletteKey } };
 
   const toastText = byCode<ToastEvent>({
     songMovedUp: ({ params }) => t("toast.songMovedUp", params),
     backOnMic: ({ params }) => t("toast.backOnMic", params),
+    memberLeft: ({ params }) =>
+      t("toast.memberLeft", {
+        actor: params.actor,
+        colour: colourName(params.colour),
+      }),
   });
 
   it("renders an event with an actor and a Song through t()", () => {
@@ -100,5 +109,27 @@ describe("toasts", () => {
     expect(toastText({ code: "backOnMic", params: { actor: "Mia" } })).toBe(
       "Mia is back on the mic",
     );
+  });
+
+  it("names a colour parameter by its palette display name", () => {
+    expect(
+      toastText({
+        code: "memberLeft",
+        params: { actor: "Lukas", colour: "tangerine" },
+      }),
+    ).toBe("Lukas left the Party. Tangerine is free");
+  });
+
+  it("uses no generic colour word in any server text", () => {
+    const generic =
+      /\b(red|green|blue|yellow|orange|purple|pink|brown|black|white|grey|gray|violet|cyan|magenta)\b/i;
+    const serverText = Object.entries(en).filter(([key]) =>
+      /^(userMessage|partyEvent|toast)\./.test(key),
+    );
+    expect(serverText.length).toBeGreaterThan(0);
+    const withGenericWord = serverText
+      .filter(([, entry]) => generic.test(JSON.stringify(entry)))
+      .map(([key]) => key);
+    expect(withGenericWord).toEqual([]);
   });
 });

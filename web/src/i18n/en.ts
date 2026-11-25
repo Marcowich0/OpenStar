@@ -99,8 +99,10 @@ export const en = {
     "Line {line, number}: the Note overlaps the one on line {earlierLine, number}",
   "txtWarning.unknownBodyLine": "Line {line, number} is not understood",
 
-  // Toasts: structured events from the server, rendered on the Stage.
+  // Toasts: structured events from the server, rendered on the Stage and Phones.
   "partyEvent.partyStarted": "New party started, Join code {joinCode}",
   "toast.songMovedUp": "{actor} moved {song} up",
   "toast.backOnMic": "{actor} is back on the mic",
+  // A colour parameter is always a palette display name (`colourName`).
+  "toast.memberLeft": "{actor} left the Party. {colour} is free",
 } as const satisfies Record<string, Entry>;
