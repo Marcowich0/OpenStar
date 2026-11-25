@@ -1,5 +1,6 @@
 import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ClientMessage } from "../generated/ClientMessage";
+import type { ServerMessage } from "../generated/ServerMessage";
 import type { PitchRouter } from "../pitch/pitchRouter";
 import type { LiveClient, LiveClientOptions } from "./liveClient";
 import {
@@ -9,6 +10,12 @@ import {
   type LiveState,
 } from "./liveState";
 import { dismissToast } from "./toasts";
+
+/** What the server tells the Stage to do to the head's Song. */
+export type SongControlMessage = Extract<
+  ServerMessage,
+  { type: "controlSong" }
+>;
 
 /**
  * One store per browser: the live state, updated by the one reducer from
@@ -21,6 +28,14 @@ export interface LiveStore {
   send: (message: ClientMessage) => boolean;
   /** Calls `listener` whenever a change notice names `topic`. */
   onChanged: (topic: ChangeTopic, listener: () => void) => () => void;
+  /**
+   * Calls `listener` with every `controlSong` the server sends the Stage
+   * (Start, Pause, …), after the `partyChanged` that reports it was applied.
+   * The sing scene's playback acts on these (#164).
+   */
+  onSongControl: (
+    listener: (control: SongControlMessage) => void,
+  ) => () => void;
   /** Drops a toast the screen has finished showing (`toasts.ts`). */
   dismissToast: (id: number) => void;
   close: () => void;
@@ -45,6 +60,7 @@ export function createLiveStore(
   let state = initialLiveState;
   const listeners = new Set<() => void>();
   const topicListeners = new Map<ChangeTopic, Set<() => void>>();
+  const songControlListeners = new Set<(control: SongControlMessage) => void>();
 
   function update(next: LiveState) {
     if (next === state) return;
@@ -66,6 +82,9 @@ export function createLiveStore(
         }
       }
       update(receive(state, message));
+      if (message.type === "controlSong") {
+        for (const listener of [...songControlListeners]) listener(message);
+      }
     },
     onConnection(connection) {
       if (connection === "open" && hello) client.send(hello());
@@ -88,6 +107,12 @@ export function createLiveStore(
       topicListeners.set(topic, set);
       return () => {
         set.delete(listener);
+      };
+    },
+    onSongControl(listener) {
+      songControlListeners.add(listener);
+      return () => {
+        songControlListeners.delete(listener);
       };
     },
     dismissToast(id) {

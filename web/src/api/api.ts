@@ -12,12 +12,14 @@ import type { MicBridges } from "../generated/MicBridges";
 import type { NewProfile } from "../generated/NewProfile";
 import type { Profile } from "../generated/Profile";
 import type { ProfileEdit } from "../generated/ProfileEdit";
+import type { RoundOutcome } from "../generated/RoundOutcome";
 import type { ScanStatus } from "../generated/ScanStatus";
 import type { ServerInfo } from "../generated/ServerInfo";
 import type { SongDetail } from "../generated/SongDetail";
 import type { SongHighScores } from "../generated/SongHighScores";
 import type { SongList } from "../generated/SongList";
 import type { SongQuery } from "../generated/SongQuery";
+import type { StoredRound } from "../generated/StoredRound";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
 import type { UserMessage } from "../generated/UserMessage";
@@ -48,6 +50,7 @@ export interface Endpoints {
   "GET /api/library/problems": { response: LibraryProblem[] };
   "GET /api/library/scan": { response: ScanStatus };
   "POST /api/library/rescan": { response: ScanStatus };
+  "POST /api/rounds": { body: RoundOutcome; response: StoredRound };
 }
 
 export type Route = keyof Endpoints;

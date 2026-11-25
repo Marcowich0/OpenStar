@@ -286,9 +286,13 @@ export const en = {
   "stage.lineUp.micLevel": "{name}'s mic level",
   "stage.lineUp.remove": "Take {name} off this Song",
   "stage.lineUp.addSinger": "Add a singer",
-  "stage.sing.title": "Singing",
+  "stage.sing.loading": "Getting the Song ready",
+  "stage.sing.failed": "The Song could not be loaded",
+  "stage.sing.notPlaying": "This Song is not playing here",
+  "stage.sing.playFailed": "The browser did not start the Song",
+  "stage.sing.play": "Play",
   "stage.results.title": "Results",
-  // The minimal playback view (#155), until the sing scene plays Songs (#164).
+  // The playback check page (#155), kept as a debug page beside the sing scene (#164).
   "stage.playback.play": "Play",
   "stage.playback.loading": "Loading the Song",
   "stage.playback.noSong": "No such Song",

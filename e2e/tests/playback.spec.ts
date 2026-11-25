@@ -2,8 +2,9 @@ import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, FIXTURE_SONGS, test } from "../fixtures";
 
-// Song playback on the Stage (#155), on the minimal playback view
-// `/stage/playback?song=<id>` until the sing scene plays Songs (#164): one
+// Song playback on the Stage (#155), on the playback check page
+// `/stage/playback?song=<id>` (a debug page; the sing scene's own run is
+// `sing.spec.ts`): one
 // media element plays a fixture Song's generated audio through the Stage's
 // AudioContext, `songTime()` advances, and the Song ends with one signal.
 
