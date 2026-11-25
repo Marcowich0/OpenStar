@@ -25,6 +25,7 @@ tracing-subscriber.workspace = true
 
 [dev-dependencies]
 futures-util.workspace = true
+insta.workspace = true
 reqwest.workspace = true
 tempfile.workspace = true
 tokio-tungstenite.workspace = true

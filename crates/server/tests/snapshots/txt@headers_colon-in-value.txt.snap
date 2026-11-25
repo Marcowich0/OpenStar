@@ -1,0 +1,69 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: headers/colon-in-value.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Placeholder: Part 2: The End" Lf,
+              2 Header "#ARTIST:Placeholder Artist" Lf,
+              3 Header "#MP3:audio: remix.mp3" Lf,
+              4 Header "#BPM:300" Lf,
+              5 Header "#COMMENT:a: b: c" Lf,
+              6 Body ": 0 4 0 La" Lf,
+              7 Body ": 4 4 2 la" Lf,
+              8 Body "- 10" Lf,
+              9 Body "* 12 4 4 Lo" Lf,
+             10 Body "F 16 2 0 ~" Lf,
+             11 End "E" Lf,
+        ],
+        headers: SongHeaders {
+            generation: Unversioned,
+            version: None,
+            encoding: None,
+            title: "Placeholder: Part 2: The End",
+            artist: "Placeholder Artist",
+            audio_reference: Some(
+                "audio: remix.mp3",
+            ),
+            mp3: Some(
+                "audio: remix.mp3",
+            ),
+            audio: None,
+            video: None,
+            cover: None,
+            background: None,
+            vocals: None,
+            instrumental: None,
+            beats_per_minute: 1200.0,
+            gap_seconds: 0.0,
+            start_seconds: None,
+            end_seconds: None,
+            video_gap_seconds: None,
+            preview_start_seconds: None,
+            medley_start_beat: None,
+            medley_end_beat: None,
+            year: None,
+            genre: None,
+            genres: [],
+            language: None,
+            languages: [],
+            edition: None,
+            editions: [],
+            creator: None,
+            creators: [],
+            p1: None,
+            p2: None,
+            unknown_headers: [
+                UnknownHeader {
+                    line: 5,
+                    key: "COMMENT",
+                    value: Some(
+                        "a: b: c",
+                    ),
+                },
+            ],
+        },
+        warnings: [],
+    },
+)

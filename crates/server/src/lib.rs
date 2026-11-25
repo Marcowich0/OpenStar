@@ -4,6 +4,7 @@
 mod config;
 pub mod db;
 mod frontend;
+pub mod txt;
 
 use axum::Router;
 use axum::extract::State;
