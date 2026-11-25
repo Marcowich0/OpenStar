@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use crate::StageId;
 use crate::library::SongId;
-use crate::profile::{PaletteKey, ProfileId};
+use crate::profile::{Avatar, Difficulty, NewProfile, PaletteKey, ProfileId};
 
 /// How many seats a Line-up has, and so how many requested Players a
 /// Request may name. 4 in v1. Nothing else hard-codes it: no database CHECK,
@@ -67,7 +67,7 @@ impl PhoneId {
     }
 }
 
-/// Who a Party member is. Tagged by `kind`, so Guests can follow.
+/// Who a Party member is: a Profile or a Guest, tagged by `kind`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(
     tag = "kind",
@@ -78,9 +78,22 @@ impl PhoneId {
 pub enum Identity {
     /// A Profile; its name and avatar come from `GET /api/profiles`.
     Profile { profile_id: ProfileId },
+    /// A Guest: kept only for this Party, never converted or merged into a
+    /// Profile.
+    Guest {
+        /// Trimmed, at most [`crate::profile::NAME_MAX_LENGTH`] characters,
+        /// unique among the Party's Guests ignoring case and surrounding
+        /// spaces, and no Profile's name.
+        name: String,
+        /// Any built-in avatar; other members may have the same one.
+        avatar: Avatar,
+        /// The Difficulty its next seat starts at: Medium until changed,
+        /// kept for the Party.
+        difficulty: Difficulty,
+    },
 }
 
-/// Who a Phone joins as. Tagged by `kind`, so joining as a Guest can follow.
+/// Who a Phone joins (or switches) as, tagged by `kind`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(
     tag = "kind",
@@ -92,6 +105,45 @@ pub enum JoinAs {
     /// An existing Profile. Its Party colour is its favourite colour when
     /// free, otherwise the first free colour in palette order.
     Profile { profile_id: ProfileId },
+    /// A new Guest, with a free colour.
+    Guest(NewGuest),
+    /// A new Profile, created and joined in one step: it is created only if
+    /// it can enter the Party. Its favourite colour is its Party colour when
+    /// free, otherwise it gets the first free one like any Profile.
+    NewProfile(NewProfile),
+}
+
+/// A new Guest: what the Phone's form (or the Stage's) sends.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct NewGuest {
+    /// Surrounding spaces are trimmed before the name is checked and stored.
+    pub name: String,
+    /// Must be free in the Party; the form preselects the first free one in
+    /// palette order.
+    pub colour: PaletteKey,
+    pub avatar: Avatar,
+}
+
+/// A change to a Party member made inside the Party (the Me sheet's "Change
+/// name, look or colour"): the fields to change; a missing field stays.
+/// For a Profile, the name and avatar change the Profile and the colour
+/// becomes both its favourite and its Party colour. For a Guest all three
+/// are its own. The colour must be free (or the member's own).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MemberEdit {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub avatar: Option<Avatar>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub colour: Option<PaletteKey>,
 }
 
 /// A Profile or Guest that has entered the current Party.
@@ -251,6 +303,12 @@ pub enum PartyEvent {
     /// A Phone joined as a Party member that was already in the Party (or
     /// switched to one): no member was added and no colour changed hands.
     PhoneJoined {
+        member_id: PartyMemberId,
+        name: String,
+    },
+    /// A Party member's name, avatar or Party colour was changed inside the
+    /// Party. `name` is the member's name after the change.
+    MemberChanged {
         member_id: PartyMemberId,
         name: String,
     },

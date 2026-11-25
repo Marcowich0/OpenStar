@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 pub use party::{
-    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, PartyEvent, PartyId, PartyMember,
-    PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request, RequestChange, RequestId,
-    RequestKind, SEATS,
+    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, MemberEdit, NewGuest, PartyEvent,
+    PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request, RequestChange,
+    RequestId, RequestKind, SEATS,
 };
 pub use pitch::{MicId, PitchReading};
 pub use scoring::BeatValue;
@@ -133,6 +133,17 @@ pub enum ClientMessage {
         phone_id: PhoneId,
         join_code: JoinCode,
         join_as: JoinAs,
+    },
+    /// Switches the identity of this connection's Phone, which has joined
+    /// the Party: no Join code needed. Only what this Phone uses changes;
+    /// the previous identity stays a Party member with its colour. Refused
+    /// with [`UserMessage::NotInParty`] for a Phone that has not joined.
+    SwitchIdentity { join_as: JoinAs },
+    /// Changes a Party member's name, avatar or colour inside the Party (see
+    /// [`MemberEdit`]). A Remote command.
+    EditMember {
+        member_id: PartyMemberId,
+        edit: MemberEdit,
     },
     /// Adds a Request for a Library Song at the end of the Queue. From a
     /// Phone, `requested_players` defaults to the Phone's Party member when
@@ -256,15 +267,26 @@ pub enum UserMessage {
     /// A Profile name is longer than `max_length` characters once
     /// surrounding spaces are trimmed.
     ProfileNameTooLong { max_length: u32 },
-    /// Another Profile already has this name (ignoring case and surrounding
-    /// spaces); the person is offered that Profile.
+    /// A Profile already has this name (ignoring case and surrounding
+    /// spaces); the person is offered that Profile. Also refuses a Guest
+    /// name, so the Phone can ask "Are you <name>?".
     ProfileNameTaken { profile_id: profile::ProfileId },
     /// No Profile has this id (it was deleted, or never existed).
     ProfileNotFound,
     /// The Join code is not the current Party's ("That code is not on the Stage").
     JoinCodeWrong,
-    /// All twelve Party colours are held, so no new Party member can enter.
+    /// All twelve Party colours are held, so no new Party member can enter
+    /// (and no new Profile can be created).
     PartyFull,
+    /// A Guest in the current Party already has this name, ignoring case and
+    /// surrounding spaces ("Someone already has that name tonight"). Refuses
+    /// a new Guest, a new Profile and a rename alike.
+    NameTakenTonight { member_id: PartyMemberId },
+    /// Another Party member holds this colour; only free colours can be
+    /// picked inside the Party.
+    ColourTaken,
+    /// No Party member has this id (it left, or the Party ended).
+    MemberNotFound,
     /// Only a Phone that has joined the Party (with an identity) or the
     /// Stage may do this.
     NotInParty,

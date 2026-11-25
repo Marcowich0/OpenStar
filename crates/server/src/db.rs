@@ -171,7 +171,15 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT, WITHOUT ROWID;
      ALTER TABLE library_files ADD COLUMN length_seconds REAL;
      ALTER TABLE library_files ADD COLUMN has_video INTEGER NOT NULL DEFAULT 0;",
-    // 12: the filter fields of the Song list (see `library::search`):
+    // 12: Guests. A member is a Profile (`profile_id` set, the guest columns
+    // NULL) or a Guest (`profile_id` NULL, its name, avatar and Difficulty
+    // here). A Guest goes with its Party like every member. Unique Guest
+    // names (ignoring case) are kept by the live-state task.
+    "ALTER TABLE party_members ADD COLUMN guest_name TEXT;
+     ALTER TABLE party_members ADD COLUMN guest_avatar_kind TEXT;
+     ALTER TABLE party_members ADD COLUMN guest_avatar_ref TEXT;
+     ALTER TABLE party_members ADD COLUMN guest_difficulty TEXT;",
+    // 13: the filter fields of the Song list (see `library::search`):
     // `#YEAR`, and the list headers split on commas, as JSON lists of
     // strings; all NULL for a rejected `.txt`. Rows already indexed are
     // filled from their stored Song, so no re-read is needed.

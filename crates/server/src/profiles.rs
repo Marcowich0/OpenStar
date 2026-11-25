@@ -9,11 +9,11 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use openstar_protocol::UserMessage;
 use openstar_protocol::profile::{
     Avatar, AvatarKey, Difficulty, NAME_MAX_LENGTH, NewProfile, PaletteKey, Profile, ProfileEdit,
     ProfileId,
 };
-use openstar_protocol::{ChangeTopic, UserMessage};
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension, Row, params};
 
@@ -43,8 +43,14 @@ pub(crate) fn check_name(raw: &str) -> Result<CheckedName, UserMessage> {
     }
     Ok(CheckedName {
         display: display.to_owned(),
-        key: display.to_lowercase(),
+        key: name_key(display),
     })
+}
+
+/// What name uniqueness compares, for Profiles and Guests alike: the name
+/// without surrounding spaces, case-folded.
+pub(crate) fn name_key(name: &str) -> String {
+    name.trim().to_lowercase()
 }
 
 /// Why a create or edit was refused.
@@ -56,6 +62,10 @@ pub(crate) enum Refused {
     Taken(ProfileId),
     /// No Profile has this id.
     NotFound,
+    /// The current Party refuses it: a Guest has the name
+    /// ([`UserMessage::NameTakenTonight`]), or the Party is full
+    /// ([`UserMessage::PartyFull`]).
+    Party(UserMessage),
 }
 
 impl IntoResponse for Refused {
@@ -67,6 +77,7 @@ impl IntoResponse for Refused {
                 UserMessage::ProfileNameTaken { profile_id },
             ),
             Self::NotFound => (StatusCode::NOT_FOUND, UserMessage::ProfileNotFound),
+            Self::Party(message) => (StatusCode::CONFLICT, message),
         };
         (status, Json(message)).into_response()
     }
@@ -111,30 +122,48 @@ pub(crate) async fn create(
     };
     db.call(move |conn| {
         let tx = conn.transaction()?;
-        if let Some(holder) = name_holder(&tx, &name.key, None)? {
-            return Ok(Err(Refused::Taken(holder)));
-        }
-        let (avatar_kind, avatar_ref) = avatar_columns(new.avatar);
-        tx.execute(
-            "INSERT INTO profiles (name, name_key, avatar_kind, avatar_ref, favourite_colour,
-                                   last_difficulty, created_ms, last_sung_ms)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
-            params![
-                name.display,
-                name.key,
-                avatar_kind,
-                avatar_ref,
-                new.favourite_colour.as_str(),
-                Difficulty::default().as_str(),
-                now,
-            ],
-        )?;
-        let id = profile_id(tx.last_insert_rowid(), 0)?;
-        let profile = get_in(&tx, id)?.ok_or(rusqlite::Error::QueryReturnedNoRows)?;
+        let created = create_in(&tx, &name, &new, now)?;
         tx.commit()?;
-        Ok(Ok(profile))
+        Ok(created)
     })
     .await
+}
+
+/// [`create`] inside the caller's transaction, with the name already
+/// through [`check_name`]; the caller commits.
+pub(crate) fn create_in(
+    conn: &Connection,
+    name: &CheckedName,
+    new: &NewProfile,
+    now: i64,
+) -> rusqlite::Result<Result<Profile, Refused>> {
+    if let Some(holder) = name_holder(conn, &name.key, None)? {
+        return Ok(Err(Refused::Taken(holder)));
+    }
+    let (avatar_kind, avatar_ref) = avatar_columns(new.avatar);
+    conn.execute(
+        "INSERT INTO profiles (name, name_key, avatar_kind, avatar_ref, favourite_colour,
+                               last_difficulty, created_ms, last_sung_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
+        params![
+            name.display,
+            name.key,
+            avatar_kind,
+            avatar_ref,
+            new.favourite_colour.as_str(),
+            Difficulty::default().as_str(),
+            now,
+        ],
+    )?;
+    let id = profile_id(conn.last_insert_rowid(), 0)?;
+    get_in(conn, id)?
+        .map(Ok)
+        .ok_or(rusqlite::Error::QueryReturnedNoRows)
+}
+
+/// The Profile whose name has the name key `key`, if any.
+pub(crate) async fn named(db: &Database, key: String) -> anyhow::Result<Option<ProfileId>> {
+    db.call(move |conn| name_holder(conn, &key, None)).await
 }
 
 /// Changes the fields `edit` names. A new name follows the create rules; the
@@ -150,36 +179,50 @@ pub(crate) async fn edit(
     };
     db.call(move |conn| {
         let tx = conn.transaction()?;
-        if get_in(&tx, id)?.is_none() {
-            return Ok(Err(Refused::NotFound));
-        }
-        if let Some(name) = &name {
-            if let Some(holder) = name_holder(&tx, &name.key, Some(id))? {
-                return Ok(Err(Refused::Taken(holder)));
-            }
-            tx.execute(
-                "UPDATE profiles SET name = ?1, name_key = ?2 WHERE id = ?3",
-                params![name.display, name.key, id.0],
-            )?;
-        }
-        if let Some(avatar) = edit.avatar {
-            let (avatar_kind, avatar_ref) = avatar_columns(avatar);
-            tx.execute(
-                "UPDATE profiles SET avatar_kind = ?1, avatar_ref = ?2 WHERE id = ?3",
-                params![avatar_kind, avatar_ref, id.0],
-            )?;
-        }
-        if let Some(colour) = edit.favourite_colour {
-            tx.execute(
-                "UPDATE profiles SET favourite_colour = ?1 WHERE id = ?2",
-                params![colour.as_str(), id.0],
-            )?;
-        }
-        let profile = get_in(&tx, id)?.ok_or(rusqlite::Error::QueryReturnedNoRows)?;
+        let edited = edit_in(&tx, id, name.as_ref(), edit.avatar, edit.favourite_colour)?;
         tx.commit()?;
-        Ok(Ok(profile))
+        Ok(edited)
     })
     .await
+}
+
+/// [`edit`] inside the caller's transaction, with the new name already
+/// through [`check_name`]; the caller commits.
+pub(crate) fn edit_in(
+    conn: &Connection,
+    id: ProfileId,
+    name: Option<&CheckedName>,
+    avatar: Option<Avatar>,
+    favourite_colour: Option<PaletteKey>,
+) -> rusqlite::Result<Result<Profile, Refused>> {
+    if get_in(conn, id)?.is_none() {
+        return Ok(Err(Refused::NotFound));
+    }
+    if let Some(name) = name {
+        if let Some(holder) = name_holder(conn, &name.key, Some(id))? {
+            return Ok(Err(Refused::Taken(holder)));
+        }
+        conn.execute(
+            "UPDATE profiles SET name = ?1, name_key = ?2 WHERE id = ?3",
+            params![name.display, name.key, id.0],
+        )?;
+    }
+    if let Some(avatar) = avatar {
+        let (avatar_kind, avatar_ref) = avatar_columns(avatar);
+        conn.execute(
+            "UPDATE profiles SET avatar_kind = ?1, avatar_ref = ?2 WHERE id = ?3",
+            params![avatar_kind, avatar_ref, id.0],
+        )?;
+    }
+    if let Some(colour) = favourite_colour {
+        conn.execute(
+            "UPDATE profiles SET favourite_colour = ?1 WHERE id = ?2",
+            params![colour.as_str(), id.0],
+        )?;
+    }
+    get_in(conn, id)?
+        .map(Ok)
+        .ok_or(rusqlite::Error::QueryReturnedNoRows)
 }
 
 /// Records that the Profile sang at `at` on `difficulty`: its last sung time
@@ -230,21 +273,30 @@ fn name_holder(
     id.map(|id| profile_id(id, 0)).transpose()
 }
 
-fn avatar_columns(avatar: Avatar) -> (&'static str, &'static str) {
+/// How an avatar is stored: its kind and its reference (for a built-in
+/// one, the key). Guests are stored the same way.
+pub(crate) fn avatar_columns(avatar: Avatar) -> (&'static str, &'static str) {
     match avatar {
         Avatar::BuiltIn { key } => (BUILT_IN, key.as_str()),
     }
 }
 
+/// Reads an avatar stored by [`avatar_columns`] from columns `kind_column`
+/// and `kind_column + 1` of `row`.
+pub(crate) fn read_avatar(row: &Row<'_>, kind_column: usize) -> rusqlite::Result<Avatar> {
+    let kind: String = row.get(kind_column)?;
+    let reference: String = row.get(kind_column + 1)?;
+    match kind.as_str() {
+        BUILT_IN => Ok(Avatar::BuiltIn {
+            key: AvatarKey::from_key(&reference)
+                .ok_or_else(|| unknown(kind_column + 1, "avatar", &reference))?,
+        }),
+        _ => Err(unknown(kind_column, "avatar kind", &kind)),
+    }
+}
+
 fn read_profile(row: &Row<'_>) -> rusqlite::Result<Profile> {
-    let kind: String = row.get(2)?;
-    let reference: String = row.get(3)?;
-    let avatar = match kind.as_str() {
-        BUILT_IN => Avatar::BuiltIn {
-            key: AvatarKey::from_key(&reference).ok_or_else(|| unknown(3, "avatar", &reference))?,
-        },
-        _ => return Err(unknown(2, "avatar kind", &kind)),
-    };
+    let avatar = read_avatar(row, 2)?;
     let colour: String = row.get(4)?;
     let difficulty: String = row.get(5)?;
     Ok(Profile {
@@ -266,7 +318,7 @@ fn profile_id(id: i64, column: usize) -> rusqlite::Result<ProfileId> {
     })
 }
 
-fn unknown(column: usize, what: &str, value: &str) -> rusqlite::Error {
+pub(crate) fn unknown(column: usize, what: &str, value: &str) -> rusqlite::Error {
     rusqlite::Error::FromSqlConversionFailure(
         column,
         Type::Text,
@@ -306,11 +358,9 @@ pub(crate) async fn create_profile(
     Json(new): Json<NewProfile>,
 ) -> Response {
     let now = state.clock.now_millis();
-    match create(&state.db, new, now).await {
-        Ok(Ok(profile)) => {
-            state.live.changed(vec![ChangeTopic::Profiles]).await;
-            (StatusCode::CREATED, Json(profile)).into_response()
-        }
+    // Through the live-state task: Guest names and a full Party refuse it.
+    match state.live.create_profile(new, now).await {
+        Ok(Ok(profile)) => (StatusCode::CREATED, Json(profile)).into_response(),
         Ok(Err(refused)) => refused.into_response(),
         Err(error) => internal_error(&error),
     }
@@ -322,11 +372,11 @@ pub(crate) async fn edit_profile(
     Path(id): Path<u32>,
     Json(changes): Json<ProfileEdit>,
 ) -> Response {
-    match edit(&state.db, ProfileId(id), changes).await {
-        Ok(Ok(profile)) => {
-            state.live.changed(vec![ChangeTopic::Profiles]).await;
-            Json(profile).into_response()
-        }
+    // Through the live-state task: a Guest's name refuses a rename. This is
+    // the edit outside a Party (any colour; only the favourite changes);
+    // inside the Party a Phone uses `ClientMessage::EditMember`.
+    match state.live.edit_profile(ProfileId(id), changes).await {
+        Ok(Ok(profile)) => Json(profile).into_response(),
         Ok(Err(refused)) => refused.into_response(),
         Err(error) => internal_error(&error),
     }

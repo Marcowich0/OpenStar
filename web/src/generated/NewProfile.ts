@@ -3,7 +3,7 @@ import type { Avatar } from "./Avatar";
 import type { PaletteKey } from "./PaletteKey";
 
 /**
- * Body of `POST /api/profiles`.
+ * Body of `POST /api/profiles`, and of joining as a new Profile.
  */
 export type NewProfile = { 
 /**
