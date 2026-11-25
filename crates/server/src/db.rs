@@ -179,6 +179,33 @@ const MIGRATIONS: &[&str] = &[
      ALTER TABLE party_members ADD COLUMN guest_avatar_kind TEXT;
      ALTER TABLE party_members ADD COLUMN guest_avatar_ref TEXT;
      ALTER TABLE party_members ADD COLUMN guest_difficulty TEXT;",
+    // 13: the head's waiting Line-up (one per Party, gone with its Request
+    // or its Party) and its seats in seat order, and the Local mic each
+    // member last sang on in the Party. "A member at most once in a
+    // Line-up", one Mic per seat and the seat count (`SEATS`) are rules of
+    // the live-state task, never constraints here. `mic_kind` / `mic_id` are
+    // both NULL for a seat without a Mic.
+    "CREATE TABLE line_ups (
+        party_id   TEXT PRIMARY KEY REFERENCES parties(id) ON DELETE CASCADE,
+        request_id INTEGER NOT NULL REFERENCES queue_requests(id) ON DELETE CASCADE,
+        duet       INTEGER NOT NULL
+    ) STRICT;
+    CREATE TABLE line_up_seats (
+        party_id   TEXT NOT NULL REFERENCES line_ups(party_id) ON DELETE CASCADE,
+        seat       INTEGER NOT NULL,
+        member_id  INTEGER NOT NULL,
+        mic_kind   TEXT CHECK (mic_kind IN ('phone', 'localMic')),
+        mic_id     TEXT,
+        voice      TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        PRIMARY KEY (party_id, seat)
+    ) STRICT;
+    CREATE TABLE last_local_mics (
+        party_id     TEXT NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+        member_id    INTEGER NOT NULL,
+        local_mic_id TEXT NOT NULL,
+        PRIMARY KEY (party_id, member_id)
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

@@ -2,11 +2,13 @@
 //! snapshots and a `proptest` property.
 
 use openstar_protocol::library::SongId;
-use openstar_protocol::profile::{PaletteKey, ProfileId};
+use openstar_protocol::mics::MicKey;
+use openstar_protocol::profile::{Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
-    PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request,
-    RequestChange, RequestId, RequestKind, ServerMessage, StageId, UserMessage,
+    LineUp, LineUpWarning, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
+    QueueMove, Request, RequestChange, RequestId, RequestKind, Seat, SeatVoice, ServerMessage,
+    StageId, UserMessage,
 };
 use proptest::prelude::*;
 
@@ -46,7 +48,40 @@ fn party() -> PartySnapshot {
             },
         ],
         head: Some(RequestId(3)),
+        line_up: Some(LineUp {
+            request_id: RequestId(3),
+            duet: true,
+            seats: vec![Seat {
+                member_id: PartyMemberId(1),
+                mic: Some(MicKey::Phone {
+                    phone_id: "3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60".to_owned(),
+                }),
+                voice: SeatVoice::P1,
+                difficulty: Difficulty::Medium,
+            }],
+            can_start: false,
+            warnings: vec![
+                LineUpWarning::MicBlocked {
+                    member_id: PartyMemberId(1),
+                },
+                LineUpWarning::DuetNeedsVoice {
+                    voice: SeatVoice::P2,
+                },
+            ],
+        }),
     }
+}
+
+#[test]
+fn mic_blocked_report_wire_format() {
+    assert_eq!(
+        serde_json::to_string(&ClientMessage::ReportMicBlocked { blocked: true }).unwrap(),
+        r#"{"type":"reportMicBlocked","blocked":true}"#
+    );
+    insta::assert_json_snapshot!(PartyEvent::MicBlocked {
+        member_id: PartyMemberId(1),
+        name: "Bo".to_owned(),
+    });
 }
 
 #[test]

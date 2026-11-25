@@ -8,6 +8,7 @@ import {
   apiErrorText,
   byCode,
   libraryReadOnlyText,
+  lineUpWarningText,
   partyEventText,
   txtRejectionText,
   txtWarningText,
@@ -72,6 +73,31 @@ describe("server texts", () => {
     expect(partyEventText({ code: "requestPlayNext", params: africa })).toBe(
       "Africa plays next",
     );
+  });
+
+  it("turns Line-up warnings into text with the member's name", () => {
+    const nameOf = (memberId: number) => (memberId === 2 ? "Bo" : "?");
+    expect(
+      lineUpWarningText({ code: "noMic", params: { memberId: 2 } }, nameOf),
+    ).toBe("Bo has no mic");
+    expect(
+      lineUpWarningText(
+        { code: "micBlocked", params: { memberId: 2 } },
+        nameOf,
+      ),
+    ).toBe("Bo's mic is blocked");
+    expect(
+      lineUpWarningText(
+        { code: "duetNeedsVoice", params: { voice: "p2" } },
+        nameOf,
+      ),
+    ).toBe("A duet needs someone on Voice 2");
+    expect(
+      partyEventText({
+        code: "micBlocked",
+        params: { memberId: 2, name: "Bo" },
+      }),
+    ).toBe("Bo's mic is blocked");
   });
 
   it("turns Queue refusals into text", () => {

@@ -18,9 +18,9 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 pub use party::{
-    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, MemberEdit, NewGuest, PartyEvent,
-    PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request, RequestChange,
-    RequestId, RequestKind, SEATS,
+    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, LineUp, LineUpWarning, MemberEdit,
+    NewGuest, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, QueueMove,
+    Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice,
 };
 pub use pitch::{MicId, PitchReading};
 pub use scoring::BeatValue;
@@ -165,6 +165,12 @@ pub enum ClientMessage {
     },
     /// Removes a Request from the Queue, the head included. A Remote command.
     RemoveRequest { request_id: RequestId },
+    /// A joined Phone reports whether its mic could not open (`blocked`) or
+    /// has opened (`blocked: false`, which clears the report). A seated
+    /// Phone's report shows as "<name>'s mic is blocked"; it never blocks
+    /// Start. Kept only while the server runs: a Phone reports again after
+    /// a restart.
+    ReportMicBlocked { blocked: bool },
 }
 
 /// A message the server sends over a WebSocket.

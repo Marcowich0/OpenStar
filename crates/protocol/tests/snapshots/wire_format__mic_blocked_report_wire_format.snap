@@ -1,0 +1,11 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "PartyEvent::MicBlocked { member_id: PartyMemberId(1), name: \"Bo\".to_owned(), }"
+---
+{
+  "code": "micBlocked",
+  "params": {
+    "memberId": 1,
+    "name": "Bo"
+  }
+}

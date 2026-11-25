@@ -142,6 +142,13 @@ export const en = {
   "partyEvent.requestPlayNext": "{song} plays next",
   "partyEvent.requestRemoved": "{song} was removed from the Queue",
   "partyEvent.requestedPlayersChanged": "The singers of {song} changed",
+  "partyEvent.micBlocked": "{name}'s mic is blocked",
+  "partyEvent.micOpened": "{name}'s mic is on",
+  // Line-up warnings: the screen resolves the member's name.
+  "lineUpWarning.noMic": "{name} has no mic",
+  "lineUpWarning.micBlocked": "{name}'s mic is blocked",
+  "lineUpWarning.duetNeedsVoice":
+    "A duet needs someone on Voice {voice, number}",
   "toast.songMovedUp": "{actor} moved {song} up",
   "toast.backOnMic": "{actor} is back on the mic",
   // A colour parameter is always a palette display name (`colourName`).

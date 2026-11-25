@@ -18,6 +18,7 @@
 
 pub mod connection;
 pub mod hub;
+mod line_up;
 mod party;
 mod queue;
 mod songs;
@@ -27,6 +28,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use openstar_protocol::library::SongId;
+use openstar_protocol::mics::MicKey;
 use openstar_protocol::profile::{NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
@@ -199,6 +201,8 @@ impl LiveHandle {
 struct Stage {
     /// The current Party; `None` until the first Stage opens on a fresh server.
     party: Option<PartySnapshot>,
+    /// The Local mic each member of the current Party last sang on in it.
+    last_local_mics: HashMap<PartyMemberId, String>,
     /// The connection that is the active Stage, while one is open.
     connection: Option<ConnectionId>,
 }
@@ -219,6 +223,13 @@ struct LiveState {
     phones: HashMap<ConnectionId, PhoneId>,
     /// Whether a Song is in the Library and can be queued.
     songs: Arc<dyn Songs>,
+    /// The Local mics that are switched on and present, in Mics-screen
+    /// order: what the Line-up's Mic prefill may choose. Empty until the
+    /// Stage and the Mic bridges report Local mics (#51's tickets fill it).
+    local_mics: Vec<String>,
+    /// Phones that reported their mic could not open. Kept while the
+    /// server runs; a Phone reports again after a restart.
+    blocked_phones: HashSet<PhoneId>,
 }
 
 impl LiveState {
@@ -230,12 +241,20 @@ impl LiveState {
     /// [`Self::load`] with the Library lookup handed in.
     async fn load_with(db: Database, songs: Arc<dyn Songs>) -> anyhow::Result<Self> {
         let stage_id = StageId(MAIN_STAGE.to_owned());
-        let party = store::load_party(&db, &stage_id).await?;
+        let mut party = store::load_party(&db, &stage_id).await?;
+        let last_local_mics = match &party {
+            Some(party) => store::load_last_local_mics(&db, &party.party_id).await?,
+            None => HashMap::new(),
+        };
+        if let Some(line_up) = party.as_mut().and_then(|party| party.line_up.as_mut()) {
+            line_up::check(line_up, &HashSet::new());
+        }
         let mut stages = HashMap::new();
         stages.insert(
             stage_id.clone(),
             Stage {
                 party,
+                last_local_mics,
                 connection: None,
             },
         );
@@ -247,6 +266,8 @@ impl LiveState {
             mics: HashSet::new(),
             phones: HashMap::new(),
             songs,
+            local_mics: Vec::new(),
+            blocked_phones: HashSet::new(),
         })
     }
 
@@ -467,6 +488,10 @@ impl LiveState {
                 let removed = self.remove_request(id, request_id).await;
                 self.refuse_on_error(id, removed);
             }
+            Ok(ClientMessage::ReportMicBlocked { blocked }) => {
+                let reported = self.report_mic_blocked(id, blocked).await;
+                self.refuse_on_error(id, reported);
+            }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
         }
     }
@@ -485,7 +510,9 @@ impl LiveState {
             Ok(party) => {
                 tracing::info!(party = %party.party_id.0, "a new Party started");
                 let join_code = party.join_code.clone();
-                self.stage_mut().party = Some(party);
+                let stage = self.stage_mut();
+                stage.party = Some(party);
+                stage.last_local_mics.clear();
                 Some(ChangeEvent {
                     actor: Actor::Stage,
                     event: PartyEvent::PartyStarted { join_code },
@@ -942,7 +969,7 @@ impl LiveState {
         let title = match self.lookup_song(song_id).await? {
             SongLookup::NotInLibrary => return Err(UserMessage::SongNotInLibrary),
             SongLookup::Preparing { .. } => return Err(UserMessage::SongPreparing),
-            SongLookup::Ready { title } => title,
+            SongLookup::Ready { title, .. } => title,
         };
         let mut request = Request {
             request_id: RequestId(0),
@@ -963,12 +990,8 @@ impl LiveState {
             title,
         };
         queue::add(&mut party, request);
-        self.stage_mut().party = Some(party);
-        self.party_changed(ChangeEvent {
-            actor,
-            event: PartyEvent::RequestAdded(change),
-        });
-        Ok(())
+        self.commit_queue(party, actor, PartyEvent::RequestAdded(change))
+            .await
     }
 
     async fn move_request(
@@ -1016,14 +1039,118 @@ impl LiveState {
             .await
     }
 
-    /// Stores the changed Queue of `party`, makes it the current Party and
-    /// tells everyone. Nothing changes when it cannot be stored.
+    /// A joined Phone's report that its mic could not open (`blocked`), or
+    /// has opened. When that Phone is a seat's Mic, the seat's warning
+    /// changes and everyone is told; otherwise nobody hears of it.
+    async fn report_mic_blocked(
+        &mut self,
+        id: ConnectionId,
+        blocked: bool,
+    ) -> Result<(), UserMessage> {
+        let phone_id = self
+            .joined_phone(id)
+            .ok_or(UserMessage::NotInParty)?
+            .phone_id
+            .clone();
+        let changed = if blocked {
+            self.blocked_phones.insert(phone_id.clone())
+        } else {
+            self.blocked_phones.remove(&phone_id)
+        };
+        let mic = MicKey::Phone {
+            phone_id: phone_id.0,
+        };
+        let seated = self
+            .stage()
+            .party
+            .as_ref()
+            .and_then(|party| party.line_up.as_ref())
+            .and_then(|line_up| {
+                line_up
+                    .seats
+                    .iter()
+                    .find(|seat| seat.mic.as_ref() == Some(&mic))
+            })
+            .map(|seat| seat.member_id);
+        let (true, Some(member_id)) = (changed, seated) else {
+            return Ok(());
+        };
+        let party = self.party()?;
+        let name = self.member_name(&party, member_id).await?;
+        let event = if blocked {
+            PartyEvent::MicBlocked { member_id, name }
+        } else {
+            PartyEvent::MicOpened { member_id, name }
+        };
+        let actor = self.remote_actor(id)?;
+        self.party_changed(ChangeEvent { actor, event });
+        Ok(())
+    }
+
+    /// The name member `member_id` of `party` goes by now.
+    async fn member_name(
+        &self,
+        party: &PartySnapshot,
+        member_id: PartyMemberId,
+    ) -> Result<String, UserMessage> {
+        let member = party
+            .members
+            .iter()
+            .find(|member| member.member_id == member_id)
+            .ok_or(UserMessage::MemberNotFound)?;
+        match &member.identity {
+            Identity::Guest { name, .. } => Ok(name.clone()),
+            &Identity::Profile { profile_id } => Ok(profiles::get(&self.db, profile_id)
+                .await
+                .map_err(|error| server_error(&error, "reading a Profile's name"))?
+                .map(|profile| profile.name)
+                .unwrap_or_default()),
+        }
+    }
+
+    /// Prefills the Line-up of `party`'s head when the head is a Request
+    /// that has none yet (it just reached the head), and drops it when
+    /// there is no head. A Line-up already waiting is kept as it is.
+    async fn follow_head(&self, party: &mut PartySnapshot) -> Result<(), UserMessage> {
+        let Some(head) = party.head else {
+            party.line_up = None;
+            return Ok(());
+        };
+        if party.line_up.as_ref().map(|line_up| line_up.request_id) == Some(head) {
+            return Ok(());
+        }
+        let request = queue::find(party, head)?.clone();
+        let duet = self.lookup_song(request.song_id).await?.duet();
+        let last_difficulties = profiles::list(&self.db)
+            .await
+            .map_err(|error| server_error(&error, "reading Profiles for a Line-up"))?
+            .into_iter()
+            .map(|profile| (profile.id, profile.last_difficulty))
+            .collect();
+        let mics = line_up::MicChoices {
+            local_mics: self.local_mics.clone(),
+            last_local_mics: self.stage().last_local_mics.clone(),
+        };
+        party.line_up = Some(line_up::prefill(
+            party,
+            &request,
+            duet,
+            &last_difficulties,
+            &mics,
+        ));
+        Ok(())
+    }
+
+    /// Stores the changed Queue of `party` (with the Line-up of its head,
+    /// prefilled when a Request just reached it), makes it the current
+    /// Party and tells everyone. Nothing changes when it cannot be stored.
     async fn commit_queue(
         &mut self,
-        party: PartySnapshot,
+        mut party: PartySnapshot,
         actor: Actor,
         event: PartyEvent,
     ) -> Result<(), UserMessage> {
+        self.follow_head(&mut party).await?;
         store::save_queue(&self.db, &party).await.map_err(|error| {
             tracing::error!(?error, "storing the Queue");
             UserMessage::ServerError
@@ -1034,11 +1161,17 @@ impl LiveState {
     }
 
     /// Tells every connection the whole Party after an accepted change, plus
-    /// the change itself.
+    /// the change itself. The Line-up's Start availability and warnings are
+    /// checked first, so every snapshot sent carries them up to date.
     fn party_changed(&mut self, change: ChangeEvent) {
-        let Some(party) = self.stage().party.clone() else {
+        let blocked = self.blocked_phones.clone();
+        let Some(party) = self.stage_mut().party.as_mut() else {
             return;
         };
+        if let Some(line_up) = party.line_up.as_mut() {
+            line_up::check(line_up, &blocked);
+        }
+        let party = party.clone();
         self.hub
             .send_all(&ServerMessage::PartyChanged { party, change });
     }
@@ -1206,6 +1339,7 @@ mod tests {
             Ok(match id.0 {
                 1 => SongLookup::Ready {
                     title: "Africa".into(),
+                    duet: false,
                 },
                 2 => SongLookup::Preparing {
                     title: "Rosanna".into(),
@@ -1258,6 +1392,106 @@ mod tests {
                 ..
             }] if title == "Africa"
         ));
+    }
+
+    #[tokio::test]
+    async fn the_local_mic_a_member_last_sang_on_survives_a_restart_and_new_party_forgets_it() {
+        use openstar_protocol::profile::{Avatar, AvatarKey, NewProfile, PaletteKey};
+
+        let dir = tempfile::tempdir().unwrap();
+        let opened = Database::open(dir.path()).await.unwrap();
+        let db = opened.database;
+        let mut state = LiveState::load_with(db.clone(), Arc::new(StubSongs))
+            .await
+            .unwrap();
+        let _stage = state.connect(Role::Stage, 1).await;
+        let phone = state.connect(Role::Browser, 1).await;
+        let profile = profiles::create(
+            &db,
+            NewProfile {
+                name: "Bo".into(),
+                avatar: Avatar::BuiltIn {
+                    key: AvatarKey::Star,
+                },
+                favourite_colour: PaletteKey::Sky,
+            },
+            1,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        let join_code = state.stage().party.as_ref().unwrap().join_code.clone();
+        state
+            .received(
+                phone.id,
+                2,
+                Ok(ClientMessage::Join {
+                    phone_id: PhoneId("phone-1".into()),
+                    join_code,
+                    join_as: JoinAs::Profile {
+                        profile_id: profile.id,
+                    },
+                }),
+            )
+            .await;
+        let party_id = state.stage().party.as_ref().unwrap().party_id.clone();
+        store::save_last_local_mic(&db, &party_id, PartyMemberId(1), "blue")
+            .await
+            .unwrap();
+
+        // After a restart, Bo's seat is prefilled with the Local mic Bo last
+        // sang on, before the first free one and before Bo's Phone.
+        drop(state);
+        let mut state = LiveState::load_with(db.clone(), Arc::new(StubSongs))
+            .await
+            .unwrap();
+        state.local_mics = vec!["red".into(), "blue".into()];
+        let stage = state.connect(Role::Stage, 3).await;
+        let phone = state.connect(Role::Browser, 3).await;
+        state
+            .received(
+                phone.id,
+                3,
+                Ok(ClientMessage::Hello {
+                    phone_id: PhoneId("phone-1".into()),
+                }),
+            )
+            .await;
+        let add = Ok(ClientMessage::AddRequest {
+            song_id: SongId(1),
+            requested_players: None,
+        });
+        state.received(phone.id, 4, add.clone()).await;
+        let seat_mic = |state: &LiveState| {
+            state
+                .stage()
+                .party
+                .as_ref()
+                .unwrap()
+                .line_up
+                .as_ref()
+                .unwrap()
+                .seats[0]
+                .mic
+                .clone()
+        };
+        assert_eq!(
+            seat_mic(&state),
+            Some(MicKey::LocalMic {
+                local_mic_id: "blue".into()
+            })
+        );
+
+        state
+            .received(stage.id, 5, Ok(ClientMessage::NewParty))
+            .await;
+        assert!(state.stage().last_local_mics.is_empty());
+        drop(state);
+        let state = LiveState::load_with(db.clone(), Arc::new(StubSongs))
+            .await
+            .unwrap();
+        assert!(state.stage().last_local_mics.is_empty());
+        drop(stage);
     }
 
     #[tokio::test]
