@@ -1390,7 +1390,7 @@ impl LiveState {
         let actor = Actor::Member { member_id };
         let mut party = self.party()?;
         let name = self.member_name(&party, member_id).await?;
-        let seated = party.line_up.as_mut().map_or(false, |line_up| {
+        let seated = party.line_up.as_mut().is_some_and(|line_up| {
             let mut seated = false;
             for seat in &mut line_up.seats {
                 if seat.member_id == member_id {

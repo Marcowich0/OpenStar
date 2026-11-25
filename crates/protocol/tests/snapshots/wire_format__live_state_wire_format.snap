@@ -19,7 +19,8 @@ expression: "ServerMessage::LiveState\n{\n    stage_id: StageId(\"main\".to_owne
         },
         "colour": "sky",
         "favouriteTaken": true,
-        "onPhone": true
+        "onPhone": true,
+        "singing": false
       }
     ],
     "phones": [

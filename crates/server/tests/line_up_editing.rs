@@ -539,40 +539,29 @@ async fn seating_someone_who_is_not_a_member_enters_them_into_the_party() {
     assert_eq!(party.members.len(), 12);
 
     // Add a singer stops at the seat count.
-    let line_up = party.line_up.unwrap();
-    let mut seated = line_up.seats.len();
-    for member in party.members.iter().filter(|m| !m.singing) {
-        if seated == SEATS {
-            assert_eq!(
-                refused(
-                    &mut stage,
-                    edit(
-                        request,
-                        LineUpEdit::AddSeat {
-                            who: SeatWho::Member {
-                                member_id: member.member_id
-                            }
-                        }
-                    )
-                )
-                .await,
-                UserMessage::TooManyPlayers { max: SEATS as u32 }
-            );
-            break;
-        }
-        stage
-            .send(&edit(
-                request,
-                LineUpEdit::AddSeat {
-                    who: SeatWho::Member {
-                        member_id: member.member_id,
-                    },
-                },
-            ))
-            .await;
+    let add = |member_id| {
+        edit(
+            request,
+            LineUpEdit::AddSeat {
+                who: SeatWho::Member { member_id },
+            },
+        )
+    };
+    let room = SEATS - party.line_up.as_ref().unwrap().seats.len();
+    let free: Vec<PartyMemberId> = party
+        .members
+        .iter()
+        .filter(|member| !member.singing)
+        .map(|member| member.member_id)
+        .collect();
+    for &member_id in &free[..room] {
+        stage.send(&add(member_id)).await;
         party_changed(&mut stage).await;
-        seated += 1;
     }
+    assert_eq!(
+        refused(&mut stage, add(free[room])).await,
+        UserMessage::TooManyPlayers { max: SEATS as u32 }
+    );
 }
 
 #[tokio::test]
