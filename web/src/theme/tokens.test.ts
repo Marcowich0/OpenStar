@@ -96,6 +96,8 @@ describe("interface tokens", () => {
       "--color-blob-blue": "#CDEBFF",
       "--color-blob-pink": "#FFD6DC",
       "--color-blob-green": "#D9F7E6",
+      "--color-lane-ledge": "rgba(43, 45, 66, 0.18)",
+      "--color-lane-shadow": "rgba(0, 0, 0, 0.18)",
       "--color-white": "#FFFFFF",
       "--radius-card-sm": "36px",
       "--radius-card": "44px",

@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Note } from "../../generated/Note";
@@ -22,8 +22,26 @@ const state: SingState = {
   grid: { gapSeconds: 1, beatsPerMinute: 120 },
   voices: singVoices(song),
   lanes: [
-    { colour: "cherry", voice: 0 },
-    { colour: "teal", voice: 0 },
+    {
+      colour: "cherry",
+      voice: 0,
+      player: {
+        name: "Mia",
+        avatar: { kind: "builtIn", key: "star" },
+        guest: false,
+        score: 1234,
+      },
+    },
+    {
+      colour: "teal",
+      voice: 0,
+      player: {
+        name: "Bo",
+        avatar: { kind: "builtIn", key: "moon" },
+        guest: true,
+        score: 0,
+      },
+    },
   ],
 };
 
@@ -142,6 +160,81 @@ describe("SingScreen", () => {
     });
   });
 
+  it("frosts each lane panel and tints it in the Party colour at 16 %, with the lane ledge and soft shadow", () => {
+    const { container } = render(
+      <SingScreen
+        state={state}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    const panel = container.querySelector<HTMLElement>("[data-lane-panel]");
+    expect(panel?.className).toMatch(/\bbg-white\/66\b/);
+    expect(panel?.className).toMatch(/\bbackdrop-blur-lg\b/);
+    expect(panel?.className).toMatch(/\bbackdrop-saturate-130\b/);
+    expect(panel?.style.borderRadius).toBe("40px");
+    expect(panel?.style.boxShadow).toBe(
+      "0 10px 0 var(--color-lane-ledge), 0 20px 40px var(--color-lane-shadow)",
+    );
+    const tint = panel?.firstElementChild as HTMLElement | null;
+    expect(tint?.className).toMatch(/\bopacity-16\b/);
+    expect(tint?.style.backgroundColor).toBe("var(--color-party-cherry)");
+  });
+
+  it('heads each lane with the avatar, the name, "guest" for a Guest, and the running Score', () => {
+    const { container } = render(
+      <SingScreen
+        state={state}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    const headers = [
+      ...container.querySelectorAll<HTMLElement>("[data-lane-header]"),
+    ];
+    expect(headers).toHaveLength(2);
+    const [mia, bo] = headers.map((h) => within(h));
+    expect(mia?.getByRole("img", { name: "Mia" })).toBeInTheDocument();
+    expect(mia?.getByText("Mia")).toBeInTheDocument();
+    expect(mia?.queryByText("guest")).toBeNull();
+    expect(mia?.getByText("1234")).toHaveClass("tabular-nums");
+    expect(bo?.getByText("guest")).toBeInTheDocument();
+    expect(bo?.getByText("0")).toBeInTheDocument();
+    // Two lanes of 140 px: a 70 px avatar and the Score at 44 px.
+    expect(mia?.getByRole("img", { name: "Mia" }).style.width).toBe("70px");
+    expect(
+      mia?.getByText("1234").closest<HTMLElement>("[data-lane-score]")?.style
+        .fontSize,
+    ).toBe("44px");
+    // No Voice tag outside a duet.
+    expect(screen.queryByText(/V1/)).toBeNull();
+  });
+
+  it("tags each Player's Voice in a duet", () => {
+    const duet: SingState = {
+      ...state,
+      voices: singVoices({
+        voices: [
+          { lines: [{ notes, end: null }] },
+          { lines: [{ notes, end: null }] },
+        ],
+      }),
+      lanes: state.lanes.map((lane, i) => ({ ...lane, voice: i })),
+    };
+    const { container } = render(
+      <SingScreen
+        state={duet}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    const headers = [
+      ...container.querySelectorAll<HTMLElement>("[data-lane-header]"),
+    ];
+    expect(headers[0]).toHaveTextContent(/Mia\s*· V1/);
+    expect(headers[1]).toHaveTextContent(/Bo\s*guest\s*· V2/);
+  });
+
   it("paints the lanes canvas on each animation frame and marks the screen painted", () => {
     const { container } = render(
       <SingScreen
@@ -157,7 +250,9 @@ describe("SingScreen", () => {
       'canvas[data-layer="lanes"]',
     );
     const calls = lanesCanvas ? contexts.get(lanesCanvas) : undefined;
-    expect(calls?.filter((c) => c === "roundRect")).toHaveLength(4);
+    // The progress bar's track and fill, each lane's rounded clip, and the
+    // two Notes in each of the two lanes.
+    expect(calls?.filter((c) => c === "roundRect")).toHaveLength(2 + 2 + 4);
     expect(root?.dataset.painted).toBe("true");
     expect(frames).toHaveLength(1); // the next frame is asked for
   });

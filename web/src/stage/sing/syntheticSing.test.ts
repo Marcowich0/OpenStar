@@ -38,6 +38,35 @@ describe("syntheticSing", () => {
     expect(pills.some((p) => p.x === 600)).toBe(true);
   });
 
+  it("shows a golden star and a shimmer in the one-Player case at the default time", () => {
+    const pills = frame(syntheticSing("one"), 6, laneLayout(1)).filter(
+      (e) => e.type === "pill",
+    );
+    expect(pills.some((p) => p.star !== null)).toBe(true);
+    // A band part-way across its pill, so the screenshot shows it.
+    expect(
+      pills.some(
+        (p) =>
+          p.shimmer !== null &&
+          p.shimmer.x > p.x &&
+          p.shimmer.x + p.shimmer.width < p.x + p.width,
+      ),
+    ).toBe(true);
+  });
+
+  it("names a made-up Player in every lane, one of them a Guest, with a running Score", () => {
+    for (const name of SING_TEST_CASES) {
+      const lanes = syntheticSing(name).lanes;
+      for (const lane of lanes) {
+        expect(lane.player?.name).toBeTruthy();
+        expect(lane.player?.score).toBeGreaterThanOrEqual(0);
+      }
+      if (lanes.length > 1) {
+        expect(lanes.filter((l) => l.player?.guest)).toHaveLength(1);
+      }
+    }
+  });
+
   it("uses placeholder lyrics only", () => {
     for (const voice of syntheticSing("duet").voices) {
       for (const note of voice.notes) expect(note.text.trim()).toBe("la");

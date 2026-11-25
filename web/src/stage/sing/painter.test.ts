@@ -68,6 +68,7 @@ const lane: LaneEntry = {
   width: 1800,
   height: 170,
   notesX: 320,
+  radius: 40,
   colour: "cherry",
   lost: null,
   separator: {
@@ -93,6 +94,8 @@ const pill: PillEntry = {
   outline: "--color-ink",
   outlineWidth: 4.5,
   dash: [],
+  star: null,
+  shimmer: null,
 };
 const playhead: PlayheadEntry = {
   type: "playhead",
@@ -136,7 +139,7 @@ describe("the painter", () => {
     ]);
   });
 
-  it("strokes a lane's separator and clips the lane's Notes to its Notes area until laneEnd", () => {
+  it("strokes a lane's separator and clips the lane's Notes to its Notes area inside its rounded shape until laneEnd", () => {
     const { ctx, calls } = recordingContext();
     createPainter(ctx, colour).paint(
       [lane, { type: "laneEnd", lane: 0 }],
@@ -154,6 +157,9 @@ describe("the painter", () => {
       ["stroke"],
       ["set", "globalAlpha", 1],
       ["save"],
+      ["beginPath"],
+      ["roundRect", 60, 702, 1800, 170, 40],
+      ["clip"],
       ["beginPath"],
       ["rect", 320, 702, 1540, 170],
       ["clip"],
@@ -206,6 +212,131 @@ describe("the painter", () => {
     expect(calls).toContainEqual(["translate", 600, 800]);
     expect(calls).toContainEqual(["roundRect", 0, 0, 79.2, 20, 10]);
     expect(calls).toContainEqual(["set", "fillStyle", gradients[0]]);
+  });
+
+  it("draws a golden pill's star as a filled five-pointed path", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint(
+      [
+        {
+          ...pill,
+          star: { x: 610, y: 810, outer: 6, inner: 3, colour: "--color-white" },
+        },
+      ],
+      view,
+    );
+    const stroke = calls.findIndex(([name]) => name === "stroke");
+    const star = calls.slice(stroke + 1);
+    expect(star[0]).toEqual(["beginPath"]);
+    // The top point first, then nine more corners.
+    expect(star[1]).toEqual(["moveTo", 610, 804]);
+    expect(star.filter(([name]) => name === "lineTo")).toHaveLength(9);
+    expect(star.slice(-3)).toEqual([
+      ["closePath"],
+      ["set", "fillStyle", "value(--color-white)"],
+      ["fill"],
+    ]);
+  });
+
+  it("sweeps a shimmer band clipped to its pill, with one cached gradient per band width", () => {
+    const { ctx, calls, gradients } = recordingContext();
+    const shining: PillEntry = {
+      ...pill,
+      shimmer: { x: 620, width: 48, colour: "--color-white", alpha: 0.6 },
+    };
+    const painter = createPainter(ctx, colour);
+    painter.paint([shining, { ...shining, x: 900 }], view);
+    painter.paint([shining], view);
+    expect(gradients).toHaveLength(1);
+    expect(gradients[0]?.stops).toEqual([
+      [0, "color-mix(in srgb, value(--color-white) 0%, transparent)"],
+      [0.5, "value(--color-white)"],
+      [1, "color-mix(in srgb, value(--color-white) 0%, transparent)"],
+    ]);
+    expect(calls).toContainEqual(["createLinearGradient", 0, 0, 48, 0]);
+    const drawn = calls.filter(([name]) => name !== "createLinearGradient");
+    const save = drawn.findIndex(([name]) => name === "save");
+    // The band is clipped to the pill's own path, which the outline reuses.
+    expect(drawn.slice(save - 3, save + 9)).toEqual([
+      ["roundRect", 600, 800, 79.2, 20, 10],
+      ["set", "fillStyle", "value(--color-white)"],
+      ["fill"],
+      ["save"],
+      ["clip"],
+      ["translate", 620, 800],
+      ["set", "globalAlpha", 0.6],
+      ["set", "fillStyle", gradients[0]],
+      ["fillRect", 0, 0, 48, 20],
+      ["set", "globalAlpha", 1],
+      ["restore"],
+      // The outline goes over the band.
+      ["set", "strokeStyle", "value(--color-ink)"],
+    ]);
+  });
+
+  it("strokes the pitch grid as faint horizontal lines across the Notes area", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint(
+      [
+        {
+          type: "grid",
+          lane: 0,
+          left: 320,
+          right: 1860,
+          ys: [850, 820],
+          colour: "--color-ink",
+          alpha: 0.07,
+          width: 2,
+        },
+      ],
+      view,
+    );
+    expect(calls.slice(3)).toEqual([
+      ["set", "globalAlpha", 0.07],
+      ["set", "strokeStyle", "value(--color-ink)"],
+      ["set", "lineWidth", 2],
+      ["set", "lineCap", "butt"],
+      ["setLineDash", []],
+      ["beginPath"],
+      ["moveTo", 320, 850],
+      ["lineTo", 1860, 850],
+      ["moveTo", 320, 820],
+      ["lineTo", 1860, 820],
+      ["stroke"],
+      ["set", "globalAlpha", 1],
+    ]);
+  });
+
+  it("draws the progress bar as a half-transparent track and a yellow fill, full radius", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint(
+      [
+        {
+          type: "progress",
+          x: 80,
+          y: 20,
+          width: 1760,
+          height: 10,
+          fraction: 0.25,
+          track: "--color-white",
+          trackAlpha: 0.5,
+          fill: "--color-yellow",
+        },
+      ],
+      view,
+    );
+    expect(calls.slice(3)).toEqual([
+      ["set", "globalAlpha", 0.5],
+      ["set", "fillStyle", "value(--color-white)"],
+      ["beginPath"],
+      ["roundRect", 80, 20, 1760, 10, 5],
+      ["fill"],
+      ["set", "globalAlpha", 1],
+      ["set", "fillStyle", "value(--color-yellow)"],
+      ["beginPath"],
+      ["roundRect", 80, 20, 440, 10, 5],
+      ["fill"],
+    ]);
   });
 
   it("strokes the playhead as a dotted line with round caps", () => {

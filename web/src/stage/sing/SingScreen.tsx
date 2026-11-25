@@ -4,15 +4,19 @@
 // toasts and overlays. Both canvases cover the screen at device pixels; the
 // DOM layers sit in the same 1920 × 1080 reference frame, scaled the same way.
 //
-// This is the tracer bullet (#131): the detailed Bubble Pop pills, panels,
-// lane headers, lyrics and effects come from #55's sing screen tickets.
+// #211 adds the Bubble Pop panels and lane headers; the lyric bar and the
+// effects come from #55's other sing screen tickets.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { SongClock } from "../../clock/songClock";
 import { readToken, tokenVar } from "../../theme/tokens";
-import type { DrawList, SingState } from "./frame";
-import { laneLayout } from "./laneLayout";
+import { t } from "../../i18n/t";
+import { Avatar } from "../../ui/Avatar";
+import { Score } from "../../ui/Score";
+import type { DrawList, SingLane, SingState } from "./frame";
+import { laneHeaderSizes } from "./laneHeader";
+import { laneLayout, type LaneRect } from "./laneLayout";
 import { createPainter, referenceTransform } from "./painter";
 import { createRenderLoop } from "./renderLoop";
 
@@ -51,6 +55,9 @@ function fitCanvas(canvas: HTMLCanvasElement | null, view: Viewport) {
 }
 
 const FULL_SCREEN = "pointer-events-none absolute inset-0 h-full w-full";
+
+/** The frosted panel's ledge and soft shadow (#55). */
+const PANEL_SHADOW = `0 10px 0 ${tokenVar("--color-lane-ledge")}, 0 20px 40px ${tokenVar("--color-lane-shadow")}`;
 
 export function SingScreen({
   state,
@@ -143,13 +150,14 @@ export function SingScreen({
           <div
             key={i}
             data-lane-panel
-            className="absolute overflow-hidden bg-white/66 shadow-ledge-lg backdrop-blur-lg backdrop-saturate-130"
+            className="absolute overflow-hidden bg-white/66 backdrop-blur-lg backdrop-saturate-130"
             style={{
               left: `${String(lane.x)}px`,
               top: `${String(lane.y)}px`,
               width: `${String(lane.width)}px`,
               height: `${String(lane.height)}px`,
               borderRadius: Math.min(40, lane.height / 2),
+              boxShadow: PANEL_SHADOW,
             }}
           >
             <div
@@ -175,16 +183,11 @@ export function SingScreen({
         style={referenceStyle}
       >
         {lanes.map((lane, i) => (
-          <div
+          <LaneHeader
             key={i}
-            data-lane-header
-            className="absolute"
-            style={{
-              left: `${String(lane.x)}px`,
-              top: `${String(lane.y)}px`,
-              width: `${String(lane.notesX - lane.x)}px`,
-              height: `${String(lane.height)}px`,
-            }}
+            rect={lane}
+            lane={state.lanes[i]}
+            duet={state.voices.length > 1}
           />
         ))}
         <div data-lyric-bar className="absolute right-0 bottom-[34px] left-0" />
@@ -198,6 +201,71 @@ export function SingScreen({
       <div data-layer="overlays" className="absolute inset-0">
         {children}
       </div>
+    </div>
+  );
+}
+
+/**
+ * A lane's header, left of its Notes area (#55, "Lane header"): the avatar,
+ * the name (with "guest" for a Guest and the Voice in a duet) and the
+ * running Score.
+ */
+function LaneHeader({
+  rect,
+  lane,
+  duet,
+}: {
+  rect: LaneRect;
+  lane: SingLane | undefined;
+  duet: boolean;
+}) {
+  const player = lane?.player;
+  const sizes = laneHeaderSizes(rect.height);
+  return (
+    <div
+      data-lane-header
+      className="absolute flex items-center gap-3.5 pr-3 pl-[18px] text-ink"
+      style={{
+        left: `${String(rect.x)}px`,
+        top: `${String(rect.y)}px`,
+        width: `${String(rect.notesX - rect.x)}px`,
+        height: `${String(rect.height)}px`,
+      }}
+    >
+      {lane && player && (
+        <>
+          <Avatar
+            name={player.name}
+            avatar={player.avatar}
+            colour={lane.colour}
+            size={sizes.avatar}
+          />
+          <div className="flex min-w-0 flex-col">
+            <div className="truncate text-[26px] leading-tight font-semibold">
+              <span>{player.name}</span>
+              {player.guest && (
+                <span className="text-[19px] font-medium text-ink-2">
+                  {" "}
+                  {t("sing.guest")}
+                </span>
+              )}
+              {duet && (
+                <span className="text-[19px] font-medium text-ink-2">
+                  {" "}
+                  {t("sing.voiceTag", { voice: lane.voice + 1 })}
+                </span>
+              )}
+            </div>
+            <span
+              data-lane-score
+              className="leading-none font-bold"
+              style={{ fontSize: sizes.score }}
+            >
+              <Score value={player.score} />
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

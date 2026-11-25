@@ -48,6 +48,10 @@ export const en = {
   "stage.takeBack": "Make this the Stage again",
   "chip.duet": "Duet",
 
+  // The sing screen's lane headers (#211).
+  "sing.guest": "guest",
+  "sing.voiceTag": "· V{voice, number}",
+
   // The Stage frame (#120): the pill row, the Setup menu and the overlays.
   "stage.pill.songs": "Songs",
   "stage.pill.queue": "Queue {count, number}",
