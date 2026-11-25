@@ -22,7 +22,7 @@ import { singVoices, type SingState } from "./frame";
 import { laneLayout } from "./laneLayout";
 
 /** How long the synthetic confetti burst has been flying, seconds. */
-const BURST_AGE = 0.3;
+const BURST_AGE = 0.12;
 
 /** A seeded confetti burst from the first lane header, `BURST_AGE` old. */
 function burst(lanes: number, colour: PaletteKey): ParticlePool {
@@ -36,8 +36,9 @@ function burst(lanes: number, colour: PaletteKey): ParticlePool {
       colour,
     );
   }
-  // Stepped as a 60 Hz display would, though any steps land the same.
-  for (let i = 0; i < BURST_AGE * 60; i++) pool.advance(1 / 60);
+  // Stepped as a 144 Hz display would, though any steps land the same. Caught
+  // early, so the confetti still covers the header: the effects canvas is above it.
+  for (let i = 0; i < Math.round(BURST_AGE * 144); i++) pool.advance(1 / 144);
   return pool;
 }
 
