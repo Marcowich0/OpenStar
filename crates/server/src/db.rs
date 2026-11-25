@@ -1,0 +1,124 @@
+//! The SQLite database in the appdata folder.
+//!
+//! The connection is private: the only way to use it is [`Database::call`],
+//! which runs the closure on a blocking thread, never on the async runtime.
+
+use std::path::Path;
+use std::sync::{Arc, Mutex, PoisonError};
+
+use anyhow::Context;
+use rusqlite::Connection;
+
+/// File name of the database inside the appdata folder.
+pub const DATABASE_FILE: &str = "openstar.db";
+
+/// Schema migrations, oldest first. Migration `n` (1-based) brings the schema
+/// to version `n`, kept in `PRAGMA user_version`. Never edit or reorder an
+/// entry that has shipped; append a new one.
+const MIGRATIONS: &[&str] = &[
+    // 1: key-value facts about the database itself.
+    "CREATE TABLE server_meta (
+        key   TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL
+    ) STRICT;",
+];
+
+/// The schema version this build migrates to.
+pub const SCHEMA_VERSION: u32 = MIGRATIONS.len() as u32;
+
+/// A handle to the database. Cheap to clone.
+#[derive(Clone)]
+pub struct Database {
+    conn: Arc<Mutex<Connection>>,
+}
+
+/// What [`Database::open`] did.
+pub struct Opened {
+    pub database: Database,
+    /// How many migrations this start applied.
+    pub migrations_applied: usize,
+}
+
+impl Database {
+    /// Opens (or creates) the database in `appdata_dir` in WAL mode and
+    /// applies every pending migration.
+    pub async fn open(appdata_dir: &Path) -> anyhow::Result<Opened> {
+        let path = appdata_dir.join(DATABASE_FILE);
+        tokio::task::spawn_blocking(move || -> anyhow::Result<Opened> {
+            let mut conn = Connection::open(&path)
+                .with_context(|| format!("opening the database {}", path.display()))?;
+            let mode: String = conn.query_row("PRAGMA journal_mode = WAL", [], |r| r.get(0))?;
+            anyhow::ensure!(mode == "wal", "the database refused WAL mode (got {mode})");
+            conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA synchronous = NORMAL;")?;
+            let migrations_applied = migrate(&mut conn).context("migrating the database")?;
+            Ok(Opened {
+                database: Self {
+                    conn: Arc::new(Mutex::new(conn)),
+                },
+                migrations_applied,
+            })
+        })
+        .await?
+    }
+
+    /// Runs `f` with the connection on a blocking thread and returns its result.
+    pub async fn call<F, R>(&self, f: F) -> anyhow::Result<R>
+    where
+        F: FnOnce(&mut Connection) -> rusqlite::Result<R> + Send + 'static,
+        R: Send + 'static,
+    {
+        let conn = Arc::clone(&self.conn);
+        let result = tokio::task::spawn_blocking(move || {
+            let mut conn = conn.lock().unwrap_or_else(PoisonError::into_inner);
+            f(&mut conn)
+        })
+        .await?;
+        Ok(result?)
+    }
+
+    /// The schema version the database is at.
+    pub async fn schema_version(&self) -> anyhow::Result<u32> {
+        self.call(|conn| conn.query_row("PRAGMA user_version", [], |r| r.get(0)))
+            .await
+    }
+}
+
+fn migrate(conn: &mut Connection) -> rusqlite::Result<usize> {
+    let current: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+    let mut applied = 0;
+    for (index, sql) in MIGRATIONS.iter().enumerate().skip(current as usize) {
+        let version = u32::try_from(index + 1).unwrap_or(u32::MAX);
+        let tx = conn.transaction()?;
+        tx.execute_batch(sql)?;
+        tx.pragma_update(None, "user_version", version)?;
+        tx.commit()?;
+        tracing::info!(version, "applied database migration");
+        applied += 1;
+    }
+    Ok(applied)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn calls_run_off_the_async_runtime_thread() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = Database::open(dir.path()).await.unwrap().database;
+        let runtime_thread = std::thread::current().id();
+        let call_thread = db.call(|_| Ok(std::thread::current().id())).await.unwrap();
+        assert_ne!(call_thread, runtime_thread);
+    }
+
+    #[tokio::test]
+    async fn a_fresh_database_is_migrated_to_the_current_schema() {
+        let dir = tempfile::tempdir().unwrap();
+        let opened = Database::open(dir.path()).await.unwrap();
+        assert_eq!(opened.migrations_applied, MIGRATIONS.len());
+        assert_eq!(
+            opened.database.schema_version().await.unwrap(),
+            SCHEMA_VERSION
+        );
+    }
+}
