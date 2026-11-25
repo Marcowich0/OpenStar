@@ -5,6 +5,7 @@
 //! committed. `just check` fails when the committed files drift.
 
 pub mod admin;
+pub mod profile;
 pub mod song;
 
 use serde::{Deserialize, Serialize};
@@ -120,6 +121,8 @@ pub enum ServerMessage {
 pub enum ChangeTopic {
     /// `GET /api/placeholder`.
     Placeholder,
+    /// `GET /api/profiles` and `GET /api/profiles/{id}`.
+    Profiles,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast
@@ -141,6 +144,16 @@ pub enum UserMessage {
     PlaceholderTooLong { max_length: u32 },
     /// Something failed on the server; its log says what.
     ServerError,
+    /// A Profile name is empty once surrounding spaces are trimmed.
+    ProfileNameEmpty,
+    /// A Profile name is longer than `max_length` characters once
+    /// surrounding spaces are trimmed.
+    ProfileNameTooLong { max_length: u32 },
+    /// Another Profile already has this name (ignoring case and surrounding
+    /// spaces); the person is offered that Profile.
+    ProfileNameTaken { profile_id: profile::ProfileId },
+    /// No Profile has this id (it was deleted, or never existed).
+    ProfileNotFound,
 }
 
 #[cfg(test)]

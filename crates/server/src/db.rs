@@ -28,6 +28,22 @@ const MIGRATIONS: &[&str] = &[
         pin_fingerprint BLOB NOT NULL,
         last_used_ms    INTEGER NOT NULL
     ) STRICT;",
+    // 3: Profiles. Colours and Difficulty are stored as keys, never hex
+    // values; the avatar is a kind plus a reference, so an uploaded image can
+    // join the built-in keys later. `name_key` is the trimmed, case-folded
+    // name that uniqueness compares. AUTOINCREMENT: a deleted Profile's id is
+    // never reused, since Phones remember Profiles by id.
+    "CREATE TABLE profiles (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        name             TEXT NOT NULL,
+        name_key         TEXT NOT NULL UNIQUE,
+        avatar_kind      TEXT NOT NULL,
+        avatar_ref       TEXT NOT NULL,
+        favourite_colour TEXT NOT NULL,
+        last_difficulty  TEXT NOT NULL,
+        created_ms       INTEGER NOT NULL,
+        last_sung_ms     INTEGER
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.
