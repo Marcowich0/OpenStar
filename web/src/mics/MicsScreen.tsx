@@ -1,20 +1,26 @@
-// The Mics screen (Setup › Mics, v1 spec #51): the This browser group lists
-// every channel the Stage browser can read as a Local mic, each with its
-// name, a live level meter and an on/off switch. Switching needs no Admin
-// PIN and is saved at once. Every device is open while the screen is open.
-// Bridge groups (#150, #152), names and Find it (#122) and the Mic threshold
-// line (#172) come later.
+// The Mics screen (Setup › Mics, v1 spec #51), in groups: This browser
+// (every channel the Stage browser can read as a Local mic, each with its
+// name, a live level meter and an on/off switch), then each approved Mic
+// bridge in order of approval (open or closed, with its channels), then New
+// bridges waiting for approval with their code and Approve. Switching and
+// approving need no Admin PIN and are saved at once. Every device is open
+// while the screen is open. Bridge meters (#152), names and Find it (#122)
+// and the Mic threshold line (#172) come later.
 
 import { useEffect, useRef } from "react";
 
 import { t } from "../i18n/t";
 import { useLocalMics } from "./LocalMics";
 import { SILENCE_DBFS } from "./localMicCapture";
+import type { BridgeRequest } from "../generated/BridgeRequest";
+import type { LocalMic } from "../generated/LocalMic";
+import type { MicBridge } from "../generated/MicBridge";
 import {
+  bridgeGroupChannels,
   browserChannels,
   localMicName,
   micsScreenOrder,
-  type BrowserChannel,
+  type LocalMicChannel,
 } from "./localMics";
 
 /** The meter's range, in dBFS. */
@@ -67,10 +73,11 @@ function ChannelRow({
   read,
   onSwitch,
 }: {
-  channel: BrowserChannel;
+  channel: LocalMicChannel;
   name: string;
   switchedOn: boolean;
-  read: () => number | null;
+  /** The live level; a row without one has no meter yet (bridges, #152). */
+  read?: () => number | null;
   onSwitch: (on: boolean) => void;
 }) {
   return (
@@ -81,7 +88,7 @@ function ChannelRow({
       <span className="min-w-0 flex-1 truncate text-3xl font-semibold">
         {name}
       </span>
-      <LevelMeter read={read} label={t("mics.meter", { name })} />
+      {read && <LevelMeter read={read} label={t("mics.meter", { name })} />}
       <button
         type="button"
         role="switch"
@@ -102,6 +109,103 @@ function ChannelRow({
   );
 }
 
+/** An approved bridge's group: open or closed, with its channels. */
+function BridgeGroup({
+  bridge,
+  kept,
+  onSwitch,
+}: {
+  bridge: MicBridge;
+  kept: readonly LocalMic[];
+  onSwitch: (channel: LocalMicChannel, on: boolean) => void;
+}) {
+  const keptById = new Map(kept.map((m) => [m.localMicId, m]));
+  const channels = bridgeGroupChannels(bridge, kept);
+  const heading = `mics-bridge-${bridge.bridgeId}`;
+  return (
+    <section
+      role="group"
+      aria-labelledby={heading}
+      className="flex flex-col gap-5"
+      data-testid="mics-bridge"
+    >
+      <div className="flex items-baseline justify-between gap-6">
+        <h3 id={heading} className="text-3xl font-bold">
+          {t("mics.group.bridge", { host: bridge.hostName })}
+        </h3>
+        <p
+          className={`text-2xl font-semibold ${bridge.open ? "text-green" : "text-ink-2"}`}
+        >
+          {bridge.open ? t("mics.bridge.open") : t("mics.bridge.closed")}
+        </p>
+      </div>
+      {channels.length === 0 && (
+        <p className="text-2xl text-ink-2">{t("mics.bridge.noChannels")}</p>
+      )}
+      <ul className="flex flex-col gap-4">
+        {channels.map((channel) => {
+          const stored = keptById.get(channel.localMicId);
+          return (
+            <ChannelRow
+              key={channel.localMicId}
+              channel={channel}
+              name={localMicName(channel.source, stored?.name ?? "")}
+              switchedOn={stored?.switchedOn ?? false}
+              onSwitch={(on) => {
+                onSwitch(channel, on);
+              }}
+            />
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** Bridges waiting for approval, each with its code and Approve. */
+function NewBridges({
+  requests,
+  onApprove,
+}: {
+  requests: readonly BridgeRequest[];
+  onApprove: (requestId: number) => void;
+}) {
+  return (
+    <section
+      role="group"
+      aria-labelledby="mics-new-bridges"
+      className="flex flex-col gap-5"
+      data-testid="mics-new-bridges"
+    >
+      <h3 id="mics-new-bridges" className="text-3xl font-bold">
+        {t("mics.group.newBridges")}
+      </h3>
+      <ul className="flex flex-col gap-4">
+        {requests.map(({ requestId, hostName, code }) => (
+          <li
+            key={requestId}
+            className="flex items-center gap-8 rounded-card bg-white px-8 py-5"
+          >
+            <span className="min-w-0 flex-1 truncate text-3xl font-semibold">
+              {t("mics.newBridge", { host: hostName, code })}
+            </span>
+            <button
+              type="button"
+              aria-label={t("mics.approveBridge", { host: hostName, code })}
+              onClick={() => {
+                onApprove(requestId);
+              }}
+              className="inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-green px-10 text-2xl font-bold text-white shadow-ledge-green transition"
+            >
+              {t("mics.approve")}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function MicsScreen() {
   const {
     capture,
@@ -110,6 +214,8 @@ export function MicsScreen() {
     kept,
     setMicsScreenOpen,
     setSwitchedOn,
+    bridges,
+    approveBridge,
   } = useLocalMics();
 
   useEffect(() => {
@@ -137,37 +243,50 @@ export function MicsScreen() {
     notice = t("mics.noDevices");
 
   return (
-    <section
-      role="group"
-      aria-labelledby="mics-this-browser"
-      className="flex flex-col gap-5"
-      data-testid="mics-this-browser"
-    >
-      <div className="flex items-baseline justify-between gap-6">
-        <h3 id="mics-this-browser" className="text-3xl font-bold">
-          {t("mics.group.thisBrowser")}
-        </h3>
-        <p className="text-2xl text-ink-2">{t("mics.bridgeHint")}</p>
-      </div>
-      {notice !== null && <p className="text-2xl text-ink-2">{notice}</p>}
-      <ul className="flex flex-col gap-4">
-        {channels.map((channel) => {
-          const stored = keptById.get(channel.localMicId);
-          const { deviceId, channel: number } = channel.source;
-          return (
-            <ChannelRow
-              key={channel.localMicId}
-              channel={channel}
-              name={localMicName(channel.source, stored?.name ?? "")}
-              switchedOn={stored?.switchedOn ?? false}
-              read={() => capture?.levelDbfs(deviceId, number) ?? null}
-              onSwitch={(on) => {
-                setSwitchedOn(channel, on);
-              }}
-            />
-          );
-        })}
-      </ul>
-    </section>
+    <div className="flex flex-col gap-10">
+      <section
+        role="group"
+        aria-labelledby="mics-this-browser"
+        className="flex flex-col gap-5"
+        data-testid="mics-this-browser"
+      >
+        <div className="flex items-baseline justify-between gap-6">
+          <h3 id="mics-this-browser" className="text-3xl font-bold">
+            {t("mics.group.thisBrowser")}
+          </h3>
+          <p className="text-2xl text-ink-2">{t("mics.bridgeHint")}</p>
+        </div>
+        {notice !== null && <p className="text-2xl text-ink-2">{notice}</p>}
+        <ul className="flex flex-col gap-4">
+          {channels.map((channel) => {
+            const stored = keptById.get(channel.localMicId);
+            const { deviceId, channel: number } = channel.source;
+            return (
+              <ChannelRow
+                key={channel.localMicId}
+                channel={channel}
+                name={localMicName(channel.source, stored?.name ?? "")}
+                switchedOn={stored?.switchedOn ?? false}
+                read={() => capture?.levelDbfs(deviceId, number) ?? null}
+                onSwitch={(on) => {
+                  setSwitchedOn(channel, on);
+                }}
+              />
+            );
+          })}
+        </ul>
+      </section>
+      {bridges.bridges.map((bridge) => (
+        <BridgeGroup
+          key={bridge.bridgeId}
+          bridge={bridge}
+          kept={kept}
+          onSwitch={setSwitchedOn}
+        />
+      ))}
+      {bridges.requests.length > 0 && (
+        <NewBridges requests={bridges.requests} onApprove={approveBridge} />
+      )}
+    </div>
   );
 }

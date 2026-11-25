@@ -15,9 +15,10 @@ import {
   type ReactNode,
 } from "react";
 
-import { localMicsQuery } from "../api/queries";
+import { localMicsQuery, micBridgesQuery } from "../api/queries";
 import type { ClientMessage } from "../generated/ClientMessage";
 import type { LocalMic } from "../generated/LocalMic";
+import type { MicBridges } from "../generated/MicBridges";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
@@ -29,7 +30,7 @@ import {
 import {
   devicesToOpen,
   stageBrowserId,
-  type BrowserChannel,
+  type LocalMicChannel,
 } from "./localMics";
 
 export interface LocalMicsApi {
@@ -40,9 +41,15 @@ export interface LocalMicsApi {
   kept: readonly LocalMic[];
   /** The Mics screen says it opened (`true`) or closed. */
   setMicsScreenOpen: (open: boolean) => void;
-  /** Switches a channel on or off; saved at once. */
-  setSwitchedOn: (channel: BrowserChannel, on: boolean) => void;
+  /** Switches a channel (of this browser or a bridge) on or off; saved at once. */
+  setSwitchedOn: (channel: LocalMicChannel, on: boolean) => void;
+  /** Approved Mic bridges, in order of approval, and those waiting. */
+  bridges: MicBridges;
+  /** Approves a waiting Mic bridge (no Admin PIN: this is the Stage). */
+  approveBridge: (requestId: number) => void;
 }
+
+const NO_BRIDGES: MicBridges = { bridges: [], requests: [] };
 
 const IDLE: CaptureSnapshot = {
   status: "unavailable",
@@ -57,6 +64,8 @@ const noCapture: LocalMicsApi = {
   kept: [],
   setMicsScreenOpen: () => {},
   setSwitchedOn: () => {},
+  bridges: NO_BRIDGES,
+  approveBridge: () => {},
 };
 
 export const LocalMicsContext = createContext<LocalMicsApi>(noCapture);
@@ -110,12 +119,19 @@ export function LocalMicsProvider({
   );
   const keptQuery = useQuery({ ...localMicsQuery, enabled: isStage });
   const kept = useMemo(() => keptQuery.data ?? [], [keptQuery.data]);
+  const bridgesQuery = useQuery({ ...micBridgesQuery, enabled: isStage });
+  const bridges = bridgesQuery.data ?? NO_BRIDGES;
 
   // List the devices; ask for the microphone only if something needs it:
   // the Mics screen is open, or a channel of this browser is switched on.
   const needsMicrophone =
     micsScreenOpen ||
-    kept.some((m) => m.switchedOn && m.source.stageBrowser === stageBrowser);
+    kept.some(
+      ({ switchedOn, source }) =>
+        switchedOn &&
+        source.kind === "browser" &&
+        source.stageBrowser === stageBrowser,
+    );
   useEffect(() => {
     if (!capture || !keptQuery.isSuccess) return;
     void capture.refresh(needsMicrophone);
@@ -141,7 +157,7 @@ export function LocalMicsProvider({
   }, [capture, toOpen]);
 
   const setSwitchedOn = useCallback(
-    (channel: BrowserChannel, on: boolean) => {
+    (channel: LocalMicChannel, on: boolean) => {
       const message: ClientMessage = {
         type: "setLocalMicSwitchedOn",
         localMicId: channel.localMicId,
@@ -172,6 +188,13 @@ export function LocalMicsProvider({
     [store, queryClient],
   );
 
+  const approveBridge = useCallback(
+    (requestId: number) => {
+      store.send({ type: "approveBridge", requestId });
+    },
+    [store],
+  );
+
   const api = useMemo<LocalMicsApi>(
     () => ({
       capture,
@@ -180,8 +203,18 @@ export function LocalMicsProvider({
       kept,
       setMicsScreenOpen,
       setSwitchedOn,
+      bridges,
+      approveBridge,
     }),
-    [capture, snapshot, stageBrowser, kept, setSwitchedOn],
+    [
+      capture,
+      snapshot,
+      stageBrowser,
+      kept,
+      setSwitchedOn,
+      bridges,
+      approveBridge,
+    ],
   );
   return <LocalMicsContext value={api}>{children}</LocalMicsContext>;
 }

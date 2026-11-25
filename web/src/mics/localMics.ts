@@ -10,6 +10,7 @@
 
 import type { LocalMic } from "../generated/LocalMic";
 import type { LocalMicSource } from "../generated/LocalMicSource";
+import type { MicBridge } from "../generated/MicBridge";
 import { t } from "../i18n/t";
 
 /** An input device the Stage browser can open. */
@@ -21,9 +22,17 @@ export interface BrowserDevice {
 /** The browser variant of a Local mic's source. */
 export type BrowserSource = Extract<LocalMicSource, { kind: "browser" }>;
 
-/** One channel of a Stage-browser device: a Local mic, kept or new. */
-export interface BrowserChannel {
+/** The bridge variant of a Local mic's source. */
+export type BridgeSource = Extract<LocalMicSource, { kind: "bridge" }>;
+
+/** One channel that is a Local mic, kept or new, from either source. */
+export interface LocalMicChannel {
   localMicId: string;
+  source: LocalMicSource;
+}
+
+/** One channel of a Stage-browser device: a Local mic, kept or new. */
+export interface BrowserChannel extends LocalMicChannel {
   source: BrowserSource;
 }
 
@@ -83,11 +92,17 @@ export function browserChannels(
 /**
  * The name a Local mic shows: the host's, or for an empty stored name the
  * default: "<label> · Left" / "<label> · Right" for a stereo channel, the
- * plain label for a mono device.
+ * plain label for a mono device, "<device> · Input n" (n from 1) for a
+ * bridge channel.
  */
-export function localMicName(source: BrowserSource, name: string): string {
+export function localMicName(source: LocalMicSource, name: string): string {
   if (name !== "") return name;
   const { label } = source;
+  if (source.kind === "bridge")
+    return t("mics.localMic.input", {
+      device: label,
+      number: source.channel + 1,
+    });
   if (!source.stereo) return t("mics.localMic.mono", { label });
   return source.channel === 0
     ? t("mics.localMic.left", { label })
@@ -123,14 +138,42 @@ export function devicesToOpen({
   micsScreenOpen: boolean;
 }): Set<string> {
   const on = new Set(
-    kept
-      .filter((m) => m.switchedOn && m.source.stageBrowser === stageBrowser)
-      .map((m) => m.source.deviceId),
+    kept.flatMap(({ switchedOn, source }) =>
+      switchedOn &&
+      source.kind === "browser" &&
+      source.stageBrowser === stageBrowser
+        ? [source.deviceId]
+        : [],
+    ),
   );
   return new Set(
     devices
       .filter((d) => micsScreenOpen || on.has(d.deviceId))
       .map((d) => d.deviceId),
+  );
+}
+
+/**
+ * The rows of a bridge's group on the Mics screen: an open bridge's
+ * channels, a closed bridge's kept Local mics; devices by name, channels by
+ * number.
+ */
+export function bridgeGroupChannels(
+  bridge: MicBridge,
+  kept: readonly LocalMic[],
+): LocalMicChannel[] {
+  const channels: { localMicId: string; source: BridgeSource }[] = (
+    bridge.open ? bridge.channels : kept
+  ).flatMap(({ localMicId, source }) =>
+    source.kind === "bridge" && source.bridgeId === bridge.bridgeId
+      ? [{ localMicId, source }]
+      : [],
+  );
+  return channels.sort(
+    (a, b) =>
+      a.source.label.localeCompare(b.source.label) ||
+      a.source.deviceName.localeCompare(b.source.deviceName) ||
+      a.source.channel - b.source.channel,
   );
 }
 

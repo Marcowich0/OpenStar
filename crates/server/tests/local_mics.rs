@@ -102,7 +102,10 @@ async fn switching_off_is_kept_too_and_a_new_label_replaces_the_old() {
         channel,
         stereo,
         ..
-    } = source;
+    } = source
+    else {
+        unreachable!("a browser Local mic");
+    };
     let relabelled = LocalMicSource::Browser {
         stage_browser,
         device_id,

@@ -5,6 +5,7 @@
 //! committed. `just check` fails when the committed files drift.
 
 pub mod admin;
+pub mod bridge;
 pub mod jobs;
 pub mod library;
 pub mod mics;
@@ -231,6 +232,27 @@ pub enum ClientMessage {
     /// Request's Line-up comes up prefilled, or the song browser. A Remote
     /// command; [`UserMessage::NoResults`] when no results show.
     CloseResults,
+    /// A Mic bridge asks to join, first thing on its own WebSocket
+    /// (`/ws/bridge`; refused with [`UserMessage::NotABridge`] anywhere
+    /// else). With a valid approval `token` it is connected at once
+    /// ([`ServerMessage::BridgeConnected`]); otherwise it waits for approval
+    /// ([`ServerMessage::BridgeWaiting`]). Sending it again replaces what
+    /// the bridge offers.
+    BridgeHello {
+        /// The bridge's build identifier (`X.Y.Z`, `edge-<sha>` or `dev`).
+        build: String,
+        /// The name of the bridge's computer.
+        host_name: String,
+        /// The approval token it keeps, if any.
+        token: Option<String>,
+        /// Every interface it reads, each with its hardware channels.
+        interfaces: Vec<bridge::BridgeInterface>,
+    },
+    /// Approves a Mic bridge waiting for approval. Accepted only from the
+    /// active Stage; needs no Admin PIN (becoming the Stage needed it).
+    /// [`UserMessage::BridgeRequestNotFound`] when no bridge waits under
+    /// that id.
+    ApproveBridge { request_id: bridge::BridgeRequestId },
 }
 
 /// A message the server sends over a WebSocket.
@@ -299,6 +321,20 @@ pub enum ServerMessage {
         song_id: library::SongId,
         control: SongControl,
     },
+    /// To a Mic bridge without a valid token: it waits for approval on the
+    /// Stage, which shows the same 4-digit `code`.
+    BridgeWaiting { code: String },
+    /// To a Mic bridge the Stage just approved: its approval token, sent
+    /// this once. The bridge keeps it and presents it from then on.
+    BridgeApproved { token: String },
+    /// To a Mic bridge: it is approved and connected, as `bridge_id`.
+    BridgeConnected { bridge_id: bridge::BridgeId },
+    /// To a connected Mic bridge: each of its channels, switched on or not,
+    /// and its name. Sent after [`ServerMessage::BridgeConnected`] and
+    /// whenever the Stage changes Local mics.
+    BridgeChannels {
+        channels: Vec<bridge::BridgeChannelSettings>,
+    },
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
@@ -318,6 +354,9 @@ pub enum ChangeTopic {
     Library,
     /// `GET /api/mic-settings`.
     MicSettings,
+    /// `GET /api/mic-bridges`: approved bridges (open or closed, with their
+    /// channels) and bridges waiting for approval.
+    MicBridges,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast
@@ -426,6 +465,11 @@ pub enum UserMessage {
     DifficultyLocked,
     /// No results are showing.
     NoResults,
+    /// Only a Mic bridge, on its own WebSocket, may do this.
+    NotABridge,
+    /// No Mic bridge waits for approval under this id (it closed, or was
+    /// approved already).
+    BridgeRequestNotFound,
 }
 
 #[cfg(test)]

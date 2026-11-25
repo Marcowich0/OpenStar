@@ -62,14 +62,21 @@ export function LineUpScene() {
 
 /** The switched-on Local mics, and whether each is plugged in now. */
 function useLocalMicOptions(): LocalMicOption[] {
-  const { kept, snapshot } = useLocalMics();
-  const present = new Set(snapshot.devices.map((d) => d.deviceId));
+  const { kept, snapshot, bridges } = useLocalMics();
+  const devices = new Set(snapshot.devices.map((d) => d.deviceId));
+  // A bridge Local mic is present while its bridge is open and offers it.
+  const onOpenBridges = new Set(
+    bridges.bridges.flatMap((b) => b.channels.map((c) => c.localMicId)),
+  );
   return kept
     .filter((mic) => mic.switchedOn)
     .map((mic) => ({
       localMicId: mic.localMicId,
       name: localMicName(mic.source, mic.name),
-      present: present.has(mic.source.deviceId),
+      present:
+        mic.source.kind === "browser"
+          ? devices.has(mic.source.deviceId)
+          : onOpenBridges.has(mic.localMicId),
     }));
 }
 

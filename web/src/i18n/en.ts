@@ -242,6 +242,15 @@ export const en = {
   "mics.localMic.left": "{label} · Left",
   "mics.localMic.right": "{label} · Right",
   "mics.localMic.mono": "{label}",
+  "mics.localMic.input": "{device} · Input {number, number}",
+  "mics.group.bridge": "{host} mic bridge",
+  "mics.bridge.open": "Open",
+  "mics.bridge.closed": "Closed",
+  "mics.bridge.noChannels": "No input channel kept yet",
+  "mics.group.newBridges": "New bridges",
+  "mics.newBridge": "New mic bridge {host} · code {code}",
+  "mics.approve": "Approve",
+  "mics.approveBridge": "Approve mic bridge {host}, code {code}",
   "stage.queue.count": {
     one: "{count, number} Request in the Queue",
     other: "{count, number} Requests in the Queue",
@@ -277,6 +286,14 @@ export const en = {
   "stage.lineUp.ok": "OK",
   "stage.sing.title": "Singing",
   "stage.results.title": "Results",
+  // The minimal playback view (#155), until the sing scene plays Songs (#164).
+  "stage.playback.play": "Play",
+  "stage.playback.loading": "Loading the Song",
+  "stage.playback.noSong": "No such Song",
+  "stage.playback.songTime": "Song time {seconds, number} s",
+  "stage.playback.jitter": "Jitter {ms, number} ms",
+  "stage.playback.ended": "Song ended",
+  "stage.playback.failed": "The browser did not play the Song",
   "stage.moved.title": "The Stage moved to another screen",
   "stage.moved.body":
     "Someone opened OpenStar's Stage on another browser, so the party carries on there. Phones stay in the Party and follow it.",
@@ -349,6 +366,9 @@ export const en = {
   "userMessage.requestPlaying": "That Song is playing: skip or end it instead",
   "userMessage.difficultyLocked": "Difficulty is locked until the Song ends",
   "userMessage.noResults": "No results are showing",
+  "userMessage.notABridge": "Only a Mic bridge can do that",
+  "userMessage.bridgeRequestNotFound":
+    "That Mic bridge is no longer waiting for approval",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",

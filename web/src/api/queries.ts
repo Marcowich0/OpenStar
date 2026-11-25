@@ -90,3 +90,12 @@ export const localMicsQuery = queryOptions({
   queryKey: ["micSettings", "localMics"],
   queryFn: ({ signal }) => api("GET /api/local-mics", { signal }),
 });
+
+/**
+ * `GET /api/mic-bridges`: approved Mic bridges (open or closed, with their
+ * channels) in order of approval, and bridges waiting for approval.
+ */
+export const micBridgesQuery = queryOptions({
+  queryKey: ["micBridges"],
+  queryFn: ({ signal }) => api("GET /api/mic-bridges", { signal }),
+});
