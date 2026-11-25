@@ -47,8 +47,9 @@ const stageRoute = createRoute({
 });
 
 /**
- * `/stage/playback?song=<id>`: the minimal Stage view that plays a Library
- * Song and shows its Song time (#155), until the sing scene plays Songs (#164).
+ * `/stage/playback?song=<id>`: the playback check page that plays a Library
+ * Song with no Party and shows its Song time (#155); a debug page beside the
+ * sing scene (#164).
  */
 const playbackRoute = createRoute({
   getParentRoute: () => rootRoute,

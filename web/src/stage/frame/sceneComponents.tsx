@@ -5,7 +5,8 @@
 import type { ComponentType } from "react";
 
 import { LineUpScene } from "../scenes/lineUp/LineUpScene";
-import { ResultsScene, SingScene } from "../scenes/PlaceholderScenes";
+import { ResultsScene } from "../scenes/PlaceholderScenes";
+import { SingScene } from "../scenes/sing/SingScene";
 import { SongBrowserScene } from "../scenes/SongBrowserScene";
 import { StageMovedScene } from "../scenes/StageMovedScene";
 import type { SceneId } from "./scenes";

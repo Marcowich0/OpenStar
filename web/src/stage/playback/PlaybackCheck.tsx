@@ -1,10 +1,10 @@
-// `/stage/playback?song=<id>`: the minimal Stage view that plays a Library
-// Song (#155) until the sing scene plays the head's Request (#164). It plays
-// the Song through the Stage's AudioContext and gain chain on the sing
-// screen, and shows a live `songTime()` readout and the largest frame-to-frame
-// jitter, for checking the clock in real Chromium (144 Hz, #53). Its Pause,
-// Resume and Restart buttons are the Stage-local trigger for #158's song
-// controls until the sing scene acts on the server's `controlSong` (#164).
+// `/stage/playback?song=<id>`: the playback check page (#155), kept as a
+// debug page beside the sing scene (#164), which plays the head's Request.
+// It plays a Library Song with no Party through the Stage's AudioContext and
+// gain chain on the sing screen, and shows a live `songTime()` readout and
+// the largest frame-to-frame jitter, for checking the clock in real Chromium
+// (the 144 Hz check, #53). Its Pause, Resume and Restart buttons drive #158's
+// song controls locally.
 
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
@@ -95,7 +95,7 @@ function PlaybackView({ detail }: { detail: SongDetail }) {
       playback &&
       createSongControls({
         playback,
-        // No scorers on this page; the sing scene (#164) passes its own.
+        // No scorers on this page; the sing scene passes its own.
         buffers: () => stagePitch().buffers(),
         scorers: () => [],
         onChange: setControlsState,
