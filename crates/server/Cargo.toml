@@ -20,6 +20,7 @@ encoding_rs.workspace = true
 mime_guess.workspace = true
 rusqlite.workspace = true
 rust-embed.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 tokio.workspace = true

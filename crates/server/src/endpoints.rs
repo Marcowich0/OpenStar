@@ -28,7 +28,7 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, unlock};
+use crate::{AppState, bridge, frontend, jobs, unlock};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -100,6 +100,7 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             unlock::heartbeat,
         )
         .add(Method::POST, "/api/lock", NotGuarded, unlock::lock)
+        .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         .add(Method::GET, "/bridge/{file}", NotGuarded, bridge::serve);
     if state.test_routes {
@@ -115,6 +116,19 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
                 "/api/test/library-write",
                 Guarded(Writes),
                 test_done,
+            )
+            // Test jobs run a harmless child process and touch nothing kept.
+            .add(
+                Method::POST,
+                "/api/test/jobs",
+                NotGuarded,
+                jobs::http::enqueue_test,
+            )
+            .add(
+                Method::POST,
+                "/api/test/jobs/{id}/cancel",
+                NotGuarded,
+                jobs::http::cancel_test,
             );
     }
     routes.finish()

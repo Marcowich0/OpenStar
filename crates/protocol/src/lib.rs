@@ -5,6 +5,7 @@
 //! committed. `just check` fails when the committed files drift.
 
 pub mod admin;
+pub mod jobs;
 pub mod song;
 
 use serde::{Deserialize, Serialize};
@@ -110,6 +111,9 @@ pub enum ServerMessage {
     },
     /// HTTP data changed: the frontend refetches what each topic names.
     Changed { topics: Vec<ChangeTopic> },
+    /// A background job was queued, started, made progress or ended (sent to
+    /// every connection).
+    JobChanged { job: jobs::Job },
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
@@ -141,6 +145,17 @@ pub enum UserMessage {
     PlaceholderTooLong { max_length: u32 },
     /// Something failed on the server; its log says what.
     ServerError,
+    /// The job was cancelled.
+    JobCancelled,
+    /// A restart interrupted the job, and its kind does not run again.
+    JobInterrupted,
+    /// A tool the job needs (`ffmpeg`, `yt-dlp`, ...) is not installed.
+    ToolNotFound { tool: String },
+    /// A tool the job ran failed; `exit_code` is `null` when a signal ended it.
+    ToolFailed {
+        tool: String,
+        exit_code: Option<i32>,
+    },
 }
 
 #[cfg(test)]

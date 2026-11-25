@@ -28,6 +28,14 @@ const MIGRATIONS: &[&str] = &[
         pin_fingerprint BLOB NOT NULL,
         last_used_ms    INTEGER NOT NULL
     ) STRICT;",
+    // 3: background jobs. `params` is the job's kind and parameters as JSON,
+    // `error` the failure's `UserMessage` as JSON.
+    "CREATE TABLE jobs (
+        id     INTEGER PRIMARY KEY,
+        params TEXT NOT NULL,
+        state  TEXT NOT NULL CHECK (state IN ('queued', 'running', 'done', 'failed')),
+        error  TEXT
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

@@ -44,6 +44,8 @@ enum Command {
     Placeholder {
         reply: oneshot::Sender<StagePlaceholder>,
     },
+    /// Send a message to every connection (job updates).
+    SendAll { message: ServerMessage },
     /// Stop: drop every connection (their sockets close) and end the task.
     Shutdown { done: oneshot::Sender<()> },
 }
@@ -101,6 +103,11 @@ impl LiveHandle {
         answer.await.ok()
     }
 
+    /// Sends `message` to every connected browser.
+    pub async fn send_all(&self, message: ServerMessage) {
+        let _ = self.commands.send(Command::SendAll { message }).await;
+    }
+
     /// Stops the task and closes every WebSocket. Returns once it has stopped.
     pub async fn shutdown(&self) {
         let (done, stopped) = oneshot::channel();
@@ -145,6 +152,7 @@ impl LiveState {
                         placeholder: self.stage().placeholder.clone(),
                     });
                 }
+                Command::SendAll { message } => self.hub.send_all(&message),
                 Command::Shutdown { done } => {
                     drop(self);
                     let _ = done.send(());
