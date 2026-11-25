@@ -147,6 +147,12 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
         .add(Method::GET, "/api/songs/{id}", NotGuarded, library::song)
         .add(
             Method::GET,
+            "/api/songs/{id}/high-scores",
+            NotGuarded,
+            scores::song_high_scores,
+        )
+        .add(
+            Method::GET,
             "/api/songs/{id}/media/{role}",
             NotGuarded,
             library::media,

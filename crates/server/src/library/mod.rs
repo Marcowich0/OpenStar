@@ -172,7 +172,18 @@ pub(crate) async fn songs(
     State(state): State<AppState>,
     Query(query): Query<SongQuery>,
 ) -> Response {
-    match state.db.call(|conn| index::listed(conn)).await {
+    let listed = state
+        .db
+        .call(|conn| {
+            let mut listed = index::listed(conn)?;
+            let mut tops = crate::scores::top_high_scores(conn)?;
+            for song in &mut listed {
+                song.summary.top_high_score = tops.remove(&identity_key(&song.summary.identity));
+            }
+            Ok(listed)
+        })
+        .await;
+    match listed {
         Ok(listed) => axum::Json(search::apply(listed, &query)).into_response(),
         Err(error) => server_error(&error),
     }

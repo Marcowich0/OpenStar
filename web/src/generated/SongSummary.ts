@@ -2,6 +2,7 @@
 import type { PaletteKey } from "./PaletteKey";
 import type { SongId } from "./SongId";
 import type { SongIdentity } from "./SongIdentity";
+import type { TopHighScore } from "./TopHighScore";
 
 /**
  * One playable Song in the list.
@@ -34,4 +35,9 @@ cover: string | null,
  * same across scans and restarts. Shown without a cover, or when the
  * cover does not load.
  */
-tileColour: PaletteKey, };
+tileColour: PaletteKey, 
+/**
+ * The Song's top High score at any Difficulty and either Voice; `None`
+ * when no record of its identity counts.
+ */
+topHighScore: TopHighScore | null, };
