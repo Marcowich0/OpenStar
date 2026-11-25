@@ -1,5 +1,6 @@
 import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ClientMessage } from "../generated/ClientMessage";
+import type { LocalMicLevel } from "../generated/LocalMicLevel";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { PitchRouter } from "../pitch/pitchRouter";
 import type { LiveClient, LiveClientOptions } from "./liveClient";
@@ -36,6 +37,13 @@ export interface LiveStore {
   onSongControl: (
     listener: (control: SongControlMessage) => void,
   ) => () => void;
+  /**
+   * Calls `listener` with every Mic bridge level relay (Stage only, ten a
+   * second per metered channel); they never reach the reducer.
+   */
+  onLocalMicLevels: (
+    listener: (levels: readonly LocalMicLevel[]) => void,
+  ) => () => void;
   /** Drops a toast the screen has finished showing (`toasts.ts`). */
   dismissToast: (id: number) => void;
   close: () => void;
@@ -61,6 +69,7 @@ export function createLiveStore(
   const listeners = new Set<() => void>();
   const topicListeners = new Map<ChangeTopic, Set<() => void>>();
   const songControlListeners = new Set<(control: SongControlMessage) => void>();
+  const levelListeners = new Set<(levels: readonly LocalMicLevel[]) => void>();
 
   function update(next: LiveState) {
     if (next === state) return;
@@ -74,6 +83,11 @@ export function createLiveStore(
       // those go to their Player's ring buffer, so they never cause a render.
       if (message.type === "pitchReading") {
         pitch?.receive(message.mic, message.reading);
+        return;
+      }
+      // Mic bridge levels go to the meters, not the reducer.
+      if (message.type === "localMicLevels") {
+        for (const listener of levelListeners) listener(message.levels);
         return;
       }
       if (message.type === "changed") {
@@ -113,6 +127,12 @@ export function createLiveStore(
       songControlListeners.add(listener);
       return () => {
         songControlListeners.delete(listener);
+      };
+    },
+    onLocalMicLevels(listener) {
+      levelListeners.add(listener);
+      return () => {
+        levelListeners.delete(listener);
       };
     },
     dismissToast(id) {

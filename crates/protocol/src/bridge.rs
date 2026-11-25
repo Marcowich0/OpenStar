@@ -64,6 +64,27 @@ pub struct BridgeChannelSettings {
     pub name: String,
 }
 
+/// A channel's meter level, as a bridge measured it over the last tenth of
+/// a second.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BridgeLevel {
+    pub device_name: String,
+    pub channel: u32,
+    /// RMS level in dBFS: at most 0, and −100 for silence.
+    pub level_dbfs: f64,
+}
+
+/// A Local mic's meter level, as the server relays it to the Stage.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LocalMicLevel {
+    pub local_mic_id: String,
+    pub level_dbfs: f64,
+}
+
 /// One hardware channel of an open bridge, as the Mics screen lists it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

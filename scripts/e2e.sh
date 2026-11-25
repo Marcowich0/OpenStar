@@ -14,7 +14,11 @@
 # OPENSTAR_E2E_UPDATE_SCREENSHOTS=1; any other run compares against them and
 # refuses Playwright's own update flags.
 #
-# Needs Docker, ffmpeg, the openstar-harness binary (`just harness-build`) and
+# Also starts a headless Mic bridge (`openstar-mic-bridge --wav`) on the fake
+# mic's 4-channel WAV, waiting for approval.
+#
+# Needs Docker, ffmpeg, the openstar-harness and openstar-mic-bridge binaries
+# (`just harness-build`) and
 # e2e/node_modules (`just e2e-install`).
 set -euo pipefail
 
@@ -25,9 +29,11 @@ readonly PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v1.64.1-noble@sha256:2f0
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 binary="${CARGO_TARGET_DIR:-$root/target}/release/openstar"
 harness="${CARGO_TARGET_DIR:-$root/target}/debug/openstar-harness"
+bridge="${CARGO_TARGET_DIR:-$root/target}/debug/openstar-mic-bridge"
 
 [ -x "$binary" ] || { echo "e2e: $binary is missing: run 'just build' (or 'just e2e')" >&2; exit 1; }
 [ -x "$harness" ] || { echo "e2e: $harness is missing: run 'just harness-build' (or 'just e2e')" >&2; exit 1; }
+[ -x "$bridge" ] || { echo "e2e: $bridge is missing: run 'just harness-build' (or 'just e2e')" >&2; exit 1; }
 [ -d "$root/e2e/node_modules" ] || { echo "e2e: e2e/node_modules is missing: run 'just e2e-install'" >&2; exit 1; }
 [ -f "$root/e2e/generated/screenshot-page/sing-test.html" ] || { echo "e2e: the screenshot page is missing: run 'just screenshot-page' (or 'just e2e')" >&2; exit 1; }
 command -v docker >/dev/null || { echo "e2e: docker is not installed; 'just e2e' runs Playwright in Docker" >&2; exit 1; }
@@ -49,7 +55,12 @@ fi
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/openstar-e2e.XXXXXX")"
 server_pid=""
+bridge_pid=""
 cleanup() {
+  if [ -n "$bridge_pid" ]; then
+    kill "$bridge_pid" 2>/dev/null || true
+    wait "$bridge_pid" 2>/dev/null || true
+  fi
   if [ -n "$server_pid" ]; then
     kill "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
@@ -92,6 +103,14 @@ done
 curl -fsS -o /dev/null "$base_url/healthz" || { echo "e2e: openstar did not answer $base_url/healthz" >&2; exit 1; }
 echo "e2e: openstar serves $base_url"
 
+# A Mic bridge on the fake mic's 4-channel WAV, waiting for the Stage to
+# approve it (e2e/tests/mic-bridge.spec.ts), with its own config folder.
+mkdir -p "$work/bridge-config/openstar-mic-bridge"
+echo "$base_url" >"$work/bridge-config/openstar-mic-bridge/server"
+env -i PATH="$PATH" HOME="$work" XDG_CONFIG_HOME="$work/bridge-config" \
+  "$bridge" --wav "$root/e2e/generated/mic/multichannel.wav" >"$work/mic-bridge.log" 2>&1 &
+bridge_pid=$!
+
 status=0
 docker run --rm --init \
   --network host --ipc host \
@@ -107,6 +126,7 @@ if [ "$status" -ne 0 ]; then
   # Keep the server's log beside the report and traces (the CI artifact).
   mkdir -p "$root/e2e/test-results"
   cp "$work/openstar.log" "$root/e2e/test-results/openstar.log"
+  cp "$work/mic-bridge.log" "$root/e2e/test-results/mic-bridge.log"
   echo "e2e: failed; report in e2e/playwright-report, traces and the server log in e2e/test-results" >&2
 fi
 exit "$status"

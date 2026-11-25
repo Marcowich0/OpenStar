@@ -413,6 +413,8 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::ApproveBridge {
             request_id: openstar_protocol::bridge::BridgeRequestId(0),
         },
+        ClientMessage::SetMicsScreenOpen { open: true },
+        ClientMessage::BridgeLevels { levels: vec![] },
     ]
 }
 

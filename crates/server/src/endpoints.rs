@@ -114,7 +114,11 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // A bridge asking to join changes nothing until the Stage approves
         // it; approving needs no Admin PIN (becoming the Stage needed it).
         | ClientMessage::BridgeHello { .. }
-        | ClientMessage::ApproveBridge { .. } => Access::NotGuarded,
+        | ClientMessage::ApproveBridge { .. }
+        // The Mics screen opening only lets bridges meter more channels;
+        // levels are a meter, from approved bridges only.
+        | ClientMessage::SetMicsScreenOpen { .. }
+        | ClientMessage::BridgeLevels { .. } => Access::NotGuarded,
     }
 }
 

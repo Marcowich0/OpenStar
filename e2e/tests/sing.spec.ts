@@ -107,7 +107,7 @@ async function partyWithRequest(
   // The requester's Profile is prefilled on its own Phone.
   const start = stage.getByRole("button", { name: "Start" });
   await expect(start).not.toHaveAttribute("aria-disabled", "true");
-  return { phone, requestId, frame, start, profile };
+  return { phone, requestId, frame, profile };
 }
 
 test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and Skip from a Remote act on it", async ({
@@ -116,7 +116,7 @@ test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and 
   request,
 }) => {
   test.setTimeout(90_000);
-  const { phone, requestId, frame, start, profile } = await partyWithRequest(
+  const { phone, requestId, frame, profile } = await partyWithRequest(
     stage,
     openPhone,
     request,
@@ -222,7 +222,7 @@ test("End stops the Song and raises its end once: the Stage shows the results", 
   request,
 }) => {
   test.setTimeout(60_000);
-  const { phone, requestId, frame, start } = await partyWithRequest(
+  const { phone, requestId, frame } = await partyWithRequest(
     stage,
     openPhone,
     request,
