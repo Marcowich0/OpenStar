@@ -1,0 +1,9 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: headers/relative-rejected.txt
+---
+Err(
+    RelativeMode {
+        line: 5,
+    },
+)

@@ -9,11 +9,7 @@ use std::path::Path;
 use openstar::{Config, Server};
 
 async fn start(appdata: &Path, songs: &Path, bridge: &Path) -> SocketAddr {
-    let config = Config {
-        port: 0,
-        appdata_dir: appdata.to_path_buf(),
-        songs_dir: songs.to_path_buf(),
-    };
+    let config = Config::for_tests(appdata, songs);
     let server = Server::start(&config)
         .await
         .expect("server starts")
