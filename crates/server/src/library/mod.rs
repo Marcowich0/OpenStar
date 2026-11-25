@@ -7,8 +7,11 @@
 //! filesystem watcher. When a scan finishes, every browser is sent a
 //! [`ChangeTopic::Library`] notice.
 
+mod artwork;
 mod identity;
 mod index;
+mod probe;
+mod probing;
 mod resolve;
 mod scan;
 
@@ -16,15 +19,17 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Request, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use openstar_protocol::ChangeTopic;
 use openstar_protocol::library::{ScanStatus, SongId};
 use tokio::sync::watch;
+use tower_http::services::ServeFile;
 
 use crate::AppState;
 use crate::db::Database;
+use crate::jobs::Slot;
 use crate::live::LiveHandle;
 
 /// Runs scans, one at a time. Cheap to clone.
@@ -40,10 +45,20 @@ struct Inner {
     parser_version: u32,
     status: watch::Sender<ScanStatus>,
     cancelled: Arc<AtomicBool>,
+    /// Set with `cancelled`, so a running ffprobe is killed.
+    cancel: watch::Sender<bool>,
+    /// `PATH` for ffprobe, from the settings.
+    tool_path: Option<String>,
 }
 
 impl Scanner {
-    pub(crate) fn new(db: Database, songs_dir: PathBuf, live: LiveHandle) -> Self {
+    /// `tool_path` is the `PATH` ffprobe runs with (`None`: the process's own).
+    pub(crate) fn new(
+        db: Database,
+        songs_dir: PathBuf,
+        live: LiveHandle,
+        tool_path: Option<String>,
+    ) -> Self {
         let (status, _) = watch::channel(ScanStatus {
             running: false,
             finished: 0,
@@ -57,6 +72,8 @@ impl Scanner {
                 parser_version: crate::txt::PARSER_VERSION,
                 status,
                 cancelled: Arc::new(AtomicBool::new(false)),
+                cancel: watch::channel(false).0,
+                tool_path,
             }),
         }
     }
@@ -89,6 +106,7 @@ impl Scanner {
     /// No scan starts afterwards.
     pub(crate) async fn shutdown(&self) {
         self.inner.cancelled.store(true, Ordering::Relaxed);
+        self.inner.cancel.send_replace(true);
         let mut status = self.inner.status.subscribe();
         let _ = status.wait_for(|s| !s.running).await;
     }
@@ -97,10 +115,12 @@ impl Scanner {
 impl Inner {
     async fn run(self: Arc<Self>) {
         tracing::info!(songs_dir = %self.songs_dir.display(), "scanning the Library");
+        let slot = Slot::outside_lanes(self.tool_path.clone(), self.cancel.subscribe());
         let outcome = scan::run(
             &self.db,
             &self.songs_dir,
             self.parser_version,
+            &slot,
             &self.cancelled,
         )
         .await;
@@ -110,6 +130,7 @@ impl Inner {
                     read = report.read,
                     unchanged = report.unchanged,
                     removed = report.removed,
+                    probed = report.probed,
                     "the Library scan finished"
                 );
                 Some(report)
@@ -162,6 +183,46 @@ pub(crate) async fn song(State(state): State<AppState>, Path(id): Path<u32>) -> 
     }
 }
 
+/// `GET /api/songs/{id}/media/{role}`: the Song's `audio`, `video`, `cover`
+/// or `background` file, with `Range` requests, `ETag` and `Last-Modified`
+/// (tower-http's `ServeFile`). `404` for an unknown role, an id that is not
+/// a playable Song, or a role the Song has no file for.
+pub(crate) async fn media(
+    State(state): State<AppState>,
+    Path((id, role)): Path<(u32, String)>,
+    request: Request,
+) -> Response {
+    let Some(role) = index::MediaRole::from_name(&role) else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    let path = match state
+        .db
+        .call(move |conn| index::media_path(conn, SongId(id), role))
+        .await
+    {
+        Ok(Some(path)) => path,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(error) => return server_error(&error),
+    };
+    match ServeFile::new(served_file(&state, &path))
+        .try_call(request)
+        .await
+    {
+        Ok(response) => response.map(axum::body::Body::new),
+        Err(error) => {
+            tracing::error!(%error, path, "serving a Song's media");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
+}
+
+/// The file served for a Library media file (`path` relative to the
+/// Library). The seam for conversions (#144): a file with a converted copy
+/// in `/appdata/cache` is to be served from there, at the same URL.
+fn served_file(state: &AppState, path: &str) -> PathBuf {
+    state.config.songs_dir.join(path)
+}
+
 /// `GET /api/library/problems`.
 pub(crate) async fn problems(State(state): State<AppState>) -> Response {
     match state.db.call(|conn| index::problems(conn)).await {
@@ -188,7 +249,7 @@ mod tests {
     async fn scanner(songs: &std::path::Path, appdata: &std::path::Path) -> Scanner {
         let db = Database::open(appdata).await.unwrap().database;
         let live = LiveHandle::start(db.clone()).await.unwrap();
-        Scanner::new(db, songs.to_owned(), live)
+        Scanner::new(db, songs.to_owned(), live, None)
     }
 
     async fn finished(scanner: &Scanner) -> ScanStatus {
@@ -239,6 +300,7 @@ mod tests {
             scanner.inner.db.clone(),
             songs.path().join("not there"),
             scanner.inner.live.clone(),
+            None,
         );
         missing.request();
         let status = finished(&missing).await;

@@ -52,6 +52,13 @@ export const userMessageText = byCode<UserMessage>({
     exitCode === null
       ? t("userMessage.toolStopped", { tool })
       : t("userMessage.toolFailed", { tool, exitCode }),
+  songNotInLibrary: () => t("userMessage.songNotInLibrary"),
+  songPreparing: () => t("userMessage.songPreparing"),
+  requestNotFound: () => t("userMessage.requestNotFound"),
+  requestCannotMove: () => t("userMessage.requestCannotMove"),
+  tooManyPlayers: ({ params }) => t("userMessage.tooManyPlayers", params),
+  playerNotInParty: () => t("userMessage.playerNotInParty"),
+  playerTwice: () => t("userMessage.playerTwice"),
 });
 
 /** An accepted change to the Party, as a toast. */
@@ -64,6 +71,18 @@ export const partyEventText = byCode<PartyEvent>({
     }),
   phoneJoined: ({ params }) =>
     t("partyEvent.phoneJoined", { name: params.name }),
+  requestAdded: ({ params }) =>
+    t("partyEvent.requestAdded", { song: params.title }),
+  requestMovedUp: ({ params }) =>
+    t("partyEvent.requestMovedUp", { song: params.title }),
+  requestMovedDown: ({ params }) =>
+    t("partyEvent.requestMovedDown", { song: params.title }),
+  requestPlayNext: ({ params }) =>
+    t("partyEvent.requestPlayNext", { song: params.title }),
+  requestRemoved: ({ params }) =>
+    t("partyEvent.requestRemoved", { song: params.title }),
+  requestedPlayersChanged: ({ params }) =>
+    t("partyEvent.requestedPlayersChanged", { song: params.title }),
 });
 
 /** Why an HTTP request was refused. */

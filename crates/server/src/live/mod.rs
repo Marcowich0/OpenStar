@@ -19,19 +19,25 @@
 pub mod connection;
 pub mod hub;
 mod party;
+mod queue;
+mod songs;
 mod store;
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
+use openstar_protocol::library::SongId;
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, JoinAs, JoinCode, JoinedPhone, MicId,
-    PartyEvent, PartySnapshot, PhoneId, ServerMessage, StageId, UserMessage,
+    PartyEvent, PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request, RequestChange,
+    RequestId, RequestKind, ServerMessage, StageId, UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
 use crate::db::Database;
 use crate::profiles;
 use hub::{Connection, ConnectionId, Hub};
+use songs::{LibraryIndex, SongLookup, Songs};
 
 /// The one Stage id in use in v1.
 pub const MAIN_STAGE: &str = "main";
@@ -165,11 +171,18 @@ struct LiveState {
     /// life, whether or not that Phone is in the Party, so a Phone told it
     /// left can join again on the same connection.
     phones: HashMap<ConnectionId, PhoneId>,
+    /// Whether a Song is in the Library and can be queued.
+    songs: Arc<dyn Songs>,
 }
 
 impl LiveState {
     /// The persisted state: v1's one Stage id with its current Party.
     async fn load(db: Database) -> anyhow::Result<Self> {
+        Self::load_with(db, Arc::new(LibraryIndex)).await
+    }
+
+    /// [`Self::load`] with the Library lookup handed in.
+    async fn load_with(db: Database, songs: Arc<dyn Songs>) -> anyhow::Result<Self> {
         let stage_id = StageId(MAIN_STAGE.to_owned());
         let party = store::load_party(&db, &stage_id).await?;
         let mut stages = HashMap::new();
@@ -187,6 +200,7 @@ impl LiveState {
             hub: Hub::default(),
             mics: HashSet::new(),
             phones: HashMap::new(),
+            songs,
         })
     }
 
@@ -370,6 +384,30 @@ impl LiveState {
                     self.reject(id, reason);
                 }
             }
+            Ok(ClientMessage::AddRequest {
+                song_id,
+                requested_players,
+            }) => {
+                let added = self.add_request(id, song_id, requested_players).await;
+                self.refuse_on_error(id, added);
+            }
+            Ok(ClientMessage::MoveRequest { request_id, to }) => {
+                let moved = self.move_request(id, request_id, to).await;
+                self.refuse_on_error(id, moved);
+            }
+            Ok(ClientMessage::SetRequestedPlayers {
+                request_id,
+                requested_players,
+            }) => {
+                let changed = self
+                    .set_requested_players(id, request_id, requested_players)
+                    .await;
+                self.refuse_on_error(id, changed);
+            }
+            Ok(ClientMessage::RemoveRequest { request_id }) => {
+                let removed = self.remove_request(id, request_id).await;
+                self.refuse_on_error(id, removed);
+            }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
         }
     }
@@ -462,13 +500,6 @@ impl LiveState {
     /// Who is making a Remote command from connection `id`: the active
     /// Stage, or the Party member of a joined Phone. Any other connection is
     /// not in the Party and is refused with [`UserMessage::NotInParty`].
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the first Remote commands come with the Queue and Line-up tickets"
-        )
-    )]
     fn remote_actor(&self, id: ConnectionId) -> Result<Actor, UserMessage> {
         if self.stage().connection == Some(id) {
             return Ok(Actor::Stage);
@@ -551,6 +582,149 @@ impl LiveState {
             },
             event,
         });
+        Ok(())
+    }
+
+    fn refuse_on_error(&mut self, id: ConnectionId, result: Result<(), UserMessage>) {
+        if let Err(reason) = result {
+            self.reject(id, reason);
+        }
+    }
+
+    /// The current Party, for a change to it.
+    fn party(&self) -> Result<PartySnapshot, UserMessage> {
+        self.stage().party.clone().ok_or(UserMessage::NotInParty)
+    }
+
+    /// Asks the Library about Song `song_id`.
+    async fn lookup_song(&self, song_id: SongId) -> Result<SongLookup, UserMessage> {
+        let songs = Arc::clone(&self.songs);
+        self.db
+            .call(move |conn| songs.lookup(conn, song_id))
+            .await
+            .map_err(|error| {
+                tracing::error!(?error, "looking up a Song for the Queue");
+                UserMessage::ServerError
+            })
+    }
+
+    /// The parameters of a change event about `request`.
+    async fn request_change(&self, request: &Request) -> RequestChange {
+        let title = self
+            .lookup_song(request.song_id)
+            .await
+            .map(|song| song.title().to_owned())
+            .unwrap_or_default();
+        RequestChange {
+            request_id: request.request_id,
+            song_id: request.song_id,
+            title,
+        }
+    }
+
+    /// Adds a Request for `song_id` at the end of the Queue, made from
+    /// connection `id`. Only a Song in the Library that is not preparing.
+    async fn add_request(
+        &mut self,
+        id: ConnectionId,
+        song_id: SongId,
+        requested_players: Option<Vec<PartyMemberId>>,
+    ) -> Result<(), UserMessage> {
+        let actor = self.remote_actor(id)?;
+        let mut party = self.party()?;
+        let (requested_players, adder) =
+            queue::new_request_players(&party, actor, requested_players)?;
+        let title = match self.lookup_song(song_id).await? {
+            SongLookup::NotInLibrary => return Err(UserMessage::SongNotInLibrary),
+            SongLookup::Preparing { .. } => return Err(UserMessage::SongPreparing),
+            SongLookup::Ready { title } => title,
+        };
+        let mut request = Request {
+            request_id: RequestId(0),
+            kind: RequestKind::Song,
+            song_id,
+            requested_players,
+            adder,
+        };
+        request.request_id = store::insert_request(&self.db, &party.party_id, &request)
+            .await
+            .map_err(|error| {
+                tracing::error!(?error, "storing a Request");
+                UserMessage::ServerError
+            })?;
+        let change = RequestChange {
+            request_id: request.request_id,
+            song_id,
+            title,
+        };
+        queue::add(&mut party, request);
+        self.stage_mut().party = Some(party);
+        self.party_changed(ChangeEvent {
+            actor,
+            event: PartyEvent::RequestAdded(change),
+        });
+        Ok(())
+    }
+
+    async fn move_request(
+        &mut self,
+        id: ConnectionId,
+        request_id: RequestId,
+        to: QueueMove,
+    ) -> Result<(), UserMessage> {
+        let actor = self.remote_actor(id)?;
+        let mut party = self.party()?;
+        queue::move_request(&mut party, request_id, to)?;
+        let change = self.request_change(queue::find(&party, request_id)?).await;
+        let event = match to {
+            QueueMove::Up => PartyEvent::RequestMovedUp(change),
+            QueueMove::Down => PartyEvent::RequestMovedDown(change),
+            QueueMove::Next => PartyEvent::RequestPlayNext(change),
+        };
+        self.commit_queue(party, actor, event).await
+    }
+
+    async fn set_requested_players(
+        &mut self,
+        id: ConnectionId,
+        request_id: RequestId,
+        requested_players: Vec<PartyMemberId>,
+    ) -> Result<(), UserMessage> {
+        let actor = self.remote_actor(id)?;
+        let mut party = self.party()?;
+        queue::set_players(&mut party, request_id, requested_players)?;
+        let change = self.request_change(queue::find(&party, request_id)?).await;
+        self.commit_queue(party, actor, PartyEvent::RequestedPlayersChanged(change))
+            .await
+    }
+
+    async fn remove_request(
+        &mut self,
+        id: ConnectionId,
+        request_id: RequestId,
+    ) -> Result<(), UserMessage> {
+        let actor = self.remote_actor(id)?;
+        let mut party = self.party()?;
+        let removed = queue::remove(&mut party, request_id)?;
+        let change = self.request_change(&removed).await;
+        self.commit_queue(party, actor, PartyEvent::RequestRemoved(change))
+            .await
+    }
+
+    /// Stores the changed Queue of `party`, makes it the current Party and
+    /// tells everyone. Nothing changes when it cannot be stored.
+    async fn commit_queue(
+        &mut self,
+        party: PartySnapshot,
+        actor: Actor,
+        event: PartyEvent,
+    ) -> Result<(), UserMessage> {
+        store::save_queue(&self.db, &party).await.map_err(|error| {
+            tracing::error!(?error, "storing the Queue");
+            UserMessage::ServerError
+        })?;
+        self.stage_mut().party = Some(party);
+        self.party_changed(ChangeEvent { actor, event });
         Ok(())
     }
 
@@ -687,6 +861,68 @@ mod tests {
             .received(stage.id, 3, Ok(ClientMessage::NewParty))
             .await;
         assert_eq!(state.remote_actor(joined.id), Err(UserMessage::NotInParty));
+    }
+
+    /// A Library where Song 1 is ready, Song 2 is preparing and nothing else exists.
+    struct StubSongs;
+
+    impl Songs for StubSongs {
+        fn lookup(&self, _conn: &rusqlite::Connection, id: SongId) -> rusqlite::Result<SongLookup> {
+            Ok(match id.0 {
+                1 => SongLookup::Ready {
+                    title: "Africa".into(),
+                },
+                2 => SongLookup::Preparing {
+                    title: "Rosanna".into(),
+                },
+                _ => SongLookup::NotInLibrary,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn a_song_the_library_reports_as_preparing_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let opened = Database::open(dir.path()).await.unwrap();
+        let mut state = LiveState::load_with(opened.database, Arc::new(StubSongs))
+            .await
+            .unwrap();
+        let mut stage = state.connect(Role::Stage, 1).await;
+        drain(&mut stage);
+        let add = |n| {
+            Ok(ClientMessage::AddRequest {
+                song_id: SongId(n),
+                requested_players: None,
+            })
+        };
+
+        state.received(stage.id, 2, add(2)).await;
+        assert_eq!(
+            drain(&mut stage),
+            vec![ServerMessage::Rejected {
+                reason: UserMessage::SongPreparing
+            }]
+        );
+        state.received(stage.id, 2, add(3)).await;
+        assert_eq!(
+            drain(&mut stage),
+            vec![ServerMessage::Rejected {
+                reason: UserMessage::SongNotInLibrary
+            }]
+        );
+        state.received(stage.id, 2, add(1)).await;
+        let party = state.stage().party.clone().unwrap();
+        assert_eq!(party.queue.len(), 1);
+        assert!(matches!(
+            &drain(&mut stage)[..],
+            [ServerMessage::PartyChanged {
+                change: ChangeEvent {
+                    event: PartyEvent::RequestAdded(RequestChange { title, .. }),
+                    ..
+                },
+                ..
+            }] if title == "Africa"
+        ));
     }
 
     #[tokio::test]

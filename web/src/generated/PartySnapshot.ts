@@ -3,6 +3,8 @@ import type { JoinCode } from "./JoinCode";
 import type { JoinedPhone } from "./JoinedPhone";
 import type { PartyId } from "./PartyId";
 import type { PartyMember } from "./PartyMember";
+import type { Request } from "./Request";
+import type { RequestId } from "./RequestId";
 import type { StageId } from "./StageId";
 
 /**
@@ -24,4 +26,14 @@ members: Array<PartyMember>,
 /**
  * Every joined Phone, in the order they joined.
  */
-phones: Array<JoinedPhone>, };
+phones: Array<JoinedPhone>, 
+/**
+ * The Queue: every Request waiting to be sung, in order.
+ */
+queue: Array<Request>, 
+/**
+ * The head of the Queue: the Request whose Line-up waits or whose Song
+ * plays. When set it is always the first Request; it never moves and
+ * nothing moves above it. `null` while the song browser shows.
+ */
+head: RequestId | null, };

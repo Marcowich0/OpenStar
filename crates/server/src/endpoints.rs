@@ -73,7 +73,12 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::SetMicThreshold { .. }
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
-        | ClientMessage::Join { .. } => Access::NotGuarded,
+        | ClientMessage::Join { .. }
+        // The Queue is everyone's: removing a Request deletes no kept data.
+        | ClientMessage::AddRequest { .. }
+        | ClientMessage::MoveRequest { .. }
+        | ClientMessage::SetRequestedPlayers { .. }
+        | ClientMessage::RemoveRequest { .. } => Access::NotGuarded,
     }
 }
 
@@ -133,6 +138,12 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
         .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
         .add(Method::GET, "/api/songs", NotGuarded, library::songs)
         .add(Method::GET, "/api/songs/{id}", NotGuarded, library::song)
+        .add(
+            Method::GET,
+            "/api/songs/{id}/media/{role}",
+            NotGuarded,
+            library::media,
+        )
         .add(
             Method::GET,
             "/api/library/problems",

@@ -1,11 +1,12 @@
 //! The JSON wire format of the protocol messages, pinned with `insta`
 //! snapshots and a `proptest` property.
 
+use openstar_protocol::library::SongId;
 use openstar_protocol::profile::{PaletteKey, ProfileId};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
-    PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, ServerMessage,
-    StageId, UserMessage,
+    PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request,
+    RequestChange, RequestId, RequestKind, ServerMessage, StageId, UserMessage,
 };
 use proptest::prelude::*;
 
@@ -28,7 +29,76 @@ fn party() -> PartySnapshot {
             phone_id: PhoneId("3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60".to_owned()),
             member_id: PartyMemberId(1),
         }],
+        queue: vec![
+            Request {
+                request_id: RequestId(3),
+                kind: RequestKind::Song,
+                song_id: SongId(12),
+                requested_players: vec![PartyMemberId(1)],
+                adder: Some(PartyMemberId(1)),
+            },
+            Request {
+                request_id: RequestId(4),
+                kind: RequestKind::Song,
+                song_id: SongId(5),
+                requested_players: Vec::new(),
+                adder: None,
+            },
+        ],
+        head: Some(RequestId(3)),
     }
+}
+
+#[test]
+fn queue_messages_wire_format() {
+    insta::assert_json_snapshot!(vec![
+        ClientMessage::AddRequest {
+            song_id: SongId(12),
+            requested_players: None,
+        },
+        ClientMessage::AddRequest {
+            song_id: SongId(12),
+            requested_players: Some(vec![PartyMemberId(2), PartyMemberId(1)]),
+        },
+        ClientMessage::MoveRequest {
+            request_id: RequestId(4),
+            to: QueueMove::Next,
+        },
+        ClientMessage::SetRequestedPlayers {
+            request_id: RequestId(4),
+            requested_players: Vec::new(),
+        },
+        ClientMessage::RemoveRequest {
+            request_id: RequestId(4),
+        },
+    ]);
+}
+
+#[test]
+fn queue_change_event_wire_format() {
+    insta::assert_json_snapshot!(ChangeEvent {
+        actor: Actor::Member {
+            member_id: PartyMemberId(1),
+        },
+        event: PartyEvent::RequestMovedUp(RequestChange {
+            request_id: RequestId(4),
+            song_id: SongId(5),
+            title: "Africa".to_owned(),
+        }),
+    });
+}
+
+#[test]
+fn queue_refusal_codes_wire_format() {
+    let wire = |message: &UserMessage| serde_json::to_string(message).unwrap();
+    assert_eq!(
+        wire(&UserMessage::TooManyPlayers { max: 4 }),
+        r#"{"code":"tooManyPlayers","params":{"max":4}}"#
+    );
+    assert_eq!(
+        wire(&UserMessage::SongPreparing),
+        r#"{"code":"songPreparing"}"#
+    );
 }
 
 #[test]

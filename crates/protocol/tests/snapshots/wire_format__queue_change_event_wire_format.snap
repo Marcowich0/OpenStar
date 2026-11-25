@@ -1,0 +1,18 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "ChangeEvent\n{\n    actor: Actor::Member { member_id: PartyMemberId(1), }, event:\n    PartyEvent::RequestMovedUp(RequestChange\n    {\n        request_id: RequestId(4), song_id: SongId(5), title:\n        \"Africa\".to_owned(),\n    }),\n}"
+---
+{
+  "actor": {
+    "kind": "member",
+    "memberId": 1
+  },
+  "event": {
+    "code": "requestMovedUp",
+    "params": {
+      "requestId": 4,
+      "songId": 5,
+      "title": "Africa"
+    }
+  }
+}

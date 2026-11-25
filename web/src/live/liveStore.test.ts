@@ -96,6 +96,8 @@ describe("live store", () => {
           startedAtMs: 1,
           members: [],
           phones: [],
+          queue: [],
+          head: null,
         },
         change: {
           actor: { kind: "stage" },
