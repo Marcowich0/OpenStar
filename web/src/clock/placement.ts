@@ -33,9 +33,22 @@ export function placeReading<R extends { captureTime: number }>(
   reading: R,
   micDelayMs: number,
 ): PlacedReading<R> | null {
-  const moment = reading.captureTime - micDelayMs;
+  const songTime = placedSongTime(clock, reading.captureTime, micDelayMs);
+  return songTime === null ? null : { ...reading, songTime };
+}
+
+/**
+ * The Song time `placeReading` would give a reading captured at `captureTime`
+ * (ms on the Stage's clock), without building a new reading: the Stage's
+ * Pitch buffers place about 100 readings a second per Mic this way.
+ */
+export function placedSongTime(
+  clock: PlacementClock,
+  captureTime: number,
+  micDelayMs: number,
+): number | null {
+  const moment = captureTime - micDelayMs;
   if (!clock.playingAt(moment)) return null;
   if (clock.lastSeekAt !== null && moment < clock.lastSeekAt) return null;
-  const songTime = clock.songTimeAt(moment);
-  return songTime === null ? null : { ...reading, songTime };
+  return clock.songTimeAt(moment);
 }
