@@ -60,54 +60,56 @@ pub fn party_colour(favourite: PaletteKey, held: &[PaletteKey]) -> Option<Palett
 }
 
 /// Joins `phone_id` to `party` as the Profile `profile_id`, whose favourite
-/// colour is `favourite`. A Profile already in the Party adds no member and
-/// keeps its colour; a new one gets [`party_colour`], or is refused with
-/// [`UserMessage::PartyFull`] (and nothing changes). A Phone that was joined
-/// as someone else switches; that member stays in the Party.
+/// colour is `favourite` (see [`enter_profile`]). A Phone that was joined as
+/// someone else switches; that member stays in the Party.
 pub fn join_phone(
     party: &mut PartySnapshot,
     phone_id: PhoneId,
     profile_id: ProfileId,
     favourite: PaletteKey,
 ) -> Result<Joined, UserMessage> {
-    let identity = Identity::Profile { profile_id };
-    let existing = party
-        .members
-        .iter()
-        .find(|member| member.identity == identity)
-        .map(|member| member.member_id);
-    let joined = match existing {
-        Some(member_id) => Joined {
-            member_id,
-            new_member: false,
-        },
-        None => {
-            let held: Vec<PaletteKey> = party.members.iter().map(|m| m.colour).collect();
-            let colour = party_colour(favourite, &held).ok_or(UserMessage::PartyFull)?;
-            let member_id = next_member_id(party);
-            party.members.push(PartyMember {
-                member_id,
-                identity,
-                colour,
-                favourite_taken: colour != favourite,
-                on_phone: false,
-            });
-            Joined {
-                member_id,
-                new_member: true,
-            }
-        }
-    };
+    let joined = enter_profile(party, profile_id, favourite)?;
     use_on_phone(party, phone_id, joined.member_id);
     Ok(joined)
 }
 
-/// Joins `phone_id` to `party` as a new Guest named `name` (already through
-/// the name rules) with `colour` and `avatar`, starting on Medium. Refused,
-/// with nothing changed, with [`UserMessage::PartyFull`] when twelve colours
-/// are held, [`UserMessage::ColourTaken`] when `colour` is held and
-/// [`UserMessage::NameTakenTonight`] when a Guest has the name. A Phone that
-/// was joined as someone else switches; that member stays in the Party.
+/// Makes the Profile `profile_id`, whose favourite colour is `favourite`, a
+/// member of `party` with no Phone (seating it on a Line-up). A Profile
+/// already in the Party adds no member and keeps its colour; a new one gets
+/// [`party_colour`], or is refused with [`UserMessage::PartyFull`] (and
+/// nothing changes).
+pub fn enter_profile(
+    party: &mut PartySnapshot,
+    profile_id: ProfileId,
+    favourite: PaletteKey,
+) -> Result<Joined, UserMessage> {
+    let identity = Identity::Profile { profile_id };
+    if let Some(member) = party.members.iter().find(|m| m.identity == identity) {
+        return Ok(Joined {
+            member_id: member.member_id,
+            new_member: false,
+        });
+    }
+    let held: Vec<PaletteKey> = party.members.iter().map(|m| m.colour).collect();
+    let colour = party_colour(favourite, &held).ok_or(UserMessage::PartyFull)?;
+    let member_id = next_member_id(party);
+    party.members.push(PartyMember {
+        member_id,
+        identity,
+        colour,
+        favourite_taken: colour != favourite,
+        on_phone: false,
+        singing: false,
+    });
+    Ok(Joined {
+        member_id,
+        new_member: true,
+    })
+}
+
+/// Joins `phone_id` to `party` as a new Guest (see [`enter_guest`]). A
+/// Phone that was joined as someone else switches; that member stays in the
+/// Party.
 pub fn join_guest(
     party: &mut PartySnapshot,
     phone_id: PhoneId,
@@ -115,6 +117,25 @@ pub fn join_guest(
     colour: PaletteKey,
     avatar: Avatar,
 ) -> Result<Joined, UserMessage> {
+    let member_id = enter_guest(party, name, colour, avatar)?;
+    use_on_phone(party, phone_id, member_id);
+    Ok(Joined {
+        member_id,
+        new_member: true,
+    })
+}
+
+/// Adds a new Guest named `name` (already through the name rules) with
+/// `colour` and `avatar` to `party`, starting on Medium, with no Phone.
+/// Refused, with nothing changed, with [`UserMessage::PartyFull`] when
+/// twelve colours are held, [`UserMessage::ColourTaken`] when `colour` is
+/// held and [`UserMessage::NameTakenTonight`] when a Guest has the name.
+pub fn enter_guest(
+    party: &mut PartySnapshot,
+    name: &CheckedName,
+    colour: PaletteKey,
+    avatar: Avatar,
+) -> Result<PartyMemberId, UserMessage> {
     if is_full(party) {
         return Err(UserMessage::PartyFull);
     }
@@ -135,12 +156,9 @@ pub fn join_guest(
         colour,
         favourite_taken: false,
         on_phone: false,
+        singing: false,
     });
-    use_on_phone(party, phone_id, member_id);
-    Ok(Joined {
-        member_id,
-        new_member: true,
-    })
+    Ok(member_id)
 }
 
 /// Edits member `member_id` inside the Party. `name` (already through the

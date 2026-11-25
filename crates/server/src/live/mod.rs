@@ -29,11 +29,12 @@ use std::sync::Arc;
 
 use openstar_protocol::library::SongId;
 use openstar_protocol::mics::MicKey;
-use openstar_protocol::profile::{NewProfile, Profile, ProfileEdit, ProfileId};
+use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
-    MemberEdit, MicId, PartyEvent, PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request,
-    RequestChange, RequestId, RequestKind, ServerMessage, StageId, UserMessage,
+    LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMemberId, PartySnapshot, PhoneId,
+    QueueMove, Request, RequestChange, RequestId, RequestKind, SeatWho, ServerMessage, StageId,
+    UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
@@ -246,8 +247,8 @@ impl LiveState {
             Some(party) => store::load_last_local_mics(&db, &party.party_id).await?,
             None => HashMap::new(),
         };
-        if let Some(line_up) = party.as_mut().and_then(|party| party.line_up.as_mut()) {
-            line_up::check(line_up, &HashSet::new());
+        if let Some(party) = party.as_mut() {
+            refresh_computed(party, &HashSet::new());
         }
         let mut stages = HashMap::new();
         stages.insert(
@@ -508,6 +509,14 @@ impl LiveState {
             Ok(ClientMessage::RemoveMember { member_id }) => {
                 let removed = self.remove_member(id, member_id).await;
                 self.refuse_on_error(id, removed);
+            }
+            Ok(ClientMessage::EditLineUp { request_id, edit }) => {
+                let edited = self.edit_line_up(id, request_id, edit, now_ms).await;
+                self.refuse_on_error(id, edited);
+            }
+            Ok(ClientMessage::SetMyDifficulty { difficulty }) => {
+                let set = self.set_my_difficulty(id, difficulty).await;
+                self.refuse_on_error(id, set);
             }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
         }
@@ -1178,6 +1187,274 @@ impl LiveState {
         Ok(())
     }
 
+    /// Edits the waiting Line-up of Request `request_id`, from connection
+    /// `id` (a Remote command), stores it and tells everyone. Start
+    /// availability and warnings are recomputed before the snapshot goes out.
+    async fn edit_line_up(
+        &mut self,
+        id: ConnectionId,
+        request_id: RequestId,
+        edit: LineUpEdit,
+        now_ms: i64,
+    ) -> Result<(), UserMessage> {
+        let actor = self.remote_actor(id)?;
+        let mut party = self.party()?;
+        let mut line_up = party
+            .line_up
+            .clone()
+            .filter(|line_up| line_up.request_id == request_id)
+            .ok_or(UserMessage::LineUpNotWaiting)?;
+        let index = |seat: u32| usize::try_from(seat).unwrap_or(usize::MAX);
+        let event = match edit {
+            LineUpEdit::SetWho { seat, who } => {
+                return self
+                    .seat(party, line_up, Some(index(seat)), who, actor, now_ms)
+                    .await;
+            }
+            LineUpEdit::AddSeat { who } => {
+                return self.seat(party, line_up, None, who, actor, now_ms).await;
+            }
+            LineUpEdit::SetMic { seat, mic } => {
+                line_up::set_mic(&party, &mut line_up, index(seat), mic, &self.local_mics)?;
+                PartyEvent::LineUpChanged
+            }
+            LineUpEdit::SetVoice { seat, voice } => {
+                let member_id = line_up::set_voice(&mut line_up, index(seat), voice)?.member_id;
+                let name = self.member_name(&party, member_id).await?;
+                PartyEvent::SeatVoice {
+                    member_id,
+                    name,
+                    voice,
+                }
+            }
+            LineUpEdit::SetDifficulty { seat, difficulty } => {
+                let member_id =
+                    line_up::set_difficulty(&mut line_up, index(seat), difficulty)?.member_id;
+                let name = self.member_name(&party, member_id).await?;
+                PartyEvent::SeatDifficulty {
+                    member_id,
+                    name,
+                    difficulty,
+                }
+            }
+            LineUpEdit::RemoveSeat { seat } => {
+                line_up::remove_seat(&mut line_up, index(seat))?;
+                PartyEvent::LineUpChanged
+            }
+        };
+        party.line_up = Some(line_up);
+        self.commit_queue(party, actor, event).await
+    }
+
+    /// Seats `who` in `seat` of `line_up` (a new last seat when `None`),
+    /// entering it into the Party first when it is not a member: an
+    /// existing Profile, a new Guest or a new Profile created in the same
+    /// transaction. Stores it and tells everyone; a refusal changes and
+    /// creates nothing.
+    async fn seat(
+        &mut self,
+        mut party: PartySnapshot,
+        mut line_up: LineUp,
+        seat: Option<usize>,
+        who: SeatWho,
+        actor: Actor,
+        now_ms: i64,
+    ) -> Result<(), UserMessage> {
+        let entering = match who {
+            SeatWho::Member { member_id } => Entering::Member(member_id),
+            SeatWho::Profile { profile_id } => {
+                let profile = profiles::get(&self.db, profile_id)
+                    .await
+                    .map_err(|error| server_error(&error, "reading a Profile to seat"))?
+                    .ok_or(UserMessage::ProfileNotFound)?;
+                Entering::Profile {
+                    profile_id,
+                    favourite: profile.favourite_colour,
+                }
+            }
+            SeatWho::Guest(guest) => {
+                let name = profiles::check_name(&guest.name)?;
+                self.refuse_profile_name(&name).await?;
+                Entering::Guest { name, guest }
+            }
+            SeatWho::NewProfile(new) => {
+                let name = profiles::check_name(&new.name)?;
+                refuse_new_profile(&party, &name)?;
+                Entering::NewProfile { name, new }
+            }
+        };
+        let last_difficulties: HashMap<ProfileId, Difficulty> = profiles::list(&self.db)
+            .await
+            .map_err(|error| server_error(&error, "reading Profiles for a Line-up"))?
+            .into_iter()
+            .map(|profile| (profile.id, profile.last_difficulty))
+            .collect();
+        let mics = line_up::MicChoices {
+            local_mics: self.local_mics.clone(),
+            last_local_mics: self.stage().last_local_mics.clone(),
+        };
+        let (party, seating) = self
+            .db
+            .call(move |conn| {
+                let tx = conn.transaction()?;
+                let entered = match entering {
+                    Entering::Member(member_id) => Ok((member_id, false, false)),
+                    Entering::Profile {
+                        profile_id,
+                        favourite,
+                    } => party::enter_profile(&mut party, profile_id, favourite)
+                        .map(|joined| (joined.member_id, joined.new_member, false)),
+                    Entering::Guest { name, guest } => {
+                        party::enter_guest(&mut party, &name, guest.colour, guest.avatar)
+                            .map(|member_id| (member_id, true, false))
+                    }
+                    Entering::NewProfile { name, new } => {
+                        match profiles::create_in(&tx, &name, &new, now_ms)? {
+                            Ok(profile) => party::enter_profile(
+                                &mut party,
+                                profile.id,
+                                profile.favourite_colour,
+                            )
+                            .map(|joined| (joined.member_id, joined.new_member, true)),
+                            Err(refused) => Err(refusal(refused)),
+                        }
+                    }
+                };
+                let (member_id, new_member, created) = match entered {
+                    Ok(entered) => entered,
+                    Err(refused) => return Ok(Err(refused)),
+                };
+                let seated = match line_up::seat_member(
+                    &party,
+                    &mut line_up,
+                    seat,
+                    member_id,
+                    &last_difficulties,
+                    &mics,
+                ) {
+                    Ok(seated) => seated,
+                    Err(refused) => return Ok(Err(refused)),
+                };
+                party.line_up = Some(line_up);
+                let member = party
+                    .members
+                    .iter()
+                    .find(|member| new_member && member.member_id == member_id);
+                store::save_seating_in(&tx, &party, member)?;
+                tx.commit()?;
+                Ok(Ok((
+                    party,
+                    Seating {
+                        member_id,
+                        new_member,
+                        moved: seated.moved,
+                        created,
+                    },
+                )))
+            })
+            .await
+            .map_err(|error| server_error(&error, "storing a Line-up seat"))??;
+        let member_id = seating.member_id;
+        let name = self.member_name(&party, member_id).await?;
+        let event = if seating.new_member {
+            let colour = party
+                .members
+                .iter()
+                .find(|member| member.member_id == member_id)
+                .map(|member| member.colour)
+                .ok_or(UserMessage::ServerError)?;
+            PartyEvent::MemberJoined {
+                member_id,
+                name,
+                colour,
+            }
+        } else if seating.moved {
+            PartyEvent::SeatMoved { member_id, name }
+        } else {
+            PartyEvent::LineUpChanged
+        };
+        self.stage_mut().party = Some(party);
+        if seating.created {
+            self.hub.send_all(&ServerMessage::Changed {
+                topics: vec![ChangeTopic::Profiles],
+            });
+        }
+        self.party_changed(ChangeEvent { actor, event });
+        Ok(())
+    }
+
+    /// "My Difficulty for the next Song" from connection `id`'s joined
+    /// Phone: its member's seat when seated, otherwise the Difficulty its
+    /// next seat starts at (a Guest's Party Difficulty, a Profile's last
+    /// Difficulty).
+    async fn set_my_difficulty(
+        &mut self,
+        id: ConnectionId,
+        difficulty: Difficulty,
+    ) -> Result<(), UserMessage> {
+        let member_id = self
+            .joined_phone(id)
+            .ok_or(UserMessage::NotInParty)?
+            .member_id;
+        let actor = Actor::Member { member_id };
+        let mut party = self.party()?;
+        let name = self.member_name(&party, member_id).await?;
+        let seated = party.line_up.as_mut().is_some_and(|line_up| {
+            let mut seated = false;
+            for seat in &mut line_up.seats {
+                if seat.member_id == member_id {
+                    seat.difficulty = difficulty;
+                    seated = true;
+                }
+            }
+            seated
+        });
+        if seated {
+            let event = PartyEvent::SeatDifficulty {
+                member_id,
+                name,
+                difficulty,
+            };
+            return self.commit_queue(party, actor, event).await;
+        }
+        let member = party
+            .members
+            .iter_mut()
+            .find(|member| member.member_id == member_id)
+            .ok_or(UserMessage::MemberNotFound)?;
+        match &mut member.identity {
+            Identity::Guest {
+                difficulty: next, ..
+            } => {
+                *next = difficulty;
+                let party_id = party.party_id.clone();
+                let member = member.clone();
+                self.db
+                    .call(move |conn| store::update_member_in(conn, &party_id, &member))
+                    .await
+                    .map_err(|error| server_error(&error, "storing a Guest's Difficulty"))?;
+            }
+            &mut Identity::Profile { profile_id } => {
+                profiles::set_last_difficulty(&self.db, profile_id, difficulty)
+                    .await
+                    .map_err(|error| server_error(&error, "storing a Profile's Difficulty"))?;
+                self.hub.send_all(&ServerMessage::Changed {
+                    topics: vec![ChangeTopic::Profiles],
+                });
+            }
+        }
+        self.stage_mut().party = Some(party);
+        self.party_changed(ChangeEvent {
+            actor,
+            event: PartyEvent::NextDifficulty {
+                member_id,
+                name,
+                difficulty,
+            },
+        });
+        Ok(())
+    }
+
     /// The name member `member_id` of `party` goes by now.
     async fn member_name(
         &self,
@@ -1259,9 +1536,7 @@ impl LiveState {
         let Some(party) = self.stage_mut().party.as_mut() else {
             return;
         };
-        if let Some(line_up) = party.line_up.as_mut() {
-            line_up::check(line_up, &blocked);
-        }
+        refresh_computed(party, &blocked);
         let party = party.clone();
         self.hub
             .send_all(&ServerMessage::PartyChanged { party, change });
@@ -1279,6 +1554,44 @@ impl LiveState {
     fn reject(&mut self, id: ConnectionId, reason: UserMessage) {
         self.hub.send_to(id, &ServerMessage::Rejected { reason });
     }
+}
+
+/// Recomputes what the server derives in a snapshot: the Line-up's Start
+/// availability and warnings, and which members are singing.
+fn refresh_computed(party: &mut PartySnapshot, blocked_phones: &HashSet<PhoneId>) {
+    if let Some(line_up) = party.line_up.as_mut() {
+        line_up::check(line_up, blocked_phones);
+    }
+    line_up::refresh_singing(party);
+}
+
+/// Who takes a Line-up seat, once checked against the database: a member,
+/// or someone who enters the Party with the seat.
+enum Entering {
+    Member(PartyMemberId),
+    Profile {
+        profile_id: ProfileId,
+        favourite: openstar_protocol::profile::PaletteKey,
+    },
+    Guest {
+        name: profiles::CheckedName,
+        guest: openstar_protocol::NewGuest,
+    },
+    NewProfile {
+        name: profiles::CheckedName,
+        new: NewProfile,
+    },
+}
+
+/// What seating someone on the Line-up did.
+struct Seating {
+    member_id: PartyMemberId,
+    /// The member entered the Party with this seat.
+    new_member: bool,
+    /// The member sat in another seat, which was taken off.
+    moved: bool,
+    /// A new Profile was created for the seat.
+    created: bool,
 }
 
 /// Refuses a new Profile named `name` in `party`: a Guest has the name, or

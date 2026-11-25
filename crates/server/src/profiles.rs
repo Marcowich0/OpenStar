@@ -241,6 +241,24 @@ pub(crate) fn record_sung_in(
     Ok(changed > 0)
 }
 
+/// Sets the last Difficulty of the Profile, which its next seat starts at
+/// ("My Difficulty for the next Song" from a Phone that is not seated).
+/// False when no Profile has this id.
+pub(crate) async fn set_last_difficulty(
+    db: &Database,
+    id: ProfileId,
+    difficulty: Difficulty,
+) -> anyhow::Result<bool> {
+    db.call(move |conn| {
+        let changed = conn.execute(
+            "UPDATE profiles SET last_difficulty = ?1 WHERE id = ?2",
+            params![difficulty.as_str(), id.0],
+        )?;
+        Ok(changed > 0)
+    })
+    .await
+}
+
 /// [`record_sung_in`] on its own.
 #[cfg(test)]
 async fn record_sung(

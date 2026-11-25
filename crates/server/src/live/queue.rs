@@ -136,6 +136,7 @@ mod tests {
                 colour: PaletteKey::ALL[n as usize - 1],
                 favourite_taken: false,
                 on_phone: true,
+                singing: false,
             });
         }
         party

@@ -1,6 +1,7 @@
 //! The Line-up's own rules, free of the task and the database: how a
-//! Request's Line-up is prefilled when it reaches the head, when Start may
-//! be pressed, and which warnings the screens show.
+//! Request's Line-up is prefilled when it reaches the head, how it is
+//! edited while it waits, when Start may be pressed, and which warnings the
+//! screens show.
 
 use std::collections::{HashMap, HashSet};
 
@@ -8,7 +9,7 @@ use openstar_protocol::mics::MicKey;
 use openstar_protocol::profile::{Difficulty, ProfileId};
 use openstar_protocol::{
     Identity, LineUp, LineUpWarning, PartyMember, PartyMemberId, PartySnapshot, PhoneId, Request,
-    SEATS, Seat, SeatVoice,
+    SEATS, Seat, SeatVoice, UserMessage,
 };
 
 /// What the Mic prefill chooses from, besides the Party's joined Phones.
@@ -107,6 +108,196 @@ pub fn starting_difficulty(
     }
 }
 
+/// What [`seat_member`] did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Seated {
+    /// The member sat in another seat, which was taken off.
+    pub moved: bool,
+}
+
+/// Puts Party member `member_id` of `party` in `seat` of `line_up`, or in a
+/// new last seat when `seat` is `None` (Add a singer, refused with
+/// [`UserMessage::TooManyPlayers`] once [`SEATS`] seats are filled).
+///
+/// A member who sits in another seat moves: that seat is taken off and the
+/// member keeps its Difficulty (and its Mic when the seat it goes to has
+/// none of its own); anyone else starts at [`starting_difficulty`]. The
+/// seat keeps its Voice and a Local mic; a Phone that is not the member's
+/// own is replaced by the Mic prefill rule. A new seat takes the Voice the
+/// prefill would give its place. Nothing changes when refused.
+pub fn seat_member(
+    party: &PartySnapshot,
+    line_up: &mut LineUp,
+    seat: Option<usize>,
+    member_id: PartyMemberId,
+    last_difficulties: &HashMap<ProfileId, Difficulty>,
+    mics: &MicChoices,
+) -> Result<Seated, UserMessage> {
+    let member = party
+        .members
+        .iter()
+        .find(|member| member.member_id == member_id)
+        .ok_or(UserMessage::MemberNotFound)?;
+    if let Some(index) = seat {
+        let current = line_up.seats.get(index).ok_or(UserMessage::SeatNotFound)?;
+        if current.member_id == member_id {
+            return Ok(Seated { moved: false });
+        }
+    }
+    let old = line_up
+        .seats
+        .iter()
+        .position(|seated| seated.member_id == member_id);
+    if seat.is_none() && old.is_none() && line_up.seats.len() >= SEATS {
+        return Err(UserMessage::TooManyPlayers {
+            max: u32::try_from(SEATS).unwrap_or(u32::MAX),
+        });
+    }
+    let carried = old.map(|old| line_up.seats.remove(old));
+    let difficulty = carried.as_ref().map_or_else(
+        || starting_difficulty(member, last_difficulties),
+        |seat| seat.difficulty,
+    );
+    let carried_mic = carried.and_then(|seat| seat.mic);
+    let index = match (seat, old) {
+        (Some(index), Some(old)) if old < index => Some(index - 1),
+        (seat, _) => seat,
+    };
+    let own = |mic: &MicKey| match mic {
+        MicKey::LocalMic { .. } => true,
+        MicKey::Phone { phone_id } => party
+            .phones
+            .iter()
+            .any(|phone| phone.phone_id.0 == *phone_id && phone.member_id == member_id),
+    };
+    let kept = index
+        .and_then(|index| line_up.seats[index].mic.clone())
+        .filter(|mic| own(mic));
+    let mic = match kept.or(carried_mic) {
+        Some(mic) => Some(mic),
+        None => {
+            let mut taken: Vec<MicKey> = line_up
+                .seats
+                .iter()
+                .enumerate()
+                .filter(|(other, _)| Some(*other) != index)
+                .filter_map(|(_, seat)| seat.mic.clone())
+                .collect();
+            prefill_mic(party, member_id, mics, &mut taken)
+        }
+    };
+    match index {
+        Some(index) => {
+            let seat = &mut line_up.seats[index];
+            seat.member_id = member_id;
+            seat.mic = mic;
+            seat.difficulty = difficulty;
+        }
+        None => {
+            let voice = if line_up.duet && line_up.seats.len() % 2 == 1 {
+                SeatVoice::P2
+            } else {
+                SeatVoice::P1
+            };
+            line_up.seats.push(Seat {
+                member_id,
+                mic,
+                voice,
+                difficulty,
+            });
+        }
+    }
+    Ok(Seated {
+        moved: old.is_some(),
+    })
+}
+
+/// Sets the Mic of `seat`: a Phone joined to `party` or one of the
+/// switched-on `local_mics` ([`UserMessage::MicNotAvailable`] otherwise),
+/// and not the Mic of another seat ([`UserMessage::MicInUse`]).
+pub fn set_mic(
+    party: &PartySnapshot,
+    line_up: &mut LineUp,
+    seat: usize,
+    mic: MicKey,
+    local_mics: &[String],
+) -> Result<(), UserMessage> {
+    if seat >= line_up.seats.len() {
+        return Err(UserMessage::SeatNotFound);
+    }
+    let available = match &mic {
+        MicKey::Phone { phone_id } => party.phones.iter().any(|p| p.phone_id.0 == *phone_id),
+        MicKey::LocalMic { local_mic_id } => local_mics.contains(local_mic_id),
+    };
+    if !available {
+        return Err(UserMessage::MicNotAvailable);
+    }
+    let in_use = line_up
+        .seats
+        .iter()
+        .enumerate()
+        .any(|(other, s)| other != seat && s.mic.as_ref() == Some(&mic));
+    if in_use {
+        return Err(UserMessage::MicInUse);
+    }
+    line_up.seats[seat].mic = Some(mic);
+    Ok(())
+}
+
+/// Sets the Voice of `seat`; refused with [`UserMessage::NotADuet`] for a
+/// one-Voice Song.
+pub fn set_voice(
+    line_up: &mut LineUp,
+    seat: usize,
+    voice: SeatVoice,
+) -> Result<&Seat, UserMessage> {
+    if !line_up.duet {
+        return Err(UserMessage::NotADuet);
+    }
+    let seat = line_up
+        .seats
+        .get_mut(seat)
+        .ok_or(UserMessage::SeatNotFound)?;
+    seat.voice = voice;
+    Ok(seat)
+}
+
+/// Sets the Difficulty of `seat`.
+pub fn set_difficulty(
+    line_up: &mut LineUp,
+    seat: usize,
+    difficulty: Difficulty,
+) -> Result<&Seat, UserMessage> {
+    let seat = line_up
+        .seats
+        .get_mut(seat)
+        .ok_or(UserMessage::SeatNotFound)?;
+    seat.difficulty = difficulty;
+    Ok(seat)
+}
+
+/// Takes the Player in `seat` off the Song: the seat goes, and the seats
+/// after it move up. Returns the seat taken off.
+pub fn remove_seat(line_up: &mut LineUp, seat: usize) -> Result<Seat, UserMessage> {
+    if seat >= line_up.seats.len() {
+        return Err(UserMessage::SeatNotFound);
+    }
+    Ok(line_up.seats.remove(seat))
+}
+
+/// Marks every member of `party` who sits in its waiting Line-up as
+/// singing.
+pub fn refresh_singing(party: &mut PartySnapshot) {
+    let seated: HashSet<PartyMemberId> = party
+        .line_up
+        .iter()
+        .flat_map(|line_up| line_up.seats.iter().map(|seat| seat.member_id))
+        .collect();
+    for member in &mut party.members {
+        member.singing = seated.contains(&member.member_id);
+    }
+}
+
 /// Sets whether `line_up` can start and which warnings it shows, given
 /// the Phones that reported their mic could not open.
 ///
@@ -184,6 +375,7 @@ mod tests {
                 colour: PaletteKey::ALL[n as usize - 1],
                 favourite_taken: false,
                 on_phone: false,
+                singing: false,
             });
         }
         for (index, difficulty) in guests.iter().enumerate() {
@@ -200,6 +392,7 @@ mod tests {
                 colour: PaletteKey::ALL[n as usize - 1],
                 favourite_taken: false,
                 on_phone: false,
+                singing: false,
             });
         }
         party
@@ -576,5 +769,229 @@ mod tests {
                 },
             ]
         );
+    }
+
+    // Editing the waiting Line-up.
+
+    fn waiting(duet: bool, seats: Vec<Seat>) -> LineUp {
+        LineUp {
+            request_id: RequestId(9),
+            duet,
+            seats,
+            can_start: false,
+            warnings: Vec::new(),
+        }
+    }
+
+    fn hard(mut seat: Seat) -> Seat {
+        seat.difficulty = Difficulty::Hard;
+        seat
+    }
+
+    #[test]
+    fn choosing_a_member_who_sits_in_another_seat_moves_them_and_empties_the_old_seat() {
+        let mut party = party(3, &[]);
+        join_phone(&mut party, "phone-3", 3);
+        let mut line_up = waiting(
+            false,
+            vec![
+                seat(1, local("red"), SeatVoice::P1),
+                seat(2, local("blue"), SeatVoice::P1),
+                hard(seat(3, phone("phone-3"), SeatVoice::P1)),
+            ],
+        );
+        let seated = seat_member(
+            &party,
+            &mut line_up,
+            Some(0),
+            member(3),
+            &HashMap::new(),
+            &MicChoices::default(),
+        )
+        .unwrap();
+        assert!(seated.moved);
+        // Member 3 takes seat 0 with seat 0's Local mic and keeps its own
+        // Difficulty; its old seat is gone, so the Line-up has two seats.
+        assert_eq!(
+            line_up.seats,
+            vec![
+                hard(seat(3, local("red"), SeatVoice::P1)),
+                seat(2, local("blue"), SeatVoice::P1),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_new_occupant_does_not_sing_on_someone_elses_phone() {
+        let mut party = party(2, &[]);
+        join_phone(&mut party, "phone-1", 1);
+        join_phone(&mut party, "phone-2", 2);
+        let mut line_up = waiting(false, vec![seat(1, phone("phone-1"), SeatVoice::P2)]);
+        let last = HashMap::from([(ProfileId(2), Difficulty::Easy)]);
+        let seated = seat_member(
+            &party,
+            &mut line_up,
+            Some(0),
+            member(2),
+            &last,
+            &MicChoices::default(),
+        )
+        .unwrap();
+        assert!(!seated.moved);
+        assert_eq!(
+            line_up.seats,
+            vec![Seat {
+                member_id: member(2),
+                mic: phone("phone-2"),
+                voice: SeatVoice::P2,
+                difficulty: Difficulty::Easy,
+            }]
+        );
+    }
+
+    #[test]
+    fn only_party_members_can_be_seated_in_a_seat_that_exists() {
+        let party = party(2, &[]);
+        let mut line_up = waiting(false, vec![seat(1, None, SeatVoice::P1)]);
+        let mut seat_in = |seat, n| {
+            seat_member(
+                &party,
+                &mut line_up,
+                seat,
+                member(n),
+                &HashMap::new(),
+                &MicChoices::default(),
+            )
+        };
+        assert_eq!(seat_in(Some(0), 7), Err(UserMessage::MemberNotFound));
+        assert_eq!(seat_in(Some(1), 2), Err(UserMessage::SeatNotFound));
+    }
+
+    #[test]
+    fn add_a_singer_adds_a_seat_only_while_fewer_than_seats_are_filled() {
+        let party = party(SEATS as u32 + 1, &[]);
+        let mut line_up = waiting(true, Vec::new());
+        for n in 1..=SEATS as u32 {
+            let seated = seat_member(
+                &party,
+                &mut line_up,
+                None,
+                member(n),
+                &HashMap::new(),
+                &MicChoices::default(),
+            )
+            .unwrap();
+            assert!(!seated.moved);
+        }
+        assert_eq!(who(&line_up), (1..=SEATS as u32).collect::<Vec<_>>());
+        // In a duet, added seats alternate the Voices like the prefill.
+        assert_eq!(line_up.seats[1].voice, SeatVoice::P2);
+        let mut add = |n| {
+            seat_member(
+                &party,
+                &mut line_up,
+                None,
+                member(n),
+                &HashMap::new(),
+                &MicChoices::default(),
+            )
+        };
+        assert_eq!(
+            add(SEATS as u32 + 1),
+            Err(UserMessage::TooManyPlayers { max: SEATS as u32 })
+        );
+        // Adding someone already seated moves them to a new last seat.
+        assert!(add(1).unwrap().moved);
+        assert_eq!(
+            who(&line_up),
+            (2..=SEATS as u32).chain([1]).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn a_seats_mic_is_a_joined_phone_or_a_switched_on_local_mic_not_in_another_seat() {
+        let mut party = party(2, &[]);
+        join_phone(&mut party, "phone-1", 1);
+        let mut line_up = waiting(
+            false,
+            vec![
+                seat(1, None, SeatVoice::P1),
+                seat(2, local("red"), SeatVoice::P1),
+            ],
+        );
+        let switched_on = vec!["red".to_owned(), "blue".to_owned()];
+        let mic = |key: Option<MicKey>| key.unwrap();
+        assert_eq!(
+            set_mic(&party, &mut line_up, 0, mic(local("red")), &switched_on),
+            Err(UserMessage::MicInUse)
+        );
+        assert_eq!(
+            set_mic(&party, &mut line_up, 0, mic(local("green")), &switched_on),
+            Err(UserMessage::MicNotAvailable)
+        );
+        assert_eq!(
+            set_mic(&party, &mut line_up, 0, mic(phone("phone-9")), &switched_on),
+            Err(UserMessage::MicNotAvailable)
+        );
+        assert_eq!(
+            set_mic(&party, &mut line_up, 2, mic(local("blue")), &switched_on),
+            Err(UserMessage::SeatNotFound)
+        );
+        // Any joined Phone may serve a seat, also another member's.
+        set_mic(&party, &mut line_up, 1, mic(phone("phone-1")), &switched_on).unwrap();
+        set_mic(&party, &mut line_up, 0, mic(local("red")), &switched_on).unwrap();
+        assert_eq!(line_up.seats[0].mic, local("red"));
+        assert_eq!(line_up.seats[1].mic, phone("phone-1"));
+        // Picking the Mic a seat already has changes nothing.
+        set_mic(&party, &mut line_up, 0, mic(local("red")), &switched_on).unwrap();
+    }
+
+    #[test]
+    fn voice_changes_only_in_a_duet() {
+        let mut solo = waiting(false, vec![seat(1, None, SeatVoice::P1)]);
+        assert_eq!(
+            set_voice(&mut solo, 0, SeatVoice::P2),
+            Err(UserMessage::NotADuet)
+        );
+        let mut duet = waiting(true, vec![seat(1, None, SeatVoice::P1)]);
+        set_voice(&mut duet, 0, SeatVoice::P2).unwrap();
+        assert_eq!(duet.seats[0].voice, SeatVoice::P2);
+        assert_eq!(
+            set_voice(&mut duet, 1, SeatVoice::P2),
+            Err(UserMessage::SeatNotFound)
+        );
+    }
+
+    #[test]
+    fn taking_a_player_off_the_song_removes_the_seat() {
+        let mut line_up = waiting(
+            false,
+            vec![seat(1, None, SeatVoice::P1), seat(2, None, SeatVoice::P1)],
+        );
+        assert_eq!(remove_seat(&mut line_up, 0).unwrap().member_id, member(1));
+        assert_eq!(who(&line_up), vec![2]);
+        assert_eq!(remove_seat(&mut line_up, 1), Err(UserMessage::SeatNotFound));
+    }
+
+    #[test]
+    fn a_seated_member_is_singing_and_stays_until_taken_off_the_song() {
+        let mut party = party(2, &[]);
+        party.line_up = Some(waiting(
+            false,
+            vec![seat(1, None, SeatVoice::P1), seat(2, None, SeatVoice::P1)],
+        ));
+        refresh_singing(&mut party);
+        assert!(party.members.iter().all(|member| member.singing));
+        assert_eq!(
+            super::super::party::leave(&mut party, member(1)).unwrap_err(),
+            UserMessage::MemberSinging
+        );
+
+        remove_seat(party.line_up.as_mut().unwrap(), 0).unwrap();
+        refresh_singing(&mut party);
+        assert!(!party.members[0].singing);
+        assert!(party.members[1].singing);
+        super::super::party::leave(&mut party, member(1)).unwrap();
+        assert_eq!(party.members.len(), 1);
     }
 }

@@ -47,6 +47,7 @@ function party(
       colour: memberId === 1 ? "navy" : "sky",
       favouriteTaken: false,
       onPhone: true,
+      singing: false,
     })),
     phones: [],
     queue: [],
@@ -67,6 +68,7 @@ function profileMember(
     colour,
     favouriteTaken,
     onPhone: true,
+    singing: false,
   };
 }
 
@@ -86,6 +88,7 @@ function guestMember(
     colour,
     favouriteTaken: false,
     onPhone: true,
+    singing: false,
   };
 }
 

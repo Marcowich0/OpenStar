@@ -14,6 +14,7 @@ import type { TxtRejection } from "../generated/TxtRejection";
 import type { TxtWarning } from "../generated/TxtWarning";
 import type { UserMessage } from "../generated/UserMessage";
 import { colourName } from "./colourNames";
+import { difficultyName, voiceNumber } from "./seatNames";
 import { t } from "./t";
 
 /** One handler per code of `U`, each given the message narrowed to its code. */
@@ -67,6 +68,11 @@ export const userMessageText = byCode<UserMessage>({
   playerTwice: () => t("userMessage.playerTwice"),
   memberSinging: () => t("userMessage.memberSinging"),
   useLeaveParty: () => t("userMessage.useLeaveParty"),
+  lineUpNotWaiting: () => t("userMessage.lineUpNotWaiting"),
+  seatNotFound: () => t("userMessage.seatNotFound"),
+  micInUse: () => t("userMessage.micInUse"),
+  micNotAvailable: () => t("userMessage.micNotAvailable"),
+  notADuet: () => t("userMessage.notADuet"),
 });
 
 /** An accepted change to the Party, as a toast. */
@@ -100,6 +106,23 @@ export const partyEventText = byCode<PartyEvent>({
     }),
   micBlocked: ({ params }) => t("partyEvent.micBlocked", { name: params.name }),
   micOpened: ({ params }) => t("partyEvent.micOpened", { name: params.name }),
+  lineUpChanged: () => t("partyEvent.lineUpChanged"),
+  seatMoved: ({ params }) => t("partyEvent.seatMoved", { name: params.name }),
+  seatVoice: ({ params }) =>
+    t("partyEvent.seatVoice", {
+      name: params.name,
+      voice: voiceNumber(params.voice),
+    }),
+  seatDifficulty: ({ params }) =>
+    t("partyEvent.seatDifficulty", {
+      name: params.name,
+      difficulty: difficultyName(params.difficulty),
+    }),
+  nextDifficulty: ({ params }) =>
+    t("partyEvent.nextDifficulty", {
+      name: params.name,
+      difficulty: difficultyName(params.difficulty),
+    }),
 });
 
 /**
@@ -117,7 +140,7 @@ export function lineUpWarningText(
       t("lineUpWarning.micBlocked", { name: nameOf(params.memberId) }),
     duetNeedsVoice: ({ params }) =>
       t("lineUpWarning.duetNeedsVoice", {
-        voice: params.voice === "p1" ? 1 : 2,
+        voice: voiceNumber(params.voice),
       }),
   })(warning);
 }

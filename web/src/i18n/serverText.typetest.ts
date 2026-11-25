@@ -38,6 +38,11 @@ const handlers: CodeHandlers<UserMessage> = {
   playerTwice: () => t("userMessage.playerTwice"),
   memberSinging: () => t("userMessage.memberSinging"),
   useLeaveParty: () => t("userMessage.useLeaveParty"),
+  lineUpNotWaiting: () => t("userMessage.lineUpNotWaiting"),
+  seatNotFound: () => t("userMessage.seatNotFound"),
+  micInUse: () => t("userMessage.micInUse"),
+  micNotAvailable: () => t("userMessage.micNotAvailable"),
+  notADuet: () => t("userMessage.notADuet"),
 };
 
 // A code the Rust side adds (here `queueFull`) fails until it is mapped.
@@ -69,4 +74,9 @@ export const wrongParam = byCode<PartyEvent>({
   memberLeft: ({ params }) => params.name,
   micBlocked: ({ params }) => params.name,
   micOpened: ({ params }) => params.name,
+  lineUpChanged: () => "",
+  seatMoved: ({ params }) => params.name,
+  seatVoice: ({ params }) => params.voice,
+  seatDifficulty: ({ params }) => params.difficulty,
+  nextDifficulty: ({ params }) => params.difficulty,
 });

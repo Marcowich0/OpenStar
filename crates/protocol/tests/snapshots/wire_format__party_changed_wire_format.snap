@@ -18,7 +18,8 @@ expression: "ServerMessage::PartyChanged\n{\n    party: party(), change: ChangeE
         },
         "colour": "sky",
         "favouriteTaken": true,
-        "onPhone": true
+        "onPhone": true,
+        "singing": false
       }
     ],
     "phones": [
