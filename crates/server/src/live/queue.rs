@@ -16,7 +16,8 @@ pub fn new_request_players(
     given: Option<Vec<PartyMemberId>>,
 ) -> Result<(Vec<PartyMemberId>, Option<PartyMemberId>), UserMessage> {
     match actor {
-        Actor::Stage => match given {
+        // The Admin area queues nothing; treated like the Stage.
+        Actor::Stage | Actor::Admin => match given {
             Some(players) if !players.is_empty() => Err(UserMessage::InvalidMessage),
             _ => Ok((Vec::new(), None)),
         },

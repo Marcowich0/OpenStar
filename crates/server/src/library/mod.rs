@@ -5,7 +5,9 @@
 //! One scan runs at a time. A Rescan asked for while a scan runs starts no
 //! second scan: it answers with the running scan's status. There is no
 //! filesystem watcher. When a scan finishes, every browser is sent a
-//! [`ChangeTopic::Library`] notice.
+//! [`ChangeTopic::Library`] notice, after the Party was told which Songs
+//! left the Library (were playable before the scan and are not after it),
+//! so it drops their queued Requests.
 
 mod artwork;
 mod conversion;
@@ -128,6 +130,13 @@ impl Inner {
     async fn run(self: Arc<Self>) {
         tracing::info!(songs_dir = %self.songs_dir.display(), "scanning the Library");
         let slot = Slot::outside_lanes(self.tool_path.clone(), self.cancel.subscribe());
+        let before = match self.db.call(playable_titles).await {
+            Ok(before) => before,
+            Err(error) => {
+                tracing::error!(?error, "reading the playable Songs before a scan");
+                Vec::new()
+            }
+        };
         let outcome = scan::run(
             &self.db,
             &self.songs_dir,
@@ -166,9 +175,30 @@ impl Inner {
             }
         });
         if report.is_some() {
+            match self.db.call(playable_titles).await {
+                Ok(after) => {
+                    let after: std::collections::HashSet<SongId> =
+                        after.into_iter().map(|(id, _)| id).collect();
+                    let left = before
+                        .into_iter()
+                        .filter(|(id, _)| !after.contains(id))
+                        .collect();
+                    self.live.songs_left(left).await;
+                }
+                Err(error) => tracing::error!(?error, "reading the playable Songs after a scan"),
+            }
             self.live.changed(vec![ChangeTopic::Library]).await;
         }
     }
+}
+
+/// Every playable Song with its title: what the Party may have queued.
+fn playable_titles(conn: &mut rusqlite::Connection) -> rusqlite::Result<Vec<(SongId, String)>> {
+    let mut statement =
+        conn.prepare("SELECT id, COALESCE(title, '') FROM library_files WHERE playable = 1")?;
+    statement
+        .query_map([], |row| Ok((SongId(row.get(0)?), row.get(1)?)))?
+        .collect()
 }
 
 fn server_error(error: &anyhow::Error) -> Response {
