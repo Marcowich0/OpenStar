@@ -1,0 +1,21 @@
+{
+  "description": "Both #GAP and #BPM wrong (the shape of the real case the spec names: GAP 3650 -> 753 ms, BPM 217.4 -> 216.26): the Notes start 2.9 s late and end later still. Fit to the singing recovers the sung values.",
+  "file": {
+    "gap": 3650,
+    "bpm": 217.4
+  },
+  "sung": {
+    "gap": 753,
+    "bpm": 216.26,
+    "transpose": -12,
+    "lineShifts": []
+  },
+  "seconds": 51,
+  "expect": {
+    "fitToTheSinging": {
+      "gap": 753,
+      "bpm": 216.26
+    }
+  },
+  "melody": "melody.json"
+}

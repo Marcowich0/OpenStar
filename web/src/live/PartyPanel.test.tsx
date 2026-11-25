@@ -106,12 +106,14 @@ describe("PartyPanel", () => {
     expect(screen.getByTestId("party-join-code")).toHaveTextContent("0427");
   });
 
-  it("shows a rejection by its code", () => {
+  it("shows a rejection as catalogue text", () => {
     const { store, live } = fakeStore();
     render(<PartyPanel store={store} />);
     live((h) => {
       h.onMessage({ type: "rejected", reason: { code: "notTheStage" } });
     });
-    expect(screen.getByTestId("rejection")).toHaveTextContent("notTheStage");
+    expect(screen.getByTestId("rejection")).toHaveTextContent(
+      "Only the Stage can do that",
+    );
   });
 });
