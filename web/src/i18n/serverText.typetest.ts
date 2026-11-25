@@ -54,6 +54,13 @@ const handlers: CodeHandlers<UserMessage> = {
   noResults: () => t("userMessage.noResults"),
   notABridge: () => t("userMessage.notABridge"),
   bridgeRequestNotFound: () => t("userMessage.bridgeRequestNotFound"),
+  usdbCredentialsMissing: () => t("userMessage.usdbCredentialsMissing"),
+  usdbLoginFailed: () => t("userMessage.usdbLoginFailed"),
+  usdbNotLoggedIn: () => t("userMessage.usdbNotLoggedIn"),
+  usdbUnreachable: () => t("userMessage.usdbUnreachable"),
+  usdbGaveUp: ({ params }) => t("userMessage.usdbGaveUp", params),
+  usdbUnexpectedStatus: ({ params }) =>
+    t("userMessage.usdbUnexpectedStatus", params),
 };
 
 // A code the Rust side adds (here `queueFull`) fails until it is mapped.

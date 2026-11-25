@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use openstar_test_harness::{FakeUsdb, Scripted};
+use openstar_test_harness::{FAKE_USDB_PASSWORD, FAKE_USDB_USERNAME, FakeUsdb, Scripted};
 
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(FakeUsdb::default_fixtures().join(name)).unwrap()
@@ -128,4 +128,74 @@ async fn path_traversal_does_not_leave_the_fixtures_folder() {
     ] {
         assert_eq!(get(format!("{base}{path}")).await.status(), 404, "{path}");
     }
+}
+
+async fn log_in(base: &str, user: &str, pass: &str) -> reqwest::Response {
+    reqwest::Client::new()
+        .post(format!("{base}/index.php?link=login"))
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(format!("user={user}&pass={pass}&login=Login"))
+        .send()
+        .await
+        .unwrap()
+}
+
+async fn profile_with(base: &str, cookie: Option<&str>) -> String {
+    let mut request = reqwest::Client::new().get(format!("{base}/index.php?link=profil"));
+    if let Some(cookie) = cookie {
+        request = request.header("cookie", cookie);
+    }
+    request.send().await.unwrap().text().await.unwrap()
+}
+
+#[tokio::test]
+async fn a_login_with_the_fake_credentials_gets_a_session_cookie_for_the_profile_page() {
+    let usdb = FakeUsdb::start().await;
+    let base = usdb.base_url();
+
+    let login = log_in(&base, FAKE_USDB_USERNAME, FAKE_USDB_PASSWORD).await;
+    let cookie = login.headers()["set-cookie"].to_str().unwrap().to_owned();
+    let cookie = cookie.split(';').next().unwrap();
+    assert_eq!(login.text().await.unwrap(), fixture("home.html"));
+
+    assert_eq!(
+        profile_with(&base, Some(cookie)).await,
+        fixture("profil.html")
+    );
+    assert_eq!(
+        profile_with(&base, None).await,
+        fixture("logged-out/profil.html"),
+        "without the cookie the profile page shows no login"
+    );
+}
+
+#[tokio::test]
+async fn a_login_with_other_credentials_gets_no_session_cookie() {
+    let usdb = FakeUsdb::start().await;
+    let base = usdb.base_url();
+
+    let login = log_in(&base, FAKE_USDB_USERNAME, "wrong").await;
+    assert!(login.headers().get("set-cookie").is_none());
+    assert_eq!(
+        profile_with(&base, Some("PHPSESSID=guessed")).await,
+        fixture("logged-out/profil.html")
+    );
+}
+
+#[tokio::test]
+async fn records_each_requests_user_agent_and_cookie() {
+    let usdb = FakeUsdb::start().await;
+    reqwest::Client::new()
+        .get(format!("{}/index.php?link=detail&id=1", usdb.base_url()))
+        .header("user-agent", "Tester/1")
+        .header("cookie", "a=b")
+        .send()
+        .await
+        .unwrap();
+    get(usdb.base_url()).await;
+
+    let requests = usdb.requests();
+    assert_eq!(requests[0].user_agent.as_deref(), Some("Tester/1"));
+    assert_eq!(requests[0].cookie.as_deref(), Some("a=b"));
+    assert_eq!(requests[1].cookie, None);
 }

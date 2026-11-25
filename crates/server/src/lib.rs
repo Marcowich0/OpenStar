@@ -58,6 +58,8 @@ struct AppState {
     live: LiveHandle,
     /// The background job runner.
     jobs: Jobs,
+    /// The only way to USDB.
+    usdb: usdb::UsdbClient,
     /// Scans the Library into the index, one scan at a time.
     scanner: Scanner,
     /// The time source for every timed rule (the Unlock's idle time).
@@ -109,6 +111,10 @@ impl Server {
                 library_read_only,
                 live,
                 jobs,
+                usdb: usdb::UsdbClient::with_system_timer(
+                    config.usdb_base_url.clone(),
+                    config.usdb.clone(),
+                ),
                 clock: Clock::system(),
                 pin_fingerprint: unlock::pin_fingerprint(config.admin_pin.expose()).into(),
                 test_routes: false,
@@ -192,6 +198,15 @@ impl Server {
         let jobs = self.state.jobs.clone();
         let scanner = self.state.scanner.clone();
         scanner.request();
+        // The login is checked at start (on the profile page); without
+        // credentials USDB is never contacted.
+        if self.state.config.usdb.is_some() {
+            let usdb = self.state.usdb.clone();
+            tokio::spawn(async move {
+                let state = usdb.check_login().await;
+                tracing::info!(?state, "USDB login checked");
+            });
+        }
         let shutdown = async move {
             shutdown.await;
             scanner.shutdown().await;

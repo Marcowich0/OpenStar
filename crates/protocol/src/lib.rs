@@ -14,6 +14,7 @@ pub mod pitch;
 pub mod profile;
 pub mod scoring;
 pub mod song;
+pub mod usdb;
 pub mod volume;
 
 use serde::{Deserialize, Serialize};
@@ -523,6 +524,20 @@ pub enum UserMessage {
     /// No Mic bridge waits for approval under this id (it closed, or was
     /// approved already).
     BridgeRequestNotFound,
+    /// The USDB username and password are not set, so OpenStar does not
+    /// contact USDB.
+    UsdbCredentialsMissing,
+    /// USDB did not accept the username and password.
+    UsdbLoginFailed,
+    /// USDB still answered "not logged in" after OpenStar logged in again.
+    UsdbNotLoggedIn,
+    /// USDB could not be reached.
+    UsdbUnreachable,
+    /// USDB kept answering HTTP `status` (429 or 5xx); OpenStar gave up
+    /// after backing off.
+    UsdbGaveUp { status: u16 },
+    /// USDB answered with an HTTP `status` OpenStar did not expect.
+    UsdbUnexpectedStatus { status: u16 },
 }
 
 #[cfg(test)]

@@ -30,7 +30,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::{
     AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles,
-    scores, unlock,
+    scores, unlock, usdb,
 };
 
 /// Whether an endpoint needs an Unlock.
@@ -224,6 +224,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/mic-bridges",
             NotGuarded,
             mic_bridges::read,
+        )
+        // The USDB login's status, for the Downloads section's notices.
+        .add(
+            Method::GET,
+            "/api/usdb/status",
+            NotGuarded,
+            usdb::http::status,
         )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage, but needs Stage trust (#186), not an Unlock.

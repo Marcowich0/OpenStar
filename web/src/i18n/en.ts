@@ -382,6 +382,17 @@ export const en = {
   "userMessage.notABridge": "Only a Mic bridge can do that",
   "userMessage.bridgeRequestNotFound":
     "That Mic bridge is no longer waiting for approval",
+  "userMessage.usdbCredentialsMissing":
+    "USDB is not set up: set OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD",
+  "userMessage.usdbLoginFailed":
+    "USDB login failed: check the USDB username and password",
+  "userMessage.usdbNotLoggedIn":
+    "USDB still says OpenStar is not logged in after logging in again",
+  "userMessage.usdbUnreachable": "USDB cannot be reached",
+  "userMessage.usdbGaveUp":
+    "USDB is busy (HTTP {status, number}): OpenStar gave up after waiting",
+  "userMessage.usdbUnexpectedStatus":
+    "USDB answered with HTTP {status, number}",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
