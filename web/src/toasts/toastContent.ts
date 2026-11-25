@@ -258,44 +258,56 @@ export function toastContent(
     case "songStarted":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.songStarted", { actor: name, song }),
         (song) => tParts("partyEvent.songStarted", { song }),
+        (song) => tParts("toast.youSongStarted", { song }),
       );
     case "songPaused":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name) => tParts("toast.paused", { actor: name }),
         (song) => tParts("partyEvent.songPaused", { song }),
+        (song) => tParts("toast.youPaused", { song }),
       );
     case "songResumed":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name) => tParts("toast.resumed", { actor: name }),
         (song) => tParts("partyEvent.songResumed", { song }),
+        (song) => tParts("toast.youResumed", { song }),
       );
     case "songRestarted":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.songRestarted", { actor: name, song }),
         (song) => tParts("partyEvent.songRestarted", { song }),
+        (song) => tParts("toast.youSongRestarted", { song }),
       );
     case "songEnded":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.songEnded", { actor: name, song }),
         (song) => tParts("partyEvent.songEnded", { song }),
+        (song) => tParts("toast.youSongEnded", { song }),
       );
     case "songSkipped":
       return queueChange(
         actor,
+        mine,
         event.params,
         (name, song) => tParts("toast.songSkipped", { actor: name, song }),
         (song) => tParts("partyEvent.songSkipped", { song }),
+        (song) => tParts("toast.youSongSkipped", { song }),
       );
     case "resultsShown":
       // Only the Stage reports results.
@@ -304,6 +316,7 @@ export function toastContent(
         parts: tParts("partyEvent.resultsShown", { song: event.params.title }),
       };
     case "resultsClosed":
+      if (mine) return { actor, parts: tParts("toast.youResultsClosed") };
       return actor
         ? { actor, parts: tParts("toast.resultsClosed", { actor: actor.name }) }
         : { actor, parts: tParts("partyEvent.resultsClosed") };

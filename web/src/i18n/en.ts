@@ -305,6 +305,13 @@ export const en = {
   "toast.youChanged": "You changed your name, look or colour",
   "toast.youMicBlocked": "Your mic is blocked",
   "toast.youMicOpened": "Your mic is on",
+  "toast.youSongStarted": "You started {song}",
+  "toast.youPaused": "You paused {song}",
+  "toast.youResumed": "You resumed {song}",
+  "toast.youSongRestarted": "You restarted {song}",
+  "toast.youSongEnded": "You ended {song} early",
+  "toast.youSongSkipped": "You skipped {song}",
+  "toast.youResultsClosed": "You moved on from the results",
   // A colour parameter is always a palette display name (`colourName`).
   "toast.memberLeft": "{actor} left the Party. {colour} is free",
   "toast.lineUpChanged": "{actor} changed the Line-up",

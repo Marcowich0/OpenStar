@@ -248,6 +248,24 @@ describe("a Phone's own changes", () => {
     }
   });
 
+  it("say “you” for the Song controls and leaving the results", () => {
+    const cases: [PartyEvent["code"], string][] = [
+      ["songStarted", "You started Africa"],
+      ["songPaused", "You paused Africa"],
+      ["songResumed", "You resumed Africa"],
+      ["songRestarted", "You restarted Africa"],
+      ["songEnded", "You ended Africa early"],
+      ["songSkipped", "You skipped Africa"],
+    ];
+    for (const [code, expected] of cases) {
+      const event = { code, params: africa } as PartyEvent;
+      expect(mine(byMember(1, event))).toBe(expected);
+    }
+    expect(mine(byMember(1, { code: "resultsClosed" }))).toBe(
+      "You moved on from the results",
+    );
+  });
+
   it("say “you” for changes about this Phone's member", () => {
     expect(
       mine(
