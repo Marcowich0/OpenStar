@@ -5,3 +5,4 @@ web/pnpm-lock.yaml
 *.snap
 # Saved USDB pages are served and parsed byte for byte.
 fixtures/usdb/**/*.html
+e2e/pnpm-lock.yaml

@@ -6,6 +6,7 @@ pub mod build_id;
 pub mod clock;
 mod config;
 pub mod db;
+pub mod endpoints;
 mod frontend;
 pub mod healthcheck;
 mod live;
@@ -20,13 +21,11 @@ use axum::extract::State;
 use axum::extract::ws::WebSocketUpgrade;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
 use axum::serve::{ListenerExt, TapIo};
 use std::sync::Arc;
 
 use openstar_protocol::{LibraryReadOnly, ServerInfo};
 use tokio::net::{TcpListener, TcpStream};
-use tower_http::trace::TraceLayer;
 
 use clock::Clock;
 pub use config::{Config, Secret, UsdbCredentials};
@@ -108,8 +107,9 @@ impl Server {
         self
     }
 
-    /// Mounts the routes that exist only for tests: `POST /api/test/guarded`,
-    /// a guarded endpoint that does nothing. Never called by `main`.
+    /// Mounts the routes that exist only for tests: `POST /api/test/guarded`
+    /// and `POST /api/test/library-write`, guarded endpoints that do nothing
+    /// (the second is classified as writing the Library). Never called by `main`.
     #[doc(hidden)]
     #[must_use]
     pub fn with_test_routes(mut self) -> Self {
@@ -136,25 +136,13 @@ impl Server {
 
     /// The axum app.
     pub fn router(&self) -> Router {
-        let mut router = Router::new()
-            .route("/healthz", get(healthz))
-            .route("/api/server-info", get(server_info))
-            .route(
-                "/api/unlock",
-                get(unlock::unlock_status).post(unlock::attempt),
-            )
-            .route("/api/unlock/heartbeat", post(unlock::heartbeat))
-            .route("/api/lock", post(unlock::lock));
-        if self.state.test_routes {
-            router = router.route("/api/test/guarded", post(unlock::test_guarded));
-        }
-        router
-            .route("/ws", get(websocket))
-            .route("/ws/stage", get(stage_websocket))
-            .route("/bridge/{file}", get(bridge::serve))
-            .fallback(frontend::serve)
-            .layer(TraceLayer::new_for_http())
-            .with_state(self.state.clone())
+        endpoints::router(&self.state).0
+    }
+
+    /// Every HTTP endpoint this server mounts, each classified guarded or not
+    /// guarded (see [`endpoints`]).
+    pub fn endpoints(&self) -> Vec<endpoints::Endpoint> {
+        endpoints::router(&self.state).1
     }
 
     /// Serves on `listener` until the future is dropped or the shutdown signal arrives.
@@ -195,11 +183,11 @@ fn set_nodelay(tcp: &mut TcpStream) {
 }
 
 /// Answers once the server is serving, for `openstar healthcheck`.
-async fn healthz() -> &'static str {
+pub(crate) async fn healthz() -> &'static str {
     "ok"
 }
 
-async fn server_info(State(state): State<AppState>) -> Response {
+pub(crate) async fn server_info(State(state): State<AppState>) -> Response {
     match state.db.schema_version().await {
         Ok(schema_version) => axum::Json(ServerInfo {
             version: BUILD_ID.to_owned(),
@@ -216,14 +204,20 @@ async fn server_info(State(state): State<AppState>) -> Response {
 }
 
 /// The WebSocket of every browser that is not the Stage.
-async fn websocket(State(state): State<AppState>, upgrade: WebSocketUpgrade) -> Response {
+pub(crate) async fn websocket(
+    State(state): State<AppState>,
+    upgrade: WebSocketUpgrade,
+) -> Response {
     upgrade.on_upgrade(move |socket| {
         live::connection::run(socket, state.live, live::Role::Browser, state.clock)
     })
 }
 
 /// The Stage's WebSocket: the browser that opens it becomes the active Stage.
-async fn stage_websocket(State(state): State<AppState>, upgrade: WebSocketUpgrade) -> Response {
+pub(crate) async fn stage_websocket(
+    State(state): State<AppState>,
+    upgrade: WebSocketUpgrade,
+) -> Response {
     upgrade.on_upgrade(move |socket| {
         live::connection::run(socket, state.live, live::Role::Stage, state.clock)
     })

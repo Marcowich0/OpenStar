@@ -1,3 +1,5 @@
+import type { ChangeEvent } from "../generated/ChangeEvent";
+import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { StageId } from "../generated/StageId";
 import type { UserMessage } from "../generated/UserMessage";
@@ -5,14 +7,24 @@ import type { UserMessage } from "../generated/UserMessage";
 /** Where the browser's one WebSocket stands. */
 export type LiveConnection = "connecting" | "open" | "reconnecting";
 
-/**
- * The browser's copy of the live state the server owns. Until #48 the Stage
- * state is a placeholder text; #48 replaces it with the Party.
- */
+/** The live state of the browser's Stage. */
+export interface StageState {
+  stageId: StageId;
+  /** `null` before the first Stage has opened on a fresh server. */
+  party: PartySnapshot | null;
+  /** Whether this browser is the active Stage. */
+  isStage: boolean;
+  /** Another browser became the Stage while this one was it. */
+  stageMoved: boolean;
+}
+
+/** The browser's copy of the live state the server owns. */
 export interface LiveState {
   connection: LiveConnection;
   /** `null` until the server has told this browser the state. */
-  stage: { stageId: StageId; placeholder: string } | null;
+  stage: StageState | null;
+  /** The last accepted change to the Party, for its toast. */
+  lastChange: ChangeEvent | null;
   lastRejection: UserMessage | null;
   lastPong: number | null;
 }
@@ -20,6 +32,7 @@ export interface LiveState {
 export const initialLiveState: LiveState = {
   connection: "connecting",
   stage: null,
+  lastChange: null,
   lastRejection: null,
   lastPong: null,
 };
@@ -30,13 +43,26 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
     case "liveState":
       return {
         ...state,
-        stage: { stageId: message.stageId, placeholder: message.placeholder },
+        stage: {
+          stageId: message.stageId,
+          party: message.party,
+          isStage: message.isStage,
+          stageMoved: false,
+        },
       };
-    case "placeholderChanged":
-      return state.stage?.stageId === message.stageId
+    case "partyChanged":
+      return state.stage?.stageId === message.party.stageId
         ? {
             ...state,
-            stage: { ...state.stage, placeholder: message.placeholder },
+            stage: { ...state.stage, party: message.party },
+            lastChange: message.change,
+          }
+        : state;
+    case "stageMoved":
+      return state.stage
+        ? {
+            ...state,
+            stage: { ...state.stage, isStage: false, stageMoved: true },
           }
         : state;
     case "rejected":
