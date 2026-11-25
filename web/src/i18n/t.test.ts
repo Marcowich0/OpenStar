@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTranslator, t } from "./t";
+import { createPartsTranslator, createTranslator, t, tParts } from "./t";
 
 describe("t", () => {
   it("returns an entry without parameters as it stands", () => {
@@ -70,5 +70,28 @@ describe("plurals", () => {
       "en",
     );
     expect(tr("songCount", { count: 1 })).toBe("1 Songs");
+  });
+});
+
+describe("tParts", () => {
+  it("splits a text into plain runs and the parameters put in", () => {
+    expect(tParts("join.code", { code: "0427" })).toEqual([
+      { text: "Join code " },
+      { text: "0427", param: "code" },
+    ]);
+  });
+
+  it("joins back to what t gives, numbers formatted for the language", () => {
+    const de = createPartsTranslator(
+      { moved: "{who} schob {n, number} Songs nach {where}" },
+      "de",
+    );
+    expect(de("moved", { who: "Bo", n: 1200, where: "oben" })).toEqual([
+      { text: "Bo", param: "who" },
+      { text: " schob " },
+      { text: "1.200", param: "n" },
+      { text: " Songs nach " },
+      { text: "oben", param: "where" },
+    ]);
   });
 });

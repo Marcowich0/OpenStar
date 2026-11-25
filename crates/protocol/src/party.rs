@@ -13,6 +13,7 @@ use ts_rs::TS;
 
 use crate::StageId;
 use crate::library::SongId;
+use crate::mics::MicKey;
 use crate::profile::{Avatar, Difficulty, NewProfile, PaletteKey, ProfileId};
 
 /// How many seats a Line-up has, and so how many requested Players a
@@ -196,6 +197,92 @@ pub struct PartySnapshot {
     /// plays. When set it is always the first Request; it never moves and
     /// nothing moves above it. `null` while the song browser shows.
     pub head: Option<RequestId>,
+    /// The head's Line-up while it waits for Start (the "Line-up waiting"
+    /// state). `null` while the song browser shows. Prefilled from the
+    /// head's Request when it becomes the head; it never starts by itself.
+    pub line_up: Option<LineUp>,
+}
+
+/// Which Voice of a Song a seat sings: `p1`, or `p2` in a duet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum SeatVoice {
+    P1,
+    P2,
+}
+
+impl SeatVoice {
+    /// The key stored in SQLite and sent on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::P1 => "p1",
+            Self::P2 => "p2",
+        }
+    }
+
+    pub fn from_key(key: &str) -> Option<Self> {
+        [Self::P1, Self::P2]
+            .into_iter()
+            .find(|voice| voice.as_str() == key)
+    }
+}
+
+/// One seat of a Line-up: who sings, on which Mic, which Voice and at
+/// which Difficulty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Seat {
+    pub member_id: PartyMemberId,
+    /// A joined Phone or a switched-on Local mic; `null` when none was free
+    /// ("<name> has no mic").
+    pub mic: Option<MicKey>,
+    /// Always `p1` for a one-Voice Song.
+    pub voice: SeatVoice,
+    pub difficulty: Difficulty,
+}
+
+/// The Players set for the head's Song, as the server holds and checks it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LineUp {
+    /// The Request this Line-up is for: always the head.
+    pub request_id: RequestId,
+    /// The Song has two Voices, so seats choose between `p1` and `p2`.
+    pub duet: bool,
+    /// In seat order; at most [`SEATS`]. A member at most once is a rule
+    /// checked by the server (see `canStart`), never a shape of this list.
+    pub seats: Vec<Seat>,
+    /// Whether Start may be pressed: at least one seat, every seat has a
+    /// Mic, no Mic serves two seats, no member sits in two seats, and a
+    /// duet has someone on each Voice. Computed by the server.
+    pub can_start: bool,
+    /// What the Stage and the Remotes show under the Line-up, in seat
+    /// order, then the Song's own warnings. Computed by the server.
+    pub warnings: Vec<LineUpWarning>,
+}
+
+/// A Line-up warning: a code plus its parameters, like [`crate::UserMessage`].
+/// The screens resolve the member's name.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "code",
+    content = "params",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum LineUpWarning {
+    /// "<name> has no mic": the seat has no Mic. Blocks Start.
+    NoMic { member_id: PartyMemberId },
+    /// "<name>'s mic is blocked": the seat's Mic is a Phone that reported
+    /// its mic could not open. Does not block Start.
+    MicBlocked { member_id: PartyMemberId },
+    /// "A duet needs someone on Voice <voice>": nobody sits on that Voice
+    /// of a duet. Blocks Start.
+    DuetNeedsVoice { voice: SeatVoice },
 }
 
 /// Names one Request. Never reused, also across Parties.
@@ -324,6 +411,16 @@ pub enum PartyEvent {
     RequestRemoved(RequestChange),
     /// A Request's requested Players changed.
     RequestedPlayersChanged(RequestChange),
+    /// A seated Phone reported that its mic could not open.
+    MicBlocked {
+        member_id: PartyMemberId,
+        name: String,
+    },
+    /// A seated Phone whose mic was blocked reported that it opened.
+    MicOpened {
+        member_id: PartyMemberId,
+        name: String,
+    },
 }
 
 /// One accepted change: who made it and what it was.

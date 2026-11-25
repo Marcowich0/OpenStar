@@ -13,6 +13,7 @@ const party: PartySnapshot = {
   phones: [],
   queue: [],
   head: null,
+  lineUp: null,
 };
 
 const synced = (isStage: boolean, current: PartySnapshot | null = party) =>

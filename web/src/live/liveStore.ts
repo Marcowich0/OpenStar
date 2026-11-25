@@ -8,6 +8,7 @@ import {
   receive,
   type LiveState,
 } from "./liveState";
+import { dismissToast } from "./toasts";
 
 /**
  * One store per browser: the live state, updated by the one reducer from
@@ -20,6 +21,8 @@ export interface LiveStore {
   send: (message: ClientMessage) => boolean;
   /** Calls `listener` whenever a change notice names `topic`. */
   onChanged: (topic: ChangeTopic, listener: () => void) => () => void;
+  /** Drops a toast the screen has finished showing (`toasts.ts`). */
+  dismissToast: (id: number) => void;
   close: () => void;
 }
 
@@ -86,6 +89,9 @@ export function createLiveStore(
       return () => {
         set.delete(listener);
       };
+    },
+    dismissToast(id) {
+      update(dismissToast(state, id));
     },
     close: () => {
       client.close();

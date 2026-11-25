@@ -32,6 +32,7 @@ pub fn start_party(
         phones: Vec::new(),
         queue: Vec::new(),
         head: None,
+        line_up: None,
     })
 }
 

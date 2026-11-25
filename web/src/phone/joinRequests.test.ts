@@ -51,6 +51,7 @@ const party = (memberIds: number[]): PartySnapshot => ({
   phones: [],
   queue: [],
   head: null,
+  lineUp: null,
 });
 
 describe("checking a Join code", () => {

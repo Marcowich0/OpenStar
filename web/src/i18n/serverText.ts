@@ -6,6 +6,8 @@
 
 import type { ApiError } from "../generated/ApiError";
 import type { LibraryReadOnly } from "../generated/LibraryReadOnly";
+import type { LineUpWarning } from "../generated/LineUpWarning";
+import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PartyEvent } from "../generated/PartyEvent";
 import type { TxtRejection } from "../generated/TxtRejection";
 import type { TxtWarning } from "../generated/TxtWarning";
@@ -88,7 +90,29 @@ export const partyEventText = byCode<PartyEvent>({
     t("partyEvent.requestRemoved", { song: params.title }),
   requestedPlayersChanged: ({ params }) =>
     t("partyEvent.requestedPlayersChanged", { song: params.title }),
+  micBlocked: ({ params }) => t("partyEvent.micBlocked", { name: params.name }),
+  micOpened: ({ params }) => t("partyEvent.micOpened", { name: params.name }),
 });
+
+/**
+ * A Line-up warning. The server names the seat's Party member by id;
+ * `nameOf` gives that member's name (from the snapshot or the Profiles).
+ */
+export function lineUpWarningText(
+  warning: LineUpWarning,
+  nameOf: (memberId: PartyMemberId) => string,
+): string {
+  return byCode<LineUpWarning>({
+    noMic: ({ params }) =>
+      t("lineUpWarning.noMic", { name: nameOf(params.memberId) }),
+    micBlocked: ({ params }) =>
+      t("lineUpWarning.micBlocked", { name: nameOf(params.memberId) }),
+    duetNeedsVoice: ({ params }) =>
+      t("lineUpWarning.duetNeedsVoice", {
+        voice: params.voice === "p1" ? 1 : 2,
+      }),
+  })(warning);
+}
 
 /** Why an HTTP request was refused. */
 export const apiErrorText = byCode<ApiError>({

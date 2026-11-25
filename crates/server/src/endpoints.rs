@@ -82,7 +82,8 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::AddRequest { .. }
         | ClientMessage::MoveRequest { .. }
         | ClientMessage::SetRequestedPlayers { .. }
-        | ClientMessage::RemoveRequest { .. } => Access::NotGuarded,
+        | ClientMessage::RemoveRequest { .. }
+        | ClientMessage::ReportMicBlocked { .. } => Access::NotGuarded,
     }
 }
 

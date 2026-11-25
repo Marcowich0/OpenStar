@@ -13,6 +13,7 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   phones: [],
   queue: [],
   head: null,
+  lineUp: null,
   ...over,
 });
 
