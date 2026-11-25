@@ -98,6 +98,8 @@ describe("interface tokens", () => {
       "--color-blob-green": "#D9F7E6",
       "--color-lane-ledge": "rgba(43, 45, 66, 0.18)",
       "--color-lane-shadow": "rgba(0, 0, 0, 0.18)",
+      "--color-golden-text": "#E09A00",
+      "--color-lyric-ledge": "rgba(43, 45, 66, 0.2)",
       "--color-white": "#FFFFFF",
       "--radius-card-sm": "36px",
       "--radius-card": "44px",
@@ -109,6 +111,7 @@ describe("interface tokens", () => {
       "--shadow-ledge-red": "0 8px 0 var(--color-red-ledge)",
       "--shadow-ledge-ink": "0 8px 0 var(--color-ink-ledge)",
       "--shadow-ledge-yellow": "0 8px 0 var(--color-yellow-ledge)",
+      "--shadow-ledge-lyric": "0 10px 0 var(--color-lyric-ledge)",
       "--ease-spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
       "--default-transition-timing-function": "var(--ease-spring)",
     });
@@ -168,6 +171,7 @@ describe("motion", () => {
       "--animate-shake": "shake 0.3s linear",
       "--animate-float": "float 9s ease-in-out infinite",
       "--animate-toast-out": "toast-out 0.35s ease-in both",
+      "--animate-line-in": "line-in 0.35s var(--ease-spring) both",
     });
   });
 
@@ -184,6 +188,12 @@ describe("motion", () => {
   it("lets a toast leave by fading upward", () => {
     expect(keyframes("toast-out")).toMatch(
       /to\s*\{\s*translate:\s*0 -14px;\s*scale:\s*0\.9;\s*opacity:\s*0;\s*\}/,
+    );
+  });
+
+  it("pops a new lyric Line in from 24 px lower at 96 % size over 0.35 s", () => {
+    expect(keyframes("line-in")).toMatch(
+      /from\s*\{\s*translate:\s*0 24px;\s*scale:\s*0\.96;\s*opacity:\s*0;\s*\}/,
     );
   });
 
