@@ -75,6 +75,9 @@ test("pause freezes the Song, resume counts 3-2-1 first, Restart goes back to th
 
   await stage.getByRole("button", { name: "Pause" }).click();
   await expect(stage.getByRole("status")).toHaveText("Paused");
+  // The clock freezes on the element's `pause` event, a moment after the
+  // press; the readout follows on the next frame.
+  await stage.waitForTimeout(200);
   const paused = await songTime(stage);
   await stage.waitForTimeout(700);
   expect(await songTime(stage)).toBe(paused);
