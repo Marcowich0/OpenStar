@@ -82,6 +82,12 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
         )
         .add(
             Method::GET,
+            "/api/placeholder",
+            NotGuarded,
+            crate::placeholder,
+        )
+        .add(
+            Method::GET,
             "/api/unlock",
             NotGuarded,
             unlock::unlock_status,
