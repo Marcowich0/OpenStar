@@ -320,3 +320,102 @@ describe("the end of the Song", () => {
     expect(fed).toEqual(["seek 0", "play", "pause"]);
   });
 });
+
+/** Records every position written to `media` (a seek). */
+function recordSeeks(media: FakeMedia) {
+  const seeks: number[] = [];
+  let position = media.currentTime;
+  Object.defineProperty(media, "currentTime", {
+    get: () => position,
+    set: (next: number) => {
+      position = next;
+      seeks.push(next);
+    },
+  });
+  return {
+    seeks,
+    /** The media itself moves on (playing), without a seek. */
+    advanceTo(next: number) {
+      position = next;
+    },
+  };
+}
+
+describe("Restart", () => {
+  it("seeks the element and the clock back to #START and marks the Restart", async () => {
+    const media = new FakeMedia();
+    const s = setUp(media, plan({ startSeconds: 12.5 }));
+    await s.playback.start();
+    media.fire("playing");
+    s.advance(4000);
+    media.currentTime = 16.5;
+    void s.playback.restart();
+    expect(media.currentTime).toBe(12.5);
+    expect(s.playback.clock.songTime()).toBe(12.5);
+    expect(s.playback.clock.lastSeekAt).toBe(s.now);
+  });
+
+  it("holds Song time at #START until the seek lands, then runs on", async () => {
+    const media = new FakeMedia();
+    const s = setUp(media, plan({ startSeconds: 2 }));
+    await s.playback.start();
+    media.fire("playing");
+    s.advance(3000);
+    void s.playback.restart();
+    // The element is still seeking: a `playing` now says nothing about Song time.
+    media.fire("playing");
+    s.advance(200);
+    expect(s.playback.clock.songTime()).toBe(2);
+    media.fire("seeked");
+    s.advance(500);
+    expect(s.playback.clock.songTime()).toBeCloseTo(2.5, 9);
+  });
+
+  it("from a pause plays the Song again (Restart unpauses)", async () => {
+    const media = new FakeMedia();
+    const s = setUp(media, plan());
+    await s.playback.start();
+    media.fire("playing");
+    s.advance(1000);
+    s.playback.pause();
+    void s.playback.restart();
+    expect(media.paused).toBe(false);
+    expect(media.playCalls).toBe(2);
+    media.fire("seeked");
+    s.advance(250);
+    expect(s.playback.clock.songTime()).toBeCloseTo(0.25, 9);
+  });
+
+  it("does nothing once the Song has ended", async () => {
+    const media = new FakeMedia();
+    const s = setUp(media, plan({ startSeconds: 1 }));
+    await s.playback.start();
+    media.fire("playing");
+    media.currentTime = 30;
+    s.playback.end();
+    void s.playback.restart();
+    expect(media.currentTime).toBe(30);
+    expect(media.paused).toBe(true);
+  });
+
+  it("is the only seek: pause, resume, stalls and the end never move the element", async () => {
+    const media = new FakeMedia();
+    const recorded = recordSeeks(media);
+    const s = setUp(media, plan({ startSeconds: 4, endSeconds: 60 }));
+    await s.playback.start();
+    media.fire("playing");
+    recorded.advanceTo(10);
+    s.animationFrame();
+    s.playback.pause();
+    await s.playback.resume();
+    media.fire("playing");
+    media.fire("waiting");
+    media.fire("playing");
+    media.fire("timeupdate");
+    expect(recorded.seeks).toEqual([4]);
+    void s.playback.restart();
+    expect(recorded.seeks).toEqual([4, 4]);
+    s.playback.end();
+    expect(recorded.seeks).toEqual([4, 4]);
+  });
+});

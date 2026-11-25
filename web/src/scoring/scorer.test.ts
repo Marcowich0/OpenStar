@@ -284,6 +284,25 @@ describe("the incremental scorer", () => {
     expect(() => scorer.judge(1, { kind: "noVoice" })).toThrow();
     expect(() => scorer.judge(0, { kind: "noVoice" })).toThrow();
   });
+
+  it("reset (Restart) clears the sums and ended Lines and judges from the start again", () => {
+    const scorer = createScorer({ voice, headers, difficulty: "hard" });
+    scorer.judge(0, { kind: "pitch", pitch: 60 });
+    scorer.judge(1, { kind: "pitch", pitch: 60 });
+    expect(scorer.lineResults()).toHaveLength(1);
+    scorer.reset();
+    expect(scorer.sums()).toEqual({ notes: 0, golden: 0, lineBonus: 0 });
+    expect(scorer.lineResults()).toEqual([]);
+    // From here it scores exactly as a scorer that never heard the first take.
+    const fresh = createScorer({ voice, headers, difficulty: "hard" });
+    for (const s of [scorer, fresh]) {
+      s.judge(0, { kind: "noVoice" });
+      s.judge(1, { kind: "pitch", pitch: 60 });
+    }
+    expect(scorer.lineResults()).toEqual(fresh.lineResults());
+    expect(scorer.sums()).toEqual(fresh.sums());
+    expect(scorer.sums().notes).toBe(0);
+  });
 });
 
 describe("the per-reading hit test", () => {
