@@ -1,50 +1,30 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import type { ServerInfo } from "../generated/ServerInfo";
-import { t, type MessageKey } from "../i18n/t";
+import { serverInfoQuery } from "../api/queries";
+import { t } from "../i18n/t";
 import { PartyPanel } from "../live/PartyPanel";
+import type { LiveStore } from "../live/liveStore";
+import { liveStore } from "../live/useLive";
 
-type Info =
-  | { status: "loading" }
-  | { status: "loaded"; info: ServerInfo }
-  | { status: "failed" };
-
-const STATUS_TEXT = {
-  loading: "server.loading",
-  failed: "server.failed",
-} as const satisfies Record<Exclude<Info["status"], "loaded">, MessageKey>;
-
-/** The walking skeleton's check: the JSON endpoint's answer and the live state over the WebSocket. */
-export function ServerStatus() {
-  const [info, setInfo] = useState<Info>({ status: "loading" });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/server-info", { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${String(response.status)}`);
-        const body = (await response.json()) as ServerInfo;
-        setInfo({ status: "loaded", info: body });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setInfo({ status: "failed" });
-      });
-    return () => {
-      controller.abort();
-    };
-  }, []);
+/**
+ * The walking skeleton's check: the JSON endpoint's answer, read through a
+ * query that a `serverInfo` change notice refreshes, and the live state over
+ * the WebSocket.
+ */
+export function ServerStatus({ store = liveStore() }: { store?: LiveStore }) {
+  const info = useQuery(serverInfoQuery);
 
   return (
     <>
       <p data-testid="server-info">
-        {info.status === "loaded"
+        {info.isSuccess
           ? t("server.version", {
-              version: info.info.version,
-              schemaVersion: info.info.schemaVersion,
+              version: info.data.version,
+              schemaVersion: info.data.schemaVersion,
             })
-          : t(STATUS_TEXT[info.status])}
+          : t(info.isError ? "server.failed" : "server.loading")}
       </p>
-      <PartyPanel />
+      <PartyPanel store={store} />
     </>
   );
 }

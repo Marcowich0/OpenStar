@@ -4,6 +4,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { noPollingSyntax, onlyTheWrapperFetches } from "./lint/apiRules.js";
 import { openstarPlugin } from "./lint/noLiteralJsxText.js";
 
 export default defineConfig(
@@ -25,6 +26,26 @@ export default defineConfig(
     rules: {
       "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/no-floating-promises": "error",
+    },
+  },
+  {
+    // HTTP goes through the one typed wrapper, and nothing polls
+    // (lint/apiRules.js).
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-globals": ["error", ...onlyTheWrapperFetches.globals],
+      "no-restricted-properties": [
+        "error",
+        ...onlyTheWrapperFetches.properties,
+      ],
+      "no-restricted-syntax": ["error", ...noPollingSyntax],
+    },
+  },
+  {
+    files: ["src/api/api.ts"],
+    rules: {
+      "no-restricted-globals": "off",
+      "no-restricted-properties": "off",
     },
   },
   {

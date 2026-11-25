@@ -2,8 +2,8 @@
 //! snapshots and a `proptest` property.
 
 use openstar_protocol::{
-    Actor, ChangeEvent, ClientMessage, JoinCode, PartyEvent, PartyId, PartyMemberId, PartySnapshot,
-    ServerMessage, StageId, UserMessage,
+    Actor, ChangeEvent, ChangeTopic, ClientMessage, JoinCode, PartyEvent, PartyId, PartyMemberId,
+    PartySnapshot, ServerMessage, StageId, UserMessage,
 };
 use proptest::prelude::*;
 
@@ -68,6 +68,17 @@ fn stage_moved_and_new_party_wire_format() {
     assert_eq!(
         serde_json::from_str::<ClientMessage>(r#"{"type":"newParty"}"#).unwrap(),
         ClientMessage::NewParty
+    );
+}
+
+#[test]
+fn change_notice_wire_format() {
+    assert_eq!(
+        serde_json::to_string(&ServerMessage::Changed {
+            topics: vec![ChangeTopic::ServerInfo]
+        })
+        .unwrap(),
+        r#"{"type":"changed","topics":["serverInfo"]}"#
     );
 }
 
