@@ -20,8 +20,9 @@ export const QUERIES_BY_TOPIC: Record<ChangeTopic, readonly QueryKey[]> = {
   serverInfo: [serverInfoQuery.queryKey],
   profiles: [profilesQuery.queryKey],
   library: [songsKey, libraryProblemsQuery.queryKey, scanStatusQuery.queryKey],
-  // No Mic settings query exists yet. The ticket that adds one (it reads
-  // `GET /api/mic-settings`) starts its key with this prefix.
+  // Mic settings and Local mics: every such query's key starts with
+  // "micSettings" (`localMicsQuery`; the query of `GET /api/mic-settings`,
+  // once one exists, starts its key with this prefix too).
   micSettings: [["micSettings"]],
 };
 

@@ -120,6 +120,46 @@ pub struct StageOutputMicSettings {
     pub mics: Vec<MicSettingsEntry>,
 }
 
+/// Where a Local mic is read.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum LocalMicSource {
+    /// One channel of an input device the Stage browser reads itself. Its
+    /// Local mic id is made from (`stage_browser`, `device_id`, `channel`).
+    Browser {
+        /// The Stage browser: a random id it keeps in its own storage.
+        stage_browser: String,
+        /// Chromium's `deviceId` of the input device.
+        device_id: String,
+        /// The device's label when it was last seen, for the default name
+        /// and the label + channel fallback of id matching.
+        label: String,
+        /// 0 (Left, or a mono device's only channel) or 1 (Right).
+        channel: u32,
+        /// Whether the device gave two channels.
+        stereo: bool,
+    },
+}
+
+/// A Local mic the server keeps: its name and whether it is switched on.
+/// A channel that matches none is new and switched off. Kept across Parties
+/// and restarts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LocalMic {
+    pub local_mic_id: String,
+    pub source: LocalMicSource,
+    /// The name the host gave it; empty shows the default name.
+    pub name: String,
+    pub switched_on: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

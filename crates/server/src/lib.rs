@@ -12,6 +12,7 @@ pub mod healthcheck;
 pub mod jobs;
 mod library;
 mod live;
+mod local_mics;
 pub mod mic_settings;
 mod profiles;
 pub mod scores;
