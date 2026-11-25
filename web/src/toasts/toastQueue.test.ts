@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { ChangeEvent } from "../../generated/ChangeEvent";
-import { initialLiveState, type LiveState } from "../../live/liveState";
-import { addToast, dismissToast } from "../../live/toasts";
+import type { ChangeEvent } from "../generated/ChangeEvent";
+import { initialLiveState, type LiveState } from "../live/liveState";
+import { addToast, dismissToast } from "../live/toasts";
 import {
   TOAST_LEAVE_MS,
   TOAST_POP_IN_MS,
