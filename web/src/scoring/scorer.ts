@@ -147,6 +147,11 @@ export interface Scorer {
    * Voice with no scored Notes is always Finished.
    */
   isFinished(songTime: number): boolean;
+  /**
+   * Restart (#158): forgets every judged Beat, the sums and the ended Lines,
+   * so judging starts over from the first Beat of the range.
+   */
+  reset(): void;
 }
 
 /** A scored Note, with the index of its Line. */
@@ -416,6 +421,15 @@ export function createScorer(setup: ScorerSetup): Scorer {
     score: () => roundScore(sums),
     lineResults: () => [...ended],
     isFinished: (songTime) => songTime > finishedAfter,
+    reset() {
+      sums.notes = 0;
+      sums.golden = 0;
+      sums.lineBonus = 0;
+      linePoints.clear();
+      ended.length = 0;
+      nextLine = 0;
+      lastJudged = -Infinity;
+    },
   };
 }
 

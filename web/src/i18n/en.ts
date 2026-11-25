@@ -296,6 +296,10 @@ export const en = {
   "stage.playback.jitter": "Jitter {ms, number} ms",
   "stage.playback.ended": "Song ended",
   "stage.playback.failed": "The browser did not play the Song",
+  "stage.playback.pause": "Pause",
+  "stage.playback.resume": "Resume",
+  "stage.playback.restart": "Restart",
+  "stage.playback.paused": "Paused",
   "stage.moved.title": "The Stage moved to another screen",
   "stage.moved.body":
     "Someone opened OpenStar's Stage on another browser, so the party carries on there. Phones stay in the Party and follow it.",

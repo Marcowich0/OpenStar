@@ -61,3 +61,46 @@ test("a fixture Song plays through one media element to its end", async ({
   );
   expect(await songTime(stage)).toBeGreaterThan(10);
 });
+
+test("pause freezes the Song, resume counts 3-2-1 first, Restart goes back to the start", async ({
+  stage,
+  request,
+}) => {
+  test.setTimeout(60_000);
+  const id = await songId(request, FIXTURE_SONGS.steadyTone);
+  await stage.goto(`/stage/playback?song=${String(id)}`);
+  await expect(stage.locator("[data-sing-screen][data-painted]")).toBeVisible();
+  await stage.getByRole("button", { name: "Play" }).click();
+  await expect.poll(() => songTime(stage)).toBeGreaterThan(1);
+
+  await stage.getByRole("button", { name: "Pause" }).click();
+  await expect(stage.getByRole("status")).toHaveText("Paused");
+  // The clock freezes on the element's `pause` event, a moment after the
+  // press; the readout follows on the next frame.
+  await stage.waitForTimeout(200);
+  const paused = await songTime(stage);
+  await stage.waitForTimeout(700);
+  expect(await songTime(stage)).toBe(paused);
+  expect(
+    await stage.evaluate(() => document.querySelector("audio")?.paused),
+  ).toBe(true);
+
+  // The countdown runs over the frozen frame, then the Song plays on from
+  // where it stopped.
+  await stage.getByRole("button", { name: "Resume" }).click();
+  const countdown = stage.getByTestId("resume-countdown");
+  await expect(countdown).toHaveAttribute("data-count", "3");
+  await expect(countdown).toHaveAttribute("data-count", "2");
+  expect(await songTime(stage)).toBe(paused);
+  await expect(countdown).toHaveAttribute("data-count", "1");
+  expect(await songTime(stage)).toBe(paused);
+  await expect(countdown).toBeHidden({ timeout: 3_000 });
+  await expect.poll(() => songTime(stage)).toBeGreaterThan(paused);
+  expect(await songTime(stage)).toBeLessThan(paused + 1);
+
+  // Restart: back to the start (the fixture has no #START), and it plays.
+  await expect.poll(() => songTime(stage)).toBeGreaterThan(paused + 0.5);
+  await stage.getByRole("button", { name: "Restart" }).click();
+  await expect.poll(() => songTime(stage)).toBeLessThan(1);
+  await expect.poll(() => songTime(stage)).toBeGreaterThan(0.3);
+});
