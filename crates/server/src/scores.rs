@@ -398,7 +398,10 @@ pub(crate) enum Refused {
 impl IntoResponse for Refused {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            Self::Invalid => (StatusCode::UNPROCESSABLE_ENTITY, UserMessage::InvalidMessage),
+            Self::Invalid => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                UserMessage::InvalidMessage,
+            ),
             Self::SongGone => (StatusCode::NOT_FOUND, UserMessage::SongNotInLibrary),
             Self::SongChanged => (StatusCode::CONFLICT, UserMessage::SongNotInLibrary),
             Self::ProfileNotFound => (StatusCode::NOT_FOUND, UserMessage::ProfileNotFound),

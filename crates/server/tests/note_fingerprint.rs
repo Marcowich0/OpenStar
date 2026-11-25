@@ -76,8 +76,12 @@ fn any_change_to_timing_or_notes_changes_it() {
 #[test]
 fn a_duet_fingerprints_each_voice() {
     let duet = "#ARTIST:A\n#TITLE:T\n#MP3:song.mp3\n#BPM:200\nP1\n: 0 4 0 La\nP2\n: 4 4 2 lo\nE\n";
-    let swapped = "#ARTIST:A\n#TITLE:T\n#MP3:song.mp3\n#BPM:200\nP1\n: 4 4 2 lo\nP2\n: 0 4 0 La\nE\n";
-    assert_ne!(fingerprint(duet.as_bytes()), fingerprint(swapped.as_bytes()));
+    let swapped =
+        "#ARTIST:A\n#TITLE:T\n#MP3:song.mp3\n#BPM:200\nP1\n: 4 4 2 lo\nP2\n: 0 4 0 La\nE\n";
+    assert_ne!(
+        fingerprint(duet.as_bytes()),
+        fingerprint(swapped.as_bytes())
+    );
 }
 
 #[test]

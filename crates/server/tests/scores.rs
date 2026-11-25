@@ -14,8 +14,8 @@ use openstar_protocol::profile::{
     Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile, ProfileEdit, ProfileId,
 };
 use openstar_protocol::scoring::{
-    BeatRange, BeatValue, MicKind, NoteFingerprint, PlayerScore, RoundEnd, RoundMode,
-    RoundOutcome, ScorePlayer, StoredRound,
+    BeatRange, BeatValue, MicKind, NoteFingerprint, PlayerScore, RoundEnd, RoundMode, RoundOutcome,
+    ScorePlayer, StoredRound,
 };
 use openstar_test_harness::TestApp;
 use reqwest::StatusCode;
@@ -170,8 +170,8 @@ async fn store(app: &TestApp, body: &RoundOutcome) -> StoredRound {
 }
 
 fn open_db(app: &TestApp) -> rusqlite::Connection {
-    let conn = rusqlite::Connection::open(app.appdata_dir().join(openstar::db::DATABASE_FILE))
-        .unwrap();
+    let conn =
+        rusqlite::Connection::open(app.appdata_dir().join(openstar::db::DATABASE_FILE)).unwrap();
     conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;")
         .unwrap();
     conn
@@ -281,7 +281,10 @@ async fn a_played_round_stores_the_round_one_record_per_player_and_the_snapshot(
     // The Profile remembers its last Difficulty and when it last sang.
     let ada: Profile = app.get_json(&format!("/api/profiles/{}", ada.id.0)).await;
     assert_eq!(ada.last_difficulty, Difficulty::Hard);
-    assert!(ada.last_sung_at.is_some_and(|t| (before..=after).contains(&t)));
+    assert!(
+        ada.last_sung_at
+            .is_some_and(|t| (before..=after).contains(&t))
+    );
 }
 
 #[tokio::test]
@@ -367,7 +370,10 @@ async fn a_failed_store_leaves_nothing_behind() {
         &outcome(
             &song,
             RoundEnd::Played,
-            vec![score(profile(ada.id), 10), score(profile(ProfileId(999)), 20)],
+            vec![
+                score(profile(ada.id), 10),
+                score(profile(ProfileId(999)), 20),
+            ],
         ),
     )
     .await;
@@ -413,7 +419,10 @@ async fn a_failed_store_leaves_nothing_behind() {
         None
     );
     let ada: Profile = app.get_json(&format!("/api/profiles/{}", ada.id.0)).await;
-    assert_eq!(ada.last_sung_at, None, "the Profile's last sung is untouched");
+    assert_eq!(
+        ada.last_sung_at, None,
+        "the Profile's last sung is untouched"
+    );
 }
 
 #[tokio::test]
@@ -503,12 +512,7 @@ async fn the_identity_move_moves_every_record_of_one_key_inside_the_callers_tran
     let tx = conn.transaction().unwrap();
     assert_eq!(move_identity_in(&tx, &old.identity, &new).unwrap(), 2);
     tx.rollback().unwrap();
-    assert!(
-        rounds(&conn)
-            .unwrap()
-            .iter()
-            .all(|round| round.song != new)
-    );
+    assert!(rounds(&conn).unwrap().iter().all(|round| round.song != new));
     // Committed: both rounds of the old key and their records move.
     let tx = conn.transaction().unwrap();
     move_identity_in(&tx, &old.identity, &new).unwrap();
