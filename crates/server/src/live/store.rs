@@ -11,7 +11,7 @@ use openstar_protocol::mics::MicKey;
 use openstar_protocol::profile::{Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::{
     Identity, JoinCode, JoinedPhone, LineUp, PartyId, PartyMember, PartyMemberId, PartySnapshot,
-    PhoneId, Request, RequestId, RequestKind, Seat, SeatVoice, StageId,
+    PhoneId, Request, RequestId, RequestKind, Seat, SeatVoice, SongEnd, SongResults, StageId,
 };
 use rusqlite::types::Type;
 use rusqlite::{Connection, OptionalExtension};
@@ -43,6 +43,8 @@ pub async fn load_party(
                         queue: Vec::new(),
                         head: None,
                         line_up: None,
+                        playing: None,
+                        results: None,
                     })
                 },
             )
@@ -53,9 +55,14 @@ pub async fn load_party(
         party.members = load_members(conn, &party.party_id)?;
         party.phones = load_phones(conn, &party.party_id)?;
         party.queue = load_queue(conn, &party.party_id)?;
-        // Until the results screen (#87) is kept, a stored Queue always has
-        // its first Request as the head.
-        party.head = party.queue.first().map(|r| r.request_id);
+        // While results show there is no head; otherwise the first Request
+        // is the head. A Song in progress is never stored, so its Line-up
+        // waits again after a restart.
+        party.results = load_results(conn, &party.party_id)?;
+        party.head = match party.results {
+            Some(_) => None,
+            None => party.queue.first().map(|r| r.request_id),
+        };
         party.line_up = load_line_up(conn, &party.party_id)?
             .filter(|line_up| Some(line_up.request_id) == party.head);
         party::refresh_on_phone(&mut party);
@@ -235,6 +242,49 @@ fn save_line_up_in(
     Ok(())
 }
 
+/// The results `party_id` shows, if any.
+fn load_results(conn: &Connection, party_id: &PartyId) -> rusqlite::Result<Option<SongResults>> {
+    conn.query_row(
+        "SELECT request_id, song_id, ended FROM party_results WHERE party_id = ?1",
+        [&party_id.0],
+        |row| {
+            let ended: String = row.get(2)?;
+            Ok(SongResults {
+                request_id: RequestId(row.get(0)?),
+                song_id: SongId(row.get(1)?),
+                ended: SongEnd::from_key(&ended).ok_or_else(|| unknown(2, "Song end", &ended))?,
+            })
+        },
+    )
+    .optional()
+}
+
+/// Replaces the stored results of `party_id` with `results` (none clears
+/// them).
+fn save_results_in(
+    conn: &Connection,
+    party_id: &PartyId,
+    results: Option<&SongResults>,
+) -> rusqlite::Result<()> {
+    conn.execute(
+        "DELETE FROM party_results WHERE party_id = ?1",
+        [&party_id.0],
+    )?;
+    if let Some(results) = results {
+        conn.execute(
+            "INSERT INTO party_results (party_id, request_id, song_id, ended)
+             VALUES (?1, ?2, ?3, ?4)",
+            (
+                &party_id.0,
+                results.request_id.0,
+                results.song_id.0,
+                results.ended.as_str(),
+            ),
+        )?;
+    }
+    Ok(())
+}
+
 /// The Local mic each member of `party_id` last sang on in that Party.
 pub async fn load_last_local_mics(
     db: &Database,
@@ -255,25 +305,35 @@ pub async fn load_last_local_mics(
 
 /// Remembers that `member_id` sang on Local mic `local_mic_id` in
 /// `party_id`, for the next prefill. Never kept across Parties.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "recorded when a Song starts (#87)")
-)]
+#[cfg(test)]
 pub async fn save_last_local_mic(
     db: &Database,
     party_id: &PartyId,
     member_id: PartyMemberId,
     local_mic_id: &str,
 ) -> anyhow::Result<()> {
+    save_last_local_mics(db, party_id, vec![(member_id, local_mic_id.to_owned())]).await
+}
+
+/// Remembers, in one transaction, the Local mic each `(member, Local mic)`
+/// pair sang on in `party_id` (recorded when a Song starts), for the next
+/// prefill. Never kept across Parties.
+pub async fn save_last_local_mics(
+    db: &Database,
+    party_id: &PartyId,
+    sung: Vec<(PartyMemberId, String)>,
+) -> anyhow::Result<()> {
     let party_id = party_id.clone();
-    let local_mic_id = local_mic_id.to_owned();
     db.call(move |conn| {
-        conn.execute(
-            "INSERT INTO last_local_mics (party_id, member_id, local_mic_id) VALUES (?1, ?2, ?3)
-             ON CONFLICT (party_id, member_id) DO UPDATE SET local_mic_id = excluded.local_mic_id",
-            (&party_id.0, member_id.0, &local_mic_id),
-        )?;
-        Ok(())
+        let tx = conn.transaction()?;
+        for (member_id, local_mic_id) in &sung {
+            tx.execute(
+                "INSERT INTO last_local_mics (party_id, member_id, local_mic_id) VALUES (?1, ?2, ?3)
+                 ON CONFLICT (party_id, member_id) DO UPDATE SET local_mic_id = excluded.local_mic_id",
+                (&party_id.0, member_id.0, local_mic_id),
+            )?;
+        }
+        tx.commit()
     })
     .await
 }
@@ -312,7 +372,8 @@ pub async fn insert_request(
 
 /// Stores the Queue of `party` as it is now: Requests no longer in it are
 /// deleted, the others get their place, requested Players and adder, and
-/// the head's Line-up is replaced. One transaction.
+/// the head's Line-up and the results showing are replaced. One
+/// transaction.
 pub async fn save_queue(db: &Database, party: &PartySnapshot) -> anyhow::Result<()> {
     let party = party.clone();
     db.call(move |conn| {
@@ -348,7 +409,8 @@ fn save_queue_in(conn: &Connection, party: &PartySnapshot) -> rusqlite::Result<(
             ),
         )?;
     }
-    save_line_up_in(conn, party_id, party.line_up.as_ref())
+    save_line_up_in(conn, party_id, party.line_up.as_ref())?;
+    save_results_in(conn, party_id, party.results.as_ref())
 }
 
 /// Stores that member `member_id` left `party` (already applied to it):

@@ -47,6 +47,8 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
   ...over,
 });
 

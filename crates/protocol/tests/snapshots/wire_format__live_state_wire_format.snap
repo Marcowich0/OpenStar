@@ -77,7 +77,13 @@ expression: "ServerMessage::LiveState\n{\n    stage_id: StageId(\"main\".to_owne
           }
         }
       ]
-    }
+    },
+    "playing": {
+      "requestId": 3,
+      "songId": 12,
+      "paused": true
+    },
+    "results": null
   },
   "isStage": true
 }

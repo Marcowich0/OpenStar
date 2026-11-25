@@ -70,6 +70,8 @@ function setup({
         queue: [],
         head: null,
         lineUp: null,
+        playing: null,
+        results: null,
       },
     });
   });

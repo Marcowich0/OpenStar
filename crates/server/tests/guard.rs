@@ -366,6 +366,15 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::SetMyDifficulty {
             difficulty: openstar_protocol::profile::Difficulty::Hard,
         },
+        ClientMessage::ControlSong {
+            request_id: openstar_protocol::RequestId(1),
+            control: openstar_protocol::SongControl::Skip,
+        },
+        ClientMessage::ReachedResults {
+            request_id: openstar_protocol::RequestId(1),
+            ended: openstar_protocol::SongEnd::Ended,
+        },
+        ClientMessage::CloseResults,
     ]
 }
 

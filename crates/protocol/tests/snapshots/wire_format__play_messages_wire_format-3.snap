@@ -1,0 +1,9 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "SongResults\n{ request_id: RequestId(3), song_id: SongId(12), ended: SongEnd::Played, }"
+---
+{
+  "requestId": 3,
+  "songId": 12,
+  "ended": "played"
+}
