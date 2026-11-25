@@ -2,9 +2,12 @@
 //! WebSocket, all on one origin over plain HTTP.
 
 mod bridge;
+pub mod build_id;
 mod config;
 pub mod db;
 mod frontend;
+pub mod healthcheck;
+mod startup;
 
 use std::path::PathBuf;
 
@@ -14,24 +17,26 @@ use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use openstar_protocol::{ClientMessage, RejectCode, ServerInfo, ServerMessage};
+use std::sync::Arc;
+
+use openstar_protocol::{ClientMessage, LibraryReadOnly, RejectCode, ServerInfo, ServerMessage};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 
-pub use config::Config;
+pub use config::{Config, Secret, UsdbCredentials};
 use db::Database;
 
-/// The build identifier. Set `OPENSTAR_BUILD_ID` at compile time; `dev` otherwise.
-pub const BUILD_ID: &str = match option_env!("OPENSTAR_BUILD_ID") {
-    Some(id) => id,
-    None => "dev",
-};
+/// The build identifier, worked out by `build.rs` (see [`build_id`]).
+pub const BUILD_ID: &str = env!("OPENSTAR_BUILD_ID");
 
 #[derive(Clone)]
 struct AppState {
     db: Database,
     /// The folder `/bridge/{file}` is served from.
     bridge_dir: PathBuf,
+    config: Arc<Config>,
+    /// Why the Library is read-only, if it is; fixed at startup.
+    library_read_only: Option<LibraryReadOnly>,
 }
 
 /// A started server: the database is open and migrated, nothing is served yet.
@@ -41,14 +46,26 @@ pub struct Server {
 }
 
 impl Server {
-    /// Opens the database in the appdata folder and applies pending
-    /// migrations. Requests are accepted only once this has returned.
+    /// Runs the startup steps after the configuration has been read, in the
+    /// spec's order: the appdata check, the database (opened and migrated),
+    /// the songs check, then reloading live state. Requests are accepted only
+    /// once this has returned.
     pub async fn start(config: &Config) -> anyhow::Result<Self> {
+        startup::check_appdata(&config.appdata_dir)?;
         let opened = Database::open(&config.appdata_dir).await?;
+        tracing::info!(
+            migrations_applied = opened.migrations_applied,
+            "the database is ready"
+        );
+        let library_read_only = startup::check_songs(&config.songs_dir);
+        // #62 reloads the Party, Line-up and Queue here.
+        tracing::info!("live state reloaded");
         Ok(Self {
             state: AppState {
                 db: opened.database,
                 bridge_dir: PathBuf::from(bridge::DEFAULT_BRIDGE_DIR),
+                config: Arc::new(config.clone()),
+                library_read_only,
             },
             migrations_applied: opened.migrations_applied,
         })
@@ -62,6 +79,18 @@ impl Server {
         self
     }
 
+    /// The settings this server started with, for the areas that use them
+    /// (the Admin PIN, the USDB login, yt-dlp updates).
+    pub fn config(&self) -> &Config {
+        &self.state.config
+    }
+
+    /// Why the Library is read-only, or `None` when the songs folder can be
+    /// written to.
+    pub fn library_read_only(&self) -> Option<&LibraryReadOnly> {
+        self.state.library_read_only.as_ref()
+    }
+
     /// How many database migrations this start applied.
     pub fn migrations_applied(&self) -> usize {
         self.migrations_applied
@@ -70,6 +99,7 @@ impl Server {
     /// The axum app.
     pub fn router(&self) -> Router {
         Router::new()
+            .route("/healthz", get(healthz))
             .route("/api/server-info", get(server_info))
             .route("/ws", get(websocket))
             .route("/bridge/{file}", get(bridge::serve))
@@ -96,11 +126,18 @@ impl Server {
     }
 }
 
+/// Answers once the server is serving, for `openstar healthcheck`.
+async fn healthz() -> &'static str {
+    "ok"
+}
+
 async fn server_info(State(state): State<AppState>) -> Response {
     match state.db.schema_version().await {
         Ok(schema_version) => axum::Json(ServerInfo {
             version: BUILD_ID.to_owned(),
             schema_version,
+            library_read_only: state.library_read_only.clone(),
+            public_url: state.config.public_url.clone(),
         })
         .into_response(),
         Err(error) => {
