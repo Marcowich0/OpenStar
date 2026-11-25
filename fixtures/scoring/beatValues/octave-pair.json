@@ -1,0 +1,25 @@
+{
+  "description": "an octave pair gives the lower reading (the lower median), never their mean a tritone off",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "songStartMs": 1000,
+  "micDelayMs": 100,
+  "micThresholdDbfs": -40,
+  "firstBeat": 0,
+  "lastBeat": 1,
+  "readings": [
+    { "captureTime": 1610, "pitch": 69.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1670, "pitch": 57.0, "clarity": 0.9, "loudness": -20 },
+
+    { "captureTime": 1730, "pitch": 70.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1760, "pitch": 58.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1790, "pitch": 58.2, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1820, "pitch": 70.1, "clarity": 0.9, "loudness": -20 }
+  ],
+  "comment": "Beat 0: [57, 69], index floor((2 - 1) / 2) = 0 -> 57 (the mean, 63, would be a tritone off). Beat 1: [58, 58.2, 70, 70.1], index 1 -> 58.2.",
+  "beatValues": [
+    { "kind": "pitch", "pitch": 57.0 },
+    { "kind": "pitch", "pitch": 58.2 }
+  ]
+}

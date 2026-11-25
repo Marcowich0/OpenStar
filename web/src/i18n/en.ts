@@ -130,4 +130,20 @@ export const en = {
   "toast.backOnMic": "{actor} is back on the mic",
   // A colour parameter is always a palette display name (`colourName`).
   "toast.memberLeft": "{actor} left the Party. {colour} is free",
+
+  // The Timing editor's edit list: one entry per edit, with the values
+  // before and after it (GAP in ms, BPM as in the file, video gap in s).
+  "timing.edit.moveSong":
+    "Whole Song moved: GAP {from, number} → {to, number} ms",
+  "timing.edit.nudgeSong":
+    "Whole Song nudged: GAP {from, number} → {to, number} ms",
+  "timing.edit.typeGap": "GAP typed: {from, number} → {to, number} ms",
+  "timing.edit.typeBpm": "BPM typed: {from, number} → {to, number}",
+  "timing.edit.typeVideoGap":
+    "Video gap typed: {from, number} → {to, number} s",
+  "timing.edit.typeVideoGapNew": "Video gap typed: {to, number} s",
+  "timing.edit.stretchAroundPin":
+    "Stretched around the pinned Line: BPM {fromBpm, number} → {toBpm, number}, GAP {fromGap, number} → {toGap, number} ms",
+  "timing.edit.tempoAroundPlayhead":
+    "Tempo around the playhead: BPM {fromBpm, number} → {toBpm, number}, GAP {fromGap, number} → {toGap, number} ms",
 } as const satisfies Record<string, Entry>;
