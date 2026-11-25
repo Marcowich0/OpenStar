@@ -28,7 +28,9 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, jobs, library, local_mics, mic_settings, profiles, scores, unlock};
+use crate::{
+    AppState, bridge, frontend, jobs, library, local_mics, mic_settings, profiles, scores, unlock,
+};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -192,12 +194,7 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
         )
         // Anyone reads the kept Local mics; the Stage switches them over its
         // WebSocket.
-        .add(
-            Method::GET,
-            "/api/local-mics",
-            NotGuarded,
-            local_mics::read,
-        )
+        .add(Method::GET, "/api/local-mics", NotGuarded, local_mics::read)
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage, but needs Stage trust (#186), not an Unlock.
         .add(Method::GET, "/ws/stage", NotGuarded, crate::stage_websocket)

@@ -41,7 +41,9 @@ export function browserInputDevices(
   return devices
     .filter(
       (d) =>
-        d.kind === "audioinput" && d.deviceId !== "" && !ALIASES.has(d.deviceId),
+        d.kind === "audioinput" &&
+        d.deviceId !== "" &&
+        !ALIASES.has(d.deviceId),
     )
     .map(({ deviceId, label }) => ({ deviceId, label }));
 }

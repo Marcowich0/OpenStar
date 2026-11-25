@@ -43,8 +43,8 @@ pub async fn switch(
 pub async fn all(db: &Database) -> anyhow::Result<Vec<LocalMic>> {
     let rows: Vec<(String, String, String, bool)> = db
         .call(|conn| {
-            let mut statement = conn
-                .prepare("SELECT id, source, name, switched_on FROM local_mics ORDER BY id")?;
+            let mut statement =
+                conn.prepare("SELECT id, source, name, switched_on FROM local_mics ORDER BY id")?;
             let rows = statement.query_map([], |row| {
                 Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
             })?;

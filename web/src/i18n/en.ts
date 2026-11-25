@@ -117,7 +117,8 @@ export const en = {
   "mics.group.thisBrowser": "This browser",
   "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
   "mics.noDevices": "No input device found",
-  "mics.allowMicrophone": "Allow this browser to use the microphone to list its inputs",
+  "mics.allowMicrophone":
+    "Allow this browser to use the microphone to list its inputs",
   "mics.unavailable": "This browser cannot read its microphones here",
   "mics.switchedOn": "On",
   "mics.switchedOff": "Off",

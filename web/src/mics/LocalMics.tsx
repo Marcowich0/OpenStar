@@ -115,9 +115,7 @@ export function LocalMicsProvider({
   // the Mics screen is open, or a channel of this browser is switched on.
   const needsMicrophone =
     micsScreenOpen ||
-    kept.some(
-      (m) => m.switchedOn && m.source.stageBrowser === stageBrowser,
-    );
+    kept.some((m) => m.switchedOn && m.source.stageBrowser === stageBrowser);
   useEffect(() => {
     if (!capture || !keptQuery.isSuccess) return;
     void capture.refresh(needsMicrophone);
@@ -156,7 +154,9 @@ export function LocalMicsProvider({
         const known = old.find((m) => m.localMicId === channel.localMicId);
         return known
           ? old.map((m) =>
-              m === known ? { ...m, source: channel.source, switchedOn: on } : m,
+              m === known
+                ? { ...m, source: channel.source, switchedOn: on }
+                : m,
             )
           : [
               ...old,

@@ -8,7 +8,11 @@ import type { ClientMessage } from "../generated/ClientMessage";
 import type { LiveClientOptions } from "../live/liveClient";
 import { createLiveStore } from "../live/liveStore";
 import type { CaptureSnapshot, LocalMicCapture } from "./localMicCapture";
-import { LocalMicsProvider, useLocalMics, type LocalMicsApi } from "./LocalMics";
+import {
+  LocalMicsProvider,
+  useLocalMics,
+  type LocalMicsApi,
+} from "./LocalMics";
 import { browserChannels, type BrowserChannel } from "./localMics";
 
 const DONGLE = { deviceId: "dongle", label: "USB Audio" };

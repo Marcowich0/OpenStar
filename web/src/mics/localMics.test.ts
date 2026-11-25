@@ -75,11 +75,7 @@ describe("a device's channels", () => {
   });
 
   it("are one Local mic for a mono device", () => {
-    const channels = browserChannels(
-      "s",
-      { deviceId: "abc", label: "Mic" },
-      1,
-    );
+    const channels = browserChannels("s", { deviceId: "abc", label: "Mic" }, 1);
     expect(channels.map((c) => c.localMicId)).toEqual(["browser:s:abc:0"]);
     expect(channels[0]?.source.stereo).toBe(false);
   });
@@ -107,9 +103,9 @@ describe("a Local mic's name", () => {
   });
 
   it("defaults to the plain label for a mono device", () => {
-    expect(localMicName(channel("abc", "Webcam Mic", 0, false).source, "")).toBe(
-      "Webcam Mic",
-    );
+    expect(
+      localMicName(channel("abc", "Webcam Mic", 0, false).source, ""),
+    ).toBe("Webcam Mic");
   });
 });
 

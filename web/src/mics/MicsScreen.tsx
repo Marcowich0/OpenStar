@@ -103,8 +103,14 @@ function ChannelRow({
 }
 
 export function MicsScreen() {
-  const { capture, snapshot, stageBrowser, kept, setMicsScreenOpen, setSwitchedOn } =
-    useLocalMics();
+  const {
+    capture,
+    snapshot,
+    stageBrowser,
+    kept,
+    setMicsScreenOpen,
+    setSwitchedOn,
+  } = useLocalMics();
 
   useEffect(() => {
     setMicsScreenOpen(true);
