@@ -8,6 +8,7 @@ mod config;
 pub mod db;
 mod frontend;
 pub mod healthcheck;
+mod live;
 mod startup;
 pub mod txt;
 mod unlock;
@@ -16,19 +17,21 @@ use std::path::PathBuf;
 
 use axum::Router;
 use axum::extract::State;
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::ws::WebSocketUpgrade;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
+use axum::serve::{ListenerExt, TapIo};
 use std::sync::Arc;
 
-use openstar_protocol::{ClientMessage, LibraryReadOnly, RejectCode, ServerInfo, ServerMessage};
-use tokio::net::TcpListener;
+use openstar_protocol::{LibraryReadOnly, ServerInfo};
+use tokio::net::{TcpListener, TcpStream};
 use tower_http::trace::TraceLayer;
 
 use clock::Clock;
 pub use config::{Config, Secret, UsdbCredentials};
 use db::Database;
+use live::LiveHandle;
 
 /// The build identifier, worked out by `build.rs` (see [`build_id`]).
 pub const BUILD_ID: &str = env!("OPENSTAR_BUILD_ID");
@@ -41,6 +44,8 @@ struct AppState {
     config: Arc<Config>,
     /// Why the Library is read-only, if it is; fixed at startup.
     library_read_only: Option<LibraryReadOnly>,
+    /// The live-state task, which owns everything live.
+    live: LiveHandle,
     /// The time source for every timed rule (the Unlock's idle time).
     clock: Clock,
     /// The fingerprint of the running Admin PIN; Unlocks made with another
@@ -69,7 +74,9 @@ impl Server {
             "the database is ready"
         );
         let library_read_only = startup::check_songs(&config.songs_dir);
-        // #62 reloads the Party, Line-up and Queue here.
+        // Step 5: reload the live state (today the placeholder; the Party,
+        // Line-up and Queue once #48 lands) before anything is served.
+        let live = LiveHandle::start(opened.database.clone()).await?;
         tracing::info!("live state reloaded");
         Ok(Self {
             state: AppState {
@@ -77,6 +84,7 @@ impl Server {
                 bridge_dir: PathBuf::from(bridge::DEFAULT_BRIDGE_DIR),
                 config: Arc::new(config.clone()),
                 library_read_only,
+                live,
                 clock: Clock::system(),
                 pin_fingerprint: unlock::pin_fingerprint(config.admin_pin.expose()).into(),
                 test_routes: false,
@@ -132,6 +140,7 @@ impl Server {
         let mut router = Router::new()
             .route("/healthz", get(healthz))
             .route("/api/server-info", get(server_info))
+            .route("/api/placeholder", get(placeholder))
             .route(
                 "/api/unlock",
                 get(unlock::unlock_status).post(unlock::attempt),
@@ -155,15 +164,34 @@ impl Server {
             .await
     }
 
-    /// Serves on `listener` until `shutdown` completes.
+    /// Serves on `listener` until `shutdown` completes. Then the live-state
+    /// task stops and every WebSocket is closed, so browsers notice and
+    /// reconnect to the next start.
     pub async fn serve_with_shutdown(
         self,
         listener: TcpListener,
         shutdown: impl Future<Output = ()> + Send + 'static,
     ) -> std::io::Result<()> {
-        axum::serve(listener, self.router())
+        let live = self.state.live.clone();
+        let shutdown = async move {
+            shutdown.await;
+            live.shutdown().await;
+        };
+        axum::serve(with_nodelay(listener), self.router())
             .with_graceful_shutdown(shutdown)
             .await
+    }
+}
+
+/// Sets `TCP_NODELAY` on every accepted socket, so small WebSocket messages
+/// (Pitch readings, events) leave at once.
+fn with_nodelay(listener: TcpListener) -> TapIo<TcpListener, fn(&mut TcpStream)> {
+    listener.tap_io(set_nodelay)
+}
+
+fn set_nodelay(tcp: &mut TcpStream) {
+    if let Err(error) = tcp.set_nodelay(true) {
+        tracing::warn!(%error, "setting TCP_NODELAY");
     }
 }
 
@@ -188,29 +216,28 @@ async fn server_info(State(state): State<AppState>) -> Response {
     }
 }
 
-async fn websocket(upgrade: WebSocketUpgrade) -> Response {
-    upgrade.on_upgrade(connection)
+async fn placeholder(State(state): State<AppState>) -> Response {
+    match state.live.placeholder().await {
+        Some(placeholder) => axum::Json(placeholder).into_response(),
+        None => StatusCode::SERVICE_UNAVAILABLE.into_response(),
+    }
 }
 
-async fn connection(mut socket: WebSocket) {
-    while let Some(Ok(message)) = socket.recv().await {
-        let Message::Text(text) = message else {
-            continue;
-        };
-        let reply = match serde_json::from_str::<ClientMessage>(&text) {
-            Ok(ClientMessage::Ping { nonce }) => ServerMessage::Pong { nonce },
-            Err(error) => {
-                tracing::debug!(%error, "rejecting a WebSocket message that is not a ClientMessage");
-                ServerMessage::Rejected {
-                    code: RejectCode::InvalidMessage,
-                }
-            }
-        };
-        let Ok(reply) = serde_json::to_string(&reply) else {
-            continue;
-        };
-        if socket.send(Message::text(reply)).await.is_err() {
-            break;
-        }
+async fn websocket(State(state): State<AppState>, upgrade: WebSocketUpgrade) -> Response {
+    upgrade.on_upgrade(move |socket| live::connection::run(socket, state.live))
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::serve::Listener;
+
+    #[tokio::test]
+    async fn every_accepted_socket_has_tcp_nodelay() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let mut listener = super::with_nodelay(listener);
+        let _client = tokio::net::TcpStream::connect(addr).await.unwrap();
+        let (accepted, _) = listener.accept().await;
+        assert!(accepted.nodelay().unwrap());
     }
 }

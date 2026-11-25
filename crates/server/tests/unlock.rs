@@ -450,7 +450,7 @@ async fn sqlite_never_holds_the_pin_itself() {
 #[tokio::test]
 async fn no_websocket_message_unlocks_locks_or_performs_a_guarded_action() {
     use futures_util::{SinkExt, StreamExt};
-    use openstar_protocol::{RejectCode, ServerMessage};
+    use openstar_protocol::{ServerMessage, UserMessage};
     use tokio_tungstenite::tungstenite::Message;
 
     let d = dirs();
@@ -468,6 +468,8 @@ async fn no_websocket_message_unlocks_locks_or_performs_a_guarded_action() {
         .headers_mut()
         .insert("cookie", cookie.parse().unwrap());
     let (mut socket, _) = tokio_tungstenite::connect_async(request).await.unwrap();
+    // The first message on every connection is the live state.
+    let _live_state = socket.next().await.unwrap().unwrap();
 
     for attempt in [
         format!(r#"{{"type":"unlock","pin":"{PIN}"}}"#),
@@ -481,7 +483,7 @@ async fn no_websocket_message_unlocks_locks_or_performs_a_guarded_action() {
         assert_eq!(
             answer,
             ServerMessage::Rejected {
-                code: RejectCode::InvalidMessage
+                reason: UserMessage::InvalidMessage
             },
             "{attempt}"
         );

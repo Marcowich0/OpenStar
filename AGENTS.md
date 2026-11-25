@@ -25,8 +25,8 @@ Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents
 
 ## House patterns
 
-- **One owner for live state.** One task owns the live Party state (Party, Party members, Line-up, Queue, Stage) and takes commands on a channel. Connection handlers send it commands and receive replies or events; they never hold a lock on shared state.
+- **One owner for live state.** One task owns the live Party state (Party, Party members, Line-up, Queue, Stage) and takes commands on a channel (`crates/server/src/live/`). Connection handlers send it commands and receive replies or events; they never hold a lock on shared state.
 - **Database calls on blocking threads.** Use `Database::call`, which runs the closure on a blocking thread. Never touch a `rusqlite::Connection` from async code.
-- **Codes, not English.** The server sends codes plus parameters (for example `ServerMessage::Rejected { code }`); the frontend turns them into text. Logs are the only English the server writes.
+- **Codes, not English.** The server sends codes plus parameters as the generated `UserMessage` (for example `ServerMessage::Rejected { reason }`); the frontend turns them into text. Logs are the only English the server writes.
 - **Types are defined in Rust.** Every HTTP body and WebSocket message is a type in `crates/protocol` deriving `ts_rs::TS` with `#[ts(export)]`. WebSocket messages are enums tagged with `#[serde(tag = "type")]`, so the frontend `switch`es over them exhaustively. Never write these types by hand in TypeScript.
 - **No unsafe code.** `unsafe_code = "forbid"` holds for the whole workspace; the one planned exception is the `detector-wasm` crate.
