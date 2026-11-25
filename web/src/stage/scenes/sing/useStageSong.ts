@@ -3,15 +3,17 @@
 // `StageScreen` makes it as soon as the Stage opens, so it hears every
 // `controlSong` from the first; the sing scene reads it.
 
-import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { useSyncExternalStore } from "react";
+import { QueryClientContext, type QueryClient } from "@tanstack/react-query";
+import { useContext, useSyncExternalStore } from "react";
 
 import { api } from "../../../api/api";
+import { createQueryClient } from "../../../api/queryClient";
 import { profilesQuery, songQuery } from "../../../api/queries";
 import { stagePitch } from "../../../live/browserLive";
 import type { LiveStore } from "../../../live/liveStore";
 import { createMediaPlayback } from "../../../playback/mediaPlayback";
 import { stageAudio } from "../../playback/stageAudio";
+import { stagePreview } from "../../playback/stagePreview";
 import {
   createStageSong,
   type StageSong,
@@ -65,15 +67,18 @@ export function stageSongFor(
       },
       profiles: () => queryClient.getQueryData(profilesQuery.queryKey),
       pitch: stagePitch(),
-      createPlayback: ({ element, plan, clock, onEnded }) =>
-        createMediaPlayback({
+      createPlayback: ({ element, plan, clock, onEnded }) => {
+        // The song browser's preview never plays under a Song.
+        stagePreview().stop();
+        return createMediaPlayback({
           element,
           plan,
           clock,
           chain,
           outputLatencyMs: () => stageAudio().outputLatencyMs(),
           onEnded,
-        }),
+        });
+      },
       resumeAudio,
       postRound: (outcome) => api("POST /api/rounds", { body: outcome }),
     });
@@ -82,9 +87,19 @@ export function stageSongFor(
   return song;
 }
 
-/** The Stage's playing Song for `store`, made on first use. */
+let ownQueryClient: QueryClient | null = null;
+
+/**
+ * The Stage's playing Song for `store`, made on first use, with the app's
+ * query client (or one of its own outside a `QueryClientProvider`, as in the
+ * frame's tests).
+ */
 export function useStageSong(store: LiveStore): StageSong {
-  return stageSongFor(store, useQueryClient());
+  const queryClient = useContext(QueryClientContext);
+  return stageSongFor(
+    store,
+    queryClient ?? (ownQueryClient ??= createQueryClient()),
+  );
 }
 
 /** What the sing scene shows; re-renders on each change. */

@@ -184,6 +184,18 @@ describe("the Stage plays the head's Request", () => {
     expect(view.state.lanes[0]?.trace?.readings).toBe(t.pitch.buffers()[0]);
   });
 
+  it("fixes the Mic thresholds at the OpenStar volume of Start", async () => {
+    const t = setup();
+    t.server({ type: "volume", volume: 40, stepped: false });
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    // A Phone's fallback −30 dBFS at volume 80, 40·log10(40/80) dB lower at 40.
+    expect(view.state.lanes[0]?.trace?.micThresholdDbfs).toBeCloseTo(
+      -30 + 40 * Math.log10(40 / 80),
+    );
+  });
+
   it("acts on Pause, Resume (after the 3-2-1 countdown) and Restart from the server", async () => {
     const t = setup();
     await t.start();

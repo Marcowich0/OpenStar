@@ -279,7 +279,14 @@ export function createStageSong(options: StageSongOptions): StageSong {
         show({ kind: "failed", requestId: s.requestId });
         return;
       }
-      const setup = singSetup({ detail, party, profiles: options.profiles() });
+      // The Mic thresholds are fixed at the OpenStar volume of Start.
+      const volume = store.getSnapshot().volume;
+      const setup = singSetup({
+        detail,
+        party,
+        profiles: options.profiles(),
+        ...(volume === null ? {} : { volume }),
+      });
       const plan = playbackPlan(detail);
       const clock = createSongClock({ media: plan.clock });
       const players = setup.players;

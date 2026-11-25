@@ -202,6 +202,7 @@ export const en = {
   "stage.start": "Start",
   "stage.end": "End",
   "stage.back": "Back",
+  "stage.volume": "Volume {volume, number}",
   "stage.takeBack": "Make this the Stage again",
   "chip.duet": "Duet",
 
@@ -286,6 +287,10 @@ export const en = {
   "stage.lineUp.micLevel": "{name}'s mic level",
   "stage.lineUp.remove": "Take {name} off this Song",
   "stage.lineUp.addSinger": "Add a singer",
+  "stage.lineUp.addGuest": "+ Guest",
+  "stage.lineUp.addProfile": "+ Profile",
+  "stage.lineUp.namePlaceholder": "Type a name",
+  "stage.lineUp.ok": "OK",
   "stage.sing.loading": "Getting the Song ready",
   "stage.sing.failed": "The Song could not be loaded",
   "stage.sing.notPlaying": "This Song is not playing here",

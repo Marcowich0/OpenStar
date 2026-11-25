@@ -1,9 +1,7 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createQueryClient } from "../../api/queryClient";
 import type { ClientMessage } from "../../generated/ClientMessage";
 import type { PartyMember } from "../../generated/PartyMember";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
@@ -77,11 +75,8 @@ function setup(
     });
   };
   const takeStageBack = vi.fn();
-  // The real scenes fetch (the sing scene loads its Song).
   const view = render(
-    <QueryClientProvider client={createQueryClient()}>
-      <StageFrame store={store} takeStageBack={takeStageBack} {...options} />
-    </QueryClientProvider>,
+    <StageFrame store={store} takeStageBack={takeStageBack} {...options} />,
   );
   live((h) => {
     h.onConnection("open");
