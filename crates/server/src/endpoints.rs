@@ -83,7 +83,12 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::MoveRequest { .. }
         | ClientMessage::SetRequestedPlayers { .. }
         | ClientMessage::RemoveRequest { .. }
-        | ClientMessage::ReportMicBlocked { .. } => Access::NotGuarded,
+        | ClientMessage::ReportMicBlocked { .. }
+        // Leave party and removing a Party member are everyone's (the
+        // not-guarded list in docs/agents/guard-rule.md): a Party
+        // membership is not kept data, and a Profile is never deleted.
+        | ClientMessage::LeaveParty
+        | ClientMessage::RemoveMember { .. } => Access::NotGuarded,
     }
 }
 

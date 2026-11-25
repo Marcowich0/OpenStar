@@ -180,6 +180,8 @@ export const en = {
   "userMessage.tooManyPlayers": "At most {max, number} Players can sing a Song",
   "userMessage.playerNotInParty": "Someone you picked is not in the Party",
   "userMessage.playerTwice": "Someone is picked twice",
+  "userMessage.memberSinging": "They are singing: take them off the Song first",
+  "userMessage.useLeaveParty": "To leave the Party, use Leave party",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
@@ -241,12 +243,12 @@ export const en = {
   "toast.requestPlayNext": "{actor} made {song} play next",
   "toast.requestRemoved": "{actor} removed {song}",
   "toast.requestedPlayersChanged": "{actor} changed who sings {song}",
+  // A colour parameter is always a palette display name (`colourName`).
+  "toast.memberLeft": "{actor} left the Party. {colour} is free",
   // Toasts whose sender is not built yet: the server ticket that adds the
   // `PartyEvent` code maps it to one of these in `stage/toasts/toastContent.ts`.
   "toast.backOnMic": "{actor} is back on the mic",
   "toast.localMicBack": "{mic} is back on {actor}'s seat",
-  // A colour parameter is always a palette display name (`colourName`).
-  "toast.memberLeft": "{actor} left the Party. {colour} is free",
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",
   "toast.requestDroppedSongGone":
     "{song} left the Library and was taken off the Queue",

@@ -14,6 +14,7 @@ export type Request = { requestId: RequestId, kind: RequestKind, songId: SongId,
  */
 requestedPlayers: Array<PartyMemberId>, 
 /**
- * The Party member who added it, or `null` when the Stage added it.
+ * The Party member who added it, or `null` when the Stage added it or
+ * that member has left the Party.
  */
 adder: PartyMemberId | null, };

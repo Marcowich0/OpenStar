@@ -322,7 +322,8 @@ pub struct Request {
     /// The Party members asked to sing it, in order; at most [`SEATS`], no
     /// member twice, possibly none.
     pub requested_players: Vec<PartyMemberId>,
-    /// The Party member who added it, or `null` when the Stage added it.
+    /// The Party member who added it, or `null` when the Stage added it or
+    /// that member has left the Party.
     pub adder: Option<PartyMemberId>,
 }
 
@@ -411,6 +412,16 @@ pub enum PartyEvent {
     RequestRemoved(RequestChange),
     /// A Request's requested Players changed.
     RequestedPlayersChanged(RequestChange),
+    /// A Party member left the Party or was removed (the actor says which):
+    /// its colour is free. Its name, avatar and colour travel here because
+    /// it is no longer in the snapshot ("Lukas left the Party. Tangerine is
+    /// free").
+    MemberLeft {
+        member_id: PartyMemberId,
+        name: String,
+        avatar: Avatar,
+        colour: PaletteKey,
+    },
     /// A seated Phone reported that its mic could not open.
     MicBlocked {
         member_id: PartyMemberId,
