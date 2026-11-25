@@ -31,6 +31,8 @@ const idle: PartySnapshot = {
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
 };
 
 /** The head's Line-up waits for Start. */

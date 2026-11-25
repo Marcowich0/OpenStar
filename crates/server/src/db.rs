@@ -298,6 +298,15 @@ const MIGRATIONS: &[&str] = &[
         name        TEXT NOT NULL,
         switched_on INTEGER NOT NULL CHECK (switched_on IN (0, 1))
     ) STRICT;",
+    // 18: the results a Party shows (see `live::store`): the Song that just
+    // ended and how, kept until Next or Done. Its Request has left
+    // `queue_requests`, so `request_id` references nothing.
+    "CREATE TABLE party_results (
+        party_id   TEXT PRIMARY KEY REFERENCES parties(id) ON DELETE CASCADE,
+        request_id INTEGER NOT NULL,
+        song_id    INTEGER NOT NULL,
+        ended      TEXT NOT NULL CHECK (ended IN ('played', 'ended'))
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

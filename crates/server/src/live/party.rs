@@ -35,6 +35,8 @@ pub fn start_party(
         queue: Vec::new(),
         head: None,
         line_up: None,
+        playing: None,
+        results: None,
     })
 }
 
@@ -224,7 +226,9 @@ pub struct Left {
 /// the Party and is no seat's Mic any more, and it is dropped from the
 /// requested Players of every Request (and as their adder). Refused, with
 /// nothing changed, with [`UserMessage::MemberSinging`] while it sits in the
-/// Line-up and [`UserMessage::MemberNotFound`] when it is not a member.
+/// Line-up (waiting or playing) or, during a Song, while one of its Phones
+/// is a seat's Mic, and [`UserMessage::MemberNotFound`] when it is not a
+/// member.
 pub fn leave(party: &mut PartySnapshot, member_id: PartyMemberId) -> Result<Left, UserMessage> {
     let index = party
         .members
@@ -235,7 +239,16 @@ pub fn leave(party: &mut PartySnapshot, member_id: PartyMemberId) -> Result<Left
         .line_up
         .as_ref()
         .is_some_and(|line_up| line_up.seats.iter().any(|s| s.member_id == member_id));
-    if seated {
+    // During a Song the Line-up is fixed, so no seat may lose its Mic.
+    let lends_a_mic = party.playing.is_some()
+        && party.line_up.as_ref().is_some_and(|line_up| {
+            line_up.seats.iter().any(|seat| {
+                matches!(&seat.mic, Some(MicKey::Phone { phone_id }) if party.phones.iter().any(
+                    |phone| phone.member_id == member_id && &phone.phone_id.0 == phone_id
+                ))
+            })
+        });
+    if seated || lends_a_mic {
         return Err(UserMessage::MemberSinging);
     }
     let member = party.members.remove(index);
@@ -769,6 +782,27 @@ mod tests {
         party.line_up = Some(line_up(vec![seat(1, Some(phone(2)))]));
         leave(&mut party, PartyMemberId(2)).unwrap();
         assert_eq!(party.line_up, Some(line_up(vec![seat(1, None)])));
+    }
+
+    #[test]
+    fn during_a_song_a_member_whose_phone_is_a_seats_mic_cannot_leave() {
+        let mut party = party();
+        join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
+        join_phone(&mut party, phone(2), ProfileId(2), Lime).unwrap();
+        party.queue = vec![request(10, &[1], None)];
+        party.head = Some(RequestId(10));
+        party.line_up = Some(line_up(vec![seat(1, Some(phone(2)))]));
+        party.playing = Some(openstar_protocol::PlayingSong {
+            request_id: RequestId(10),
+            song_id: openstar_protocol::library::SongId(10),
+            paused: false,
+        });
+        let before = party.clone();
+        assert_eq!(
+            leave(&mut party, PartyMemberId(2)).unwrap_err(),
+            UserMessage::MemberSinging
+        );
+        assert_eq!(party, before);
     }
 
     #[derive(Debug, Clone)]

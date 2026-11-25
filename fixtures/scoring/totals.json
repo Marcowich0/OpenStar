@@ -1,0 +1,75 @@
+{
+  "description": "The total and its three parts from the three unrounded sums: total = roundHalfUp(notes + golden + lineBonus); each part rounded half up, then adjusted by one to add up to the total",
+  "cases": [
+    {
+      "name": "a total ending exactly in .5 rounds up (USDX's half-to-even would give 6000); the parts are one short, so Notes gains 1",
+      "sums": { "notes": 4000.25, "golden": 2000.25, "lineBonus": 0 },
+      "score": { "total": 6001, "notes": 4001, "golden": 2000, "lineBonus": 0 }
+    },
+    {
+      "name": "2.5 rounds up to 3 (half-to-even would give 2)",
+      "sums": { "notes": 2.5, "golden": 0, "lineBonus": 0 },
+      "score": { "total": 3, "notes": 3, "golden": 0, "lineBonus": 0 }
+    },
+    {
+      "name": "too high with golden above 0: golden loses 1",
+      "sums": { "notes": 0.5, "golden": 0.5, "lineBonus": 0 },
+      "score": { "total": 1, "notes": 1, "golden": 0, "lineBonus": 0 }
+    },
+    {
+      "name": "too high with golden 0 and Notes above 0: Notes loses 1",
+      "sums": { "notes": 0.5, "golden": 0, "lineBonus": 0.5 },
+      "score": { "total": 1, "notes": 0, "golden": 0, "lineBonus": 1 }
+    },
+    {
+      "name": "too high, realistic: 3000.5 + 2000.5 + 499.5 = 5500.5 → 5501, parts 3001 + 2001 + 500 = 5502, golden loses 1",
+      "sums": { "notes": 3000.5, "golden": 2000.5, "lineBonus": 499.5 },
+      "score": {
+        "total": 5501,
+        "notes": 3001,
+        "golden": 2000,
+        "lineBonus": 500
+      }
+    },
+    {
+      "name": "too low with Notes 0 and golden 0: Notes gains 1",
+      "sums": { "notes": 0.25, "golden": 0.25, "lineBonus": 0.25 },
+      "score": { "total": 1, "notes": 1, "golden": 0, "lineBonus": 0 }
+    },
+    {
+      "name": "too low with Notes 0 and golden above 0: golden gains 1",
+      "sums": { "notes": 0.25, "golden": 1.25, "lineBonus": 0.25 },
+      "score": { "total": 2, "notes": 0, "golden": 2, "lineBonus": 0 }
+    },
+    {
+      "name": "too low with Notes above 0: Notes gains 1",
+      "sums": { "notes": 100.375, "golden": 50.375, "lineBonus": 10.375 },
+      "score": { "total": 161, "notes": 101, "golden": 50, "lineBonus": 10 }
+    },
+    {
+      "name": "already adding up: nothing moves",
+      "sums": { "notes": 7000.25, "golden": 1999.75, "lineBonus": 999 },
+      "score": {
+        "total": 9999,
+        "notes": 7000,
+        "golden": 2000,
+        "lineBonus": 999
+      }
+    },
+    {
+      "name": "a perfect run",
+      "sums": { "notes": 6000, "golden": 3000, "lineBonus": 1000 },
+      "score": {
+        "total": 10000,
+        "notes": 6000,
+        "golden": 3000,
+        "lineBonus": 1000
+      }
+    },
+    {
+      "name": "silence",
+      "sums": { "notes": 0, "golden": 0, "lineBonus": 0 },
+      "score": { "total": 0, "notes": 0, "golden": 0, "lineBonus": 0 }
+    }
+  ]
+}

@@ -23,7 +23,7 @@ favouriteTaken: boolean,
  */
 onPhone: boolean, 
 /**
- * Sits in the waiting Line-up ("singing"), so it cannot leave or be
- * removed. Computed by the server.
+ * Sits in the head's Line-up ("singing"), waiting or with its Song
+ * playing, so it cannot leave or be removed. Computed by the server.
  */
 singing: boolean, };

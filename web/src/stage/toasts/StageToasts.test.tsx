@@ -42,6 +42,8 @@ const party: PartySnapshot = {
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
 };
 
 const bo: Profile = {
