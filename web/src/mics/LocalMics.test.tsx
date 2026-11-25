@@ -3,7 +3,7 @@ import { act, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "../api/queryClient";
-import { localMicsQuery } from "../api/queries";
+import { localMicsQuery, micBridgesQuery } from "../api/queries";
 import type { ClientMessage } from "../generated/ClientMessage";
 import type { LiveClientOptions } from "../live/liveClient";
 import { createLiveStore } from "../live/liveStore";
@@ -62,6 +62,10 @@ function setup() {
       switchedOn: true,
     },
   ]);
+  queryClient.setQueryData(micBridgesQuery.queryKey, {
+    bridges: [],
+    requests: [{ requestId: 7, hostName: "hermes", code: "4821" }],
+  });
   const capture = fakeCapture();
   const makeCapture = vi.fn(() => capture);
   let api: LocalMicsApi | null = null;
@@ -155,5 +159,17 @@ describe("the Stage browser's Local mics", () => {
     // Another browser took the Stage.
     becomeStage(false);
     expect(capture.setOpen).toHaveBeenLastCalledWith(new Set());
+  });
+
+  it("list the Mic bridges and approve a waiting one over the Stage's WebSocket", () => {
+    const { becomeStage, api, sent } = setup();
+    becomeStage(true);
+    expect(api().bridges.requests).toEqual([
+      { requestId: 7, hostName: "hermes", code: "4821" },
+    ]);
+    act(() => {
+      api().approveBridge(7);
+    });
+    expect(sent).toContainEqual({ type: "approveBridge", requestId: 7 });
   });
 });
