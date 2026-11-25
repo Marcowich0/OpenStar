@@ -6,6 +6,7 @@
 
 pub mod admin;
 pub mod jobs;
+pub mod library;
 pub mod party;
 pub mod profile;
 pub mod song;
@@ -126,6 +127,9 @@ pub enum ChangeTopic {
     ServerInfo,
     /// `GET /api/profiles` and `GET /api/profiles/{id}`.
     Profiles,
+    /// The Library index: `GET /api/songs`, `GET /api/songs/{id}`,
+    /// `GET /api/library/problems` and `GET /api/library/scan`.
+    Library,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast

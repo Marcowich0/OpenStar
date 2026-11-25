@@ -6,10 +6,14 @@
 import type { ApiError } from "../generated/ApiError";
 import type { ApiErrorCode } from "../generated/ApiErrorCode";
 import type { JobList } from "../generated/JobList";
+import type { LibraryProblem } from "../generated/LibraryProblem";
 import type { NewProfile } from "../generated/NewProfile";
 import type { Profile } from "../generated/Profile";
 import type { ProfileEdit } from "../generated/ProfileEdit";
+import type { ScanStatus } from "../generated/ScanStatus";
 import type { ServerInfo } from "../generated/ServerInfo";
+import type { SongDetail } from "../generated/SongDetail";
+import type { SongSummary } from "../generated/SongSummary";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
 import type { UserMessage } from "../generated/UserMessage";
@@ -31,6 +35,11 @@ export interface Endpoints {
   "GET /api/profiles/{id}": { response: Profile };
   "PATCH /api/profiles/{id}": { body: ProfileEdit; response: Profile };
   "GET /api/jobs": { response: JobList };
+  "GET /api/songs": { response: SongSummary[] };
+  "GET /api/songs/{id}": { response: SongDetail };
+  "GET /api/library/problems": { response: LibraryProblem[] };
+  "GET /api/library/scan": { response: ScanStatus };
+  "POST /api/library/rescan": { response: ScanStatus };
 }
 
 export type Route = keyof Endpoints;

@@ -9,6 +9,7 @@ import { invalidateOnChange } from "./api/changeNotices";
 import { createQueryClient } from "./api/queryClient";
 import { liveStore } from "./live/browserLive";
 import { createAppRouter } from "./router";
+import { BubblePopBackground } from "./ui/BubblePopBackground";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");
@@ -20,6 +21,10 @@ invalidateOnChange(liveStore(), queryClient);
 
 createRoot(root).render(
   <StrictMode>
-    <RouterProvider router={createAppRouter(undefined, queryClient)} />
+    {/* Every screen sits on the Bubble Pop background; the sing screen's
+        video covers it. */}
+    <BubblePopBackground>
+      <RouterProvider router={createAppRouter(undefined, queryClient)} />
+    </BubblePopBackground>
   </StrictMode>,
 );
