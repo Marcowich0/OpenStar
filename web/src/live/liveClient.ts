@@ -100,8 +100,15 @@ export function createLiveClient(options: LiveClientOptions): LiveClient {
   };
 }
 
-/** The WebSocket address on the page's own origin. */
-export function liveUrl(location: Pick<Location, "protocol" | "host">): string {
+/**
+ * The WebSocket address on the page's own origin. The Stage's page (`/stage`)
+ * opens the Stage's WebSocket, which makes this browser the active Stage;
+ * every other page opens `/ws`.
+ */
+export function liveUrl(
+  location: Pick<Location, "protocol" | "host" | "pathname">,
+): string {
   const scheme = location.protocol === "https:" ? "wss" : "ws";
-  return `${scheme}://${location.host}/ws`;
+  const isStagePage = /^\/stage(\/|$)/.test(location.pathname);
+  return `${scheme}://${location.host}${isStagePage ? "/ws/stage" : "/ws"}`;
 }

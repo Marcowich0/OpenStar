@@ -1,0 +1,18 @@
+#ARTIST:Placeholder Artist
+#TITLE:Re: Stacks
+#MP3:video.mp4
+#AUTHOR:Fish &amp; Chips <placeholder>
+#EDITION:None
+#GENRE:Pop
+#YEAR:2001
+#LANGUAGE:English
+#BPM:300
+#GAP:1000
+#COVER:cover.jpg
+#VIDEO:video.mp4
+: 0 4 60 la
+: 4 4 62 la's
+- 10
+* 12 4 64 one
+F 18 4 0 two
+E

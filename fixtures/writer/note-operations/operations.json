@@ -1,0 +1,16 @@
+[
+  { "op": "setNotePitch", "line": 5, "pitch": -3 },
+  { "op": "deleteNote", "line": 6 },
+  {
+    "op": "insertNote",
+    "after": 5,
+    "kind": "normal",
+    "start": 5,
+    "length": 2,
+    "pitch": 1,
+    "text": "new"
+  },
+  { "op": "setNoteText", "line": 7, "text": "end" },
+  { "op": "setLineEnd", "line": 8, "beat": 13 },
+  { "op": "deleteNote", "line": 9 }
+]

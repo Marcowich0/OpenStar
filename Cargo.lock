@@ -503,6 +503,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "html-escape"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d45ed4d99334da2a2f221504e8ffc8ad09baf2a452b154465a976bfde697b004"
+
+[[package]]
 name = "http"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -879,11 +885,13 @@ dependencies = [
  "encoding_rs",
  "futures-util",
  "getrandom 0.4.3",
+ "html-escape",
  "insta",
  "mime_guess",
  "openstar-protocol",
  "openstar-test-harness",
  "proptest",
+ "regex",
  "reqwest",
  "rusqlite",
  "rust-embed",
@@ -1089,6 +1097,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60aa6af80be32871323012e02e6e65f8a7cc7890931ae421d217ad8fe0df2ccf"
 dependencies = [
  "rand_core 0.10.1",
+]
+
+[[package]]
+name = "regex"
+version = "1.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9807af0e638c12e753aa1b4e601791bf2a8f71274023c8bbeec12fc149950857"
+dependencies = [
+ "aho-corasick",
+ "memchr",
+ "regex-automata",
+ "regex-syntax",
 ]
 
 [[package]]

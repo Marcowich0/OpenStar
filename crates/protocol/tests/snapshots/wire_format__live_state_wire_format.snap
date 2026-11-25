@@ -1,9 +1,15 @@
 ---
 source: crates/protocol/tests/wire_format.rs
-expression: "ServerMessage::LiveState\n{ stage_id: StageId(\"main\".to_owned()), placeholder: \"Hello\".to_owned(), }"
+expression: "ServerMessage::LiveState\n{\n    stage_id: StageId(\"main\".to_owned()), party: Some(party()), is_stage:\n    true,\n}"
 ---
 {
   "type": "liveState",
   "stageId": "main",
-  "placeholder": "Hello"
+  "party": {
+    "partyId": "0123456789abcdef0123456789abcdef",
+    "stageId": "main",
+    "joinCode": "0427",
+    "startedAtMs": 1764000000000
+  },
+  "isStage": true
 }
