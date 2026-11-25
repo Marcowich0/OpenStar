@@ -1,0 +1,8 @@
+#VERSION:2.0.0
+#TITLE:Rejected
+#ARTIST:Placeholder Artist
+#AUDIO:rejected.ogg
+#BPM:300
+: 0 16 0 La
+: 20 16 2  la
+E

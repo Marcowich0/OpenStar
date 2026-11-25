@@ -1,0 +1,19 @@
+#TITLE:Sine Melody
+#ARTIST:Placeholder Artist
+#MP3:sine-melody.ogg
+#BPM:300
+#GAP:1500
+: 0 12 0 One
+: 14 12 2  two
+: 28 12 4  three
+: 42 12 5  four
+- 58
+: 60 12 7 Five
+: 74 12 9  six
+* 88 12 11  se
+* 102 20 12 ven
+- 126
+: 128 12 7 One
+: 142 12 4  two
+: 156 24 0  three
+E

@@ -1,5 +1,5 @@
 //! The Library scan and its index, through the real app over HTTP and the
-//! WebSocket, on a copy of `fixtures/library/` (see its README for what each
+//! WebSocket, on a copy of `fixtures/library-scan/` (see its README for what each
 //! `.txt` covers). Media files are created empty at test time.
 
 use std::collections::BTreeSet;
@@ -18,7 +18,7 @@ use openstar_test_harness::{AppFolders, TestApp};
 const CANDIDATES: u32 = 9;
 
 fn fixture_library() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/library")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/library-scan")
 }
 
 fn copy_dir(from: &Path, to: &Path) {

@@ -13,10 +13,16 @@ ci: check e2e
 
 # The browser end-to-end tests: builds the release binary with its frontend,
 # serves it with a temporary appdata and Library, and runs Playwright on Chromium
-# from the pinned Playwright Docker image (scripts/e2e.sh). Needs Docker.
+# from the pinned Playwright Docker image (scripts/e2e.sh). The Library is the
+# fixture Library with its audio generated, and the fake mic WAVs land in
+# e2e/generated/mic/ (both need ffmpeg). Needs Docker.
 # Arguments go to `playwright test`, e.g. `just e2e tests/tracer.spec.ts`.
-e2e *args: build e2e-install
+e2e *args: build harness-build e2e-install
     scripts/e2e.sh {{ args }}
+
+# The openstar-harness binary `just e2e` uses (fixture Library, fake mic WAVs).
+harness-build:
+    cargo build --locked -p openstar-test-harness --bin openstar-harness
 
 e2e-install:
     pnpm --dir e2e install --frozen-lockfile
