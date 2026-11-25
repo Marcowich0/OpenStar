@@ -9,6 +9,11 @@
 # host network, and stops everything afterwards. Extra arguments go to
 # `playwright test` (for example a file name or `--grep`).
 #
+# The painter screenshot baselines (e2e/tests/__screenshots__/) are only ever
+# written by `just update-screenshots`, which sets
+# OPENSTAR_E2E_UPDATE_SCREENSHOTS=1; any other run compares against them and
+# refuses Playwright's own update flags.
+#
 # Needs Docker, ffmpeg, the openstar-harness binary (`just harness-build`) and
 # e2e/node_modules (`just e2e-install`).
 set -euo pipefail
@@ -24,7 +29,23 @@ harness="${CARGO_TARGET_DIR:-$root/target}/debug/openstar-harness"
 [ -x "$binary" ] || { echo "e2e: $binary is missing: run 'just build' (or 'just e2e')" >&2; exit 1; }
 [ -x "$harness" ] || { echo "e2e: $harness is missing: run 'just harness-build' (or 'just e2e')" >&2; exit 1; }
 [ -d "$root/e2e/node_modules" ] || { echo "e2e: e2e/node_modules is missing: run 'just e2e-install'" >&2; exit 1; }
+[ -f "$root/e2e/generated/screenshot-page/sing-test.html" ] || { echo "e2e: the screenshot page is missing: run 'just screenshot-page' (or 'just e2e')" >&2; exit 1; }
 command -v docker >/dev/null || { echo "e2e: docker is not installed; 'just e2e' runs Playwright in Docker" >&2; exit 1; }
+
+update_args=()
+for arg in "$@"; do
+  case "$arg" in
+    -u | --update-snapshots | --update-snapshots=*)
+      echo "e2e: screenshot baselines change only through 'just update-screenshots'" >&2
+      exit 2
+      ;;
+  esac
+done
+if [ "${OPENSTAR_E2E_UPDATE_SCREENSHOTS:-}" = "1" ]; then
+  # Taken again from scratch, so a removed case leaves no stale image behind.
+  rm -rf "$root/e2e/tests/__screenshots__"
+  update_args=(--update-snapshots=all)
+fi
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/openstar-e2e.XXXXXX")"
 server_pid=""
@@ -80,7 +101,7 @@ docker run --rm --init \
   -e OPENSTAR_E2E_BASE_URL="$base_url" \
   -v "$root/e2e:/e2e" -w /e2e \
   "$PLAYWRIGHT_IMAGE" \
-  node node_modules/@playwright/test/cli.js test "$@" || status=$?
+  node node_modules/@playwright/test/cli.js test "${update_args[@]}" "$@" || status=$?
 
 if [ "$status" -ne 0 ]; then
   # Keep the server's log beside the report and traces (the CI artifact).

@@ -1,0 +1,25 @@
+/*
+ * The Stage's one focus ring (v1 spec #55): a yellow ring with an ink edge
+ * that keeps the element's own ledge, and a grow to 103 % with the spring
+ * easing. It shows for keyboard and mouse alike, because the mouse moves the
+ * same focus. Every button and `[data-stage-focus]` element in the frame can
+ * hold the focus.
+ *
+ * Unlayered, so it wins over the components' own focus outlines (Tailwind
+ * utilities sit in a cascade layer). `--tw-shadow` is the element's shadow
+ * utility (its ledge); it falls back to no shadow.
+ */
+[data-stage-frame] :is(button, [data-stage-focus]) {
+  transition:
+    scale 0.25s var(--ease-spring),
+    transform 0.2s var(--ease-spring);
+}
+
+[data-stage-frame] :is(button, [data-stage-focus]):focus {
+  outline: none;
+  box-shadow:
+    0 0 0 6px var(--color-yellow),
+    0 0 0 10px var(--color-ink),
+    var(--tw-shadow, 0 0 transparent);
+  scale: 1.03;
+}

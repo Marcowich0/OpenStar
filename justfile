@@ -17,8 +17,22 @@ ci: check e2e
 # fixture Library with its audio generated, and the fake mic WAVs land in
 # e2e/generated/mic/ (both need ffmpeg). Needs Docker.
 # Arguments go to `playwright test`, e.g. `just e2e tests/tracer.spec.ts`.
-e2e *args: build harness-build e2e-install
+# The painter screenshots compare against the committed baselines in
+# e2e/tests/__screenshots__/ and never write them.
+e2e *args: build harness-build e2e-install screenshot-page
     scripts/e2e.sh {{ args }}
+
+# The only command that writes the painter screenshot baselines
+# (e2e/tests/__screenshots__/): it deletes them and takes them again in the
+# same pinned Playwright image as `just e2e`. Commit the changed images; the
+# PR shows them.
+update-screenshots: build harness-build e2e-install screenshot-page
+    OPENSTAR_E2E_UPDATE_SCREENSHOTS=1 scripts/e2e.sh tests/painter.spec.ts
+
+# The test-only painter screenshot page (web/sing-test.html), built into
+# e2e/generated/screenshot-page/; never part of the production build.
+screenshot-page: web-install
+    pnpm --dir web exec vite build --mode screenshots --logLevel warn
 
 # The openstar-harness binary `just e2e` uses (fixture Library, fake mic WAVs).
 harness-build:

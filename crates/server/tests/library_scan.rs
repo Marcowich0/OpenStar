@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use openstar_protocol::library::{
     FileProblem, LibraryProblem, ProblemReason, ProblemSeverity, ScanReport, ScanStatus,
-    SongDetail, SongSummary,
+    SongDetail, SongList, SongSummary,
 };
 use openstar_protocol::song::TxtRejection;
 use openstar_protocol::{ChangeTopic, ServerMessage};
@@ -84,12 +84,12 @@ async fn rescan(app: &TestApp) -> ScanStatus {
 }
 
 async fn song_paths(app: &TestApp) -> BTreeSet<String> {
-    let songs: Vec<SongSummary> = app.get_json("/api/songs").await;
+    let songs: Vec<SongSummary> = app.get_json::<SongList>("/api/songs").await.songs;
     songs.into_iter().map(|s| s.path).collect()
 }
 
 async fn song(app: &TestApp, path: &str) -> SongDetail {
-    let songs: Vec<SongSummary> = app.get_json("/api/songs").await;
+    let songs: Vec<SongSummary> = app.get_json::<SongList>("/api/songs").await.songs;
     let id = songs
         .iter()
         .find(|s| s.path == path)

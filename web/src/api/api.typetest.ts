@@ -46,6 +46,21 @@ export async function apiTypeChecks() {
   // @ts-expect-error: `GET /api/server-info` has no path parameters.
   await api("GET /api/server-info", { params: { id: "3" } });
 
+  const list = await api("GET /api/songs", {
+    query: { search: "la", hasVideo: true, minLengthSeconds: 60 },
+  });
+  const firstTitle: string | undefined = list.songs[0]?.title;
+  const years: number[] = list.filters.years;
+
+  // @ts-expect-error: `year` is a number.
+  await api("GET /api/songs", { query: { year: "2005" } });
+
+  // @ts-expect-error: `SongQuery` has no `artist` field.
+  await api("GET /api/songs", { query: { artist: "a" } });
+
+  // @ts-expect-error: `GET /api/server-info` takes no query.
+  await api("GET /api/server-info", { query: { search: "a" } });
+
   // A route with `{name}` path parameters needs `params` with those names.
   const both: PathParamNames<"PUT /api/profiles/{id}/avatar/{key}"> = "key";
   const none: [PathParamNames<"GET /api/server-info">] extends [never]
@@ -54,5 +69,15 @@ export async function apiTypeChecks() {
   // @ts-expect-error: `name` is not a parameter of this path.
   const wrong: PathParamNames<"GET /api/profiles/{id}"> = "name";
 
-  return { version, schemaVersion, buildId, misread, both, none, wrong };
+  return {
+    version,
+    schemaVersion,
+    buildId,
+    misread,
+    both,
+    none,
+    wrong,
+    firstTitle,
+    years,
+  };
 }

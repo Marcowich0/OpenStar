@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { SING_TEST_CASES } from "../../singTestSearch";
+import { SING_TEST_CASES } from "../../singTest/search";
 import { frame } from "./frame";
 import { laneLayout } from "./laneLayout";
 import { syntheticSing } from "./syntheticSing";
