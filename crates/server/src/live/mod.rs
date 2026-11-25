@@ -423,6 +423,8 @@ impl LiveState {
             if self.stage().party.is_none() {
                 started = self.start_party(now_ms).await;
             }
+            // A Stage that moved takes its Mics screen with it.
+            self.tell_mics_screen();
         }
         let live_state = ServerMessage::LiveState {
             stage_id: self.current_stage.clone(),
@@ -442,6 +444,7 @@ impl LiveState {
         let stage = self.stage_mut();
         if stage.connection == Some(id) {
             stage.connection = None;
+            self.tell_mics_screen();
         }
         if self.mics.remove(&id) {
             self.send_to_stage(&ServerMessage::MicClosed { mic: mic_id(id) });
@@ -646,6 +649,12 @@ impl LiveState {
             }) => {
                 self.bridge_hello(id, build, host_name, token, interfaces)
                     .await;
+            }
+            Ok(ClientMessage::SetMicsScreenOpen { open }) => {
+                self.set_mics_screen_open(id, open);
+            }
+            Ok(ClientMessage::BridgeLevels { levels }) => {
+                self.bridge_levels(id, levels);
             }
             Ok(ClientMessage::ApproveBridge { request_id }) => {
                 self.approve_bridge(id, request_id, now_ms).await;

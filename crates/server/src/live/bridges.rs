@@ -7,8 +7,8 @@
 use std::collections::HashMap;
 
 use openstar_protocol::bridge::{
-    BridgeChannel, BridgeChannelSettings, BridgeId, BridgeInterface, BridgeRequest,
-    BridgeRequestId, MicBridge, MicBridges, bridge_local_mic_id,
+    BridgeChannel, BridgeChannelSettings, BridgeId, BridgeInterface, BridgeLevel, BridgeRequest,
+    BridgeRequestId, LocalMicLevel, MicBridge, MicBridges, bridge_local_mic_id,
 };
 use openstar_protocol::mics::LocalMicSource;
 use openstar_protocol::{ChangeTopic, ServerMessage, UserMessage};
@@ -16,6 +16,9 @@ use openstar_protocol::{ChangeTopic, ServerMessage, UserMessage};
 use super::LiveState;
 use super::hub::ConnectionId;
 use crate::mic_bridges::{self, Approved};
+
+/// The lowest level a meter shows, in dBFS: silence.
+const SILENCE_DBFS: f64 = -100.0;
 
 /// The Mic bridge part of the live state.
 #[derive(Default)]
@@ -29,6 +32,11 @@ pub(super) struct Bridges {
     /// Approved bridges that are connected, by connection.
     pub open: HashMap<ConnectionId, Open>,
     next_request: u32,
+    /// The Stage connection whose Mics screen is open: it counts only while
+    /// that connection is still the active Stage.
+    mics_screen: Option<ConnectionId>,
+    /// What open bridges were last told about the Mics screen.
+    told_mics_screen: bool,
 }
 
 pub(super) struct Waiting {
@@ -259,7 +267,66 @@ impl LiveState {
             },
         );
         self.send_bridge_channels(Some(id)).await;
+        let open = self.mics_screen_open();
+        self.hub
+            .send_to(id, &ServerMessage::BridgeMicsScreen { open });
         self.bridges_changed();
+    }
+
+    /// The active Stage says its Mics screen opened or closed.
+    pub(super) fn set_mics_screen_open(&mut self, id: ConnectionId, open: bool) {
+        if self.stage().connection != Some(id) {
+            self.reject(id, UserMessage::NotTheStage);
+            return;
+        }
+        self.bridges.mics_screen = open.then_some(id);
+        self.tell_mics_screen();
+    }
+
+    /// Whether the active Stage's Mics screen is open.
+    fn mics_screen_open(&self) -> bool {
+        let stage = self.stages.get(&self.current_stage);
+        self.bridges.mics_screen.is_some()
+            && self.bridges.mics_screen == stage.and_then(|stage| stage.connection)
+    }
+
+    /// Tells every open bridge whether the Mics screen is open, if that
+    /// changed since they were last told. Called whenever the Stage
+    /// connection or its Mics screen may have changed.
+    pub(super) fn tell_mics_screen(&mut self) {
+        let open = self.mics_screen_open();
+        if open == self.bridges.told_mics_screen {
+            return;
+        }
+        self.bridges.told_mics_screen = open;
+        let bridges: Vec<ConnectionId> = self.bridges.open.keys().copied().collect();
+        for id in bridges {
+            self.hub
+                .send_to(id, &ServerMessage::BridgeMicsScreen { open });
+        }
+    }
+
+    /// Levels from a bridge: relayed to the Stage under their Local mic ids
+    /// if the bridge is open, only for channels it offers. Dropped otherwise.
+    pub(super) fn bridge_levels(&mut self, id: ConnectionId, levels: Vec<BridgeLevel>) {
+        let Some(open) = self.bridges.open.get(&id) else {
+            return;
+        };
+        let levels: Vec<LocalMicLevel> = levels
+            .into_iter()
+            .filter(|level| {
+                open.interfaces.iter().any(|interface| {
+                    interface.device_name == level.device_name && level.channel < interface.channels
+                })
+            })
+            .map(|level| LocalMicLevel {
+                local_mic_id: bridge_local_mic_id(&open.bridge_id, &level.device_name, level.channel),
+                level_dbfs: level.level_dbfs.clamp(SILENCE_DBFS, 0.0),
+            })
+            .collect();
+        if !levels.is_empty() {
+            self.send_to_stage(&ServerMessage::LocalMicLevels { levels });
+        }
     }
 
     /// Tells open bridges (`only` one, or every one) each of their channels:

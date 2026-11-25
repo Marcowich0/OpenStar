@@ -62,7 +62,9 @@ async fn connect_bridge(app: &TestApp) -> WsClient {
 async fn bridge_recv(bridge: &mut WsClient) -> ServerMessage {
     loop {
         match bridge.recv().await {
-            ServerMessage::Changed { .. } | ServerMessage::PartyChanged { .. } => {}
+            ServerMessage::Changed { .. }
+            | ServerMessage::PartyChanged { .. }
+            | ServerMessage::BridgeMicsScreen { .. } => {}
             message => return message,
         }
     }

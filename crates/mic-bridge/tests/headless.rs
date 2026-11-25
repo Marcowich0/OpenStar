@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::Duration;
 
-use openstar_protocol::bridge::{MicBridges, bridge_local_mic_id};
+use openstar_protocol::bridge::{LocalMicLevel, MicBridges, bridge_local_mic_id};
 use openstar_protocol::{ChangeTopic, ClientMessage, ServerMessage};
 use openstar_test_harness::{TestApp, WsClient, fake_mic};
 use sha2::{Digest, Sha256};
@@ -235,5 +235,96 @@ async fn a_wav_bridge_is_approved_on_the_stage_keeps_its_token_and_then_connects
     bridge
         .until("Channel multichannel.wav · Input 2: ", "on")
         .await;
+    bridge.stop().await;
+}
+
+/// The next meter levels the Stage receives, past other messages.
+async fn next_levels(stage: &mut WsClient) -> Vec<LocalMicLevel> {
+    loop {
+        if let ServerMessage::LocalMicLevels { levels } = stage.recv().await {
+            return levels;
+        }
+    }
+}
+
+#[tokio::test]
+async fn a_wav_bridge_sends_levels_of_every_channel_while_the_mics_screen_is_open_and_else_of_switched_on_ones()
+ {
+    let app = TestApp::start().await;
+    let mic = tempfile::tempdir().unwrap();
+    // The tone is on channel 0; the other channels are silent.
+    let wav = fake_mic::write(mic.path()).unwrap().multichannel;
+    let config = ConfigHome::new();
+    config.write_server(&app.base_url());
+    let mut stage = open_stage(&app).await;
+    let mut bridge = Bridge::start(&config, &wav);
+    bridge
+        .line("Waiting for approval on the Stage: code ")
+        .await;
+    let listed: MicBridges = app.get_json("/api/mic-bridges").await;
+    stage
+        .send(&ClientMessage::ApproveBridge {
+            request_id: listed.requests[0].request_id,
+        })
+        .await;
+    bridge.line("Connected").await;
+    let listed: MicBridges = app.get_json("/api/mic-bridges").await;
+    let id = |n| bridge_local_mic_id(&listed.bridges[0].bridge_id, "multichannel.wav", n);
+
+    // The Mics screen opens: every channel is metered.
+    stage
+        .send(&ClientMessage::SetMicsScreenOpen { open: true })
+        .await;
+    bridge.line("Mics screen open").await;
+    bridge.until("Interface multichannel.wav: ", "open").await;
+    let levels = next_levels(&mut stage).await;
+    assert_eq!(
+        levels.iter().map(|l| l.local_mic_id.clone()).collect::<Vec<_>>(),
+        (0..4).map(id).collect::<Vec<_>>()
+    );
+    assert!(levels[0].level_dbfs > -40.0, "the tone: {levels:?}");
+    assert!(
+        levels[1..].iter().all(|l| l.level_dbfs == -100.0),
+        "silence: {levels:?}"
+    );
+
+    // Closed, with channel 2 switched on: only channel 2.
+    let channel = listed.bridges[0].channels[2].clone();
+    stage
+        .send(&ClientMessage::SetLocalMicSwitchedOn {
+            local_mic_id: channel.local_mic_id.clone(),
+            source: channel.source.clone(),
+            switched_on: true,
+        })
+        .await;
+    bridge
+        .until("Channel multichannel.wav · Input 3: ", "on")
+        .await;
+    stage
+        .send(&ClientMessage::SetMicsScreenOpen { open: false })
+        .await;
+    bridge.line("Mics screen closed").await;
+    // Levels already on their way may still name every channel.
+    let mut levels = next_levels(&mut stage).await;
+    for _ in 0..5 {
+        if levels.len() == 1 {
+            break;
+        }
+        levels = next_levels(&mut stage).await;
+    }
+    assert_eq!(
+        levels.iter().map(|l| l.local_mic_id.clone()).collect::<Vec<_>>(),
+        vec![id(2)]
+    );
+
+    // Switched off with the Mics screen closed: the interface closes.
+    stage
+        .send(&ClientMessage::SetLocalMicSwitchedOn {
+            local_mic_id: channel.local_mic_id,
+            source: channel.source,
+            switched_on: false,
+        })
+        .await;
+    bridge.until("Interface multichannel.wav: ", "closed").await;
     bridge.stop().await;
 }
