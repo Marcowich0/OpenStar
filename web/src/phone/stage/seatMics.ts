@@ -73,9 +73,10 @@ export function seatMicOptions(
   const own = lineUp.seats[seat]?.mic ?? null;
   const others = lineUp.seats.filter((_, i) => i !== seat).map((s) => s.mic);
   const mics: MicKey[] = [
-    ...input.party.phones.map(
-      (p): MicKey => ({ kind: "phone", phoneId: p.phoneId }),
-    ),
+    ...input.party.phones.map((p): MicKey => ({
+      kind: "phone",
+      phoneId: p.phoneId,
+    })),
     ...input.localMics
       .filter((m) => m.switchedOn)
       .map((m): MicKey => ({ kind: "localMic", localMicId: m.localMicId })),

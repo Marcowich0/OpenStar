@@ -7,7 +7,12 @@ import { micName, seatMicOptions } from "./seatMics";
 
 const member = (memberId: number): PartySnapshot["members"][number] => ({
   memberId,
-  identity: { kind: "guest", name: `M${String(memberId)}`, avatar: { kind: "builtIn", key: "cat" }, difficulty: "medium" },
+  identity: {
+    kind: "guest",
+    name: `M${String(memberId)}`,
+    avatar: { kind: "builtIn", key: "cat" },
+    difficulty: "medium",
+  },
   colour: "cherry",
   favouriteTaken: false,
   onPhone: true,
@@ -38,8 +43,18 @@ const lineUp: LineUp = {
   canStart: false,
   warnings: [],
   seats: [
-    { memberId: 1, mic: { kind: "phone", phoneId: "bo-phone" }, voice: "p1", difficulty: "medium" },
-    { memberId: 2, mic: { kind: "localMic", localMicId: "red" }, voice: "p1", difficulty: "easy" },
+    {
+      memberId: 1,
+      mic: { kind: "phone", phoneId: "bo-phone" },
+      voice: "p1",
+      difficulty: "medium",
+    },
+    {
+      memberId: 2,
+      mic: { kind: "localMic", localMicId: "red" },
+      voice: "p1",
+      difficulty: "easy",
+    },
     { memberId: 3, mic: null, voice: "p1", difficulty: "hard" },
   ],
 };
@@ -87,9 +102,7 @@ describe("a seat's Mic list", () => {
       localMics: LOCAL_MICS,
       nameOf,
     });
-    expect(
-      options.map((o) => [o.name, o.inUse, o.current]),
-    ).toEqual([
+    expect(options.map((o) => [o.name, o.inUse, o.current])).toEqual([
       ["Bo's phone", false, true],
       ["This phone", false, false],
       ["Red mic", true, false],
@@ -100,9 +113,20 @@ describe("a seat's Mic list", () => {
 
 describe("a seat's Mic name", () => {
   it("names Phones from this Phone's point of view and Local mics by name", () => {
-    const context = { party, myPhoneId: "bo-phone", localMics: LOCAL_MICS, nameOf };
-    expect(micName({ kind: "phone", phoneId: "bo-phone" }, context)).toBe("This phone");
-    expect(micName({ kind: "phone", phoneId: "jonas-phone" }, context)).toBe("Jonas's phone");
-    expect(micName({ kind: "localMic", localMicId: "red" }, context)).toBe("Red mic");
+    const context = {
+      party,
+      myPhoneId: "bo-phone",
+      localMics: LOCAL_MICS,
+      nameOf,
+    };
+    expect(micName({ kind: "phone", phoneId: "bo-phone" }, context)).toBe(
+      "This phone",
+    );
+    expect(micName({ kind: "phone", phoneId: "jonas-phone" }, context)).toBe(
+      "Jonas's phone",
+    );
+    expect(micName({ kind: "localMic", localMicId: "red" }, context)).toBe(
+      "Red mic",
+    );
   });
 });

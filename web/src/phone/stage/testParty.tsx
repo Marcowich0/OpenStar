@@ -187,7 +187,10 @@ export function renderWithParty(
     </QueryClientProvider>,
   );
   /** The server's answer: the Party with `lineUp` changed. */
-  const lineUpChanged = (lineUp: LineUp | null, rest: Partial<PartySnapshot> = {}) => {
+  const lineUpChanged = (
+    lineUp: LineUp | null,
+    rest: Partial<PartySnapshot> = {},
+  ) => {
     server({
       type: "partyChanged",
       party: { ...party, ...rest, lineUp },

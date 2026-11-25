@@ -150,9 +150,10 @@ describe("the Stage tab while a Line-up waits", () => {
 
 describe("the Stage tab without a waiting Line-up", () => {
   it("shows no Line-up", async () => {
-    renderWithParty({ ...PARTY, head: null, lineUp: null, queue: [] }, (store) => (
-      <StageTab store={store} myPhoneId={MY_PHONE} />
-    ));
+    renderWithParty(
+      { ...PARTY, head: null, lineUp: null, queue: [] },
+      (store) => <StageTab store={store} myPhoneId={MY_PHONE} />,
+    );
     expect(await screen.findByText("On the Stage")).toBeInTheDocument();
     expect(screen.queryByText("Up next: who sings?")).toBeNull();
   });

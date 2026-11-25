@@ -85,9 +85,10 @@ describe("the seat sheet", () => {
   it("offers every Mic, with Mics in use in another seat disabled and tagged", async () => {
     const { sent } = renderSheet(1);
     const mic = within(await screen.findByRole("group", { name: "Mic" }));
-    expect(
-      mic.getByRole("button", { name: /^This phone/ }),
-    ).toHaveAttribute("aria-pressed", "true");
+    expect(mic.getByRole("button", { name: /^This phone/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(
       await mic.findByRole("button", { name: /^Jonas's phone/ }),
     ).toBeEnabled();

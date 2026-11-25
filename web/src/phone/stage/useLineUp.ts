@@ -25,8 +25,7 @@ export function useLineUp(store: LiveStore) {
   const party = useLive(selectParty, store);
   const lineUp = waitingLineUp(party);
   const songId =
-    party?.queue.find((r) => r.requestId === lineUp?.requestId)?.songId ??
-    null;
+    party?.queue.find((r) => r.requestId === lineUp?.requestId)?.songId ?? null;
   const song = useQuery({
     ...songQuery(songId ?? 0),
     enabled: songId !== null,

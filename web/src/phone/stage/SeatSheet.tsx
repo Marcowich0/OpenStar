@@ -73,6 +73,8 @@ export function SeatSheet({
   const isOpen = seated !== null && !gone;
   const view = isOpen ? (current ?? shown) : shown;
 
+  // A press while an edit waits for the server does nothing. The buttons
+  // stay enabled so the focus stays in the sheet (and Esc still closes it).
   function send(edit: LineUpEdit, then?: () => void) {
     if (pending || !lineUp) return;
     setProblem(null);
@@ -100,7 +102,6 @@ export function SeatSheet({
           myPhoneId={myPhoneId}
           index={view.index}
           seat={view.seat}
-          pending={pending}
           problem={problem}
           send={send}
           onSeated={onSeated}
@@ -116,7 +117,6 @@ function SeatBody({
   myPhoneId,
   index,
   seat,
-  pending,
   problem,
   send,
   onSeated,
@@ -126,7 +126,6 @@ function SeatBody({
   myPhoneId: PhoneId;
   index: number;
   seat: Seat;
-  pending: boolean;
   problem: UserMessage | "noAnswer" | null;
   send: (edit: LineUpEdit, then?: () => void) => void;
   onSeated: (memberId: PartyMemberId) => void;
@@ -182,7 +181,6 @@ function SeatBody({
                 type="button"
                 aria-label={memberLook.name}
                 aria-pressed={here}
-                disabled={pending}
                 onClick={() => {
                   if (here) return;
                   send(
@@ -221,7 +219,7 @@ function SeatBody({
               }
               type="button"
               aria-pressed={option.current}
-              disabled={option.inUse || pending}
+              disabled={option.inUse}
               onClick={() => {
                 if (!option.current)
                   send({ kind: "setMic", seat: index, mic: option.mic });
@@ -242,7 +240,6 @@ function SeatBody({
               <Segment
                 key={voice}
                 on={seat.voice === voice}
-                disabled={pending}
                 onPress={() => {
                   send({ kind: "setVoice", seat: index, voice });
                 }}
@@ -260,7 +257,6 @@ function SeatBody({
             <Segment
               key={difficulty}
               on={seat.difficulty === difficulty}
-              disabled={pending}
               onPress={() => {
                 send({ kind: "setDifficulty", seat: index, difficulty });
               }}
@@ -281,7 +277,6 @@ function SeatBody({
 
       <button
         type="button"
-        disabled={pending}
         onClick={() => {
           send({ kind: "removeSeat", seat: index }, onClose);
         }}
@@ -316,12 +311,10 @@ function Segments({ children }: { children: ReactNode }) {
 
 function Segment({
   on,
-  disabled,
   onPress,
   children,
 }: {
   on: boolean;
-  disabled: boolean;
   onPress: () => void;
   children: ReactNode;
 }) {
@@ -329,7 +322,6 @@ function Segment({
     <button
       type="button"
       aria-pressed={on}
-      disabled={disabled}
       onClick={() => {
         if (!on) onPress();
       }}
