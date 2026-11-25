@@ -59,6 +59,19 @@ export function SongCarousel({
     ArrowRight: () => step(1),
   });
 
+  // The Songs arrive after the scene started and set its default focus, so
+  // the carousel takes the focus when it appears, unless an overlay or pick
+  // list holds it.
+  useLayoutEffect(() => {
+    const active = document.activeElement;
+    const layer = active?.closest("[data-stage-layer]") ?? null;
+    if (
+      layer === null ||
+      layer === rootRef.current?.closest("[data-stage-layer]")
+    )
+      selectedRef.current?.focus({ preventScroll: true });
+  }, []);
+
   // The focus follows the selection when it was on a cover.
   useLayoutEffect(() => {
     const active = document.activeElement;

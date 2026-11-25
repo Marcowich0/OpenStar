@@ -102,7 +102,7 @@ export function SongBrowserScene() {
           <SongInfo
             song={song}
             genre={detail?.song.headers.genre ?? null}
-            className="absolute inset-x-0 top-[690px]"
+            className="absolute inset-x-0 top-[670px]"
           />
           <div
             {...{ [CAROUSEL_ARROWS]: "" }}

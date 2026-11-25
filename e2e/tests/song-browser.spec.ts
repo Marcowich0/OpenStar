@@ -8,6 +8,8 @@ test("the Stage picks a Song in the carousel and Sing! shows its Line-up", async
   stage,
 }) => {
   await newParty(stage);
+  // A fresh Stage: New party's People overlay gives the focus back to its opener.
+  await stage.reload();
   const frame = stage.locator("[data-stage-frame]");
   const title = () => stage.getByTestId("song-info").getByRole("heading");
 

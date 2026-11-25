@@ -111,7 +111,7 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
 });
 
 function setup(
-  songs: SongSummary[] = SONGS,
+  songs: SongSummary[] | null = SONGS,
   details: SongDetail[] = [detail(1, { genre: "Pop" })],
 ) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
@@ -128,8 +128,8 @@ function setup(
     };
   });
   const queries = createQueryClient();
-  queries.setQueryData(songsQuery().queryKey, {
-    songs,
+  const songList = (list: SongSummary[]) => ({
+    songs: list,
     filters: {
       languages: [],
       genres: [],
@@ -141,6 +141,12 @@ function setup(
       length: null,
     },
   });
+  if (songs) queries.setQueryData(songsQuery().queryKey, songList(songs));
+  const songsArrive = (list: SongSummary[]) => {
+    act(() => {
+      queries.setQueryData(songsQuery().queryKey, songList(list));
+    });
+  };
   for (const d of details) queries.setQueryData(songQuery(d.id).queryKey, d);
   const live = (fn: (h: NonNullable<typeof handlers>) => void) => {
     act(() => {
@@ -181,7 +187,7 @@ function setup(
       h.onMessage({ type: "rejected", reason: { code } });
     });
   };
-  return { sent, changeParty, reject, ...view };
+  return { sent, changeParty, reject, songsArrive, ...view };
 }
 
 function press(key: string) {
@@ -221,6 +227,24 @@ describe("the song browser", () => {
   it("starts with the focus on the selected cover", () => {
     setup();
     expect(document.activeElement).toBe(selectedCover());
+  });
+
+  it("takes the focus when the Songs arrive after the scene started", async () => {
+    const { songsArrive } = setup(null);
+    expect(screen.queryByTestId("carousel-selected")).toBeNull();
+    songsArrive(SONGS);
+    expect(await screen.findByTestId("carousel-selected")).toBe(
+      document.activeElement,
+    );
+  });
+
+  it("leaves the focus in an open overlay when the Songs arrive", async () => {
+    const { songsArrive } = setup(null);
+    press("q");
+    const queue = screen.getByRole("dialog", { name: "Queue" });
+    songsArrive(SONGS);
+    await screen.findByTestId("carousel-selected");
+    expect(queue).toContainElement(document.activeElement as HTMLElement);
   });
 
   it("shows Duet, genre, year, length and the best score as chips", () => {
