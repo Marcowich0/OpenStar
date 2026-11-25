@@ -62,7 +62,32 @@ const MIGRATIONS: &[&str] = &[
         state  TEXT NOT NULL CHECK (state IN ('queued', 'running', 'done', 'failed')),
         error  TEXT
     ) STRICT;",
-    // 6: the current Party's members and joined Phones. Both go with their
+    // 6: the Library index, one row per candidate `.txt` (see `library::index`).
+    // Paths are relative to the Library with `/` between folders; problem and
+    // reference lists are JSON; `*_path` are the resolved file references.
+    "CREATE TABLE library_files (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        path              TEXT NOT NULL UNIQUE,
+        size              INTEGER NOT NULL,
+        mtime_ns          INTEGER NOT NULL,
+        parser_version    INTEGER NOT NULL,
+        encoding          TEXT,
+        song              TEXT,
+        artist            TEXT,
+        title             TEXT,
+        duet              INTEGER NOT NULL,
+        txt_problems      TEXT NOT NULL,
+        file_references   TEXT NOT NULL,
+        file_problems     TEXT NOT NULL DEFAULT '[]',
+        playable          INTEGER NOT NULL DEFAULT 0,
+        audio_path        TEXT,
+        video_path        TEXT,
+        cover_path        TEXT,
+        background_path   TEXT,
+        vocals_path       TEXT,
+        instrumental_path TEXT
+    ) STRICT;",
+    // 7: the current Party's members and joined Phones. Both go with their
     // Party (New party deletes the `parties` row), and a member's Phones go
     // with the member. One holder per colour and one membership per Profile
     // are kept by the live-state task and backed by UNIQUE here. A member is

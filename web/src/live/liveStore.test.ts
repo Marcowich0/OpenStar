@@ -53,9 +53,7 @@ describe("live store", () => {
 
   it("tells the listeners of each topic a change notice names", () => {
     const { store, server } = start();
-    // No area has added a topic yet (`ChangeTopic` is empty), so this
-    // stands one in.
-    const library = "library" as ChangeTopic;
+    const library: ChangeTopic = "library";
     const listener = vi.fn();
     const unsubscribe = store.onChanged(library, listener);
 
