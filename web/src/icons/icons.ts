@@ -4,6 +4,7 @@
 
 export const ICON_NAMES = [
   "backspace",
+  "chevron",
   "close",
   "list",
   "lock",
