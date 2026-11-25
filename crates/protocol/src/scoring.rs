@@ -8,6 +8,11 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::library::{SongId, SongIdentity};
+use crate::party::PartyId;
+use crate::profile::{Difficulty, ProfileId};
+use crate::song::NoteKind;
+
 /// What one Player sang in one Beat, independent of the Note and the
 /// Difficulty.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
@@ -29,6 +34,231 @@ pub enum BeatValue {
         /// actual readings.
         pitch: f64,
     },
+}
+
+/// Identifies a Song's note content at one moment: the SHA-256, in 64
+/// lowercase hex digits, of the Song's [`NoteSnapshot`] as JSON. It does not
+/// depend on the file's bytes, encoding or line endings; any Timing edit
+/// changes it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct NoteFingerprint(pub String);
+
+/// The note content a [`NoteFingerprint`] covers: `#GAP` and `#BPM` in
+/// normalised units and, for each Voice, its Lines and Notes. Stored once per
+/// fingerprint, so an old Score record can be graphed against the Notes it
+/// was sung to.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct NoteSnapshot {
+    /// `#GAP` in seconds.
+    pub gap_seconds: f64,
+    /// The real beat rate, `#BPM` × 4.
+    pub beats_per_minute: f64,
+    /// The Voices in Song order (`P1`, then `P2`).
+    pub voices: Vec<SnapshotVoice>,
+}
+
+/// One Voice of a [`NoteSnapshot`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SnapshotVoice {
+    pub lines: Vec<SnapshotLine>,
+}
+
+/// One Line of a [`NoteSnapshot`]: its Notes in file order and the beat of
+/// the Line end marker that closed it, if one did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SnapshotLine {
+    pub notes: Vec<SnapshotNote>,
+    pub end: Option<i32>,
+}
+
+/// One Note of a [`NoteSnapshot`], values as written in the `.txt`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SnapshotNote {
+    pub kind: NoteKind,
+    pub start: i32,
+    pub length: i32,
+    pub pitch: i32,
+    pub text: String,
+}
+
+/// How Players sang a round. Only `normal` in v1; party and team modes come
+/// later.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum RoundMode {
+    Normal,
+}
+
+/// How a round ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum RoundEnd {
+    /// The Song reached `#END` or the end of its audio.
+    Played,
+    /// End stopped it; the results screen still shows.
+    Ended,
+    /// Skip: no results screen and no Score records.
+    Skipped,
+}
+
+/// What a Player sang into.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum MicKind {
+    LocalMic,
+    Phone,
+}
+
+/// Who a Score record belongs to.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum ScorePlayer {
+    /// A Profile; its records are keyed by id, so a rename carries them.
+    Profile { profile_id: ProfileId },
+    /// A Guest, by name; the record's Party tells Guests of one name apart.
+    Guest { name: String },
+}
+
+/// The Beats a Score covers, both ends included. The whole Voice in v1.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BeatRange {
+    pub first_beat: i32,
+    pub last_beat: i32,
+}
+
+impl BeatRange {
+    /// How many Beats the range covers; 0 when `last_beat < first_beat`.
+    pub fn len(self) -> usize {
+        usize::try_from(i64::from(self.last_beat) - i64::from(self.first_beat) + 1).unwrap_or(0)
+    }
+
+    /// Whether the range covers no Beat.
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// One seated Player's Score as the Stage reports it with a round's outcome.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct PlayerScore {
+    pub player: ScorePlayer,
+    /// The Voice sung: an index into the parsed Song's `voices` (0 = `P1`).
+    pub voice: u32,
+    pub difficulty: Difficulty,
+    /// The total, 0 to 10000; always `notes + golden + line_bonus`.
+    pub total: u32,
+    /// The Notes part, adjusted as on the results screen.
+    pub notes: u32,
+    /// The golden part, adjusted as on the results screen.
+    pub golden: u32,
+    /// The Line bonus part, adjusted as on the results screen.
+    pub line_bonus: u32,
+    pub mic_kind: MicKind,
+    /// The Score is not Finished.
+    pub unfinished: bool,
+    /// The Player's Mic was lost at some moment during the Song.
+    pub mic_lost: bool,
+    pub beat_range: BeatRange,
+    /// The value of every Beat in `beat_range`, in order.
+    pub beat_values: Vec<BeatValue>,
+}
+
+/// Body of `POST /api/rounds`: how a round ended and, unless it was
+/// skipped, one Score per seated Player (any number of them).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RoundOutcome {
+    /// The Song as the Stage loaded it.
+    pub song_id: SongId,
+    /// The fingerprint the loaded Song carried.
+    pub note_fingerprint: NoteFingerprint,
+    pub party_id: PartyId,
+    pub mode: RoundMode,
+    /// When the Song last started from its beginning (after the last
+    /// Restart), in milliseconds since the Unix epoch.
+    #[ts(type = "number")]
+    pub started_at_ms: i64,
+    pub ended: RoundEnd,
+    /// Empty for a skipped round.
+    pub scores: Vec<PlayerScore>,
+}
+
+/// Names one stored round.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct RoundId(#[ts(type = "number")] pub i64);
+
+/// Names one stored Score record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ScoreRecordId(#[ts(type = "number")] pub i64);
+
+/// A stored round: one Song sung together, and its Score records.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct StoredRound {
+    pub id: RoundId,
+    pub song: SongIdentity,
+    pub party_id: PartyId,
+    pub mode: RoundMode,
+    #[ts(type = "number")]
+    pub started_at_ms: i64,
+    pub ended: RoundEnd,
+    /// Groups the rounds of one game; always `null` in v1.
+    pub game_id: Option<String>,
+    /// The round's Score records, in the order the Stage sent them.
+    pub records: Vec<ScoreRecord>,
+}
+
+/// One Player's kept performance of one round.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ScoreRecord {
+    pub id: ScoreRecordId,
+    pub round_id: RoundId,
+    pub party_id: PartyId,
+    pub song: SongIdentity,
+    pub player: ScorePlayer,
+    pub voice: u32,
+    pub difficulty: Difficulty,
+    /// When the record was stored, in milliseconds since the Unix epoch.
+    #[ts(type = "number")]
+    pub recorded_at_ms: i64,
+    pub total: u32,
+    pub notes: u32,
+    pub golden: u32,
+    pub line_bonus: u32,
+    pub mic_kind: MicKind,
+    pub mode: RoundMode,
+    pub unfinished: bool,
+    pub mic_lost: bool,
+    pub beat_range: BeatRange,
+    pub note_fingerprint: NoteFingerprint,
+    pub beat_values: Vec<BeatValue>,
 }
 
 #[cfg(test)]

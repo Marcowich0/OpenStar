@@ -14,6 +14,7 @@ mod library;
 mod live;
 pub mod mic_settings;
 mod profiles;
+pub mod scores;
 mod startup;
 pub mod txt;
 mod unlock;
