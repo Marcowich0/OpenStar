@@ -1,0 +1,8 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "Actor::Member { member_id: PartyMemberId(3), }"
+---
+{
+  "kind": "member",
+  "memberId": 3
+}

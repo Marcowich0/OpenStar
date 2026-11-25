@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { ServerInfo } from "../generated/ServerInfo";
-import { PlaceholderPanel } from "../live/PlaceholderPanel";
+import { PartyPanel } from "../live/PartyPanel";
 
 type Info =
   | { status: "loading" }
@@ -35,7 +35,7 @@ export function ServerStatus() {
           ? `Server ${info.info.version}, schema ${String(info.info.schemaVersion)}`
           : info.status}
       </p>
-      <PlaceholderPanel />
+      <PartyPanel />
     </>
   );
 }
