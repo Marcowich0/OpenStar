@@ -57,7 +57,9 @@ mod tests {
         for value in [
             BeatValue::NoVoice,
             BeatValue::VoiceWithoutPitch,
-            BeatValue::Pitch { pitch: 61.123_456_789 },
+            BeatValue::Pitch {
+                pitch: 61.123_456_789,
+            },
         ] {
             let back: BeatValue = serde_json::from_str(&wire(value)).unwrap();
             assert_eq!(back, value);
