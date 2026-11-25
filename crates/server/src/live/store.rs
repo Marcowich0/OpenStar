@@ -1,9 +1,9 @@
 //! Persisting the live state in SQLite, so it survives a restart: the
-//! current Party of each Stage in `parties`, its members in `party_members`
-//! its joined Phones in `joined_phones` and its Queue in `queue_requests`.
+//! current Party of each Stage in `parties`, its members (Profiles and
+//! Guests) in `party_members`, its joined Phones in `joined_phones` and its Queue in `queue_requests`.
 
 use openstar_protocol::library::SongId;
-use openstar_protocol::profile::{PaletteKey, ProfileId};
+use openstar_protocol::profile::{Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::{
     Identity, JoinCode, JoinedPhone, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
     Request, RequestId, RequestKind, StageId,
@@ -13,6 +13,7 @@ use rusqlite::{Connection, OptionalExtension};
 
 use super::party;
 use crate::db::Database;
+use crate::profiles::{avatar_columns, read_avatar, unknown};
 
 /// The current Party of `stage_id`, if one has started, with its members
 /// and joined Phones in the order they entered and joined.
@@ -57,17 +58,30 @@ pub async fn load_party(
 
 fn load_members(conn: &Connection, party_id: &PartyId) -> rusqlite::Result<Vec<PartyMember>> {
     let mut statement = conn.prepare(
-        "SELECT member_id, profile_id, colour, favourite_taken FROM party_members
-         WHERE party_id = ?1 ORDER BY member_id",
+        "SELECT member_id, profile_id, colour, favourite_taken,
+                guest_name, guest_avatar_kind, guest_avatar_ref, guest_difficulty
+         FROM party_members WHERE party_id = ?1 ORDER BY member_id",
     )?;
     statement
         .query_map([&party_id.0], |row| {
             let colour: String = row.get(2)?;
+            let identity = match row.get::<_, Option<u32>>(1)? {
+                Some(profile_id) => Identity::Profile {
+                    profile_id: ProfileId(profile_id),
+                },
+                None => {
+                    let difficulty: String = row.get(7)?;
+                    Identity::Guest {
+                        name: row.get(4)?,
+                        avatar: read_avatar(row, 5)?,
+                        difficulty: Difficulty::from_key(&difficulty)
+                            .ok_or_else(|| unknown(7, "Difficulty", &difficulty))?,
+                    }
+                }
+            };
             Ok(PartyMember {
                 member_id: PartyMemberId(row.get(0)?),
-                identity: Identity::Profile {
-                    profile_id: ProfileId(row.get(1)?),
-                },
+                identity,
                 colour: PaletteKey::from_key(&colour).ok_or_else(|| {
                     rusqlite::Error::FromSqlConversionFailure(
                         2,
@@ -227,28 +241,107 @@ pub async fn save_join(
     let phone = phone.clone();
     db.call(move |conn| {
         let tx = conn.transaction()?;
-        if let Some(member) = new_member {
-            let Identity::Profile { profile_id } = member.identity;
-            tx.execute(
-                "INSERT INTO party_members (party_id, member_id, profile_id, colour, favourite_taken)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                (
-                    &party_id.0,
-                    member.member_id.0,
-                    profile_id.0,
-                    member.colour.as_str(),
-                    member.favourite_taken,
-                ),
-            )?;
-        }
-        // An upsert keeps the row (and its place in the join order) when a
-        // joined Phone switches to another member.
-        tx.execute(
-            "INSERT INTO joined_phones (party_id, phone_id, member_id) VALUES (?1, ?2, ?3)
-             ON CONFLICT (party_id, phone_id) DO UPDATE SET member_id = excluded.member_id",
-            (&party_id.0, &phone.phone_id.0, phone.member_id.0),
-        )?;
+        save_join_in(&tx, &party_id, new_member.as_ref(), &phone)?;
         tx.commit()
     })
     .await
+}
+
+/// [`save_join`] inside the caller's transaction; the caller commits.
+pub fn save_join_in(
+    conn: &Connection,
+    party_id: &PartyId,
+    new_member: Option<&PartyMember>,
+    phone: &JoinedPhone,
+) -> rusqlite::Result<()> {
+    if let Some(member) = new_member {
+        let row = MemberColumns::of(member);
+        conn.execute(
+            "INSERT INTO party_members (party_id, member_id, profile_id, colour, favourite_taken,
+                 guest_name, guest_avatar_kind, guest_avatar_ref, guest_difficulty)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            (
+                &party_id.0,
+                member.member_id.0,
+                row.profile_id,
+                member.colour.as_str(),
+                member.favourite_taken,
+                row.guest_name,
+                row.guest_avatar_kind,
+                row.guest_avatar_ref,
+                row.guest_difficulty,
+            ),
+        )?;
+    }
+    // An upsert keeps the row (and its place in the join order) when a
+    // joined Phone switches to another member.
+    conn.execute(
+        "INSERT INTO joined_phones (party_id, phone_id, member_id) VALUES (?1, ?2, ?3)
+         ON CONFLICT (party_id, phone_id) DO UPDATE SET member_id = excluded.member_id",
+        (&party_id.0, &phone.phone_id.0, phone.member_id.0),
+    )?;
+    Ok(())
+}
+
+/// Stores a member as it is now: its colour, and a Guest's name, avatar
+/// and Difficulty. Its identity kind never changes.
+pub fn update_member_in(
+    conn: &Connection,
+    party_id: &PartyId,
+    member: &PartyMember,
+) -> rusqlite::Result<()> {
+    let row = MemberColumns::of(member);
+    conn.execute(
+        "UPDATE party_members SET colour = ?1, favourite_taken = ?2, guest_name = ?3,
+             guest_avatar_kind = ?4, guest_avatar_ref = ?5, guest_difficulty = ?6
+         WHERE party_id = ?7 AND member_id = ?8",
+        (
+            member.colour.as_str(),
+            member.favourite_taken,
+            row.guest_name,
+            row.guest_avatar_kind,
+            row.guest_avatar_ref,
+            row.guest_difficulty,
+            &party_id.0,
+            member.member_id.0,
+        ),
+    )?;
+    Ok(())
+}
+
+/// The identity columns of a `party_members` row.
+struct MemberColumns<'a> {
+    profile_id: Option<u32>,
+    guest_name: Option<&'a str>,
+    guest_avatar_kind: Option<&'static str>,
+    guest_avatar_ref: Option<&'static str>,
+    guest_difficulty: Option<&'static str>,
+}
+
+impl<'a> MemberColumns<'a> {
+    fn of(member: &'a PartyMember) -> Self {
+        match &member.identity {
+            Identity::Profile { profile_id } => Self {
+                profile_id: Some(profile_id.0),
+                guest_name: None,
+                guest_avatar_kind: None,
+                guest_avatar_ref: None,
+                guest_difficulty: None,
+            },
+            Identity::Guest {
+                name,
+                avatar,
+                difficulty,
+            } => {
+                let (kind, reference) = avatar_columns(*avatar);
+                Self {
+                    profile_id: None,
+                    guest_name: Some(name),
+                    guest_avatar_kind: Some(kind),
+                    guest_avatar_ref: Some(reference),
+                    guest_difficulty: Some(difficulty.as_str()),
+                }
+            }
+        }
+    }
 }

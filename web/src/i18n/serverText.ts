@@ -45,6 +45,9 @@ export const userMessageText = byCode<UserMessage>({
   joinCodeWrong: () => t("userMessage.joinCodeWrong"),
   partyFull: () => t("userMessage.partyFull"),
   notInParty: () => t("userMessage.notInParty"),
+  nameTakenTonight: () => t("userMessage.nameTakenTonight"),
+  colourTaken: () => t("userMessage.colourTaken"),
+  memberNotFound: () => t("userMessage.memberNotFound"),
   jobCancelled: () => t("userMessage.jobCancelled"),
   jobInterrupted: () => t("userMessage.jobInterrupted"),
   toolNotFound: ({ params }) => t("userMessage.toolNotFound", params),
@@ -71,6 +74,8 @@ export const partyEventText = byCode<PartyEvent>({
     }),
   phoneJoined: ({ params }) =>
     t("partyEvent.phoneJoined", { name: params.name }),
+  memberChanged: ({ params }) =>
+    t("partyEvent.memberChanged", { name: params.name }),
   requestAdded: ({ params }) =>
     t("partyEvent.requestAdded", { song: params.title }),
   requestMovedUp: ({ params }) =>

@@ -53,4 +53,22 @@ describe("the Who's singing? grid", () => {
       { profile: profiles[1], here: true, colour: "navy" },
     ]);
   });
+
+  it("marks nobody here for a Guest in the Party", () => {
+    const profiles = [profile(1, "Ada", null)];
+    const guest: PartyMember = {
+      memberId: 5,
+      identity: {
+        kind: "guest",
+        name: "Ada",
+        avatar: { kind: "builtIn", key: "cat" },
+        difficulty: "easy",
+      },
+      colour: "sky",
+      favouriteTaken: false,
+      onPhone: true,
+    };
+
+    expect(whosSinging(profiles, [guest])[0]?.here).toBe(false);
+  });
 });

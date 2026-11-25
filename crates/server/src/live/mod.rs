@@ -27,16 +27,18 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use openstar_protocol::library::SongId;
+use openstar_protocol::profile::{NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::{
-    Actor, ChangeEvent, ChangeTopic, ClientMessage, JoinAs, JoinCode, JoinedPhone, MicId,
-    PartyEvent, PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request, RequestChange,
-    RequestId, RequestKind, ServerMessage, StageId, UserMessage,
+    Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
+    MemberEdit, MicId, PartyEvent, PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request,
+    RequestChange, RequestId, RequestKind, ServerMessage, StageId, UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
 use crate::db::Database;
-use crate::profiles;
+use crate::profiles::{self, Refused};
 use hub::{Connection, ConnectionId, Hub};
+use party::Joined;
 use songs::{LibraryIndex, SongLookup, Songs};
 
 /// The one Stage id in use in v1.
@@ -74,6 +76,20 @@ enum Command {
     Disconnect { id: ConnectionId },
     /// Send a message to every connection (change notices, job updates).
     SendAll { message: ServerMessage },
+    /// `POST /api/profiles`: create a Profile, unless the current Party
+    /// refuses it (a Guest has the name, or the Party is full).
+    CreateProfile {
+        new: NewProfile,
+        now_ms: i64,
+        reply: oneshot::Sender<anyhow::Result<Result<Profile, Refused>>>,
+    },
+    /// `PATCH /api/profiles/{id}`: edit a Profile outside the Party (any
+    /// colour, only the favourite changes), unless a Guest has the new name.
+    EditProfile {
+        id: ProfileId,
+        edit: ProfileEdit,
+        reply: oneshot::Sender<anyhow::Result<Result<Profile, Refused>>>,
+    },
     /// Stop: drop every connection (their sockets close) and end the task.
     Shutdown { done: oneshot::Sender<()> },
 }
@@ -137,6 +153,36 @@ impl LiveHandle {
     /// Sends `message` to every connected browser.
     pub async fn send_all(&self, message: ServerMessage) {
         let _ = self.commands.send(Command::SendAll { message }).await;
+    }
+
+    /// Creates a Profile (see [`Command::CreateProfile`]) and tells every
+    /// connection the Profiles changed.
+    pub async fn create_profile(
+        &self,
+        new: NewProfile,
+        now_ms: i64,
+    ) -> anyhow::Result<Result<Profile, Refused>> {
+        let (reply, answer) = oneshot::channel();
+        self.commands
+            .send(Command::CreateProfile { new, now_ms, reply })
+            .await
+            .map_err(|_| anyhow::anyhow!("the live-state task has stopped"))?;
+        answer.await?
+    }
+
+    /// Edits a Profile (see [`Command::EditProfile`]) and tells every
+    /// connection the Profiles changed.
+    pub async fn edit_profile(
+        &self,
+        id: ProfileId,
+        edit: ProfileEdit,
+    ) -> anyhow::Result<Result<Profile, Refused>> {
+        let (reply, answer) = oneshot::channel();
+        self.commands
+            .send(Command::EditProfile { id, edit, reply })
+            .await
+            .map_err(|_| anyhow::anyhow!("the live-state task has stopped"))?;
+        answer.await?
     }
 
     /// Stops the task and closes every WebSocket. Returns once it has stopped.
@@ -225,6 +271,12 @@ impl LiveState {
                 } => self.received(id, now_ms, message).await,
                 Command::Disconnect { id } => self.disconnect(id),
                 Command::SendAll { message } => self.hub.send_all(&message),
+                Command::CreateProfile { new, now_ms, reply } => {
+                    let _ = reply.send(self.create_profile(new, now_ms).await);
+                }
+                Command::EditProfile { id, edit, reply } => {
+                    let _ = reply.send(self.edit_profile(id, edit).await);
+                }
                 Command::Shutdown { done } => {
                     drop(self);
                     let _ = done.send(());
@@ -380,9 +432,16 @@ impl LiveState {
                     return;
                 }
                 self.phones.insert(id, phone_id.clone());
-                if let Err(reason) = self.join(phone_id, &join_code, join_as).await {
-                    self.reject(id, reason);
-                }
+                let joined = self.join(phone_id, &join_code, join_as, now_ms).await;
+                self.refuse_on_error(id, joined);
+            }
+            Ok(ClientMessage::SwitchIdentity { join_as }) => {
+                let switched = self.switch_identity(id, join_as, now_ms).await;
+                self.refuse_on_error(id, switched);
+            }
+            Ok(ClientMessage::EditMember { member_id, edit }) => {
+                let edited = self.edit_member(id, member_id, edit).await;
+                self.refuse_on_error(id, edited);
             }
             Ok(ClientMessage::AddRequest {
                 song_id,
@@ -511,50 +570,96 @@ impl LiveState {
             .ok_or(UserMessage::NotInParty)
     }
 
-    /// Joins `phone_id` to the current Party, stores it and tells everyone.
-    /// Every connection of that Phone gets its [`ServerMessage::PhoneStatus`].
+    /// Joins `phone_id` to the current Party with its Join code (see
+    /// [`Self::enter`]).
     async fn join(
         &mut self,
         phone_id: PhoneId,
         join_code: &JoinCode,
         join_as: JoinAs,
+        now_ms: i64,
     ) -> Result<(), UserMessage> {
         if !self.is_current_code(join_code) {
             return Err(UserMessage::JoinCodeWrong);
         }
-        let JoinAs::Profile { profile_id } = join_as;
-        let profile = profiles::get(&self.db, profile_id)
-            .await
-            .map_err(|error| {
-                tracing::error!(?error, "reading a Profile to join");
-                UserMessage::ServerError
-            })?
-            .ok_or(UserMessage::ProfileNotFound)?;
-        let Some(mut party) = self.stage().party.clone() else {
-            return Err(UserMessage::JoinCodeWrong);
+        self.enter(phone_id, join_as, now_ms).await
+    }
+
+    /// Switches the identity of connection `id`'s joined Phone, with no
+    /// Join code. The member it used stays in the Party with its colour.
+    async fn switch_identity(
+        &mut self,
+        id: ConnectionId,
+        join_as: JoinAs,
+        now_ms: i64,
+    ) -> Result<(), UserMessage> {
+        let phone_id = self
+            .joined_phone(id)
+            .ok_or(UserMessage::NotInParty)?
+            .phone_id
+            .clone();
+        self.enter(phone_id, join_as, now_ms).await
+    }
+
+    /// Makes `phone_id` use `join_as` in the current Party: an existing
+    /// Profile, a new Guest, or a new Profile created in the same step (and
+    /// only if it can enter). Stores it and tells everyone; every connection
+    /// of that Phone gets its [`ServerMessage::PhoneStatus`]. A refusal
+    /// changes and creates nothing.
+    async fn enter(
+        &mut self,
+        phone_id: PhoneId,
+        join_as: JoinAs,
+        now_ms: i64,
+    ) -> Result<(), UserMessage> {
+        let mut party = self.party()?;
+        let (party, joined, name, created) = match join_as {
+            JoinAs::Profile { profile_id } => {
+                let profile = profiles::get(&self.db, profile_id)
+                    .await
+                    .map_err(|error| server_error(&error, "reading a Profile to join"))?
+                    .ok_or(UserMessage::ProfileNotFound)?;
+                let joined = party::join_phone(
+                    &mut party,
+                    phone_id.clone(),
+                    profile_id,
+                    profile.favourite_colour,
+                )?;
+                self.save_join(&party, joined, &phone_id).await?;
+                (party, joined, profile.name, false)
+            }
+            JoinAs::Guest(guest) => {
+                let name = profiles::check_name(&guest.name)?;
+                self.refuse_profile_name(&name).await?;
+                let joined = party::join_guest(
+                    &mut party,
+                    phone_id.clone(),
+                    &name,
+                    guest.colour,
+                    guest.avatar,
+                )?;
+                self.save_join(&party, joined, &phone_id).await?;
+                (party, joined, name.display, false)
+            }
+            JoinAs::NewProfile(new) => {
+                let (party, joined, profile) = self
+                    .enter_new_profile(party, phone_id.clone(), new, now_ms)
+                    .await?;
+                (party, joined, profile.name, true)
+            }
         };
-        let joined = party::join_phone(
-            &mut party,
-            phone_id.clone(),
-            profile_id,
-            profile.favourite_colour,
-        )?;
         let member = party
             .members
             .iter()
             .find(|member| member.member_id == joined.member_id)
             .cloned()
             .ok_or(UserMessage::ServerError)?;
-        let phone = JoinedPhone {
-            phone_id: phone_id.clone(),
-            member_id: joined.member_id,
-        };
-        let new_member = joined.new_member.then_some(&member);
-        if let Err(error) = store::save_join(&self.db, &party.party_id, new_member, &phone).await {
-            tracing::error!(?error, "storing a join");
-            return Err(UserMessage::ServerError);
-        }
         self.stage_mut().party = Some(party);
+        if created {
+            self.hub.send_all(&ServerMessage::Changed {
+                topics: vec![ChangeTopic::Profiles],
+            });
+        }
         let joining: Vec<ConnectionId> = self
             .phones
             .iter()
@@ -567,13 +672,13 @@ impl LiveState {
         let event = if joined.new_member {
             PartyEvent::MemberJoined {
                 member_id: member.member_id,
-                name: profile.name,
+                name,
                 colour: member.colour,
             }
         } else {
             PartyEvent::PhoneJoined {
                 member_id: member.member_id,
-                name: profile.name,
+                name,
             }
         };
         self.party_changed(ChangeEvent {
@@ -581,6 +686,206 @@ impl LiveState {
                 member_id: member.member_id,
             },
             event,
+        });
+        Ok(())
+    }
+
+    /// Stores a join already applied to `party`.
+    async fn save_join(
+        &self,
+        party: &PartySnapshot,
+        joined: Joined,
+        phone_id: &PhoneId,
+    ) -> Result<(), UserMessage> {
+        let new_member = party
+            .members
+            .iter()
+            .find(|member| joined.new_member && member.member_id == joined.member_id);
+        let phone = JoinedPhone {
+            phone_id: phone_id.clone(),
+            member_id: joined.member_id,
+        };
+        store::save_join(&self.db, &party.party_id, new_member, &phone)
+            .await
+            .map_err(|error| server_error(&error, "storing a join"))
+    }
+
+    /// Creates a Profile and joins `phone_id` to `party` as it, in one
+    /// transaction: the Profile exists only if it entered the Party.
+    async fn enter_new_profile(
+        &self,
+        mut party: PartySnapshot,
+        phone_id: PhoneId,
+        new: NewProfile,
+        now_ms: i64,
+    ) -> Result<(PartySnapshot, Joined, Profile), UserMessage> {
+        let name = profiles::check_name(&new.name)?;
+        refuse_new_profile(&party, &name)?;
+        self.db
+            .call(move |conn| {
+                let tx = conn.transaction()?;
+                let profile = match profiles::create_in(&tx, &name, &new, now_ms)? {
+                    Ok(profile) => profile,
+                    Err(refused) => return Ok(Err(refusal(refused))),
+                };
+                let joined = match party::join_phone(
+                    &mut party,
+                    phone_id.clone(),
+                    profile.id,
+                    profile.favourite_colour,
+                ) {
+                    Ok(joined) => joined,
+                    Err(refused) => return Ok(Err(refused)),
+                };
+                let new_member = party
+                    .members
+                    .iter()
+                    .find(|member| member.member_id == joined.member_id);
+                let phone = JoinedPhone {
+                    phone_id,
+                    member_id: joined.member_id,
+                };
+                store::save_join_in(&tx, &party.party_id, new_member, &phone)?;
+                tx.commit()?;
+                Ok(Ok((party, joined, profile)))
+            })
+            .await
+            .map_err(|error| server_error(&error, "creating a Profile to join"))?
+    }
+
+    /// Refuses `name` for a Guest when a Profile has it, naming that
+    /// Profile so the Phone can ask "Are you <name>?".
+    async fn refuse_profile_name(&self, name: &profiles::CheckedName) -> Result<(), UserMessage> {
+        let holder = profiles::named(&self.db, name.key.clone())
+            .await
+            .map_err(|error| server_error(&error, "looking up a Profile name"))?;
+        match holder {
+            Some(profile_id) => Err(UserMessage::ProfileNameTaken { profile_id }),
+            None => Ok(()),
+        }
+    }
+
+    /// `POST /api/profiles`, refused by the current Party when a Guest has
+    /// the name or twelve colours are held.
+    async fn create_profile(
+        &mut self,
+        new: NewProfile,
+        now_ms: i64,
+    ) -> anyhow::Result<Result<Profile, Refused>> {
+        let name = match profiles::check_name(&new.name) {
+            Ok(name) => name,
+            Err(message) => return Ok(Err(Refused::Name(message))),
+        };
+        if let Some(party) = &self.stage().party
+            && let Err(message) = refuse_new_profile(party, &name)
+        {
+            return Ok(Err(Refused::Party(message)));
+        }
+        let created = profiles::create(&self.db, new, now_ms).await?;
+        self.profiles_changed(&created);
+        Ok(created)
+    }
+
+    /// `PATCH /api/profiles/{id}`: the edit outside a Party. Only a rename
+    /// to a current Guest's name is refused by the Party.
+    async fn edit_profile(
+        &mut self,
+        id: ProfileId,
+        edit: ProfileEdit,
+    ) -> anyhow::Result<Result<Profile, Refused>> {
+        if let Some(raw) = &edit.name
+            && let Some(party) = &self.stage().party
+            && let Some(member_id) = party::guest_named(party, &profiles::name_key(raw), None)
+        {
+            return Ok(Err(Refused::Party(UserMessage::NameTakenTonight {
+                member_id,
+            })));
+        }
+        let edited = profiles::edit(&self.db, id, edit).await?;
+        self.profiles_changed(&edited);
+        Ok(edited)
+    }
+
+    /// Tells every connection the Profiles changed, after an accepted
+    /// create or edit.
+    fn profiles_changed(&mut self, result: &Result<Profile, Refused>) {
+        if result.is_ok() {
+            self.hub.send_all(&ServerMessage::Changed {
+                topics: vec![ChangeTopic::Profiles],
+            });
+        }
+    }
+
+    /// Edits Party member `member_id` inside the Party, from connection
+    /// `id` (a Remote command). The colour must be free; for a Profile it
+    /// becomes the favourite too, and the name and avatar change the
+    /// Profile. A Guest's name may be neither another Guest's nor a
+    /// Profile's.
+    async fn edit_member(
+        &mut self,
+        id: ConnectionId,
+        member_id: PartyMemberId,
+        edit: MemberEdit,
+    ) -> Result<(), UserMessage> {
+        let actor = self.remote_actor(id)?;
+        let mut party = self.party()?;
+        let name = edit.name.as_deref().map(profiles::check_name).transpose()?;
+        party::edit_member(&mut party, member_id, name.as_ref(), &edit)?;
+        let member = party
+            .members
+            .iter()
+            .find(|member| member.member_id == member_id)
+            .cloned()
+            .ok_or(UserMessage::MemberNotFound)?;
+        let party_id = party.party_id.clone();
+        let (shown_name, profile_changed) = match &member.identity {
+            Identity::Guest { name: guest, .. } => {
+                if let Some(name) = &name {
+                    self.refuse_profile_name(name).await?;
+                }
+                let guest = guest.clone();
+                self.db
+                    .call(move |conn| store::update_member_in(conn, &party_id, &member))
+                    .await
+                    .map_err(|error| server_error(&error, "storing a Guest edit"))?;
+                (guest, false)
+            }
+            &Identity::Profile { profile_id } => {
+                let profile = self
+                    .db
+                    .call(move |conn| {
+                        let tx = conn.transaction()?;
+                        let edited = profiles::edit_in(
+                            &tx,
+                            profile_id,
+                            name.as_ref(),
+                            edit.avatar,
+                            edit.colour,
+                        )?;
+                        let Ok(profile) = edited else {
+                            return Ok(edited.map_err(refusal));
+                        };
+                        store::update_member_in(&tx, &party_id, &member)?;
+                        tx.commit()?;
+                        Ok(Ok(profile))
+                    })
+                    .await
+                    .map_err(|error| server_error(&error, "storing a Profile edit"))??;
+                (profile.name, true)
+            }
+        };
+        self.stage_mut().party = Some(party);
+        if profile_changed {
+            self.hub.send_all(&ServerMessage::Changed {
+                topics: vec![ChangeTopic::Profiles],
+            });
+        }
+        self.party_changed(ChangeEvent {
+            actor,
+            event: PartyEvent::MemberChanged {
+                member_id,
+                name: shown_name,
+            },
         });
         Ok(())
     }
@@ -750,6 +1055,36 @@ impl LiveState {
     fn reject(&mut self, id: ConnectionId, reason: UserMessage) {
         self.hub.send_to(id, &ServerMessage::Rejected { reason });
     }
+}
+
+/// Refuses a new Profile named `name` in `party`: a Guest has the name, or
+/// twelve colours are held.
+fn refuse_new_profile(
+    party: &PartySnapshot,
+    name: &profiles::CheckedName,
+) -> Result<(), UserMessage> {
+    if let Some(member_id) = party::guest_named(party, &name.key, None) {
+        return Err(UserMessage::NameTakenTonight { member_id });
+    }
+    if party::is_full(party) {
+        return Err(UserMessage::PartyFull);
+    }
+    Ok(())
+}
+
+/// The refusal code a Phone gets for a refused Profile create or edit.
+fn refusal(refused: Refused) -> UserMessage {
+    match refused {
+        Refused::Name(message) | Refused::Party(message) => message,
+        Refused::Taken(profile_id) => UserMessage::ProfileNameTaken { profile_id },
+        Refused::NotFound => UserMessage::ProfileNotFound,
+    }
+}
+
+/// Logs a failed storage step and answers with [`UserMessage::ServerError`].
+fn server_error(error: &anyhow::Error, doing: &str) -> UserMessage {
+    tracing::error!(?error, "{doing}");
+    UserMessage::ServerError
 }
 
 /// The Mic a connection's readings and pings come from. Until Phones join

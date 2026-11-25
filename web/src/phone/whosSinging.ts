@@ -22,10 +22,10 @@ export function whosSinging(
   members: readonly PartyMember[],
 ): WhosSingingEntry[] {
   const colourOf = new Map<number, PaletteKey>();
-  // Every member is a Profile so far; a Guest identity (#82) has no
-  // Profile id and fails tsc here until it is skipped.
-  for (const member of members)
-    colourOf.set(member.identity.profileId, member.colour);
+  for (const member of members) {
+    if (member.identity.kind === "profile")
+      colourOf.set(member.identity.profileId, member.colour);
+  }
   return [...profiles]
     .sort((a, b) => {
       if (a.lastSungAt !== null && b.lastSungAt !== null)

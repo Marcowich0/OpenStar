@@ -261,8 +261,8 @@ pub struct Profile {
     pub last_sung_at: Option<i64>,
 }
 
-/// Body of `POST /api/profiles`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+/// Body of `POST /api/profiles`, and of joining as a new Profile.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct NewProfile {
