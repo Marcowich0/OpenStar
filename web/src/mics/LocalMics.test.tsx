@@ -95,11 +95,24 @@ function setup() {
       });
     });
   };
+  const reconnect = () => {
+    act(() => {
+      handlers?.onConnection("closed");
+    });
+    becomeStage(true);
+  };
+  const server = (message: Parameters<LiveClientOptions["onMessage"]>[0]) => {
+    act(() => {
+      handlers?.onMessage(message);
+    });
+  };
   return {
     capture,
     makeCapture,
     sent,
     becomeStage,
+    reconnect,
+    server,
     api: () => api as unknown as LocalMicsApi,
   };
 }
@@ -171,5 +184,44 @@ describe("the Stage browser's Local mics", () => {
       api().approveBridge(7);
     });
     expect(sent).toContainEqual({ type: "approveBridge", requestId: 7 });
+  });
+
+  it("tell the server while the Mics screen is open, and again after a reconnect", () => {
+    const { becomeStage, reconnect, api, sent } = setup();
+    becomeStage(true);
+    const said = () =>
+      sent.flatMap((m) => (m.type === "setMicsScreenOpen" ? [m.open] : []));
+    expect(said()).toEqual([false]);
+    act(() => {
+      api().setMicsScreenOpen(true);
+    });
+    expect(said()).toEqual([false, true]);
+    reconnect();
+    expect(said()).toEqual([false, true, true]);
+    act(() => {
+      api().setMicsScreenOpen(false);
+    });
+    expect(said()).toEqual([false, true, true, false]);
+  });
+
+  it("say nothing about the Mics screen while the browser is not the Stage", () => {
+    const { becomeStage, api, sent } = setup();
+    becomeStage(false);
+    act(() => {
+      api().setMicsScreenOpen(true);
+    });
+    expect(sent.filter((m) => m.type === "setMicsScreenOpen")).toEqual([]);
+  });
+
+  it("keep the Mic bridge levels the server relays for the meters", () => {
+    const { becomeStage, api, server } = setup();
+    becomeStage(true);
+    const id = "bridge:zeus:mics.wav:0";
+    expect(api().bridgeLevelDbfs(id)).toBeNull();
+    server({
+      type: "localMicLevels",
+      levels: [{ localMicId: id, levelDbfs: -12 }],
+    });
+    expect(api().bridgeLevelDbfs(id)).toBe(-12);
   });
 });
