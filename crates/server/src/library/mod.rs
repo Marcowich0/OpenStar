@@ -16,6 +16,9 @@ mod resolve;
 mod scan;
 mod search;
 
+pub(crate) use identity::key as identity_key;
+pub(crate) use index::song as song_detail;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
