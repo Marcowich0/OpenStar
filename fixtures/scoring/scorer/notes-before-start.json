@@ -1,0 +1,40 @@
+{
+  "description": "Notes before #START count toward neither voiceValue nor any judging, so a perfect run from #START earns all 9000; a Note starting exactly at #START is scored",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "startSeconds": 1.0,
+  "voices": [
+    {
+      "lines": [
+        {
+          "notes": [{ "kind": "normal", "start": 0, "length": 2, "pitch": 0 }]
+        },
+        {
+          "notes": [
+            { "kind": "normal", "start": 4, "length": 2, "pitch": 0 },
+            { "kind": "rap", "start": 6, "length": 1, "pitch": 0 }
+          ]
+        }
+      ]
+    }
+  ],
+  "comment": "#START 1.0 s is the start of Beat 4. The Note at Beat 0 starts before it and is left out; the Notes at Beats 4 and 6 are scored: voiceValue = 2 + 1 = 3, 3000 per hit Beat. Beats 0 and 1 are not judged even though the Player sang them.",
+  "players": [
+    {
+      "voice": 0,
+      "difficulty": "medium",
+      "firstBeat": 0,
+      "beatValues": [60, 60, null, null, 60, 72, "voice"],
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 6,
+        "voiceValue": 3,
+        "notes": 9000,
+        "golden": 0,
+        "hitBeats": [4, 5, 6],
+        "missedBeats": []
+      }
+    }
+  ]
+}

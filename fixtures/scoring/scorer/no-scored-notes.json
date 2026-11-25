@@ -1,0 +1,38 @@
+{
+  "description": "a Voice with no scored Notes (only Freestyle, and a Normal note before #START): voiceValue 0, nothing is judged, every sum stays 0",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "startSeconds": 1.0,
+  "voices": [
+    {
+      "lines": [
+        {
+          "notes": [
+            { "kind": "normal", "start": 0, "length": 2, "pitch": 0 },
+            { "kind": "freestyle", "start": 4, "length": 4, "pitch": 0 },
+            { "kind": "freestyle", "start": 9, "length": 0, "pitch": 0 }
+          ]
+        }
+      ]
+    }
+  ],
+  "comment": "#START 1.0 s is Beat 4 (0.5 + 4 × 0.125); the Normal note starts at Beat 0, before it. The zero-length Note is Freestyle, as the parser reads it; the range still ends at its Beat 9.",
+  "players": [
+    {
+      "voice": 0,
+      "difficulty": "easy",
+      "firstBeat": 0,
+      "beatValues": [60, 60, 60, 60, 60, 60, 60, 60, 60, 60],
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 9,
+        "voiceValue": 0,
+        "notes": 0,
+        "golden": 0,
+        "hitBeats": [],
+        "missedBeats": []
+      }
+    }
+  ]
+}

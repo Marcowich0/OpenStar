@@ -1,0 +1,48 @@
+{
+  "description": "the three-state Beat: voice without pitch hits a Rap and a Golden Rap note and misses a Normal and a Golden note; no voice misses all four",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "startSeconds": null,
+  "voices": [
+    {
+      "lines": [
+        {
+          "notes": [
+            { "kind": "rap", "start": 0, "length": 2, "pitch": 0 },
+            { "kind": "normal", "start": 2, "length": 2, "pitch": 0 },
+            { "kind": "goldenRap", "start": 4, "length": 2, "pitch": 0 },
+            { "kind": "golden", "start": 6, "length": 2, "pitch": 0 }
+          ]
+        }
+      ]
+    }
+  ],
+  "players": [
+    {
+      "voice": 0,
+      "difficulty": "easy",
+      "firstBeat": 0,
+      "beatValues": [
+        "voice",
+        null,
+        "voice",
+        null,
+        "voice",
+        null,
+        "voice",
+        null
+      ],
+      "comment": "voiceValue = 2 + 2 + 4 + 4 = 12, so 750 × factor per hit Beat. Beat 0 Rap +750, Beat 4 Golden Rap +1500; Beats 2 and 6 (Normal, Golden) miss on voice without pitch; every no-voice Beat misses.",
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 7,
+        "voiceValue": 12,
+        "notes": 750,
+        "golden": 1500,
+        "hitBeats": [0, 4],
+        "missedBeats": [1, 2, 3, 5, 6, 7]
+      }
+    }
+  ]
+}

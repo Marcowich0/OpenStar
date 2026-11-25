@@ -1,0 +1,62 @@
+{
+  "description": "the octave fold applies at every Difficulty: a pitch whole octaves off hits; an exact tritone folds to −600 and misses",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "startSeconds": null,
+  "voices": [
+    {
+      "lines": [
+        { "notes": [{ "kind": "normal", "start": 0, "length": 4, "pitch": 9 }] }
+      ]
+    }
+  ],
+  "comment": "One Normal note on A4 (pitch 9 = MIDI 69), voiceValue 4, 2250 per hit Beat. 81: d = 1200, d' = 0. 45: d = −2400, d' = 0. 57.4: d = −1160, d' = −1160 − 1200 × floor(−560 / 1200) = 40. 75: d = 600, d' = 600 − 1200 × floor(1200 / 1200) = −600.",
+  "players": [
+    {
+      "voice": 0,
+      "difficulty": "hard",
+      "firstBeat": 0,
+      "beatValues": [81, 45, 57.4, 75],
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 3,
+        "voiceValue": 4,
+        "notes": 6750,
+        "golden": 0,
+        "hitBeats": [0, 1, 2],
+        "missedBeats": [3]
+      }
+    },
+    {
+      "voice": 0,
+      "difficulty": "medium",
+      "firstBeat": 0,
+      "beatValues": [81, 45, 57.4, 75],
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 3,
+        "voiceValue": 4,
+        "notes": 6750,
+        "golden": 0,
+        "hitBeats": [0, 1, 2],
+        "missedBeats": [3]
+      }
+    },
+    {
+      "voice": 0,
+      "difficulty": "easy",
+      "firstBeat": 0,
+      "beatValues": [81, 45, 57.4, 75],
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 3,
+        "voiceValue": 4,
+        "notes": 6750,
+        "golden": 0,
+        "hitBeats": [0, 1, 2],
+        "missedBeats": [3]
+      }
+    }
+  ]
+}
