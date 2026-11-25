@@ -1,0 +1,6 @@
+[
+  { "op": "setNoteStart", "line": 6, "start": 1 },
+  { "op": "setNoteLength", "line": 6, "length": 3 },
+  { "op": "setNoteText", "line": 7, "text": "café" },
+  { "op": "setLineEnd", "line": 8, "beat": 9 }
+]

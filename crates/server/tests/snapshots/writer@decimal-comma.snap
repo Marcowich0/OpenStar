@@ -1,0 +1,36 @@
+---
+source: crates/server/tests/txt_writer.rs
+description: decimal-comma
+---
+(
+    Utf8,
+    [
+        ChangedLine {
+            line: 4,
+            old: Some(
+                "#BPM:150,5",
+            ),
+            new: Some(
+                "#BPM:150,25",
+            ),
+        },
+        ChangedLine {
+            line: 5,
+            old: Some(
+                "#GAP:1000,25",
+            ),
+            new: Some(
+                "#GAP:1234,57",
+            ),
+        },
+        ChangedLine {
+            line: 6,
+            old: Some(
+                "#VIDEOGAP:0,5",
+            ),
+            new: Some(
+                "#VIDEOGAP:1",
+            ),
+        },
+    ],
+)

@@ -1,0 +1,57 @@
+---
+source: crates/server/tests/txt_writer.rs
+description: note-operations
+---
+(
+    Utf8,
+    [
+        ChangedLine {
+            line: 5,
+            old: Some(
+                ":\t0\t4\t0\tla",
+            ),
+            new: Some(
+                ":\t0\t4\t-3\tla",
+            ),
+        },
+        ChangedLine {
+            line: 6,
+            old: None,
+            new: Some(
+                ":\t5\t2\t1\tnew",
+            ),
+        },
+        ChangedLine {
+            line: 6,
+            old: Some(
+                "*  4  4  2 la ",
+            ),
+            new: None,
+        },
+        ChangedLine {
+            line: 7,
+            old: Some(
+                ": 8 2 1",
+            ),
+            new: Some(
+                ": 8 2 1 end",
+            ),
+        },
+        ChangedLine {
+            line: 8,
+            old: Some(
+                "- 12\t7",
+            ),
+            new: Some(
+                "- 13\t7",
+            ),
+        },
+        ChangedLine {
+            line: 9,
+            old: Some(
+                "F 14 4 0 ~",
+            ),
+            new: None,
+        },
+    ],
+)
