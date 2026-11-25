@@ -25,6 +25,16 @@ describe("server texts", () => {
     );
   });
 
+  it("tells how long the Admin PIN wait still runs", () => {
+    const wait = (secondsLeft: number) =>
+      userMessageText({ code: "adminPinWait", params: { secondsLeft } });
+    expect(wait(1)).toBe("Too many wrong PINs. Try again in 1 second");
+    expect(wait(59)).toBe("Too many wrong PINs. Try again in 59 seconds");
+    expect(wait(60)).toBe("Too many wrong PINs. Try again in 1 minute");
+    expect(wait(61)).toBe("Too many wrong PINs. Try again in 2 minutes");
+    expect(wait(900)).toBe("Too many wrong PINs. Try again in 15 minutes");
+  });
+
   it("turns a job failure into text", () => {
     expect(
       userMessageText({

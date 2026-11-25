@@ -4,6 +4,10 @@
 //! - `POST /api/unlock` with an [`UnlockRequest`]: a correct Admin PIN answers
 //!   with an [`UnlockStatus`] and sets the Unlock cookie; a wrong one answers
 //!   `403` with an [`ApiError`] whose code is [`ApiErrorCode::WrongPin`].
+//!   After 5 wrong guesses in a row (from any browser) each further wrong
+//!   guess starts a wait; while it runs every attempt, even the correct PIN,
+//!   answers `429` with a `Retry-After` header and
+//!   [`UserMessage::AdminPinWait`](crate::UserMessage::AdminPinWait).
 //! - `GET /api/unlock`: the [`UnlockStatus`] of this browser. It does not reset
 //!   the idle time.
 //! - `POST /api/unlock/heartbeat`: resets the idle time of a live Unlock and

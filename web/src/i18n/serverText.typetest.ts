@@ -54,6 +54,8 @@ const handlers: CodeHandlers<UserMessage> = {
   noResults: () => t("userMessage.noResults"),
   notABridge: () => t("userMessage.notABridge"),
   bridgeRequestNotFound: () => t("userMessage.bridgeRequestNotFound"),
+  adminPinWait: ({ params }) =>
+    t("userMessage.adminPinWaitSeconds", { count: params.secondsLeft }),
 };
 
 // A code the Rust side adds (here `queueFull`) fails until it is mapped.
