@@ -46,6 +46,23 @@ const stageRoute = createRoute({
   ),
 });
 
+/**
+ * `/stage/playback?song=<id>`: the minimal Stage view that plays a Library
+ * Song and shows its Song time (#155), until the sing scene plays Songs (#164).
+ */
+const playbackRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/stage/playback",
+  validateSearch: (search: Record<string, unknown>) => {
+    const song = Number(search["song"]);
+    return { song: Number.isInteger(song) ? song : undefined };
+  },
+  component: lazyRouteComponent(
+    () => import("./stage/playback/PlaybackCheck"),
+    "PlaybackCheck",
+  ),
+});
+
 /** `/bridge`: the Mic bridge install page. The server's own files under `/bridge/` are not the app's. */
 const bridgeRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -99,6 +116,7 @@ const profilesRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   phoneRoute,
   stageRoute,
+  playbackRoute,
   bridgeRoute,
   adminRoute.addChildren([
     adminIndexRoute,

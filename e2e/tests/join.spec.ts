@@ -1,23 +1,15 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
-import { expect, test } from "../fixtures";
+import { expect, newParty, test } from "../fixtures";
 
 // The join flow as a Profile (#115): a Phone joins by the Join code on the
 // number pad or from the QR link, picks its Profile, lands on the Remote, and
 // is back in after a reload with no code and no tap.
 
-/** The Stage's current Join code. */
-async function stageJoinCode(stage: Page): Promise<string> {
-  await stage.goto("/stage");
-  const code = stage.getByTestId("party-join-code");
-  await expect(code).toHaveText(/^\d{4}$/);
-  return (await code.textContent()) ?? "";
-}
-
 /**
  * A Profile with a name no other test uses (the server is shared). Each test
- * gives its own favourite colour, so that no other member holds it and the
- * Phone goes straight to the Remote, without the "You're <Colour> tonight"
+ * starts a New party first, so no other member holds its favourite colour and
+ * the Phone goes straight to the Remote, without the "You're <Colour> tonight"
  * notice.
  */
 async function createProfile(
@@ -59,7 +51,7 @@ test("a Phone joins by the Join code on the pad as a Profile and rejoins silentl
   openPhone,
   request,
 }) => {
-  const code = await stageJoinCode(stage);
+  const code = await newParty(stage);
   const name = await createProfile(request, "Pad", "grape");
 
   const phone = await openPhone();
@@ -96,7 +88,7 @@ test("the QR link skips the pad, and a remembered Profile joins with one tap", a
   openPhone,
   request,
 }) => {
-  const code = await stageJoinCode(stage);
+  const code = await newParty(stage);
   const name = await createProfile(request, "QR", "tangerine");
 
   const phone = await openPhone();

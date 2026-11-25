@@ -1,6 +1,7 @@
 import {
   test as base,
   chromium,
+  expect,
   devices,
   type Browser,
   type Page,
@@ -34,6 +35,44 @@ export const STAGE_VIEWPORT = { width: 1920, height: 1080 };
 
 /** The phone Chromium emulates for every Phone. */
 export const PHONE_DEVICE = devices["Pixel 7"];
+
+const JOIN_CODE = /^\d{4}$/;
+
+/**
+ * Opens `/stage` on `stage` (so it is the active Stage), starts a New party
+ * from its People overlay and returns the new Party's Join code, with the
+ * Stage back on the song browser.
+ *
+ * Every test shares one server and its Party, and Party members stay in a
+ * Party. Call this before a test joins the Party: the test then starts with
+ * no members and an empty Queue, whatever earlier tests left, so its
+ * Profiles' favourite colours are free.
+ */
+export async function newParty(stage: Page): Promise<string> {
+  await stage.goto("/stage");
+  const frame = stage.locator("[data-stage-frame]");
+  await expect(frame).toHaveAttribute("data-scene", /.+/);
+  // P opens People; New party needs a hold of Enter.
+  await stage.keyboard.press("p");
+  const people = stage.getByRole("dialog", { name: "Tonight's Party" });
+  await expect(people).toBeVisible();
+  const peopleCode = people.getByTestId("people-join-code");
+  await expect(peopleCode).toHaveText(/^Join with \d{4}$/);
+  const old = ((await peopleCode.textContent()) ?? "").slice(-4);
+  await people.getByRole("button", { name: "New party" }).focus();
+  await stage.keyboard.down("Enter");
+  await stage.waitForTimeout(900);
+  await stage.keyboard.up("Enter");
+  await expect(peopleCode).not.toHaveText(`Join with ${old}`);
+  await stage.keyboard.press("Escape");
+  await expect(people).toHaveCount(0);
+
+  await expect(frame).toHaveAttribute("data-scene", "songBrowser");
+  const code = stage.getByTestId("party-join-code");
+  await expect(code).toHaveText(JOIN_CODE);
+  await expect(code).not.toHaveText(old);
+  return (await code.textContent()) ?? "";
+}
 
 export interface PhoneOptions {
   /**
@@ -116,4 +155,4 @@ export const test = base.extend<Fixtures>({
   },
 });
 
-export { expect } from "@playwright/test";
+export { expect };

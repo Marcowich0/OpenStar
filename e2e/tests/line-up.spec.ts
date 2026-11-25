@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
-import { expect, FIXTURE_SONGS, test } from "../fixtures";
+import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
 
 // The Stage's Line-up screen (#124): a Request reaching the head of the Queue
 // shows its Line-up, one card per seat, and the Stage's keyboard edits it.
@@ -60,7 +60,7 @@ async function sendFromPhone(phone: Page, message: object): Promise<Snapshot> {
   );
 }
 
-/** A Profile with a favourite colour no other test's Profile holds. */
+/** A Profile with a name no other test uses (the server is shared). */
 async function createProfile(
   request: APIRequestContext,
 ): Promise<{ id: number; name: string }> {
@@ -81,8 +81,7 @@ test("a Request at the head shows its Line-up, edited from the Stage's keyboard"
   openPhone,
   request,
 }) => {
-  await stage.goto("/stage");
-  const code = await stage.getByTestId("party-join-code").textContent();
+  const code = await newParty(stage);
   const profile = await createProfile(request);
   const { songs } = (await (await request.get("/api/songs")).json()) as {
     songs: { id: number; path: string; title: string }[];
@@ -99,7 +98,7 @@ test("a Request at the head shows its Line-up, edited from the Stage's keyboard"
   ];
 
   const phone = await openPhone();
-  await phone.goto(`/?join=${code ?? ""}`);
+  await phone.goto(`/?join=${code}`);
   await phone.getByRole("button", { name: profile.name, exact: true }).click();
   await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();
 
@@ -128,9 +127,7 @@ test("a Request at the head shows its Line-up, edited from the Stage's keyboard"
       stage.getByText(`Then ${next[0]?.title ?? ""}, ${next[1]?.title ?? ""}`),
     ).toBeVisible();
     // No QR code or Join code on the Line-up.
-    await expect(stage.getByText(code ?? "----", { exact: true })).toHaveCount(
-      0,
-    );
+    await expect(stage.getByText(code, { exact: true })).toHaveCount(0);
 
     // Seat the Phone's Profile from the Stage: Add a singer, then pick it.
     await stage.getByRole("button", { name: /Add a singer/ }).focus();
