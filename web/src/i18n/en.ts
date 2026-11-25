@@ -217,6 +217,14 @@ export const en = {
   "stage.lineUp.title": "Line-up",
   "stage.sing.title": "Singing",
   "stage.results.title": "Results",
+  // The minimal playback view (#155), until the sing scene plays Songs (#164).
+  "stage.playback.play": "Play",
+  "stage.playback.loading": "Loading the Song",
+  "stage.playback.noSong": "No such Song",
+  "stage.playback.songTime": "Song time {seconds, number} s",
+  "stage.playback.jitter": "Jitter {ms, number} ms",
+  "stage.playback.ended": "Song ended",
+  "stage.playback.failed": "The browser did not play the Song",
   "stage.moved.title": "The Stage moved to another screen",
   "stage.moved.body":
     "Someone opened OpenStar's Stage on another browser, so the party carries on there. Phones stay in the Party and follow it.",
