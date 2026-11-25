@@ -15,3 +15,7 @@ see the ultrastar project for context on a similar project and for reference on 
 6) the game should be able to download new songs - use same source as (https://github.com/Marcowich0/ultrastar)
 7) language should be chosen based on performance 
 8) should have an edit mode where users may adjust the timing of the notes to the music if these are misalligned. 
+
+## Releases
+
+Before each `vX.Y.Z` tag, the [release checklist](docs/release-checklist.md) is worked through by hand. `:edge` builds from `main` need none.
