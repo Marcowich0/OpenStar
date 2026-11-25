@@ -89,6 +89,86 @@ impl SongHeaders {
     }
 }
 
+/// A Song's `.txt` as parsed: its headers and its Voices.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ParsedSong {
+    pub headers: SongHeaders,
+    /// One Voice for a solo Song; two (`P1`, then `P2`) for a duet. A Song
+    /// is a duet when its body has any `P` line.
+    pub voices: Vec<Voice>,
+}
+
+/// One sung part of a Song: its Lines in file order. Each Voice has its own
+/// beat timeline.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Voice {
+    pub lines: Vec<Line>,
+}
+
+/// One row of lyrics in a Voice and the Notes sung on it. Never empty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Line {
+    /// The Line's Notes in file order; never re-sorted.
+    pub notes: Vec<Note>,
+    /// The Line end marker that closed this Line; absent for a Voice's last
+    /// Line when `E` (or the end of the file) closes it.
+    pub end: Option<LineEnd>,
+}
+
+/// A Line end marker, `- beat`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LineEnd {
+    /// The beat the marker names, relative to `#GAP`.
+    pub beat: i32,
+    /// The 1-based line number of the marker in the file.
+    pub line: u32,
+}
+
+/// One syllable to be sung, from a Note line `type start length pitch text`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Note {
+    pub kind: NoteKind,
+    /// The first beat, relative to `#GAP`.
+    pub start: i32,
+    /// How many beats the Note lasts, as written. A length below 1 is made
+    /// [`NoteKind::Freestyle`].
+    pub length: i32,
+    /// Semitones from C4 (0 = MIDI 60).
+    pub pitch: i32,
+    /// The lyric, with its leading and trailing spaces kept (they carry word
+    /// boundaries).
+    pub text: String,
+    /// The 1-based line number of the Note line in the file.
+    pub line: u32,
+}
+
+/// What kind of Note a Note line holds, from its type character.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum NoteKind {
+    /// `:`, weight 1 per beat.
+    Normal,
+    /// `*`, weight 2 per beat.
+    Golden,
+    /// `R`: any voice hits, pitch ignored; weight 1 per beat.
+    Rap,
+    /// `G`: a golden Rap note; weight 2 per beat.
+    GoldenRap,
+    /// `F`: shown, never scored.
+    Freestyle,
+}
+
 /// A header line OpenStar keeps without interpreting it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -117,6 +197,27 @@ pub enum TxtWarning {
     DuplicateHeader { line: u32, header: String },
     /// An optional number that could not be parsed; the header is absent.
     InvalidNumber { line: u32, header: String },
+    /// A Note with a length below 1, made Freestyle.
+    ZeroLengthNote { line: u32 },
+    /// A Note that shares a beat with an earlier Note of the same Voice.
+    /// Each beat belongs to the first Note in the file that covers it.
+    OverlappingNotes { line: u32, earlier_line: u32 },
+    /// A body line that is not a Note, a Line end marker or a Voice change
+    /// (for example an unofficial `B` line); it is skipped.
+    UnknownBodyLine { line: u32 },
+}
+
+impl TxtWarning {
+    /// The 1-based line the warning is about.
+    pub fn line(&self) -> u32 {
+        match self {
+            TxtWarning::DuplicateHeader { line, .. }
+            | TxtWarning::InvalidNumber { line, .. }
+            | TxtWarning::ZeroLengthNote { line }
+            | TxtWarning::OverlappingNotes { line, .. }
+            | TxtWarning::UnknownBodyLine { line } => *line,
+        }
+    }
 }
 
 /// Why a `.txt` cannot be played. A file has exactly one.
@@ -143,6 +244,16 @@ pub enum TxtRejection {
     MissingArtist,
     /// No `#TITLE`, and the folder name does not supply one.
     MissingTitle,
+    /// No Notes at all; a file that ends inside the header has none.
+    NoNotes,
+    /// A duet (a body with any `P` line) whose Voice `voice` (1 or 2) has
+    /// no Notes.
+    DuetVoiceWithoutNotes { voice: u8 },
+    /// A line that starts with a Note type, but whose start, length or pitch
+    /// is not an integer.
+    InvalidNoteLine { line: u32 },
+    /// A `P` line whose number is not 1 or 2.
+    InvalidVoice { line: u32 },
 }
 
 #[cfg(test)]
@@ -162,6 +273,25 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&TxtRejection::MissingBpm).unwrap(),
             r#"{"code":"missingBpm"}"#
+        );
+    }
+
+    #[test]
+    fn voices_lines_and_notes_are_camel_case() {
+        let line = Line {
+            notes: vec![Note {
+                kind: NoteKind::GoldenRap,
+                start: 12,
+                length: 4,
+                pitch: -3,
+                text: " la ".into(),
+                line: 8,
+            }],
+            end: Some(LineEnd { beat: 18, line: 9 }),
+        };
+        assert_eq!(
+            serde_json::to_string(&Voice { lines: vec![line] }).unwrap(),
+            r#"{"lines":[{"notes":[{"kind":"goldenRap","start":12,"length":4,"pitch":-3,"text":" la ","line":8}],"end":{"beat":18,"line":9}}]}"#
         );
     }
 }

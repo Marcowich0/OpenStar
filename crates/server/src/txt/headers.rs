@@ -256,9 +256,7 @@ pub(super) fn interpret(
     };
 
     let mut warnings = known.warnings;
-    warnings.sort_by_key(|w| match w {
-        TxtWarning::DuplicateHeader { line, .. } | TxtWarning::InvalidNumber { line, .. } => *line,
-    });
+    warnings.sort_by_key(TxtWarning::line);
     Ok((headers, warnings))
 }
 

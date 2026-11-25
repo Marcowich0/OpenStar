@@ -1,0 +1,9 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: body/non-integer-note-field-rejected.txt
+---
+Err(
+    InvalidNoteLine {
+        line: 6,
+    },
+)

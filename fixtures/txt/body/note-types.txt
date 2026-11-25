@@ -1,0 +1,13 @@
+#TITLE:Placeholder Title
+#ARTIST:Placeholder Artist
+#MP3:audio.mp3
+#BPM:300
+: 0 4 0 Nor
+* 4 4 2 Gol
+R 8 4 0 Rap
+G 12 4 0 Grap
+F 16 4 0 Free
+- 22
+: 24 0 0 zero
+: 24 4 0 one
+:	26 4 2	over
