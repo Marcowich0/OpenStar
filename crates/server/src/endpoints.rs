@@ -223,6 +223,14 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
                 Guarded(Writes),
                 test_done,
             )
+            // The Profile delete through the Party (#89), until #199 mounts
+            // it at `DELETE /api/profiles/{id}`. Deletes kept data.
+            .add(
+                Method::DELETE,
+                "/api/test/profiles/{id}",
+                Guarded(Untouched),
+                profiles::delete_profile,
+            )
             // Test jobs run a harmless child process and touch nothing kept.
             .add(
                 Method::POST,

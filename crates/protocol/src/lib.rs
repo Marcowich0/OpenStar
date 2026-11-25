@@ -396,6 +396,9 @@ pub enum UserMessage {
     /// The Party member sits in the Line-up ("singing"), so it cannot leave
     /// or be removed: take it off the Song first.
     MemberSinging,
+    /// The Profile sings in the playing Song (seated, or its Phone is a
+    /// seat's Mic), so it cannot be deleted until the Song ends.
+    ProfileSinging,
     /// A Phone cannot remove its own Party member from the people list; it
     /// uses Leave party instead.
     UseLeaveParty,

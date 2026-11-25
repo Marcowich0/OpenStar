@@ -5,7 +5,7 @@ import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { Profile } from "../generated/Profile";
 import type { Toast } from "../live/toasts";
 import { tParts, type TextPart } from "../i18n/t";
-import { BOLD_PARAMS, toastContent } from "./toastContent";
+import { toastContent } from "./toastContent";
 
 const party: PartySnapshot = {
   partyId: "p",
@@ -192,6 +192,48 @@ describe("a toast's content", () => {
     });
   });
 
+  it("says a Song left the Library, from nobody in the Party", () => {
+    const toast: Toast = {
+      id: 0,
+      actor: { kind: "admin" },
+      event: { code: "requestDroppedSongGone", params: africa },
+    };
+    const content = toastContent(toast, party, profiles);
+    expect(text(toast)).toBe(
+      "Africa left the Library and was taken off the Queue",
+    );
+    expect(content.parts.filter((part) => part.param === "song")).toEqual([
+      { text: "Africa", param: "song" },
+    ]);
+    expect(content.actor).toBeNull();
+  });
+
+  it("shows a deleted Profile with the look it had, from the event alone", () => {
+    const toast: Toast = {
+      id: 0,
+      actor: { kind: "admin" },
+      event: {
+        code: "profileDeleted",
+        params: {
+          memberId: 5,
+          name: "Lukas",
+          avatar: { kind: "builtIn", key: "moon" },
+          colour: "tangerine",
+        },
+      },
+    };
+    const content = toastContent(toast, party, profiles, 1);
+    expect(text(toast)).toBe("Lukas's Profile was deleted. Tangerine is free");
+    expect(content.parts.filter((part) => part.param === "name")).toEqual([
+      { text: "Lukas", param: "name" },
+    ]);
+    expect(content.actor).toEqual({
+      name: "Lukas",
+      avatar: { kind: "builtIn", key: "moon" },
+      colour: "tangerine",
+    });
+  });
+
   it("falls back to the text without the actor while their name is unknown", () => {
     const toast = byMember(1, { code: "requestRemoved", params: africa });
     expect(text(toast, party, [])).toBe("Africa was removed from the Queue");
@@ -354,10 +396,6 @@ describe("a Phone's own changes", () => {
 // texts are in the catalogue, ready for the ticket that adds each code.
 describe("toasts whose sender is not built yet", () => {
   const join = (parts: TextPart[]) => parts.map((part) => part.text).join("");
-  const bold = (parts: TextPart[]) =>
-    parts
-      .filter((part) => part.param && BOLD_PARAMS.has(part.param))
-      .map((part) => part.text);
 
   it("says a mic is back", () => {
     expect(join(tParts("toast.backOnMic", { actor: "Mia" }))).toBe(
@@ -372,20 +410,6 @@ describe("toasts whose sender is not built yet", () => {
     expect(join(tParts("toast.soundOutputChanged"))).toBe(
       "Sound output changed: calibrate mics",
     );
-  });
-
-  it("says why a queued Request was dropped", () => {
-    expect(
-      join(tParts("toast.requestDroppedSongGone", { song: "Africa" })),
-    ).toBe("Africa left the Library and was taken off the Queue");
-    const parts = tParts("toast.requestDroppedProfileDeleted", {
-      song: "Africa",
-      name: "Bo",
-    });
-    expect(join(parts)).toBe(
-      "Africa was taken off the Queue: Bo's Profile was deleted",
-    );
-    expect(bold(parts)).toEqual(["Africa", "Bo"]);
   });
 
   it("names the Remote behind a Line-up change, pause, resume and Auto-fit", () => {

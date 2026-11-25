@@ -3,7 +3,9 @@
 //!
 //! The name rules are [`check_name`]; uniqueness is checked and the row
 //! written in one transaction, and the `name_key` column is `UNIQUE` too.
-//! Deleting a Profile belongs to the Admin area, so there is no delete here.
+//! Deleting a Profile belongs to the Admin area (#199 mounts its guarded
+//! endpoint); [`delete_profile`] is the handler, which deletes through the
+//! Party (`LiveHandle::delete_profile`).
 
 use axum::Json;
 use axum::extract::{Path, State};
@@ -241,6 +243,14 @@ pub(crate) fn record_sung_in(
     Ok(changed > 0)
 }
 
+/// Deletes the Profile in the caller's transaction; its Score records go
+/// with it (`ON DELETE CASCADE`). False when no Profile has this id. A
+/// Party membership must be gone first: [`crate::live`] deletes through the
+/// Party, which removes it in the same transaction.
+pub(crate) fn delete_in(conn: &Connection, id: ProfileId) -> rusqlite::Result<bool> {
+    Ok(conn.execute("DELETE FROM profiles WHERE id = ?1", [id.0])? > 0)
+}
+
 /// Sets the last Difficulty of the Profile, which its next seat starts at
 /// ("My Difficulty for the next Song" from a Phone that is not seated).
 /// False when no Profile has this id.
@@ -400,6 +410,18 @@ pub(crate) async fn edit_profile(
     // inside the Party a Phone uses `ClientMessage::EditMember`.
     match state.live.edit_profile(ProfileId(id), changes).await {
         Ok(Ok(profile)) => Json(profile).into_response(),
+        Ok(Err(refused)) => refused.into_response(),
+        Err(error) => internal_error(&error),
+    }
+}
+
+/// `DELETE /api/profiles/{id}` (mounted by #199; only a test route mounts
+/// it so far): `204` once the Profile and its Score records are gone, `404
+/// profileNotFound`, or `409 profileSinging` while it sings in the playing
+/// Song. Through the live-state task: a Party member leaves the Party first.
+pub(crate) async fn delete_profile(State(state): State<AppState>, Path(id): Path<u32>) -> Response {
+    match state.live.delete_profile(ProfileId(id)).await {
+        Ok(Ok(())) => StatusCode::NO_CONTENT.into_response(),
         Ok(Err(refused)) => refused.into_response(),
         Err(error) => internal_error(&error),
     }
