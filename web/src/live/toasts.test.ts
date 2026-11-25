@@ -82,6 +82,16 @@ describe("Party changes as toast entries", () => {
     expect(receive(phone, change(remote)).toasts).toEqual([entry]);
   });
 
+  it("gives a toast on the Stage and on a Phone for a deletion from the Admin area", () => {
+    const entry = {
+      id: 0,
+      actor: { kind: "admin" },
+      event: { code: "partyStarted", params: { joinCode: "9133" } },
+    };
+    expect(receive(stage, change({ kind: "admin" })).toasts).toEqual([entry]);
+    expect(receive(phone, change({ kind: "admin" })).toasts).toEqual([entry]);
+  });
+
   it("keeps a former Stage's toasts like a Phone's once the Stage moved", () => {
     const moved = receive(stage, { type: "stageMoved" });
     expect(receive(moved, change({ kind: "stage" })).toasts).toHaveLength(1);

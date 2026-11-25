@@ -514,7 +514,13 @@ pub struct RequestChange {
 #[ts(export)]
 pub enum Actor {
     Stage,
-    Member { member_id: PartyMemberId },
+    Member {
+        member_id: PartyMemberId,
+    },
+    /// Nobody in the Party: the Admin area or the Library itself (a Song or
+    /// Profile deleted, a Song gone at a Rescan). Its changes toast on the
+    /// Stage too.
+    Admin,
 }
 
 /// What changed: a code plus its parameters, `{ "code": ..., "params": {...} }`
@@ -563,11 +569,24 @@ pub enum PartyEvent {
     RequestRemoved(RequestChange),
     /// A Request's requested Players changed.
     RequestedPlayersChanged(RequestChange),
+    /// A Request left the Queue because its Song left the Library (deleted
+    /// in the Admin area, or gone at a Rescan). `title` is the title the
+    /// Song had in the Library.
+    RequestDroppedSongGone(RequestChange),
     /// A Party member left the Party or was removed (the actor says which):
     /// its colour is free. Its name, avatar and colour travel here because
     /// it is no longer in the snapshot ("Lukas left the Party. Tangerine is
     /// free").
     MemberLeft {
+        member_id: PartyMemberId,
+        name: String,
+        avatar: Avatar,
+        colour: PaletteKey,
+    },
+    /// A Profile that was a Party member was deleted in the Admin area: it
+    /// left the Party like [`PartyEvent::MemberLeft`], its colour is free,
+    /// and every Phone using it is out of the Party.
+    ProfileDeleted {
         member_id: PartyMemberId,
         name: String,
         avatar: Avatar,

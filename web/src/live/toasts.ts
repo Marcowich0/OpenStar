@@ -2,7 +2,8 @@
 //
 // The reducer (`liveState.ts`) turns each `partyChanged` message into a toast
 // entry carrying the event's code, parameters and actor. The Stage keeps
-// entries only for changes made from a Remote; every other browser (a Phone,
+// entries only for changes made from a Remote or the Admin area (a deletion,
+// a Song gone at a Rescan: these always toast); every other browser (a Phone,
 // or a former Stage after the Stage moved) keeps them for changes from any
 // Remote or the Stage. Drawing them (ink pills) is the Stage and Phone
 // screens' job: render the text with `partyEventText(toast.event)` from

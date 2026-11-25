@@ -67,6 +67,7 @@ export const userMessageText = byCode<UserMessage>({
   playerNotInParty: () => t("userMessage.playerNotInParty"),
   playerTwice: () => t("userMessage.playerTwice"),
   memberSinging: () => t("userMessage.memberSinging"),
+  profileSinging: () => t("userMessage.profileSinging"),
   useLeaveParty: () => t("userMessage.useLeaveParty"),
   lineUpNotWaiting: () => t("userMessage.lineUpNotWaiting"),
   seatNotFound: () => t("userMessage.seatNotFound"),
@@ -105,9 +106,16 @@ export const partyEventText = byCode<PartyEvent>({
     t("partyEvent.requestRemoved", { song: params.title }),
   requestedPlayersChanged: ({ params }) =>
     t("partyEvent.requestedPlayersChanged", { song: params.title }),
+  requestDroppedSongGone: ({ params }) =>
+    t("toast.requestDroppedSongGone", { song: params.title }),
   memberLeft: ({ params }) =>
     t("toast.memberLeft", {
       actor: params.name,
+      colour: colourName(params.colour),
+    }),
+  profileDeleted: ({ params }) =>
+    t("toast.profileDeleted", {
+      name: params.name,
       colour: colourName(params.colour),
     }),
   micBlocked: ({ params }) => t("partyEvent.micBlocked", { name: params.name }),

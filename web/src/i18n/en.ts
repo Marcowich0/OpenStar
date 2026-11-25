@@ -275,6 +275,8 @@ export const en = {
   "userMessage.playerNotInParty": "Someone you picked is not in the Party",
   "userMessage.playerTwice": "Someone is picked twice",
   "userMessage.memberSinging": "They are singing: take them off the Song first",
+  "userMessage.profileSinging":
+    "This Profile is singing in the Song that plays: delete it once the Song has ended",
   "userMessage.useLeaveParty": "To leave the Party, use Leave party",
   "userMessage.lineUpNotWaiting": "That Line-up is no longer waiting",
   "userMessage.seatNotFound": "That seat is no longer in the Line-up",
@@ -397,6 +399,9 @@ export const en = {
   "toast.youResultsClosed": "You moved on from the results",
   // A colour parameter is always a palette display name (`colourName`).
   "toast.memberLeft": "{actor} left the Party. {colour} is free",
+  "toast.profileDeleted": "{name}'s Profile was deleted. {colour} is free",
+  "toast.requestDroppedSongGone":
+    "{song} left the Library and was taken off the Queue",
   "toast.lineUpChanged": "{actor} changed the Line-up",
   "toast.seatMoved": "{actor} moved {name} to another seat",
   "toast.seatVoice": "{actor} put {name} on Voice {voice, number}",
@@ -413,10 +418,6 @@ export const en = {
   "toast.backOnMic": "{actor} is back on the mic",
   "toast.localMicBack": "{mic} is back on {actor}'s seat",
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",
-  "toast.requestDroppedSongGone":
-    "{song} left the Library and was taken off the Queue",
-  "toast.requestDroppedProfileDeleted":
-    "{song} was taken off the Queue: {name}'s Profile was deleted",
   "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",
 
   // The Timing editor's edit list: one entry per edit, with the values
