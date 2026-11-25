@@ -16,6 +16,7 @@
 //! to the Mic that pinged. The relay never changes a reading, never scores
 //! and never touches SQLite.
 
+mod bridges;
 pub mod connection;
 pub mod hub;
 mod line_up;
@@ -27,8 +28,9 @@ mod store;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use openstar_protocol::bridge::bridge_local_mic_id;
 use openstar_protocol::library::SongId;
-use openstar_protocol::mics::MicKey;
+use openstar_protocol::mics::{LocalMicSource, MicKey};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
@@ -58,6 +60,8 @@ pub enum Role {
     /// The Stage's WebSocket, `/ws/stage`: it becomes the active Stage,
     /// taking over from any earlier one.
     Stage,
+    /// A Mic bridge's WebSocket, `/ws/bridge`: it may ask to join.
+    Bridge,
 }
 
 /// What a handler asks of the live-state task.
@@ -112,6 +116,10 @@ enum Command {
     DeleteProfile {
         id: ProfileId,
         reply: oneshot::Sender<anyhow::Result<Result<(), Refused>>>,
+    },
+    /// `GET /api/mic-bridges`: approved bridges and those waiting.
+    MicBridges {
+        reply: oneshot::Sender<openstar_protocol::bridge::MicBridges>,
     },
     /// Stop: drop every connection (their sockets close) and end the task.
     Shutdown { done: oneshot::Sender<()> },
@@ -245,6 +253,17 @@ impl LiveHandle {
         answer.await?
     }
 
+    /// Approved Mic bridges (open or closed) and bridges waiting for
+    /// approval; `None` once the task has stopped.
+    pub async fn mic_bridges(&self) -> Option<openstar_protocol::bridge::MicBridges> {
+        let (reply, answer) = oneshot::channel();
+        self.commands
+            .send(Command::MicBridges { reply })
+            .await
+            .ok()?;
+        answer.await.ok()
+    }
+
     /// Stops the task and closes every WebSocket. Returns once it has stopped.
     pub async fn shutdown(&self) {
         let (done, stopped) = oneshot::channel();
@@ -288,6 +307,8 @@ struct LiveState {
     /// Phones that reported their mic could not open. Kept while the
     /// server runs; a Phone reports again after a restart.
     blocked_phones: HashSet<PhoneId>,
+    /// Mic bridges: approved (open or closed) and waiting for approval.
+    bridges: bridges::Bridges,
 }
 
 impl LiveState {
@@ -307,6 +328,7 @@ impl LiveState {
         if let Some(party) = party.as_mut() {
             refresh_computed(party, &HashSet::new());
         }
+        let bridges = bridges::Bridges::new(crate::mic_bridges::load(&db).await?);
         let mut stages = HashMap::new();
         stages.insert(
             stage_id.clone(),
@@ -326,6 +348,7 @@ impl LiveState {
             songs,
             local_mics: Vec::new(),
             blocked_phones: HashSet::new(),
+            bridges,
         })
     }
 
@@ -363,6 +386,9 @@ impl LiveState {
                 Command::DeleteProfile { id, reply } => {
                     let _ = reply.send(self.delete_profile(id).await);
                 }
+                Command::MicBridges { reply } => {
+                    let _ = reply.send(self.bridges.listing());
+                }
                 Command::Shutdown { done } => {
                     drop(self);
                     let _ = done.send(());
@@ -387,6 +413,9 @@ impl LiveState {
         let connection = self.hub.add();
         let id = connection.id;
         let mut started = None;
+        if role == Role::Bridge {
+            self.bridges.sockets.insert(id);
+        }
         if role == Role::Stage {
             if let Some(previous) = self.stage_mut().connection.replace(id) {
                 self.hub.send_to(previous, &ServerMessage::StageMoved);
@@ -417,6 +446,7 @@ impl LiveState {
         if self.mics.remove(&id) {
             self.send_to_stage(&ServerMessage::MicClosed { mic: mic_id(id) });
         }
+        self.bridge_closed(id);
     }
 
     async fn received(
@@ -497,6 +527,17 @@ impl LiveState {
                 source,
                 switched_on,
             }) => {
+                if let LocalMicSource::Bridge {
+                    bridge_id,
+                    device_name,
+                    channel,
+                    ..
+                } = &source
+                    && local_mic_id != bridge_local_mic_id(bridge_id, device_name, *channel)
+                {
+                    self.reject(id, UserMessage::InvalidMessage);
+                    return;
+                }
                 let stored =
                     crate::local_mics::switch(self.db.clone(), local_mic_id, source, switched_on);
                 self.mic_settings_write(id, stored).await;
@@ -597,6 +638,18 @@ impl LiveState {
                 let closed = self.close_results(id).await;
                 self.refuse_on_error(id, closed);
             }
+            Ok(ClientMessage::BridgeHello {
+                build,
+                host_name,
+                token,
+                interfaces,
+            }) => {
+                self.bridge_hello(id, build, host_name, token, interfaces)
+                    .await;
+            }
+            Ok(ClientMessage::ApproveBridge { request_id }) => {
+                self.approve_bridge(id, request_id, now_ms).await;
+            }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
         }
     }
@@ -643,9 +696,13 @@ impl LiveState {
             return;
         }
         match write.await {
-            Ok(()) => self.hub.send_all(&ServerMessage::Changed {
-                topics: vec![ChangeTopic::MicSettings],
-            }),
+            Ok(()) => {
+                self.hub.send_all(&ServerMessage::Changed {
+                    topics: vec![ChangeTopic::MicSettings],
+                });
+                // Open bridges show each channel's switch and name.
+                self.send_bridge_channels(None).await;
+            }
             Err(error) => {
                 tracing::error!(?error, "storing Mic settings");
                 self.reject(id, UserMessage::ServerError);

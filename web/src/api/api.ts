@@ -8,6 +8,7 @@ import type { ApiErrorCode } from "../generated/ApiErrorCode";
 import type { JobList } from "../generated/JobList";
 import type { LibraryProblem } from "../generated/LibraryProblem";
 import type { LocalMic } from "../generated/LocalMic";
+import type { MicBridges } from "../generated/MicBridges";
 import type { NewProfile } from "../generated/NewProfile";
 import type { Profile } from "../generated/Profile";
 import type { ProfileEdit } from "../generated/ProfileEdit";
@@ -31,6 +32,7 @@ import type { UserMessage } from "../generated/UserMessage";
 export interface Endpoints {
   "GET /api/server-info": { response: ServerInfo };
   "GET /api/local-mics": { response: LocalMic[] };
+  "GET /api/mic-bridges": { response: MicBridges };
   "GET /api/unlock": { response: UnlockStatus };
   "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
   "POST /api/unlock/heartbeat": { response: UnlockStatus };
@@ -160,6 +162,8 @@ const REFUSAL_CODES = {
   requestPlaying: true,
   difficultyLocked: true,
   noResults: true,
+  notABridge: true,
+  bridgeRequestNotFound: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

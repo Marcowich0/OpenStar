@@ -5,6 +5,7 @@ import type { LiveConnection } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import {
   libraryProblemsQuery,
+  micBridgesQuery,
   profilesQuery,
   scanStatusQuery,
   serverInfoQuery,
@@ -24,6 +25,8 @@ export const QUERIES_BY_TOPIC: Record<ChangeTopic, readonly QueryKey[]> = {
   // "micSettings" (`localMicsQuery`; the query of `GET /api/mic-settings`,
   // once one exists, starts its key with this prefix too).
   micSettings: [["micSettings"]],
+  // Approved and waiting Mic bridges (`micBridgesQuery`).
+  micBridges: [micBridgesQuery.queryKey],
 };
 
 const TOPICS = Object.keys(QUERIES_BY_TOPIC) as ChangeTopic[];
