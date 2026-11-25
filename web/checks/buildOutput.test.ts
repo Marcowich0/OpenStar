@@ -71,6 +71,27 @@ describe("the build output", () => {
     expect(found).toEqual([]);
   });
 
+  it("puts the theme tokens on :root, used by a utility or not", () => {
+    const css = files
+      .filter((file) => file.fileName.endsWith(".css"))
+      .map(text)
+      .join("\n");
+    const root = /:root[^{]*\{([^}]*--color-party-cherry[^}]*)\}/.exec(
+      css,
+    )?.[1];
+    for (const token of [
+      "--color-party-cherry",
+      "--color-party-tangerine",
+      "--color-golden-bottom",
+      "--radius-card-lg",
+      "--shadow-ledge-sm",
+      "--ease-spring",
+      "--font-sans",
+    ]) {
+      expect(root).toContain(`${token}:`);
+    }
+  });
+
   it("holds the Fredoka font files for weights 500 to 700", () => {
     const fonts = files
       .map((file) => file.fileName)
