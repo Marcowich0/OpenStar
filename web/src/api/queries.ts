@@ -81,3 +81,12 @@ export const scanStatusQuery = queryOptions({
   queryKey: ["library", "scan"],
   queryFn: ({ signal }) => api("GET /api/library/scan", { signal }),
 });
+
+/**
+ * `GET /api/local-mics`: every kept Local mic (name, switched on). Its key
+ * starts with `micSettings`, the change topic the Stage's writes send.
+ */
+export const localMicsQuery = queryOptions({
+  queryKey: ["micSettings", "localMics"],
+  queryFn: ({ signal }) => api("GET /api/local-mics", { signal }),
+});

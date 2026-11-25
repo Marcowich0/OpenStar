@@ -117,6 +117,15 @@ pub enum ClientMessage {
         local_mic_id: String,
         reference_dbfs: f64,
     },
+    /// Switches a Local mic on or off, keeping it (with an empty name if it
+    /// is new) and its `source` as last seen. Accepted only from the active
+    /// Stage; needs no Admin PIN. Every browser gets
+    /// [`ChangeTopic::MicSettings`].
+    SetLocalMicSwitchedOn {
+        local_mic_id: String,
+        source: mics::LocalMicSource,
+        switched_on: bool,
+    },
     /// Presents the browser's Phone id. A Phone sends it every time its
     /// WebSocket opens, before anything else. A Phone already in the current
     /// Party is back in at once with the same identity (silent rejoin). The

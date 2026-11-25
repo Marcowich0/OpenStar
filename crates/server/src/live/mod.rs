@@ -428,6 +428,15 @@ impl LiveState {
                 );
                 self.mic_settings_write(id, stored).await;
             }
+            Ok(ClientMessage::SetLocalMicSwitchedOn {
+                local_mic_id,
+                source,
+                switched_on,
+            }) => {
+                let stored =
+                    crate::local_mics::switch(self.db.clone(), local_mic_id, source, switched_on);
+                self.mic_settings_write(id, stored).await;
+            }
             Ok(ClientMessage::Hello { phone_id }) => {
                 if !phone_id.is_valid() {
                     self.reject(id, UserMessage::InvalidMessage);
@@ -557,7 +566,7 @@ impl LiveState {
         }
     }
 
-    /// Runs a Mic settings write if `id` is the active Stage, then tells
+    /// Runs a Mic settings (or Local mic) write if `id` is the active Stage, then tells
     /// every connection Mic settings changed. Anyone else is refused and
     /// nothing is written.
     async fn mic_settings_write(
