@@ -28,7 +28,7 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, jobs, library, mic_settings, profiles, unlock};
+use crate::{AppState, bridge, frontend, jobs, library, mic_settings, profiles, scores, unlock};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -140,6 +140,8 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             profiles::edit_profile,
         )
+        // Storing a round adds kept data and deletes nothing.
+        .add(Method::POST, "/api/rounds", NotGuarded, scores::store_round)
         .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
         .add(Method::GET, "/api/songs", NotGuarded, library::songs)
         .add(Method::GET, "/api/songs/{id}", NotGuarded, library::song)
