@@ -10,6 +10,7 @@ import type { PartyMember } from "../../generated/PartyMember";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { Profile } from "../../generated/Profile";
 import type { ServerMessage } from "../../generated/ServerMessage";
+import type { SongList } from "../../generated/SongList";
 import type { LiveClientOptions } from "../../live/liveClient";
 import { createLiveStore } from "../../live/liveStore";
 import type { PhoneStorage } from "../../live/phoneId";
@@ -163,7 +164,29 @@ export function renderJoinedPhone(
   return { sent, server, change, storage };
 }
 
-/** Answers every fetch with the Profiles list. */
+/** An empty Library for the Songs tab. */
+const NO_SONGS: SongList = {
+  songs: [],
+  filters: {
+    languages: [],
+    genres: [],
+    years: [],
+    editions: [],
+    creators: [],
+    duet: [],
+    hasVideo: [],
+    length: null,
+  },
+};
+
+/** Answers the Songs tab with an empty Library, anything else with the Profiles. */
 export function profilesFetch(profiles: Profile[]) {
-  return () => Promise.resolve(Response.json(profiles));
+  return (input: string | URL) =>
+    Promise.resolve(
+      Response.json(
+        new URL(input, "http://openstar.test").pathname === "/api/songs"
+          ? NO_SONGS
+          : profiles,
+      ),
+    );
 }
