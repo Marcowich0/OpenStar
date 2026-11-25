@@ -11,6 +11,8 @@ const party: PartySnapshot = {
   startedAtMs: 1000,
   members: [],
   phones: [],
+  queue: [],
+  head: null,
 };
 
 const synced = (isStage: boolean, current: PartySnapshot | null = party) =>

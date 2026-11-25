@@ -1,0 +1,33 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "vec![ClientMessage::AddRequest\n{ song_id: SongId(12), requested_players: None, }, ClientMessage::AddRequest\n{\n    song_id: SongId(12), requested_players:\n    Some(vec![PartyMemberId(2), PartyMemberId(1)]),\n}, ClientMessage::MoveRequest\n{ request_id: RequestId(4), to: QueueMove::Next, },\nClientMessage::SetRequestedPlayers\n{ request_id: RequestId(4), requested_players: Vec::new(), },\nClientMessage::RemoveRequest { request_id: RequestId(4), },]"
+---
+[
+  {
+    "type": "addRequest",
+    "songId": 12,
+    "requestedPlayers": null
+  },
+  {
+    "type": "addRequest",
+    "songId": 12,
+    "requestedPlayers": [
+      2,
+      1
+    ]
+  },
+  {
+    "type": "moveRequest",
+    "requestId": 4,
+    "to": "next"
+  },
+  {
+    "type": "setRequestedPlayers",
+    "requestId": 4,
+    "requestedPlayers": []
+  },
+  {
+    "type": "removeRequest",
+    "requestId": 4
+  }
+]

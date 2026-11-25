@@ -13,6 +13,8 @@ const party: PartySnapshot = {
   startedAtMs: 1000,
   members: [],
   phones: [],
+  queue: [],
+  head: null,
 };
 
 /** A browser that has the live state: the Stage, or a Phone. */
@@ -45,6 +47,8 @@ describe("Party changes as toast entries", () => {
       startedAtMs: 1000,
       members: [],
       phones: [],
+      queue: [],
+      head: null,
     });
   });
 

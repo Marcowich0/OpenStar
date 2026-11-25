@@ -19,7 +19,8 @@ use ts_rs::TS;
 
 pub use party::{
     Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, PartyEvent, PartyId, PartyMember,
-    PartyMemberId, PartySnapshot, PhoneId,
+    PartyMemberId, PartySnapshot, PhoneId, QueueMove, Request, RequestChange, RequestId,
+    RequestKind, SEATS,
 };
 pub use pitch::{MicId, PitchReading};
 pub use scoring::BeatValue;
@@ -133,6 +134,26 @@ pub enum ClientMessage {
         join_code: JoinCode,
         join_as: JoinAs,
     },
+    /// Adds a Request for a Library Song at the end of the Queue. From a
+    /// Phone, `requested_players` defaults to the Phone's Party member when
+    /// `null`; the Stage names none. A Remote command (Stage or joined Phone).
+    AddRequest {
+        song_id: library::SongId,
+        requested_players: Option<Vec<PartyMemberId>>,
+    },
+    /// Moves a Request one place up or down, or to directly after the head.
+    /// A Remote command.
+    MoveRequest {
+        request_id: RequestId,
+        to: QueueMove,
+    },
+    /// Replaces a Request's requested Players. A Remote command.
+    SetRequestedPlayers {
+        request_id: RequestId,
+        requested_players: Vec<PartyMemberId>,
+    },
+    /// Removes a Request from the Queue, the head included. A Remote command.
+    RemoveRequest { request_id: RequestId },
 }
 
 /// A message the server sends over a WebSocket.
@@ -258,6 +279,21 @@ pub enum UserMessage {
         tool: String,
         exit_code: Option<i32>,
     },
+    /// The Song is not in the Library (or cannot play), so it cannot be queued.
+    SongNotInLibrary,
+    /// The Song's audio is still being prepared, so it cannot be queued yet.
+    SongPreparing,
+    /// No Request in the Queue has this id (it left the Queue).
+    RequestNotFound,
+    /// The Request cannot move there: the head never moves, nothing moves
+    /// above it, and nothing moves past the end.
+    RequestCannotMove,
+    /// More requested Players than a Line-up has seats.
+    TooManyPlayers { max: u32 },
+    /// A requested Player is not a Party member.
+    PlayerNotInParty,
+    /// A Party member is named twice among the requested Players.
+    PlayerTwice,
 }
 
 #[cfg(test)]

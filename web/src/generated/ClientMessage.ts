@@ -3,8 +3,12 @@ import type { CalibrationResult } from "./CalibrationResult";
 import type { JoinAs } from "./JoinAs";
 import type { JoinCode } from "./JoinCode";
 import type { MicId } from "./MicId";
+import type { PartyMemberId } from "./PartyMemberId";
 import type { PhoneId } from "./PhoneId";
 import type { PitchReading } from "./PitchReading";
+import type { QueueMove } from "./QueueMove";
+import type { RequestId } from "./RequestId";
+import type { SongId } from "./SongId";
 
 /**
  * A message a browser sends over its WebSocket.
@@ -22,4 +26,4 @@ ts: number,
  * The Stage page's `performance.timeOrigin`, in ms since the Unix
  * epoch: a new value means the Stage's clock is a new one.
  */
-epoch: number, } | { "type": "storeCalibration", stageOutput: string, results: Array<CalibrationResult>, } | { "type": "setMicThreshold", stageOutput: string, localMicId: string, referenceDbfs: number, } | { "type": "hello", phoneId: PhoneId, } | { "type": "checkJoinCode", joinCode: JoinCode, } | { "type": "join", phoneId: PhoneId, joinCode: JoinCode, joinAs: JoinAs, };
+epoch: number, } | { "type": "storeCalibration", stageOutput: string, results: Array<CalibrationResult>, } | { "type": "setMicThreshold", stageOutput: string, localMicId: string, referenceDbfs: number, } | { "type": "hello", phoneId: PhoneId, } | { "type": "checkJoinCode", joinCode: JoinCode, } | { "type": "join", phoneId: PhoneId, joinCode: JoinCode, joinAs: JoinAs, } | { "type": "addRequest", songId: SongId, requestedPlayers: Array<PartyMemberId> | null, } | { "type": "moveRequest", requestId: RequestId, to: QueueMove, } | { "type": "setRequestedPlayers", requestId: RequestId, requestedPlayers: Array<PartyMemberId>, } | { "type": "removeRequest", requestId: RequestId, };
