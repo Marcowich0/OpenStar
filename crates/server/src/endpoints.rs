@@ -88,7 +88,12 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // not-guarded list in docs/agents/guard-rule.md): a Party
         // membership is not kept data, and a Profile is never deleted.
         | ClientMessage::LeaveParty
-        | ClientMessage::RemoveMember { .. } => Access::NotGuarded,
+        | ClientMessage::RemoveMember { .. }
+        // Editing the Line-up and a Player's own Difficulty are everyone's
+        // (spec #48: the Admin PIN plays no part); a Profile created for a
+        // seat follows the not-guarded Profile create.
+        | ClientMessage::EditLineUp { .. }
+        | ClientMessage::SetMyDifficulty { .. } => Access::NotGuarded,
     }
 }
 
