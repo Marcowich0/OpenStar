@@ -2,10 +2,11 @@
 import type { JoinCode } from "./JoinCode";
 import type { PaletteKey } from "./PaletteKey";
 import type { PartyMemberId } from "./PartyMemberId";
+import type { RequestChange } from "./RequestChange";
 
 /**
  * What changed: a code plus its parameters, `{ "code": ..., "params": {...} }`
  * like [`crate::UserMessage`]. The frontend turns it into a toast with
  * `t(code, params)`; no English crosses the wire.
  */
-export type PartyEvent = { "code": "partyStarted", "params": { joinCode: JoinCode, } } | { "code": "memberJoined", "params": { memberId: PartyMemberId, name: string, colour: PaletteKey, } } | { "code": "phoneJoined", "params": { memberId: PartyMemberId, name: string, } };
+export type PartyEvent = { "code": "partyStarted", "params": { joinCode: JoinCode, } } | { "code": "memberJoined", "params": { memberId: PartyMemberId, name: string, colour: PaletteKey, } } | { "code": "phoneJoined", "params": { memberId: PartyMemberId, name: string, } } | { "code": "requestAdded", "params": RequestChange } | { "code": "requestMovedUp", "params": RequestChange } | { "code": "requestMovedDown", "params": RequestChange } | { "code": "requestPlayNext", "params": RequestChange } | { "code": "requestRemoved", "params": RequestChange } | { "code": "requestedPlayersChanged", "params": RequestChange };

@@ -26,7 +26,26 @@ expression: "ServerMessage::PartyChanged\n{\n    party: party(), change: ChangeE
         "phoneId": "3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60",
         "memberId": 1
       }
-    ]
+    ],
+    "queue": [
+      {
+        "requestId": 3,
+        "kind": "song",
+        "songId": 12,
+        "requestedPlayers": [
+          1
+        ],
+        "adder": 1
+      },
+      {
+        "requestId": 4,
+        "kind": "song",
+        "songId": 5,
+        "requestedPlayers": [],
+        "adder": null
+      }
+    ],
+    "head": 3
   },
   "change": {
     "actor": {

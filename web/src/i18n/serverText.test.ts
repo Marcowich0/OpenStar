@@ -59,6 +59,22 @@ describe("server texts", () => {
         params: { memberId: 1, name: "Bo" },
       }),
     ).toBe("Bo joined on another Phone");
+    const africa = { requestId: 4, songId: 12, title: "Africa" };
+    expect(partyEventText({ code: "requestMovedUp", params: africa })).toBe(
+      "Africa moved up",
+    );
+    expect(partyEventText({ code: "requestPlayNext", params: africa })).toBe(
+      "Africa plays next",
+    );
+  });
+
+  it("turns Queue refusals into text", () => {
+    expect(
+      userMessageText({ code: "tooManyPlayers", params: { max: 4 } }),
+    ).toBe("At most 4 Players can sing a Song");
+    expect(userMessageText({ code: "songPreparing" })).toBe(
+      "That Song is still being prepared. Try again in a moment",
+    );
   });
 
   it("turns join refusals into the Phone's text", () => {

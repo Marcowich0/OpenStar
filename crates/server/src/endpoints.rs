@@ -73,7 +73,12 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::SetMicThreshold { .. }
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
-        | ClientMessage::Join { .. } => Access::NotGuarded,
+        | ClientMessage::Join { .. }
+        // The Queue is everyone's: removing a Request deletes no kept data.
+        | ClientMessage::AddRequest { .. }
+        | ClientMessage::MoveRequest { .. }
+        | ClientMessage::SetRequestedPlayers { .. }
+        | ClientMessage::RemoveRequest { .. } => Access::NotGuarded,
     }
 }
 

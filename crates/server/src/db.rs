@@ -135,6 +135,23 @@ const MIGRATIONS: &[&str] = &[
      ALTER TABLE library_files ADD COLUMN identity TEXT;
      CREATE INDEX library_files_identity ON library_files (identity);
      CREATE INDEX library_files_usdb_id ON library_files (usdb_id);",
+    // 10: the current Party's Queue, one row per Request, ordered by
+    // `position`. Requests go with their Party (New party clears the Queue).
+    // AUTOINCREMENT: a Request id is never reused. `requested_players` is a
+    // JSON list of member ids; its length limit (`SEATS`) is kept by the
+    // live-state task, never by a CHECK. `adder` is NULL for the Stage.
+    // `song_id` has no foreign key: a Song leaving the Library drops its
+    // Requests with a notice, not silently by cascade.
+    "CREATE TABLE queue_requests (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        party_id          TEXT NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+        position          INTEGER NOT NULL,
+        kind              TEXT NOT NULL,
+        song_id           INTEGER NOT NULL,
+        requested_players TEXT NOT NULL,
+        adder             INTEGER
+    ) STRICT;
+    CREATE INDEX queue_requests_party ON queue_requests (party_id, position);",
 ];
 
 /// The schema version this build migrates to.

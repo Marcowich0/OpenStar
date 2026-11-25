@@ -7,8 +7,12 @@ use std::path::Path;
 use openstar::endpoints::{Access, Endpoint, Library, ws_access};
 use openstar::{Config, Server};
 use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest};
+use openstar_protocol::library::SongId;
 use openstar_protocol::profile::ProfileId;
-use openstar_protocol::{ClientMessage, JoinAs, JoinCode, MicId, PhoneId, PitchReading};
+use openstar_protocol::{
+    ClientMessage, JoinAs, JoinCode, MicId, PartyMemberId, PhoneId, PitchReading, QueueMove,
+    RequestId,
+};
 use reqwest::StatusCode;
 
 struct App {
@@ -314,6 +318,21 @@ fn every_client_message() -> Vec<ClientMessage> {
             join_as: JoinAs::Profile {
                 profile_id: ProfileId(1),
             },
+        },
+        ClientMessage::AddRequest {
+            song_id: SongId(1),
+            requested_players: None,
+        },
+        ClientMessage::MoveRequest {
+            request_id: RequestId(1),
+            to: QueueMove::Next,
+        },
+        ClientMessage::SetRequestedPlayers {
+            request_id: RequestId(1),
+            requested_players: vec![PartyMemberId(1)],
+        },
+        ClientMessage::RemoveRequest {
+            request_id: RequestId(1),
         },
     ]
 }
