@@ -1,22 +1,25 @@
-//! Reading an UltraStar `.txt`: the lossless line model and the headers.
+//! Reading an UltraStar `.txt`: the lossless line model, the headers and
+//! the body.
 //!
 //! [`parse`] splits a file into lines, classifies them (header, body, `E`,
-//! after `E`, blank) and interprets the headers. Body lines are kept raw;
-//! parsing them into Voices, Lines and Notes builds on [`TxtFile::body`].
+//! after `E`, blank), interprets the headers and parses the body into
+//! Voices, Lines and Notes.
 
+mod body;
 mod headers;
 mod lines;
 
 pub use lines::{Line, LineEnding, LineKind};
-use openstar_protocol::song::{SongHeaders, TxtRejection, TxtWarning};
+use openstar_protocol::song::{ParsedSong, TxtRejection, TxtWarning};
 
-/// A `.txt` that passed the header rules.
+/// A `.txt` that parsed into a playable Song.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TxtFile {
     /// Every physical line of the file, in order; concatenating each line's
     /// bytes and ending gives back the file byte for byte.
     pub lines: Vec<Line>,
-    pub headers: SongHeaders,
+    /// The headers, Voices, Lines and Notes.
+    pub song: ParsedSong,
     /// Warnings in line order.
     pub warnings: Vec<TxtWarning>,
 }
@@ -38,6 +41,7 @@ impl TxtFile {
 pub fn parse(bytes: &[u8], folder_name: &str) -> Result<TxtFile, TxtRejection> {
     let mut lines = Vec::new();
     let mut header_lines = Vec::new();
+    let mut body_lines = Vec::new();
     let mut phase = LineKind::Header;
 
     for (index, (bytes, ending)) in lines::split(bytes).into_iter().enumerate() {
@@ -56,6 +60,7 @@ pub fn parse(bytes: &[u8], folder_name: &str) -> Result<TxtFile, TxtRejection> {
             LineKind::End
         } else {
             phase = LineKind::Body;
+            body_lines.push(body::BodyLine { number, text });
             LineKind::Body
         };
         lines.push(Line {
@@ -66,10 +71,11 @@ pub fn parse(bytes: &[u8], folder_name: &str) -> Result<TxtFile, TxtRejection> {
         });
     }
 
-    let (headers, warnings) = headers::interpret(header_lines, folder_name)?;
+    let (headers, mut warnings) = headers::interpret(header_lines, folder_name)?;
+    let voices = body::parse(body_lines, &mut warnings)?;
     Ok(TxtFile {
         lines,
-        headers,
+        song: ParsedSong { headers, voices },
         warnings,
     })
 }
