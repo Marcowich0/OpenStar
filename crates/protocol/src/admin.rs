@@ -12,7 +12,9 @@
 //! - `POST /api/lock`: ends this browser's Unlock, if any. Needs no Unlock.
 //!
 //! A guarded endpoint refuses a request without a live Unlock with `401` and
-//! [`ApiErrorCode::UnlockRequired`].
+//! [`ApiErrorCode::UnlockRequired`]. A guarded endpoint that writes the
+//! Library refuses every request with `409` and
+//! [`ApiErrorCode::LibraryReadOnly`] while the Library is read-only.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -51,6 +53,9 @@ pub enum ApiErrorCode {
     WrongPin,
     /// The action is guarded and this browser holds no live Unlock.
     UnlockRequired,
+    /// The action writes the Library and the Library is read-only, whatever
+    /// the Unlock.
+    LibraryReadOnly,
 }
 
 #[cfg(test)]

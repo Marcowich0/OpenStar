@@ -150,24 +150,39 @@ impl TestAppBuilder {
             );
         }
 
-        let config = Config::from_vars(|name| vars.get(name).cloned())
-            .expect("the harness's settings are valid");
-        let server = Server::start(&config).await.expect("the app starts");
-        let migrations_applied = server.migrations_applied();
-        let (shutdown, shutdown_rx) = oneshot::channel::<()>();
-        let task = tokio::spawn(server.serve_with_shutdown(listener, async move {
-            let _ = shutdown_rx.await;
-        }));
-
+        let serving = serve(&vars, listener).await;
         TestApp {
             addr,
             folders: Some(folders),
             vars,
-            migrations_applied,
+            migrations_applied: serving.migrations_applied,
             http: reqwest::Client::new(),
-            shutdown: Some(shutdown),
-            task: Some(task),
+            shutdown: Some(serving.shutdown),
+            task: Some(serving.task),
         }
+    }
+}
+
+struct Serving {
+    migrations_applied: usize,
+    shutdown: oneshot::Sender<()>,
+    task: JoinHandle<std::io::Result<()>>,
+}
+
+/// Runs the startup steps with `vars` as the only settings, then serves on `listener`.
+async fn serve(vars: &BTreeMap<String, String>, listener: tokio::net::TcpListener) -> Serving {
+    let config = Config::from_vars(|name| vars.get(name).cloned())
+        .expect("the harness's settings are valid");
+    let server = Server::start(&config).await.expect("the app starts");
+    let migrations_applied = server.migrations_applied();
+    let (shutdown, shutdown_rx) = oneshot::channel::<()>();
+    let task = tokio::spawn(server.serve_with_shutdown(listener, async move {
+        let _ = shutdown_rx.await;
+    }));
+    Serving {
+        migrations_applied,
+        shutdown,
+        task,
     }
 }
 
@@ -283,17 +298,37 @@ impl TestApp {
     /// Stops the app and hands back its folders, still on disk, so a test can
     /// start it again on them.
     pub async fn stop(mut self) -> AppFolders {
+        self.shut_down().await;
+        self.folders.take().expect("folders are kept until stop")
+    }
+
+    /// Stops the app as a shutdown signal would (every WebSocket is closed),
+    /// then starts it again on the same folders, settings and address, as a
+    /// container restart does. Open [`WsClient`]s see their socket close; a
+    /// new connection is told the reloaded live state.
+    pub async fn restart(&mut self) {
+        self.shut_down().await;
+        let listener = tokio::net::TcpListener::bind(self.addr)
+            .await
+            .unwrap_or_else(|e| panic!("binding {} again: {e}", self.addr));
+        let serving = serve(&self.vars, listener).await;
+        self.migrations_applied = serving.migrations_applied;
+        self.shutdown = Some(serving.shutdown);
+        self.task = Some(serving.task);
+    }
+
+    async fn shut_down(&mut self) {
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
         if let Some(mut task) = self.task.take()
             && tokio::time::timeout(WAIT, &mut task).await.is_err()
         {
-            // Open WebSockets can hold a graceful shutdown; end them.
+            // Serving did not end in time: fail rather than hang, but end it.
             task.abort();
             let _ = task.await;
+            panic!("the app did not stop within {WAIT:?}");
         }
-        self.folders.take().expect("folders are kept until stop")
     }
 }
 
@@ -342,5 +377,25 @@ impl WsClient {
                 _ => continue,
             }
         }
+    }
+
+    /// Waits up to five seconds for the server to close the WebSocket,
+    /// skipping messages still in flight.
+    pub async fn closed(&mut self) {
+        tokio::time::timeout(WAIT, async {
+            loop {
+                match self.socket.next().await {
+                    None | Some(Err(_) | Ok(Message::Close(_))) => break,
+                    Some(Ok(_)) => {}
+                }
+            }
+        })
+        .await
+        .expect("the server closes the WebSocket within 5 s");
+    }
+
+    /// The underlying socket, for tests that read and write it separately.
+    pub fn into_socket(self) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
+        self.socket
     }
 }

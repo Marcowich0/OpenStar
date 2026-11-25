@@ -1,0 +1,10 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "UserMessage::PlaceholderTooLong { max_length: 1000 }"
+---
+{
+  "code": "placeholderTooLong",
+  "params": {
+    "maxLength": 1000
+  }
+}

@@ -3,4 +3,4 @@
 /**
  * Why an HTTP request was refused.
  */
-export type ApiErrorCode = "wrongPin" | "unlockRequired";
+export type ApiErrorCode = "wrongPin" | "unlockRequired" | "libraryReadOnly";
