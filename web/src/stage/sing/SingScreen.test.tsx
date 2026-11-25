@@ -352,7 +352,7 @@ describe("the lyric bar", () => {
     lanes: state.lanes.slice(0, 1),
   };
 
-  function mount(s: SingState = lyricState) {
+  function mount(s: SingState = lyricState, avOffset = 0) {
     let now = 1;
     let commits = 0;
     const utils = render(
@@ -365,7 +365,7 @@ describe("the lyric bar", () => {
         <SingScreen
           state={s}
           clock={{ songTime: () => now }}
-          avOffset={() => 0}
+          avOffset={() => avOffset}
         />
       </Profiler>,
     );
@@ -402,6 +402,13 @@ describe("the lyric bar", () => {
     at(14);
     expect(fills()).toEqual(["1", "1"]);
     expect(commits()).toBe(before);
+  });
+
+  it("fills at the shifted drawing time, not the Song time", () => {
+    // An A/V offset of 0.5 s draws one Beat (0.5 s) behind the Song time.
+    const { at, fills } = mount(lyricState, 0.5);
+    at(5.5);
+    expect(fills()).toEqual(["0.25", "0"]);
   });
 
   it("marks the Note being sung", () => {
