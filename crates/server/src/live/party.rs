@@ -1,12 +1,17 @@
 //! The Party's own rules, free of the task and the database: drawing a Join
-//! code and a Party id, starting a Party, and a Phone joining it as a
-//! Profile with a Party colour.
+//! code and a Party id, starting a Party, a Phone joining it as a Profile or
+//! a new Guest with a Party colour, and editing a member inside the Party.
+//!
+//! Clashes with Profile names need the database, so the task checks those;
+//! everything here is about the Party alone.
 
-use openstar_protocol::profile::{PaletteKey, ProfileId};
+use openstar_protocol::profile::{Avatar, Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::{
-    Identity, JoinCode, JoinedPhone, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
-    StageId, UserMessage,
+    Identity, JoinCode, JoinedPhone, MemberEdit, PartyId, PartyMember, PartyMemberId,
+    PartySnapshot, PhoneId, StageId, UserMessage,
 };
+
+use crate::profiles::{CheckedName, name_key};
 
 /// How many Join codes there are: `0000` to `9999`.
 const JOIN_CODES: u16 = 10_000;
@@ -90,15 +95,139 @@ pub fn join_phone(
             }
         }
     };
+    use_on_phone(party, phone_id, joined.member_id);
+    Ok(joined)
+}
+
+/// Joins `phone_id` to `party` as a new Guest named `name` (already through
+/// the name rules) with `colour` and `avatar`, starting on Medium. Refused,
+/// with nothing changed, with [`UserMessage::PartyFull`] when twelve colours
+/// are held, [`UserMessage::ColourTaken`] when `colour` is held and
+/// [`UserMessage::NameTakenTonight`] when a Guest has the name. A Phone that
+/// was joined as someone else switches; that member stays in the Party.
+pub fn join_guest(
+    party: &mut PartySnapshot,
+    phone_id: PhoneId,
+    name: &CheckedName,
+    colour: PaletteKey,
+    avatar: Avatar,
+) -> Result<Joined, UserMessage> {
+    if is_full(party) {
+        return Err(UserMessage::PartyFull);
+    }
+    if colour_holder(party, colour).is_some() {
+        return Err(UserMessage::ColourTaken);
+    }
+    if let Some(member_id) = guest_named(party, &name.key, None) {
+        return Err(UserMessage::NameTakenTonight { member_id });
+    }
+    let member_id = next_member_id(party);
+    party.members.push(PartyMember {
+        member_id,
+        identity: Identity::Guest {
+            name: name.display.clone(),
+            avatar,
+            difficulty: Difficulty::Medium,
+        },
+        colour,
+        favourite_taken: false,
+        on_phone: false,
+    });
+    use_on_phone(party, phone_id, member_id);
+    Ok(Joined {
+        member_id,
+        new_member: true,
+    })
+}
+
+/// Edits member `member_id` inside the Party. `name` (already through the
+/// name rules) must not be another Guest's; for a Guest it and `edit.avatar`
+/// become the Guest's own, for a Profile the caller changes the Profile.
+/// `edit.colour` must be free or the member's own; it becomes the Party
+/// colour (for a Profile the caller saves it as the favourite too, so the
+/// favourite is no longer taken). Nothing changes when refused.
+pub fn edit_member(
+    party: &mut PartySnapshot,
+    member_id: PartyMemberId,
+    name: Option<&CheckedName>,
+    edit: &MemberEdit,
+) -> Result<(), UserMessage> {
+    if !party.members.iter().any(|m| m.member_id == member_id) {
+        return Err(UserMessage::MemberNotFound);
+    }
+    if let Some(name) = name
+        && let Some(holder) = guest_named(party, &name.key, Some(member_id))
+    {
+        return Err(UserMessage::NameTakenTonight { member_id: holder });
+    }
+    if let Some(colour) = edit.colour
+        && colour_holder(party, colour).is_some_and(|holder| holder != member_id)
+    {
+        return Err(UserMessage::ColourTaken);
+    }
+    let Some(member) = party.members.iter_mut().find(|m| m.member_id == member_id) else {
+        return Err(UserMessage::MemberNotFound);
+    };
+    if let Some(colour) = edit.colour {
+        member.colour = colour;
+        member.favourite_taken = false;
+    }
+    if let Identity::Guest {
+        name: guest_name,
+        avatar,
+        ..
+    } = &mut member.identity
+    {
+        if let Some(name) = name {
+            guest_name.clone_from(&name.display);
+        }
+        if let Some(new_avatar) = edit.avatar {
+            *avatar = new_avatar;
+        }
+    }
+    Ok(())
+}
+
+/// Whether all twelve colours are held, so no new member can enter.
+pub fn is_full(party: &PartySnapshot) -> bool {
+    PaletteKey::ALL
+        .into_iter()
+        .all(|colour| colour_holder(party, colour).is_some())
+}
+
+/// The member holding `colour`, if any.
+pub fn colour_holder(party: &PartySnapshot, colour: PaletteKey) -> Option<PartyMemberId> {
+    party
+        .members
+        .iter()
+        .find(|member| member.colour == colour)
+        .map(|member| member.member_id)
+}
+
+/// The Guest other than `except` whose name has the name key `key`.
+pub fn guest_named(
+    party: &PartySnapshot,
+    key: &str,
+    except: Option<PartyMemberId>,
+) -> Option<PartyMemberId> {
+    party
+        .members
+        .iter()
+        .filter(|member| Some(member.member_id) != except)
+        .find(|member| matches!(&member.identity, Identity::Guest { name, .. } if name_key(name) == key))
+        .map(|member| member.member_id)
+}
+
+/// Makes `phone_id` use `member_id`, joining it if it was not joined.
+fn use_on_phone(party: &mut PartySnapshot, phone_id: PhoneId, member_id: PartyMemberId) {
     match party.phones.iter_mut().find(|p| p.phone_id == phone_id) {
-        Some(phone) => phone.member_id = joined.member_id,
+        Some(phone) => phone.member_id = member_id,
         None => party.phones.push(JoinedPhone {
             phone_id,
-            member_id: joined.member_id,
+            member_id,
         }),
     }
     refresh_on_phone(party);
-    Ok(joined)
 }
 
 /// The id the next member to enter gets: one past the highest in use.
@@ -158,6 +287,7 @@ mod tests {
     use super::*;
     use openstar_protocol::profile::PaletteKey::{self, *};
     use openstar_protocol::profile::ProfileId;
+    use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty};
     use openstar_protocol::{Identity, PartyMemberId, PhoneId, UserMessage};
     use proptest::prelude::*;
 
@@ -263,6 +393,196 @@ mod tests {
         // The first member keeps its colour but is no longer on a Phone.
         assert!(!party.members[0].on_phone);
         assert!(party.members[1].on_phone);
+    }
+
+    fn name(raw: &str) -> CheckedName {
+        crate::profiles::check_name(raw).unwrap()
+    }
+
+    fn star() -> Avatar {
+        Avatar::BuiltIn {
+            key: AvatarKey::Star,
+        }
+    }
+
+    #[test]
+    fn a_new_guest_enters_with_its_name_free_colour_and_avatar_on_medium() {
+        let mut party = party();
+        join_phone(&mut party, phone(1), ProfileId(1), Sky).unwrap();
+        let joined = join_guest(&mut party, phone(2), &name("  Kim "), Cherry, star()).unwrap();
+        assert_eq!(
+            joined,
+            Joined {
+                member_id: PartyMemberId(2),
+                new_member: true
+            }
+        );
+        let guest = &party.members[1];
+        assert_eq!(
+            guest.identity,
+            Identity::Guest {
+                name: "Kim".into(),
+                avatar: star(),
+                difficulty: Difficulty::Medium,
+            }
+        );
+        assert_eq!(guest.colour, Cherry);
+        assert!(!guest.favourite_taken);
+        assert!(guest.on_phone);
+        assert_eq!(party.phones[1].member_id, PartyMemberId(2));
+    }
+
+    #[test]
+    fn a_guest_must_pick_a_free_colour_but_may_share_an_avatar() {
+        let mut party = party();
+        join_guest(&mut party, phone(1), &name("Kim"), Lime, star()).unwrap();
+        let before = party.clone();
+        assert_eq!(
+            join_guest(&mut party, phone(2), &name("Lou"), Lime, star()),
+            Err(UserMessage::ColourTaken)
+        );
+        assert_eq!(party, before);
+        join_guest(&mut party, phone(2), &name("Lou"), Mint, star()).unwrap();
+        assert_eq!(colours(&party), vec![Lime, Mint]);
+    }
+
+    #[test]
+    fn guest_names_are_unique_in_the_party_ignoring_case_and_spaces() {
+        let mut party = party();
+        join_guest(&mut party, phone(1), &name("Kim"), Lime, star()).unwrap();
+        let before = party.clone();
+        assert_eq!(
+            join_guest(&mut party, phone(2), &name(" kIM  "), Mint, star()),
+            Err(UserMessage::NameTakenTonight {
+                member_id: PartyMemberId(1)
+            })
+        );
+        assert_eq!(party, before);
+        assert_eq!(
+            guest_named(&party, &name("KIM").key, None),
+            Some(PartyMemberId(1))
+        );
+        assert_eq!(
+            guest_named(&party, &name("KIM").key, Some(PartyMemberId(1))),
+            None
+        );
+    }
+
+    #[test]
+    fn with_twelve_colours_held_a_new_guest_is_refused_as_full() {
+        let mut party = full_party();
+        let before = party.clone();
+        assert!(is_full(&party));
+        assert_eq!(
+            join_guest(&mut party, phone(13), &name("Kim"), Cherry, star()),
+            Err(UserMessage::PartyFull)
+        );
+        assert_eq!(party, before);
+    }
+
+    #[test]
+    fn switching_from_a_guest_keeps_the_guest_in_the_party_with_its_colour() {
+        let mut party = party();
+        join_guest(&mut party, phone(1), &name("Kim"), Teal, star()).unwrap();
+        join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
+        assert_eq!(colours(&party), vec![Teal, Cherry]);
+        assert_eq!(party.phones.len(), 1);
+        assert_eq!(party.phones[0].member_id, PartyMemberId(2));
+        assert!(!party.members[0].on_phone);
+        // Two Guests with one name never exist, even one off its Phone.
+        assert_eq!(
+            join_guest(&mut party, phone(2), &name("kim"), Lime, star()),
+            Err(UserMessage::NameTakenTonight {
+                member_id: PartyMemberId(1)
+            })
+        );
+    }
+
+    #[test]
+    fn editing_a_colour_in_the_party_accepts_only_free_colours() {
+        let mut party = party();
+        join_phone(&mut party, phone(1), ProfileId(1), Navy).unwrap();
+        join_phone(&mut party, phone(2), ProfileId(2), Navy).unwrap();
+        join_guest(&mut party, phone(3), &name("Kim"), Lime, star()).unwrap();
+        assert!(party.members[1].favourite_taken);
+        let before = party.clone();
+        let colour = |colour| MemberEdit {
+            colour: Some(colour),
+            ..MemberEdit::default()
+        };
+        assert_eq!(
+            edit_member(&mut party, PartyMemberId(3), None, &colour(Navy)),
+            Err(UserMessage::ColourTaken)
+        );
+        assert_eq!(
+            edit_member(&mut party, PartyMemberId(9), None, &colour(Mint)),
+            Err(UserMessage::MemberNotFound)
+        );
+        assert_eq!(party, before);
+        // Its own colour is no change; a free one is taken at once.
+        edit_member(&mut party, PartyMemberId(3), None, &colour(Lime)).unwrap();
+        edit_member(&mut party, PartyMemberId(3), None, &colour(Mint)).unwrap();
+        // A Profile that picks a colour holds it as its favourite now.
+        edit_member(&mut party, PartyMemberId(2), None, &colour(Lime)).unwrap();
+        assert_eq!(colours(&party), vec![Navy, Lime, Mint]);
+        assert!(!party.members[1].favourite_taken);
+    }
+
+    #[test]
+    fn a_guest_edit_changes_its_name_and_avatar_and_keeps_names_unique() {
+        let mut party = party();
+        join_guest(&mut party, phone(1), &name("Kim"), Lime, star()).unwrap();
+        join_guest(&mut party, phone(2), &name("Lou"), Mint, star()).unwrap();
+        join_phone(&mut party, phone(3), ProfileId(1), Sky).unwrap();
+        let moon = Avatar::BuiltIn {
+            key: AvatarKey::Moon,
+        };
+        let edit = MemberEdit {
+            avatar: Some(moon),
+            ..MemberEdit::default()
+        };
+        edit_member(&mut party, PartyMemberId(2), Some(&name(" LOU2 ")), &edit).unwrap();
+        assert_eq!(
+            party.members[1].identity,
+            Identity::Guest {
+                name: "LOU2".into(),
+                avatar: moon,
+                difficulty: Difficulty::Medium,
+            }
+        );
+        // A rename may keep its own name in another case.
+        edit_member(
+            &mut party,
+            PartyMemberId(2),
+            Some(&name("lou2")),
+            &MemberEdit::default(),
+        )
+        .unwrap();
+        let before = party.clone();
+        assert_eq!(
+            edit_member(
+                &mut party,
+                PartyMemberId(2),
+                Some(&name("kim")),
+                &MemberEdit::default()
+            ),
+            Err(UserMessage::NameTakenTonight {
+                member_id: PartyMemberId(1)
+            })
+        );
+        // A Profile renamed to a Guest's name is refused the same way.
+        assert_eq!(
+            edit_member(
+                &mut party,
+                PartyMemberId(3),
+                Some(&name("KIM")),
+                &MemberEdit::default()
+            ),
+            Err(UserMessage::NameTakenTonight {
+                member_id: PartyMemberId(1)
+            })
+        );
+        assert_eq!(party, before);
     }
 
     #[derive(Debug, Clone)]

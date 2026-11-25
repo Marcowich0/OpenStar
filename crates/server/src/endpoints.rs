@@ -74,6 +74,10 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
         | ClientMessage::Join { .. }
+        // Switching who a Phone is and editing a member's name, look or
+        // colour are everyone's, like Profile edits; nothing is deleted.
+        | ClientMessage::SwitchIdentity { .. }
+        | ClientMessage::EditMember { .. }
         // The Queue is everyone's: removing a Request deletes no kept data.
         | ClientMessage::AddRequest { .. }
         | ClientMessage::MoveRequest { .. }
