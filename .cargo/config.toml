@@ -1,0 +1,4 @@
+# ts-rs writes the generated TypeScript types here whenever the protocol
+# crate's tests run (`cargo test`). `just check` then fails if they drifted.
+[env]
+TS_RS_EXPORT_DIR = { value = "web/src/generated", relative = true }
