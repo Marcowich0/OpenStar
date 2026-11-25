@@ -127,7 +127,9 @@ test("a named Local mic keeps its name and switch across a reload that changes i
   // Re-keyed: the one Red mic now has the id of the channel as listed now.
   const after =
     (await group
-      .locator("li", { has: redMic })
+      .locator("li", {
+        has: stage.getByRole("switch", { name: "Red mic switched on" }),
+      })
       .getAttribute("data-local-mic")) ?? "";
   const ours = async () =>
     (await kept()).filter((m) => m.name === "Red mic").map((m) => m.localMicId);
