@@ -34,11 +34,39 @@ impl App {
         let served = tokio::spawn(server.serve_with_shutdown(listener, async {
             let _ = rx.await;
         }));
-        Self {
+        let app = Self {
             addr,
             http: reqwest::Client::new(),
             shutdown: Some(tx),
             served,
+        };
+        app.wait_for_the_start_up_scan().await;
+        app
+    }
+
+    /// The start-up Library scan ends with a change notice to every
+    /// WebSocket; a test that opened one earlier would read it as its answer.
+    async fn wait_for_the_start_up_scan(&self) {
+        let url = format!("http://{}/api/library/scan", self.addr);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        loop {
+            let status: openstar_protocol::library::ScanStatus = self
+                .http
+                .get(&url)
+                .send()
+                .await
+                .unwrap()
+                .json()
+                .await
+                .unwrap();
+            if !status.running {
+                return;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "the start-up Library scan did not end"
+            );
+            tokio::time::sleep(Duration::from_millis(5)).await;
         }
     }
 

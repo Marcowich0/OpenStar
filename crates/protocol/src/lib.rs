@@ -8,6 +8,7 @@ pub mod admin;
 pub mod jobs;
 pub mod library;
 pub mod party;
+pub mod pitch;
 pub mod profile;
 pub mod song;
 
@@ -15,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 pub use party::{Actor, ChangeEvent, JoinCode, PartyEvent, PartyId, PartyMemberId, PartySnapshot};
+pub use pitch::{MicId, PitchReading};
 
 /// Body of `GET /api/server-info`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -61,7 +63,7 @@ pub enum LibraryReadOnlyCode {
 pub struct StageId(pub String);
 
 /// A message a browser sends over its WebSocket.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -74,10 +76,28 @@ pub enum ClientMessage {
     /// Starts a new Party with a new Join code. Accepted only from the
     /// active Stage; needs no Admin PIN.
     NewParty,
+    /// One Pitch reading from this browser's Mic, relayed to the current
+    /// Stage (dropped while there is none).
+    PitchReading { reading: PitchReading },
+    /// A clock-sync ping, relayed to the current Stage (dropped while there
+    /// is none). `t0` is the send time on the sender's own clock, in ms.
+    ClockPing { t0: f64 },
+    /// The Stage's answer to a [`ServerMessage::ClockPing`], relayed to the
+    /// Mic named in `mic` alone. Accepted only from the active Stage.
+    ClockPong {
+        mic: MicId,
+        /// The ping's `t0`, unchanged.
+        t0: f64,
+        /// The Stage page's `performance.now()` when it answered, in ms.
+        ts: f64,
+        /// The Stage page's `performance.timeOrigin`, in ms since the Unix
+        /// epoch: a new value means the Stage's clock is a new one.
+        epoch: f64,
+    },
 }
 
 /// A message the server sends over a WebSocket.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -110,6 +130,15 @@ pub enum ServerMessage {
     StageMoved,
     /// HTTP data changed: the frontend refetches what each topic names.
     Changed { topics: Vec<ChangeTopic> },
+    /// Stage only: a Pitch reading from a Mic, values unchanged.
+    PitchReading { mic: MicId, reading: PitchReading },
+    /// Stage only: a Mic's clock-sync ping. Answer at once with a
+    /// [`ClientMessage::ClockPong`] naming the same Mic.
+    ClockPing { mic: MicId, t0: f64 },
+    /// The Stage's answer to this browser's [`ClientMessage::ClockPing`].
+    ClockPong { t0: f64, ts: f64, epoch: f64 },
+    /// Stage only: a Mic's WebSocket closed (one of the lost-Mic signals).
+    MicClosed { mic: MicId },
     /// A background job was queued, started, made progress or ended (sent to
     /// every connection).
     JobChanged { job: jobs::Job },

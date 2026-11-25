@@ -9,17 +9,23 @@
 //! [`MAIN_STAGE`], and every connection is attached to it. After every
 //! accepted change every connection is sent the whole Party plus a change
 //! event; a refused command gets a refusal code back and changes nothing.
+//!
+//! The task is also the Pitch reading relay: a browser's readings and clock
+//! pings go to the active Stage alone, tagged with the [`MicId`] they came
+//! from, and are dropped while there is no Stage; the Stage's pongs go back
+//! to the Mic that pinged. The relay never changes a reading, never scores
+//! and never touches SQLite.
 
 pub mod connection;
 pub mod hub;
 mod party;
 mod store;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use openstar_protocol::{
-    Actor, ChangeEvent, ChangeTopic, ClientMessage, PartyEvent, PartySnapshot, ServerMessage,
-    StageId, UserMessage,
+    Actor, ChangeEvent, ChangeTopic, ClientMessage, MicId, PartyEvent, PartySnapshot,
+    ServerMessage, StageId, UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
@@ -151,6 +157,9 @@ struct LiveState {
     current_stage: StageId,
     stages: HashMap<StageId, Stage>,
     hub: Hub,
+    /// Connections that have sent a Pitch reading or a clock ping: Mics, so
+    /// their close is reported to the Stage.
+    mics: HashSet<ConnectionId>,
 }
 
 impl LiveState {
@@ -171,6 +180,7 @@ impl LiveState {
             current_stage: stage_id,
             stages,
             hub: Hub::default(),
+            mics: HashSet::new(),
         })
     }
 
@@ -245,6 +255,9 @@ impl LiveState {
         if stage.connection == Some(id) {
             stage.connection = None;
         }
+        if self.mics.remove(&id) {
+            self.send_to_stage(&ServerMessage::MicClosed { mic: mic_id(id) });
+        }
     }
 
     async fn received(
@@ -265,6 +278,32 @@ impl LiveState {
                 match self.start_party(now_ms).await {
                     Some(change) => self.party_changed(change),
                     None => self.reject(id, UserMessage::ServerError),
+                }
+            }
+            Ok(ClientMessage::PitchReading { reading }) => {
+                self.mics.insert(id);
+                self.send_to_stage(&ServerMessage::PitchReading {
+                    mic: mic_id(id),
+                    reading,
+                });
+            }
+            Ok(ClientMessage::ClockPing { t0 }) => {
+                self.mics.insert(id);
+                self.send_to_stage(&ServerMessage::ClockPing {
+                    mic: mic_id(id),
+                    t0,
+                });
+            }
+            Ok(ClientMessage::ClockPong { mic, t0, ts, epoch }) => {
+                if self.stage().connection != Some(id) {
+                    self.reject(id, UserMessage::NotTheStage);
+                    return;
+                }
+                let MicId::Phone { connection } = mic;
+                // A pong for a Mic that has gone is dropped.
+                if self.mics.contains(&connection) {
+                    self.hub
+                        .send_to(connection, &ServerMessage::ClockPong { t0, ts, epoch });
                 }
             }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
@@ -309,14 +348,8 @@ impl LiveState {
     }
 
     /// Sends a Stage-only message to the active Stage alone, if one is open.
-    /// A Stage that moved no longer receives these.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "the first Stage-only messages come with #50's Pitch readings"
-        )
-    )]
+    /// A Stage that moved no longer receives these. With no Stage the
+    /// message is dropped, not queued.
     fn send_to_stage(&mut self, message: &ServerMessage) {
         if let Some(id) = self.stage().connection {
             self.hub.send_to(id, message);
@@ -326,6 +359,12 @@ impl LiveState {
     fn reject(&mut self, id: ConnectionId, reason: UserMessage) {
         self.hub.send_to(id, &ServerMessage::Rejected { reason });
     }
+}
+
+/// The Mic a connection's readings and pings come from. Until Phones join
+/// with a Phone id (#81), a Phone's Mic is named by its connection.
+fn mic_id(id: ConnectionId) -> MicId {
+    MicId::Phone { connection: id }
 }
 
 #[cfg(test)]
