@@ -183,6 +183,10 @@ export const en = {
   "numberPad.delete": "Delete",
   "numberPad.ok": "OK",
 
+  "adminPinPad.wait": "Too many wrong PINs, try again in {time}",
+  "adminPinPad.failed": "The PIN could not be checked. Try again.",
+  "adminPinPad.cancel": "Cancel",
+
   // The walking skeleton's server check (shown on the Phone and the Stage).
   "server.loading": "Asking the server…",
   "server.failed": "The server did not answer",

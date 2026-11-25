@@ -7,7 +7,8 @@
 // - `form="adminPin"` (v1 spec #45): a lock icon, the heading "Admin PIN",
 //   the digits as dots and an OK key. 4 to 8 digits, sent only on OK.
 //   Checking the PIN, the lockout countdown and the Unlock are the caller's;
-//   it shows its own text through `message`.
+//   it shows its own text through `message` and stops all keys with
+//   `locked` while the wrong-guess wait runs (`pin/AdminPinDialog.tsx`).
 //
 // `onSubmit` answers "refused" (the pad clears and shakes for a new try) or
 // anything else (the pad takes keys again). Digits, Backspace and Enter on a
@@ -37,7 +38,9 @@ export interface NumberPadProps {
     entry: string,
   ) => PadAnswer | undefined | Promise<PadAnswer | undefined>;
   /** The caller's own text under the entry (a wrong PIN, the lockout). */
-  message?: string;
+  message?: string | undefined;
+  /** Takes no keys at all (the Admin PIN wait): digits, delete and OK do nothing. */
+  locked?: boolean;
   className?: string;
 }
 
@@ -75,6 +78,7 @@ export function NumberPad({
   form,
   onSubmit,
   message,
+  locked = false,
   className = "",
 }: NumberPadProps) {
   const [pad, setPad] = useState(EMPTY_PAD);
@@ -94,7 +98,19 @@ export function NumberPad({
     };
   }, []);
 
+  const lockedRef = useRef(locked);
+  useEffect(() => {
+    lockedRef.current = locked;
+  }, [locked]);
+
   function dispatch(action: PadAction) {
+    if (
+      lockedRef.current &&
+      (action.type === "digit" ||
+        action.type === "delete" ||
+        action.type === "ok")
+    )
+      return;
     const step = padStep(form, padRef.current, action);
     padRef.current = step.state;
     setPad(step.state);
@@ -209,7 +225,11 @@ export function NumberPad({
       >
         {shownMessage}
       </p>
-      <div data-testid="pad-grid" className="grid grid-cols-3 gap-3">
+      <div
+        data-testid="pad-grid"
+        data-locked={locked || undefined}
+        className="grid grid-cols-3 gap-3 data-locked:opacity-45 data-locked:grayscale-60"
+      >
         {GRID.map((key, index) => {
           if (key === null) return <span key={index} />;
           if (key === "delete")
@@ -243,7 +263,9 @@ export function NumberPad({
       {form === "adminPin" ? (
         <Button
           fill="green"
-          isDisabled={pad.digits.length < PIN_MIN_LENGTH || pad.pending}
+          isDisabled={
+            locked || pad.digits.length < PIN_MIN_LENGTH || pad.pending
+          }
           onPress={() => {
             dispatch({ type: "ok" });
           }}
