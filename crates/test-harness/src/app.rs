@@ -263,7 +263,18 @@ impl TestApp {
 
     /// Opens a WebSocket to `/ws`.
     pub async fn connect_ws(&self) -> WsClient {
-        let url = format!("ws://{}/ws", self.addr);
+        self.connect_ws_at("/ws").await
+    }
+
+    /// Opens the Stage's WebSocket (`/ws/stage`): this browser becomes the
+    /// active Stage, taking over from any earlier one.
+    pub async fn connect_stage(&self) -> WsClient {
+        self.connect_ws_at("/ws/stage").await
+    }
+
+    /// Opens a WebSocket at `path` (starting with `/`).
+    pub async fn connect_ws_at(&self, path: &str) -> WsClient {
+        let url = format!("ws://{}{path}", self.addr);
         let (socket, _) = tokio_tungstenite::connect_async(&url)
             .await
             .unwrap_or_else(|e| panic!("connecting to {url}: {e}"));

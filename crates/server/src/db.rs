@@ -28,7 +28,17 @@ const MIGRATIONS: &[&str] = &[
         pin_fingerprint BLOB NOT NULL,
         last_used_ms    INTEGER NOT NULL
     ) STRICT;",
-    // 3: Profiles. Colours and Difficulty are stored as keys, never hex
+    // 3: the current Party of each Stage (v1 has one Stage). A new Party
+    // replaces the row; later Party tables hang off `parties.id`. Drops the
+    // placeholder live state that stood in for the Party.
+    "CREATE TABLE parties (
+        id            TEXT PRIMARY KEY NOT NULL,
+        stage_id      TEXT NOT NULL UNIQUE,
+        join_code     TEXT NOT NULL,
+        started_at_ms INTEGER NOT NULL
+    ) STRICT;
+    DELETE FROM server_meta WHERE key LIKE 'placeholder:%';",
+    // 4: Profiles. Colours and Difficulty are stored as keys, never hex
     // values; the avatar is a kind plus a reference, so an uploaded image can
     // join the built-in keys later. `name_key` is the trimmed, case-folded
     // name that uniqueness compares. AUTOINCREMENT: a deleted Profile's id is
