@@ -138,12 +138,12 @@ describe("toasts", () => {
   // toast events comes with the first area that sends one; it is rendered
   // with `byCode` the same way.
   type ToastEvent =
-    | { code: "songMovedUp"; params: { actor: string; song: string } }
+    | { code: "requestMovedUp"; params: { actor: string; song: string } }
     | { code: "backOnMic"; params: { actor: string } }
     | { code: "memberLeft"; params: { actor: string; colour: PaletteKey } };
 
   const toastText = byCode<ToastEvent>({
-    songMovedUp: ({ params }) => t("toast.songMovedUp", params),
+    requestMovedUp: ({ params }) => t("toast.requestMovedUp", params),
     backOnMic: ({ params }) => t("toast.backOnMic", params),
     memberLeft: ({ params }) =>
       t("toast.memberLeft", {
@@ -155,7 +155,7 @@ describe("toasts", () => {
   it("renders an event with an actor and a Song through t()", () => {
     expect(
       toastText({
-        code: "songMovedUp",
+        code: "requestMovedUp",
         params: { actor: "Bo", song: "Africa" },
       }),
     ).toBe("Bo moved Africa up");

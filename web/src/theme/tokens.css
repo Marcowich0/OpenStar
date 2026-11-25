@@ -89,6 +89,7 @@
   --animate-pop-in: pop-in 0.45s var(--ease-spring) both;
   --animate-shake: shake 0.3s linear;
   --animate-float: float 9s ease-in-out infinite;
+  --animate-toast-out: toast-out 0.35s ease-in both;
 
   /* The breathing Sing / Start button: one breath, up to 6 % larger. */
   @keyframes breathe {
@@ -101,6 +102,15 @@
   @keyframes pop-in {
     from {
       scale: 0.6;
+      opacity: 0;
+    }
+  }
+
+  /* A toast leaving: it fades and drifts up. */
+  @keyframes toast-out {
+    to {
+      translate: 0 -14px;
+      scale: 0.9;
       opacity: 0;
     }
   }

@@ -7,7 +7,8 @@
 // overlay), the arrows move the focus (`focusMove.ts`), Enter picks the
 // focused element, `S`/`Q`/`P` toggle the Songs, Queue and People overlays.
 // Buttons pick themselves on Enter; hold buttons (`ui/HoldButton`) take Enter
-// key down and up for the hold.
+// key down and up for the hold. Toasts (`../toasts/StageToasts.tsx`) lie
+// above every scene and overlay and take no focus.
 
 import "./stageFrame.css";
 
@@ -21,6 +22,7 @@ import { nextFocus, type FocusDirection } from "./focusMove";
 import { OVERLAY_KEYS, type OverlayId } from "./overlayIds";
 import { StageOverlay } from "./overlays";
 import { PillRow } from "./PillRow";
+import { StageToasts } from "../toasts/StageToasts";
 import { ReferenceBox } from "./ReferenceBox";
 import { SCENES, type SceneDefinition } from "./sceneComponents";
 import { SCENE_RULES, pickScene, type SceneId } from "./scenes";
@@ -276,6 +278,7 @@ export function StageFrame({
           </div>
         </LayerContext>
         {shownOverlay && <StageOverlay id={shownOverlay} />}
+        <StageToasts store={store} duringSong={scene === "sing"} />
       </div>
     </FrameContext>
   );
