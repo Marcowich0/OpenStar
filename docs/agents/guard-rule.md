@@ -36,6 +36,7 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 - opening the Admin area and looking at any section;
 - Rescan and the Library problems list;
 - browsing and searching USDB, and seeing the video candidates;
+- the USDB login status (`GET /api/usdb/status`);
 - a full USDB refetch started by hand;
 - cancelling a Download;
 - opening the desktop Timing editor on a Song, computing its Pitch track, and working in the editor up to saving;

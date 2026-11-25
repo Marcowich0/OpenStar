@@ -10,6 +10,11 @@ USDB parsers (#47) are tested against. No test ever talks to the real USDB.
 - Any other path: the file at that path below `static/` (for example a cover at
   `static/data/cover/1.jpg`).
 - Nothing found: 404.
+- Logins: `POST ?link=login` with the fake credentials (`user`, `pass`,
+  `login=Login`) answers `home.html` with the session cookie
+  `PHPSESSID=fake-usdb-session`; other credentials get no cookie.
+  `?link=profil` without that cookie serves `logged-out/profil.html`. Every
+  other page is served whatever the cookie.
 - A test can script the next requests to get an error status with
   `Retry-After`, or `not-logged-in.html`.
 
@@ -36,7 +41,7 @@ update the page here and say so in this file.
 | `gettxt-2.html`          | the text of song 2: a 1.x text (`#VERSION`) whose `#VIDEO` is a plain link                          |
 | `profil.html`            | the profile page (`?link=profil`) when logged in as `fake-usdb-user`                                |
 | `not-logged-in.html`     | the page USDB shows when the login is missing                                                       |
-| `logged-out/profil.html` | the profile page without a login (not routed by the fake)                                           |
+| `logged-out/profil.html` | the profile page without a login (served for `?link=profil` without the session cookie)             |
 | `song-txt/*.txt`         | the `song.txt` a Download writes from `gettxt-1` (with a cover) and `gettxt-2` (without), by hand   |
 
 Known differences from the real site that the parsers rely on, all from

@@ -8,6 +8,12 @@
 //! - any other path: the file at that path below `static/`.
 //! - nothing found: 404.
 //!
+//! Logins: `POST ?link=login` with the fake credentials (`user`, `pass`)
+//! answers with the session cookie [`SESSION_COOKIE`]; with any other
+//! credentials it answers without one. `?link=profil` without that cookie
+//! serves `logged-out/profil.html`. Every other page is served whatever the
+//! cookie.
+//!
 //! The control endpoints under `/__fake/` let a standalone fake (for
 //! `just e2e`) be read and scripted over HTTP: `GET /__fake/requests` returns
 //! the recorded requests, `POST /__fake/script` with a [`ScriptEntry`] queues a
@@ -30,6 +36,13 @@ use tokio::task::JoinHandle;
 /// The page served for [`Scripted::NotLoggedIn`], inside the fixtures folder.
 pub const NOT_LOGGED_IN_PAGE: &str = "not-logged-in.html";
 
+/// The profile page served to a request without the fake's session cookie.
+pub const LOGGED_OUT_PROFILE_PAGE: &str = "logged-out/profil.html";
+
+/// The session cookie a login with the fake credentials gets back
+/// (`Set-Cookie`), and that `?link=profil` asks for.
+pub const SESSION_COOKIE: &str = "PHPSESSID=fake-usdb-session";
+
 /// One request the fake received.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -40,6 +53,12 @@ pub struct RecordedRequest {
     pub query: String,
     /// The request body as text (a form body for POSTs).
     pub body: String,
+    /// The `User-Agent` header, when sent.
+    #[serde(default)]
+    pub user_agent: Option<String>,
+    /// The `Cookie` header, when sent.
+    #[serde(default)]
+    pub cookie: Option<String>,
     /// When it arrived, measured from the fake's start.
     #[serde(rename = "arrivedMs", with = "millis")]
     pub arrived: Duration,
@@ -191,6 +210,8 @@ async fn handle(State(inner): State<Arc<Inner>>, request: Request) -> Response {
     let method = request.method().clone();
     let path = request.uri().path().to_owned();
     let query = request.uri().query().unwrap_or_default().to_owned();
+    let user_agent = header_text(request.headers(), header::USER_AGENT);
+    let cookie = header_text(request.headers(), header::COOKIE);
     let body = match to_bytes(request.into_body(), BODY_LIMIT).await {
         Ok(bytes) => bytes,
         Err(_) => return StatusCode::PAYLOAD_TOO_LARGE.into_response(),
@@ -209,6 +230,8 @@ async fn handle(State(inner): State<Arc<Inner>>, request: Request) -> Response {
             path: path.clone(),
             query: query.clone(),
             body: String::from_utf8_lossy(&body).into_owned(),
+            user_agent,
+            cookie: cookie.clone(),
             arrived: inner.started.elapsed(),
         });
 
@@ -229,8 +252,46 @@ async fn handle(State(inner): State<Arc<Inner>>, request: Request) -> Response {
         Some(Scripted::NotLoggedIn) => {
             serve_first(&inner.fixtures, &[NOT_LOGGED_IN_PAGE.into()]).await
         }
-        None => serve_first(&inner.fixtures, &pages_for(&path, &query)).await,
+        None => {
+            let is_index = path == "/" || path == "/index.php";
+            let link = query_param(&query, "link").filter(|_| is_index);
+            if link == Some("login") && method == Method::POST {
+                return log_in(&inner.fixtures, &body).await;
+            }
+            let has_session = cookie
+                .as_deref()
+                .is_some_and(|cookie| cookie.split(';').any(|c| c.trim() == SESSION_COOKIE));
+            if link == Some("profil") && !has_session {
+                return serve_first(&inner.fixtures, &[LOGGED_OUT_PROFILE_PAGE.into()]).await;
+            }
+            serve_first(&inner.fixtures, &pages_for(&path, &query)).await
+        }
     }
+}
+
+fn header_text(headers: &axum::http::HeaderMap, name: header::HeaderName) -> Option<String> {
+    headers
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned)
+}
+
+/// Answers a login form post: the start page, with the session cookie when
+/// the form carries the fake credentials.
+async fn log_in(fixtures: &Path, body: &[u8]) -> Response {
+    let form = String::from_utf8_lossy(body).into_owned();
+    let accepted = query_param(&form, "user") == Some(crate::FAKE_USDB_USERNAME)
+        && query_param(&form, "pass") == Some(crate::FAKE_USDB_PASSWORD)
+        && query_param(&form, "login") == Some("Login");
+    let mut response = serve_first(fixtures, &["home.html".into()]).await;
+    if accepted {
+        response.headers_mut().insert(
+            header::SET_COOKIE,
+            HeaderValue::from_str(&format!("{SESSION_COOKIE}; path=/"))
+                .expect("a valid header value"),
+        );
+    }
+    response
 }
 
 fn control_endpoint(inner: &Inner, method: &Method, control: &str, body: &[u8]) -> Response {

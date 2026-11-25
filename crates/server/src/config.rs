@@ -18,6 +18,9 @@ pub struct Config {
     /// `OPENSTAR_USDB_USERNAME` / `OPENSTAR_USDB_PASSWORD` (or `_FILE` each),
     /// when both are set.
     pub usdb: Option<UsdbCredentials>,
+    /// `OPENSTAR_USDB_BASE_URL`: where USDB is, without a trailing slash.
+    /// Only tests change it (to the fake USDB); default `https://usdb.animux.de`.
+    pub usdb_base_url: String,
     /// `OPENSTAR_YTDLP_AUTOUPDATE`: `false` never updates the copy in `appdata/bin`.
     pub ytdlp_autoupdate: bool,
     /// `OPENSTAR_LOG`: the log filter in `RUST_LOG` syntax.
@@ -61,6 +64,7 @@ impl fmt::Debug for Secret {
 }
 
 const DEFAULT_PORT: u16 = 8080;
+const DEFAULT_USDB_BASE_URL: &str = "https://usdb.animux.de";
 
 impl Config {
     /// Reads the settings from the process environment.
@@ -76,6 +80,7 @@ impl Config {
             port: 0,
             public_url: None,
             usdb: None,
+            usdb_base_url: DEFAULT_USDB_BASE_URL.to_owned(),
             ytdlp_autoupdate: true,
             log: "info".to_owned(),
             songs_dir: songs_dir.to_path_buf(),
@@ -130,6 +135,19 @@ impl Config {
             })
             .transpose()?;
 
+        let usdb_base_url = match var("OPENSTAR_USDB_BASE_URL") {
+            None => DEFAULT_USDB_BASE_URL.to_owned(),
+            Some(url) => {
+                let url = url.trim().trim_end_matches('/').to_owned();
+                if !(url.starts_with("http://") || url.starts_with("https://")) {
+                    bail!(
+                        "OPENSTAR_USDB_BASE_URL must be an http:// or https:// address, got {url:?}"
+                    );
+                }
+                url
+            }
+        };
+
         let ytdlp_autoupdate = match var("OPENSTAR_YTDLP_AUTOUPDATE") {
             None => true,
             Some(text) => match text.trim().to_ascii_lowercase().as_str() {
@@ -155,6 +173,7 @@ impl Config {
             port: port(&var)?,
             public_url,
             usdb,
+            usdb_base_url,
             ytdlp_autoupdate,
             log,
             songs_dir: dir("OPENSTAR_SONGS_DIR", "/songs"),
@@ -233,6 +252,24 @@ mod tests {
         assert_eq!(config.songs_dir, PathBuf::from("/songs"));
         assert_eq!(config.appdata_dir, PathBuf::from("/appdata"));
         assert_eq!(config.tool_path, None);
+    }
+
+    #[test]
+    fn usdb_is_the_real_site_unless_a_base_url_is_given() {
+        let config = Config::from_vars(vars(&[PIN])).unwrap();
+        assert_eq!(config.usdb_base_url, "https://usdb.animux.de");
+        let config = Config::from_vars(vars(&[
+            PIN,
+            ("OPENSTAR_USDB_BASE_URL", "http://127.0.0.1:4321/"),
+        ]))
+        .unwrap();
+        assert_eq!(config.usdb_base_url, "http://127.0.0.1:4321");
+    }
+
+    #[test]
+    fn a_usdb_base_url_that_is_not_http_is_refused() {
+        let message = error(&[PIN, ("OPENSTAR_USDB_BASE_URL", "usdb.example")]);
+        assert!(message.contains("OPENSTAR_USDB_BASE_URL"), "{message}");
     }
 
     #[test]

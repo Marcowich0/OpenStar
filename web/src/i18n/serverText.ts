@@ -90,6 +90,13 @@ export const userMessageText = byCode<UserMessage>({
       : t("userMessage.adminPinWaitMinutes", {
           count: Math.ceil(secondsLeft / 60),
         }),
+  usdbCredentialsMissing: () => t("userMessage.usdbCredentialsMissing"),
+  usdbLoginFailed: () => t("userMessage.usdbLoginFailed"),
+  usdbNotLoggedIn: () => t("userMessage.usdbNotLoggedIn"),
+  usdbUnreachable: () => t("userMessage.usdbUnreachable"),
+  usdbGaveUp: ({ params }) => t("userMessage.usdbGaveUp", params),
+  usdbUnexpectedStatus: ({ params }) =>
+    t("userMessage.usdbUnexpectedStatus", params),
 });
 
 /** An accepted change to the Party, as a toast. */

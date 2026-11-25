@@ -22,6 +22,8 @@ chardetng.workspace = true
 encoding_rs.workspace = true
 mime_guess.workspace = true
 regex.workspace = true
+# The USDB client: form posts, and TLS for https://usdb.animux.de.
+reqwest = { workspace = true, features = ["form", "rustls"] }
 rusqlite.workspace = true
 rust-embed.workspace = true
 serde.workspace = true
@@ -37,6 +39,5 @@ futures-util.workspace = true
 insta.workspace = true
 openstar-test-harness.workspace = true
 proptest.workspace = true
-reqwest.workspace = true
 tempfile.workspace = true
 tokio-tungstenite.workspace = true

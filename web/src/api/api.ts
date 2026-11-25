@@ -167,6 +167,12 @@ const REFUSAL_CODES = {
   notABridge: true,
   bridgeRequestNotFound: true,
   adminPinWait: true,
+  usdbCredentialsMissing: true,
+  usdbLoginFailed: true,
+  usdbNotLoggedIn: true,
+  usdbUnreachable: true,
+  usdbGaveUp: true,
+  usdbUnexpectedStatus: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

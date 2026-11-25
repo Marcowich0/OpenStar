@@ -1,14 +1,21 @@
-//! The pure, network-free half of talking to USDB: parsers from saved pages
-//! to data, and the rewrite of USDB's text into the `song.txt` a Download
-//! writes. Nothing here fetches anything.
+//! Talking to USDB. [`UsdbClient`] is the only code that fetches from it
+//! (login, pacing, backoff); everything else here is pure: parsers from
+//! saved pages to data, and the rewrite of USDB's text into the `song.txt` a
+//! Download writes.
 
+mod client;
 mod detail;
 mod html;
+pub(crate) mod http;
 mod list;
 mod login;
 mod song_txt;
 mod text;
 
+pub use client::{
+    FIRST_BACKOFF, MAX_BACKOFF, MAX_TRIES, PACING, SystemTimer, UsdbClient, UsdbTimer,
+    VirtualTimer, backoff_wait,
+};
 pub use detail::comment_links;
 pub use list::{SongListRow, parse_song_list};
 pub use login::{Profile, is_not_logged_in, parse_profile};
