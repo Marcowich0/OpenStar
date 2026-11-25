@@ -8,6 +8,7 @@
 //! [`ChangeTopic::Library`] notice.
 
 mod artwork;
+mod conversion;
 mod identity;
 mod index;
 mod probe;
@@ -16,6 +17,7 @@ mod resolve;
 mod scan;
 mod search;
 
+pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;
 pub(crate) use index::song as song_detail;
 
@@ -33,7 +35,7 @@ use tower_http::services::ServeFile;
 
 use crate::AppState;
 use crate::db::Database;
-use crate::jobs::Slot;
+use crate::jobs::{JobEnv, Jobs, Slot};
 use crate::live::LiveHandle;
 
 /// Runs scans, one at a time. Cheap to clone.
@@ -45,7 +47,10 @@ pub(crate) struct Scanner {
 struct Inner {
     db: Database,
     songs_dir: PathBuf,
+    appdata_dir: PathBuf,
     live: LiveHandle,
+    /// Runs the media conversions the scan starts.
+    jobs: Jobs,
     parser_version: u32,
     status: watch::Sender<ScanStatus>,
     cancelled: Arc<AtomicBool>,
@@ -57,12 +62,13 @@ struct Inner {
 
 impl Scanner {
     /// `tool_path` is the `PATH` ffprobe runs with (`None`: the process's own).
-    pub(crate) fn new(
-        db: Database,
-        songs_dir: PathBuf,
-        live: LiveHandle,
-        tool_path: Option<String>,
-    ) -> Self {
+    pub(crate) fn new(env: JobEnv, jobs: Jobs, tool_path: Option<String>) -> Self {
+        let JobEnv {
+            db,
+            live,
+            songs_dir,
+            appdata_dir,
+        } = env;
         let (status, _) = watch::channel(ScanStatus {
             running: false,
             finished: 0,
@@ -72,7 +78,9 @@ impl Scanner {
             inner: Arc::new(Inner {
                 db,
                 songs_dir,
+                appdata_dir,
                 live,
+                jobs,
                 parser_version: crate::txt::PARSER_VERSION,
                 status,
                 cancelled: Arc::new(AtomicBool::new(false)),
@@ -126,6 +134,8 @@ impl Inner {
             self.parser_version,
             &slot,
             &self.cancelled,
+            &self.jobs,
+            &self.appdata_dir,
         )
         .await;
         let report = match outcome {
@@ -203,7 +213,8 @@ pub(crate) async fn song(State(state): State<AppState>, Path(id): Path<u32>) -> 
 }
 
 /// `GET /api/songs/{id}/media/{role}`: the Song's `audio`, `video`, `cover`
-/// or `background` file, with `Range` requests, `ETag` and `Last-Modified`
+/// or `background` file (a media file's converted copy in `/appdata/cache`
+/// once there is one, at the same URL), with `Range` requests, `ETag` and `Last-Modified`
 /// (tower-http's `ServeFile`). `404` for an unknown role, an id that is not
 /// a playable Song, or a role the Song has no file for.
 pub(crate) async fn media(
@@ -223,23 +234,24 @@ pub(crate) async fn media(
         Ok(None) => return StatusCode::NOT_FOUND.into_response(),
         Err(error) => return server_error(&error),
     };
-    match ServeFile::new(served_file(&state, &path))
-        .try_call(request)
-        .await
+    let served = match conversion::served(
+        &state.db,
+        &state.config.songs_dir,
+        &state.config.appdata_dir,
+        &path,
+    )
+    .await
     {
+        Ok(served) => served,
+        Err(error) => return server_error(&error),
+    };
+    match ServeFile::new(served).try_call(request).await {
         Ok(response) => response.map(axum::body::Body::new),
         Err(error) => {
             tracing::error!(%error, path, "serving a Song's media");
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
-}
-
-/// The file served for a Library media file (`path` relative to the
-/// Library). The seam for conversions (#144): a file with a converted copy
-/// in `/appdata/cache` is to be served from there, at the same URL.
-fn served_file(state: &AppState, path: &str) -> PathBuf {
-    state.config.songs_dir.join(path)
 }
 
 /// `GET /api/library/problems`.
@@ -265,10 +277,19 @@ mod tests {
     use super::*;
     use openstar_protocol::library::SongIdentity;
 
+    /// A scanner without ffprobe and ffmpeg (an empty `PATH`): these tests
+    /// look at `.txt` files only, so their empty media is never probed.
     async fn scanner(songs: &std::path::Path, appdata: &std::path::Path) -> Scanner {
         let db = Database::open(appdata).await.unwrap().database;
         let live = LiveHandle::start(db.clone()).await.unwrap();
-        Scanner::new(db, songs.to_owned(), live, None)
+        let env = JobEnv {
+            db,
+            live,
+            songs_dir: songs.to_owned(),
+            appdata_dir: appdata.to_owned(),
+        };
+        let jobs = Jobs::start(env.clone(), Some(String::new())).await.unwrap();
+        Scanner::new(env, jobs, Some(String::new()))
     }
 
     async fn finished(scanner: &Scanner) -> ScanStatus {
@@ -316,10 +337,14 @@ mod tests {
         finished(&scanner).await;
 
         let missing = Scanner::new(
-            scanner.inner.db.clone(),
-            songs.path().join("not there"),
-            scanner.inner.live.clone(),
-            None,
+            JobEnv {
+                db: scanner.inner.db.clone(),
+                live: scanner.inner.live.clone(),
+                songs_dir: songs.path().join("not there"),
+                appdata_dir: appdata.path().to_owned(),
+            },
+            scanner.inner.jobs.clone(),
+            Some(String::new()),
         );
         missing.request();
         let status = finished(&missing).await;

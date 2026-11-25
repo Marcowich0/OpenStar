@@ -5,7 +5,8 @@
 //! when it is new, its size or mtime changed, or it was indexed by another
 //! parser version; the references of every other parsed candidate are
 //! resolved again. Indexed files that have gone are removed. Then the media
-//! the Songs name is probed ([`probing`]). The work runs on
+//! the Songs name is probed ([`probing`]), and what the Stage cannot play
+//! is converted ([`conversion`]). The work runs on
 //! blocking threads in small batches, so the stored index keeps being served.
 
 use std::path::{Path, PathBuf};
@@ -17,11 +18,11 @@ use openstar_protocol::library::{FileProblem, ProblemReason, ProblemSeverity, Sc
 use openstar_protocol::song::{FormatGeneration, SongHeaders};
 
 use super::index::{self, Media, ReadFile, Reference, Role, Stored};
-use super::probing;
 use super::resolve::Resolver;
 use super::{artwork, identity};
+use super::{conversion, probing};
 use crate::db::Database;
-use crate::jobs::Slot;
+use crate::jobs::{Jobs, Slot};
 use crate::txt;
 
 /// How many files one batch reads, or re-resolves, before it is stored.
@@ -46,6 +47,8 @@ pub(crate) async fn run(
     parser_version: u32,
     slot: &Slot,
     cancelled: &Arc<AtomicBool>,
+    jobs: &Jobs,
+    appdata_dir: &Path,
 ) -> anyhow::Result<Option<ScanReport>> {
     let stored = db.call(|conn| index::load(conn)).await?;
     let walk_root = root.to_owned();
@@ -138,10 +141,12 @@ pub(crate) async fn run(
         tx.commit()
     })
     .await?;
-    match probing::run(db, root, slot, cancelled).await? {
-        Some(probed) => report.probed = probed,
+    let probed = match probing::run(db, root, slot, cancelled).await? {
+        Some(probed) => probed,
         None => return Ok(None),
-    }
+    };
+    report.probed = count(probed.len());
+    conversion::sync(db, jobs, appdata_dir, probed).await?;
     Ok(Some(report))
 }
 

@@ -5,6 +5,7 @@
 // fails `tsc` here until it has a catalogue string.
 
 import type { ApiError } from "../generated/ApiError";
+import type { FileProblem } from "../generated/FileProblem";
 import type { LibraryReadOnly } from "../generated/LibraryReadOnly";
 import type { LineUpWarning } from "../generated/LineUpWarning";
 import type { PartyMemberId } from "../generated/PartyMemberId";
@@ -151,6 +152,19 @@ export const txtRejectionText = byCode<TxtRejection>({
     t("txtRejection.duetVoiceWithoutNotes", { voice }),
   invalidNoteLine: ({ line }) => t("txtRejection.invalidNoteLine", { line }),
   invalidVoice: ({ line }) => t("txtRejection.invalidVoice", { line }),
+});
+
+/** Something wrong with the files a `.txt` names (a Library problem). */
+export const fileProblemText = byCode<FileProblem>({
+  missingAudioReference: () => t("fileProblem.missingAudioReference"),
+  audioNotFound: ({ header, reference }) =>
+    t("fileProblem.audioNotFound", { header, reference }),
+  mediaNotFound: ({ header, reference }) =>
+    t("fileProblem.mediaNotFound", { header, reference }),
+  unreadableFile: () => t("fileProblem.unreadableFile"),
+  unreadableMetadata: () => t("fileProblem.unreadableMetadata"),
+  audioNotConverted: ({ file }) => t("fileProblem.audioNotConverted", { file }),
+  videoNotConverted: ({ file }) => t("fileProblem.videoNotConverted", { file }),
 });
 
 /** Something wrong with a `.txt` that still lets the Song play. */

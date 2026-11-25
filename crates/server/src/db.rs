@@ -272,6 +272,23 @@ const MIGRATIONS: &[&str] = &[
         local_mic_id TEXT NOT NULL,
         PRIMARY KEY (party_id, member_id)
     ) STRICT;",
+    // 16: media conversions into `/appdata/cache/media/<id>.mp4` (see
+    // `library::conversion`), one per Library media file the Stage cannot
+    // play, keyed by its path (relative to the Library), size and mtime: a
+    // changed source gets a new row and a new file. `job_id` is the job that
+    // converts it. On `library_files`, `preparing` (audio converting) and
+    // `conversion_problems` (JSON list like `file_problems`) follow the
+    // conversions of the row's audio and video.
+    "CREATE TABLE media_conversions (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        path     TEXT NOT NULL UNIQUE,
+        size     INTEGER NOT NULL,
+        mtime_ns INTEGER NOT NULL,
+        state    TEXT NOT NULL CHECK (state IN ('converting', 'done', 'failed')),
+        job_id   INTEGER
+    ) STRICT;
+    ALTER TABLE library_files ADD COLUMN preparing INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE library_files ADD COLUMN conversion_problems TEXT NOT NULL DEFAULT '[]';",
 ];
 
 /// The schema version this build migrates to.

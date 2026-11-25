@@ -19,6 +19,9 @@ pub struct JobId(#[ts(type = "number")] pub i64);
 pub enum JobKind {
     /// A harmless child process that proves the runner. Only tests start it.
     Test,
+    /// Converts a media file the Stage cannot play into an H.264 + AAC MP4
+    /// (an AAC MP4 for audio only) in the appdata cache.
+    Conversion,
 }
 
 /// Where a job stands.
