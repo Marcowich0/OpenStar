@@ -167,6 +167,9 @@ pub enum ServerMessage {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum ChangeTopic {
+    /// `GET /api/server-info` changed (for example the Library became
+    /// read-only or writable again).
+    ServerInfo,
     /// `GET /api/profiles` and `GET /api/profiles/{id}`.
     Profiles,
     /// The Library index: `GET /api/songs`, `GET /api/songs/{id}`,
