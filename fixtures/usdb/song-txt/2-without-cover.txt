@@ -1,0 +1,11 @@
+#VERSION:1.1.0
+#ARTIST:Fake & Band
+#TITLE:Re: Stacks
+#AUDIO:video.mp4
+#BPM:300
+#GAP:0
+#VIDEO:video.mp4
+#MP3:video.mp4
+: 0 4 60 la
+: 4 4 62 la
+E
