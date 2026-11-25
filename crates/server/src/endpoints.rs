@@ -28,7 +28,7 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, profiles, unlock};
+use crate::{AppState, bridge, frontend, jobs, profiles, unlock};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -120,6 +120,7 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             profiles::edit_profile,
         )
+        .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage, but needs Stage trust (#186), not an Unlock.
         .add(Method::GET, "/ws/stage", NotGuarded, crate::stage_websocket)
@@ -137,6 +138,19 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
                 "/api/test/library-write",
                 Guarded(Writes),
                 test_done,
+            )
+            // Test jobs run a harmless child process and touch nothing kept.
+            .add(
+                Method::POST,
+                "/api/test/jobs",
+                NotGuarded,
+                jobs::http::enqueue_test,
+            )
+            .add(
+                Method::POST,
+                "/api/test/jobs/{id}/cancel",
+                NotGuarded,
+                jobs::http::cancel_test,
             );
     }
     routes.finish()

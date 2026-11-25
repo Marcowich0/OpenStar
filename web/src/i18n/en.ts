@@ -59,6 +59,11 @@ export const en = {
     "A Profile name can be at most {maxLength, number} characters long",
   "userMessage.profileNameTaken": "A Profile with that name already exists",
   "userMessage.profileNotFound": "That Profile no longer exists",
+  "userMessage.jobCancelled": "Cancelled",
+  "userMessage.jobInterrupted": "A server restart interrupted this",
+  "userMessage.toolNotFound": "{tool} is not installed on the server",
+  "userMessage.toolFailed": "{tool} failed with exit code {exitCode, number}",
+  "userMessage.toolStopped": "{tool} was stopped before it finished",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",

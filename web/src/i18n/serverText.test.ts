@@ -21,6 +21,25 @@ describe("server texts", () => {
     );
   });
 
+  it("turns a job failure into text", () => {
+    expect(
+      userMessageText({
+        code: "toolFailed",
+        params: { tool: "ffmpeg", exitCode: 1 },
+      }),
+    ).toBe("ffmpeg failed with exit code 1");
+    expect(
+      userMessageText({
+        code: "toolFailed",
+        params: { tool: "yt-dlp", exitCode: null },
+      }),
+    ).toBe("yt-dlp was stopped before it finished");
+    expect(
+      userMessageText({ code: "toolNotFound", params: { tool: "ffprobe" } }),
+    ).toBe("ffprobe is not installed on the server");
+    expect(userMessageText({ code: "jobCancelled" })).toBe("Cancelled");
+  });
+
   it("turns a Party change into toast text", () => {
     expect(
       partyEventText({ code: "partyStarted", params: { joinCode: "0427" } }),

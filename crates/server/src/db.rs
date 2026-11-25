@@ -54,6 +54,14 @@ const MIGRATIONS: &[&str] = &[
         created_ms       INTEGER NOT NULL,
         last_sung_ms     INTEGER
     ) STRICT;",
+    // 5: background jobs. `params` is the job's kind and parameters as JSON,
+    // `error` the failure's `UserMessage` as JSON.
+    "CREATE TABLE jobs (
+        id     INTEGER PRIMARY KEY,
+        params TEXT NOT NULL,
+        state  TEXT NOT NULL CHECK (state IN ('queued', 'running', 'done', 'failed')),
+        error  TEXT
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.
