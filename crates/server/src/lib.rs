@@ -1,9 +1,12 @@
 //! The OpenStar server: the built frontend, the HTTP+JSON API and the
 //! WebSocket, all on one origin over plain HTTP.
 
+mod bridge;
 mod config;
 pub mod db;
 mod frontend;
+
+use std::path::PathBuf;
 
 use axum::Router;
 use axum::extract::State;
@@ -27,6 +30,8 @@ pub const BUILD_ID: &str = match option_env!("OPENSTAR_BUILD_ID") {
 #[derive(Clone)]
 struct AppState {
     db: Database,
+    /// The folder `/bridge/{file}` is served from.
+    bridge_dir: PathBuf,
 }
 
 /// A started server: the database is open and migrated, nothing is served yet.
@@ -43,9 +48,18 @@ impl Server {
         Ok(Self {
             state: AppState {
                 db: opened.database,
+                bridge_dir: PathBuf::from(bridge::DEFAULT_BRIDGE_DIR),
             },
             migrations_applied: opened.migrations_applied,
         })
+    }
+
+    /// Serves the Mic bridge files under `/bridge/` from `dir` instead of
+    /// the image's `/usr/share/openstar/bridge`.
+    #[must_use]
+    pub fn with_bridge_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.state.bridge_dir = dir.into();
+        self
     }
 
     /// How many database migrations this start applied.
@@ -58,6 +72,7 @@ impl Server {
         Router::new()
             .route("/api/server-info", get(server_info))
             .route("/ws", get(websocket))
+            .route("/bridge/{file}", get(bridge::serve))
             .fallback(frontend::serve)
             .layer(TraceLayer::new_for_http())
             .with_state(self.state.clone())
