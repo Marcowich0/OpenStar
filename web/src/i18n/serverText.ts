@@ -36,6 +36,11 @@ export const userMessageText = byCode<UserMessage>({
   invalidMessage: () => t("userMessage.invalidMessage"),
   notTheStage: () => t("userMessage.notTheStage"),
   serverError: () => t("userMessage.serverError"),
+  profileNameEmpty: () => t("userMessage.profileNameEmpty"),
+  profileNameTooLong: ({ params }) =>
+    t("userMessage.profileNameTooLong", params),
+  profileNameTaken: () => t("userMessage.profileNameTaken"),
+  profileNotFound: () => t("userMessage.profileNotFound"),
 });
 
 /** An accepted change to the Party, as a toast. */

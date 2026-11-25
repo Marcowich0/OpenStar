@@ -18,8 +18,8 @@ mod store;
 use std::collections::HashMap;
 
 use openstar_protocol::{
-    Actor, ChangeEvent, ClientMessage, PartyEvent, PartySnapshot, ServerMessage, StageId,
-    UserMessage,
+    Actor, ChangeEvent, ChangeTopic, ClientMessage, PartyEvent, PartySnapshot, ServerMessage,
+    StageId, UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
@@ -59,6 +59,8 @@ enum Command {
     },
     /// A browser's socket closed.
     Disconnect { id: ConnectionId },
+    /// HTTP data changed: tell every connection which topics to refetch.
+    Changed { topics: Vec<ChangeTopic> },
     /// Stop: drop every connection (their sockets close) and end the task.
     Shutdown { done: oneshot::Sender<()> },
 }
@@ -111,6 +113,12 @@ impl LiveHandle {
 
     pub async fn disconnect(&self, id: ConnectionId) {
         let _ = self.commands.send(Command::Disconnect { id }).await;
+    }
+
+    /// Sends a change notice for `topics` to every connection, after an HTTP
+    /// handler changed the data they name.
+    pub async fn changed(&self, topics: Vec<ChangeTopic>) {
+        let _ = self.commands.send(Command::Changed { topics }).await;
     }
 
     /// Stops the task and closes every WebSocket. Returns once it has stopped.
@@ -181,6 +189,9 @@ impl LiveState {
                     message,
                 } => self.received(id, now_ms, message).await,
                 Command::Disconnect { id } => self.disconnect(id),
+                Command::Changed { topics } => {
+                    self.hub.send_all(&ServerMessage::Changed { topics });
+                }
                 Command::Shutdown { done } => {
                     drop(self);
                     let _ = done.send(());

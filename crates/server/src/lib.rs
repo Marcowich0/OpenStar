@@ -10,6 +10,7 @@ pub mod endpoints;
 mod frontend;
 pub mod healthcheck;
 mod live;
+mod profiles;
 mod startup;
 pub mod txt;
 mod unlock;

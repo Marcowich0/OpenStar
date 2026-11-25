@@ -28,7 +28,7 @@ use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::ApiErrorCode;
 use tower_http::trace::TraceLayer;
 
-use crate::{AppState, bridge, frontend, unlock};
+use crate::{AppState, bridge, frontend, profiles, unlock};
 
 /// Whether an endpoint needs an Unlock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,6 +94,32 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             unlock::heartbeat,
         )
         .add(Method::POST, "/api/lock", NotGuarded, unlock::lock)
+        // Profiles: anyone creates, lists and edits them. Deleting one deletes
+        // kept data, so it is guarded and lives in the Admin area.
+        .add(
+            Method::GET,
+            "/api/profiles",
+            NotGuarded,
+            profiles::list_profiles,
+        )
+        .add(
+            Method::POST,
+            "/api/profiles",
+            NotGuarded,
+            profiles::create_profile,
+        )
+        .add(
+            Method::GET,
+            "/api/profiles/{id}",
+            NotGuarded,
+            profiles::get_profile,
+        )
+        .add(
+            Method::PATCH,
+            "/api/profiles/{id}",
+            NotGuarded,
+            profiles::edit_profile,
+        )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage, but needs Stage trust (#186), not an Unlock.
         .add(Method::GET, "/ws/stage", NotGuarded, crate::stage_websocket)
