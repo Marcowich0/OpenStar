@@ -8,12 +8,13 @@ import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { Request } from "../../generated/Request";
 import type { LiveClientOptions } from "../../live/liveClient";
 import { createLiveStore } from "../../live/liveStore";
+import { useLive } from "../../live/useLive";
 import { Button } from "../../ui/Button";
 import { HOLD_DURATION_MS } from "../../ui/hold";
 import { SCENES } from "./sceneComponents";
 import { StageFrame, type StageFrameProps } from "./StageFrame";
 import { StagePickList, StagePickListEntry } from "./StagePickList";
-import { useStageKeys } from "./stageFrameContext";
+import { useStageFrame, useStageKeys } from "./stageFrameContext";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -52,6 +53,35 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   ...over,
 });
 
+/**
+ * These tests are about the frame, so the song browser is a stand-in: the
+ * Join code and one default button (the real scene has its own tests in
+ * `scenes/songBrowser/`, and needs the Library's Songs).
+ */
+function BrowserStandIn() {
+  const { store, openOverlay } = useStageFrame();
+  const joinCode = useLive(
+    (live) => live.stage?.party?.joinCode ?? null,
+    store,
+  );
+  return (
+    <div>
+      <p data-testid="party-join-code">{joinCode}</p>
+      <span data-stage-default>
+        <Button
+          onPress={() => {
+            openOverlay("songs");
+          }}
+        >
+          Or browse songs here
+        </Button>
+      </span>
+    </div>
+  );
+}
+
+const FRAME_SCENES = { ...SCENES, songBrowser: { component: BrowserStandIn } };
+
 function setup(
   snapshot: PartySnapshot = party(),
   options: Pick<StageFrameProps, "scenes" | "chooseScene"> = {},
@@ -76,7 +106,12 @@ function setup(
   };
   const takeStageBack = vi.fn();
   const view = render(
-    <StageFrame store={store} takeStageBack={takeStageBack} {...options} />,
+    <StageFrame
+      store={store}
+      takeStageBack={takeStageBack}
+      scenes={FRAME_SCENES}
+      {...options}
+    />,
   );
   live((h) => {
     h.onConnection("open");

@@ -172,6 +172,8 @@ describe("motion", () => {
       "--animate-float": "float 9s ease-in-out infinite",
       "--animate-toast-out": "toast-out 0.35s ease-in both",
       "--animate-line-in": "line-in 0.35s var(--ease-spring) both",
+      "--animate-squish": "squish 0.65s var(--ease-spring)",
+      "--animate-bob": "bob 3s ease-in-out infinite",
     });
   });
 
@@ -194,6 +196,18 @@ describe("motion", () => {
   it("pops a new lyric Line in from 24 px lower at 96 % size over 0.35 s", () => {
     expect(keyframes("line-in")).toMatch(
       /from\s*\{\s*translate:\s*0 24px;\s*scale:\s*0\.96;\s*opacity:\s*0;\s*\}/,
+    );
+  });
+
+  it("squashes and stretches the selected carousel cover, then rests", () => {
+    expect(keyframes("squish")).toMatch(
+      /0%\s*\{\s*scale:\s*0\.88 1\.12;\s*\}\s*45%\s*\{\s*scale:\s*1\.08 0\.92;\s*\}/,
+    );
+  });
+
+  it("bobs the logo's star by tilting and growing it", () => {
+    expect(keyframes("bob")).toMatch(
+      /50%\s*\{\s*rotate:\s*14deg;\s*scale:\s*1\.1;\s*\}/,
     );
   });
 

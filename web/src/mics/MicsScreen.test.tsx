@@ -5,6 +5,7 @@ import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridges } from "../generated/MicBridges";
 import type { LiveClientOptions } from "../live/liveClient";
 import { createLiveStore } from "../live/liveStore";
+import { SCENES } from "../stage/frame/sceneComponents";
 import { StageFrame } from "../stage/frame/StageFrame";
 import type { CaptureSnapshot } from "./localMicCapture";
 import { LocalMicsContext, type LocalMicsApi } from "./LocalMics";
@@ -13,6 +14,9 @@ import {
   matchLocalMics,
   type BrowserChannel,
 } from "./localMics";
+
+// The song browser needs the Library's Songs; this test is not about it.
+const NO_BROWSER = { ...SCENES, songBrowser: { component: () => null } };
 
 const NO_BRIDGES: MicBridges = { bridges: [], requests: [] };
 
@@ -96,7 +100,7 @@ function setup({
   };
   render(
     <LocalMicsContext value={api}>
-      <StageFrame store={store} />
+      <StageFrame store={store} scenes={NO_BROWSER} />
     </LocalMicsContext>,
   );
   act(() => {
