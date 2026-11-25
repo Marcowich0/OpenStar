@@ -120,6 +120,29 @@ describe("the typed fetch wrapper", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/profiles/a%2Fb");
   });
 
+  it("sends a route's query in the URL, leaving out absent fields", async () => {
+    const fetchMock = vi.fn<
+      (url: string, init?: RequestInit) => Promise<Response>
+    >(() => Promise.resolve(answer(200, { songs: [], filters: null })));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await api("GET /api/songs", {
+      query: {
+        search: "rock & roll",
+        year: 2005,
+        duet: false,
+      },
+    });
+    await api("GET /api/songs", { query: {} });
+    await api("GET /api/songs");
+
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/api/songs?search=rock+%26+roll&year=2005&duet=false",
+      "/api/songs",
+      "/api/songs",
+    ]);
+  });
+
   it.each([
     ["an empty body", answer(500)],
     [

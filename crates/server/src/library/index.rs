@@ -9,6 +9,7 @@
 //! `.txt`, so a media file added or removed later is noticed.
 
 use super::identity;
+use super::search::Listed;
 use openstar_protocol::library::{
     LibraryProblem, MediaFile, ProblemReason, ProblemSeverity, SongDetail, SongId, SongIdentity,
     SongMedia, SongSummary, SongVideo,
@@ -150,14 +151,17 @@ pub(crate) fn store_read(
 ) -> rusqlite::Result<()> {
     let mut statement = tx.prepare_cached(
         "INSERT INTO library_files (path, size, mtime_ns, parser_version, encoding, song,
-             artist, title, duet, txt_problems, file_references)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+             artist, title, duet, txt_problems, file_references,
+             year, languages, genres, editions, creators)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
          ON CONFLICT (path) DO UPDATE SET
              size = excluded.size, mtime_ns = excluded.mtime_ns,
              parser_version = excluded.parser_version, encoding = excluded.encoding,
              song = excluded.song, artist = excluded.artist, title = excluded.title,
              duet = excluded.duet, txt_problems = excluded.txt_problems,
-             file_references = excluded.file_references",
+             file_references = excluded.file_references, year = excluded.year,
+             languages = excluded.languages, genres = excluded.genres,
+             editions = excluded.editions, creators = excluded.creators",
     )?;
     for file in files {
         let song = file
@@ -176,6 +180,11 @@ pub(crate) fn store_read(
             file.song.as_ref().is_some_and(|s| s.voices.len() == 2),
             encode_problems(&file.txt_problems),
             encode_references(&file.media.references),
+            file.song.as_ref().and_then(|s| s.headers.year),
+            encode_values(file.song.as_ref().map(|s| &s.headers.languages)),
+            encode_values(file.song.as_ref().map(|s| &s.headers.genres)),
+            encode_values(file.song.as_ref().map(|s| &s.headers.editions)),
+            encode_values(file.song.as_ref().map(|s| &s.headers.creators)),
         ])?;
         store_media(tx, &file.path, file.song.is_some(), &file.media)?;
     }
@@ -249,28 +258,47 @@ pub(crate) fn remove(tx: &Transaction<'_>, ids: &[i64]) -> rusqlite::Result<()> 
     Ok(())
 }
 
-/// Every playable Song, by artist, then title, then path.
-pub(crate) fn songs(conn: &Connection) -> rusqlite::Result<Vec<SongSummary>> {
+/// The listed Songs: every playable Song, each identity once, by artist,
+/// then title, then path, with the fields the filters look at.
+///
+/// Of the copies of one identity, the one whose `.txt` is newest is listed
+/// (then the lowest id). #142 owns the full preferred-copy rule (an edited
+/// copy first, then one whose media plays natively) and replaces the
+/// `ORDER BY` of the window here.
+pub(crate) fn listed(conn: &Connection) -> rusqlite::Result<Vec<Listed>> {
     let mut statement = conn.prepare(
         "SELECT id, path, artist, title, duet, identity, length_seconds, has_video,
-             cover_path IS NOT NULL
-         FROM library_files WHERE playable
+             cover_path IS NOT NULL, year, languages, genres, editions, creators
+         FROM (
+             SELECT *, ROW_NUMBER() OVER (
+                 PARTITION BY identity ORDER BY mtime_ns DESC, id
+             ) AS copy
+             FROM library_files WHERE playable
+         )
+         WHERE copy = 1
          ORDER BY artist COLLATE NOCASE, title COLLATE NOCASE, path",
     )?;
     let rows = statement.query_map([], |row| {
         let id = song_id(row.get(0)?);
         let identity = decode_identity(row, 5)?;
-        Ok(SongSummary {
-            id,
-            path: row.get(1)?,
-            artist: row.get(2)?,
-            title: row.get(3)?,
-            duet: row.get(4)?,
-            length_seconds: row.get(6)?,
-            has_video: row.get(7)?,
-            cover: image_url(id, MediaRole::Cover, row.get(8)?),
-            tile_colour: super::artwork::tile_colour(&identity),
-            identity,
+        Ok(Listed {
+            summary: SongSummary {
+                id,
+                path: row.get(1)?,
+                artist: row.get(2)?,
+                title: row.get(3)?,
+                duet: row.get(4)?,
+                length_seconds: row.get(6)?,
+                has_video: row.get(7)?,
+                cover: image_url(id, MediaRole::Cover, row.get(8)?),
+                tile_colour: super::artwork::tile_colour(&identity),
+                identity,
+            },
+            year: row.get(9)?,
+            languages: decode_values(row.get(10)?),
+            genres: decode_values(row.get(11)?),
+            editions: decode_values(row.get(12)?),
+            creators: decode_values(row.get(13)?),
         })
     })?;
     rows.collect()
@@ -474,6 +502,22 @@ fn decode_problems(text: &str) -> Vec<Problem> {
         tracing::error!(%error, "an indexed problem list does not decode");
         Vec::new()
     })
+}
+
+/// A list header's values as a row stores them (JSON); `None` for a
+/// rejected `.txt`.
+fn encode_values(values: Option<&Vec<String>>) -> Option<String> {
+    values.map(|v| serde_json::to_string(v).expect("values encode"))
+}
+
+fn decode_values(text: Option<String>) -> Vec<String> {
+    text.map(|t| {
+        serde_json::from_str(&t).unwrap_or_else(|error| {
+            tracing::error!(%error, "an indexed value list does not decode");
+            Vec::new()
+        })
+    })
+    .unwrap_or_default()
 }
 
 fn encode_references(references: &[Reference]) -> String {

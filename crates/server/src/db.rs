@@ -171,6 +171,22 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT, WITHOUT ROWID;
      ALTER TABLE library_files ADD COLUMN length_seconds REAL;
      ALTER TABLE library_files ADD COLUMN has_video INTEGER NOT NULL DEFAULT 0;",
+    // 12: the filter fields of the Song list (see `library::search`):
+    // `#YEAR`, and the list headers split on commas, as JSON lists of
+    // strings; all NULL for a rejected `.txt`. Rows already indexed are
+    // filled from their stored Song, so no re-read is needed.
+    "ALTER TABLE library_files ADD COLUMN year INTEGER;
+     ALTER TABLE library_files ADD COLUMN languages TEXT;
+     ALTER TABLE library_files ADD COLUMN genres TEXT;
+     ALTER TABLE library_files ADD COLUMN editions TEXT;
+     ALTER TABLE library_files ADD COLUMN creators TEXT;
+     UPDATE library_files SET
+         year = json_extract(song, '$.headers.year'),
+         languages = json_extract(song, '$.headers.languages'),
+         genres = json_extract(song, '$.headers.genres'),
+         editions = json_extract(song, '$.headers.editions'),
+         creators = json_extract(song, '$.headers.creators')
+     WHERE song IS NOT NULL;",
 ];
 
 /// The schema version this build migrates to.
@@ -270,5 +286,59 @@ mod tests {
             opened.database.schema_version().await.unwrap(),
             SCHEMA_VERSION
         );
+    }
+
+    #[test]
+    fn the_filter_fields_of_songs_indexed_before_them_are_filled_in() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let adds_them = MIGRATIONS
+            .iter()
+            .position(|m| m.contains("ADD COLUMN year"))
+            .unwrap();
+        for sql in &MIGRATIONS[..adds_them] {
+            conn.execute_batch(sql).unwrap();
+        }
+        let song = r#"{"headers":{"year":1999,"languages":["English","German"],
+            "genres":["Pop"],"editions":[],"creators":["alice"]}}"#;
+        conn.execute(
+            "INSERT INTO library_files (path, size, mtime_ns, parser_version, song, duet,
+                 txt_problems, file_references)
+             VALUES ('a/song.txt', 1, 1, 1, ?1, 0, '[]', '[]'),
+                    ('b/song.txt', 1, 1, 1, NULL, 0, '[]', '[]')",
+            [song],
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", adds_them as i64)
+            .unwrap();
+        migrate(&mut conn).unwrap();
+
+        let row = |path: &str| {
+            conn.query_row(
+                "SELECT year, languages, genres, editions, creators FROM library_files
+                 WHERE path = ?1",
+                [path],
+                |r| {
+                    Ok((
+                        r.get::<_, Option<i32>>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                        r.get::<_, Option<String>>(2)?,
+                        r.get::<_, Option<String>>(3)?,
+                        r.get::<_, Option<String>>(4)?,
+                    ))
+                },
+            )
+            .unwrap()
+        };
+        assert_eq!(
+            row("a/song.txt"),
+            (
+                Some(1999),
+                Some(r#"["English","German"]"#.into()),
+                Some(r#"["Pop"]"#.into()),
+                Some("[]".into()),
+                Some(r#"["alice"]"#.into()),
+            )
+        );
+        assert_eq!(row("b/song.txt"), (None, None, None, None, None));
     }
 }

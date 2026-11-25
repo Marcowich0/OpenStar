@@ -1,0 +1,8 @@
+# Media files the search tests create (empty) in their copy of this Library,
+# one path per line, relative to the Library. No media is committed here.
+Alpha Artist - Sunny Day/audio.mp3
+Beta Band - Night Song/audio.mp3
+Beta Band - Night Song/video.mp4
+Unicode/Strasse/audio.mp3
+Copy One/audio.mp3
+Copy Two/audio.mp3

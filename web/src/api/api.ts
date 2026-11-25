@@ -13,14 +13,16 @@ import type { ProfileEdit } from "../generated/ProfileEdit";
 import type { ScanStatus } from "../generated/ScanStatus";
 import type { ServerInfo } from "../generated/ServerInfo";
 import type { SongDetail } from "../generated/SongDetail";
-import type { SongSummary } from "../generated/SongSummary";
+import type { SongList } from "../generated/SongList";
+import type { SongQuery } from "../generated/SongQuery";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
 import type { UserMessage } from "../generated/UserMessage";
 
 /**
  * Every HTTP+JSON endpoint, keyed `"METHOD /path"` as `endpoints.rs` mounts
- * it. `body` is the request body (absent: none is sent), `response` the body
+ * it. `body` is the request body (absent: none is sent), `query` the URL
+ * query (always optional; absent fields are left out), `response` the body
  * of a 2xx answer. A path parameter is written `{name}`, as in `endpoints.rs`;
  * the call then needs `params: { name }`.
  */
@@ -35,7 +37,7 @@ export interface Endpoints {
   "GET /api/profiles/{id}": { response: Profile };
   "PATCH /api/profiles/{id}": { body: ProfileEdit; response: Profile };
   "GET /api/jobs": { response: JobList };
-  "GET /api/songs": { response: SongSummary[] };
+  "GET /api/songs": { query: SongQuery; response: SongList };
   "GET /api/songs/{id}": { response: SongDetail };
   "GET /api/library/problems": { response: LibraryProblem[] };
   "GET /api/library/scan": { response: ScanStatus };
@@ -57,6 +59,10 @@ type BodyOption<E> = E extends { body: infer B }
   ? { body: B }
   : { body?: never };
 
+type QueryOption<E> = E extends { query: infer Q }
+  ? { query?: Q }
+  : { query?: never };
+
 type ParamsOption<R extends string> = [PathParamNames<R>] extends [never]
   ? { params?: never }
   : { params: Record<PathParamNames<R>, string> };
@@ -64,6 +70,7 @@ type ParamsOption<R extends string> = [PathParamNames<R>] extends [never]
 export type RequestOptions<R extends Route> = {
   signal?: AbortSignal;
 } & BodyOption<Endpoints[R]> &
+  QueryOption<Endpoints[R]> &
   ParamsOption<R>;
 
 /** The options argument is optional exactly when no option is required. */
@@ -151,6 +158,19 @@ function pathOf(path: string, params: Record<string, string> | undefined) {
   );
 }
 
+type QueryValue = string | number | boolean | null | undefined;
+
+/** `?a=1&b=true` from a query's fields, leaving out absent ones. */
+function queryOf(query: Record<string, QueryValue> | undefined): string {
+  const search = new URLSearchParams();
+  for (const [name, value] of Object.entries(query ?? {})) {
+    if (value !== undefined && value !== null)
+      search.append(name, String(value));
+  }
+  const text = search.toString();
+  return text === "" ? "" : `?${text}`;
+}
+
 // Checked by name: a `DOMException` need not be an instance of this realm's
 // class (TanStack Query's own cancellation relies on the abort coming through).
 function isAbort(error: unknown): boolean {
@@ -181,11 +201,17 @@ export async function api<R extends Route>(
   // The call site is checked against `Endpoints`; from here on the options
   // are handled the same for every route.
   const given = options as
-    | { signal?: AbortSignal; body?: unknown; params?: Record<string, string> }
+    | {
+        signal?: AbortSignal;
+        body?: unknown;
+        params?: Record<string, string>;
+        query?: Record<string, QueryValue>;
+      }
     | undefined;
   const space = route.indexOf(" ");
   const method = route.slice(0, space);
-  const path = pathOf(route.slice(space + 1), given?.params);
+  const path =
+    pathOf(route.slice(space + 1), given?.params) + queryOf(given?.query);
   const init: RequestInit = { method, headers: { accept: "application/json" } };
   if (given?.signal) init.signal = given.signal;
   if (given?.body !== undefined) {

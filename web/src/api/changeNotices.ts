@@ -8,7 +8,7 @@ import {
   profilesQuery,
   scanStatusQuery,
   serverInfoQuery,
-  songsQuery,
+  songsKey,
 } from "./queries";
 
 /**
@@ -19,11 +19,7 @@ import {
 export const QUERIES_BY_TOPIC: Record<ChangeTopic, readonly QueryKey[]> = {
   serverInfo: [serverInfoQuery.queryKey],
   profiles: [profilesQuery.queryKey],
-  library: [
-    songsQuery.queryKey,
-    libraryProblemsQuery.queryKey,
-    scanStatusQuery.queryKey,
-  ],
+  library: [songsKey, libraryProblemsQuery.queryKey, scanStatusQuery.queryKey],
   // No Mic settings query exists yet. The ticket that adds one (it reads
   // `GET /api/mic-settings`) starts its key with this prefix.
   micSettings: [["micSettings"]],
