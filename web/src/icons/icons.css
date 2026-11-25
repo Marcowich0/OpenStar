@@ -13,5 +13,9 @@
 :root {
   --icon-backspace: url("./backspace.svg");
   --icon-close: url("./close.svg");
+  --icon-list: url("./list.svg");
   --icon-lock: url("./lock.svg");
+  --icon-music: url("./music.svg");
+  --icon-people: url("./people.svg");
+  --icon-tv: url("./tv.svg");
 }
