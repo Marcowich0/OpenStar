@@ -8,6 +8,7 @@
  */
 
 import type { BeatGrid } from "../clock/beats";
+import { SCORING } from "../scoring/constants";
 import type { LaneLayout } from "../stage/sing/laneLayout";
 
 /** Pitch readings a Mic sends per second (about 92 measured; rounded up). */
@@ -19,11 +20,6 @@ const MARGIN = 2;
  * the lanes may need this much more Song time than their width shows.
  */
 const AV_OFFSET_ALLOWANCE_SECONDS = 1;
-/**
- * The scorer fixes a Beat's value 300 ms of Song time after the Beat ends
- * (the grace period, #54).
- */
-const GRACE_SECONDS = 0.3;
 /** Readings can reach the Stage this late on Wi-Fi (worst seen about 270 ms). */
 const LATE_DELIVERY_SECONDS = 0.3;
 
@@ -42,7 +38,7 @@ export function pitchBufferCapacity(grid: BeatGrid, lanes: LaneLayout): number {
       ? 0
       : pastBeats * beatSeconds + AV_OFFSET_ALLOWANCE_SECONDS;
   const unfinalisedSeconds =
-    beatSeconds + GRACE_SECONDS + LATE_DELIVERY_SECONDS;
+    beatSeconds + SCORING.gracePeriodMs / 1000 + LATE_DELIVERY_SECONDS;
   const seconds = Math.max(drawnSeconds, unfinalisedSeconds);
   // Less a hair, so a whole count off by floating point (0.85 × 200) stays put.
   return Math.ceil(seconds * READINGS_PER_SECOND * MARGIN - 1e-9);
