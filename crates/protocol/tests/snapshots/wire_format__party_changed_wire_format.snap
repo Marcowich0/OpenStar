@@ -1,0 +1,24 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "ServerMessage::PartyChanged\n{\n    party: party(), change: ChangeEvent\n    {\n        actor: Actor::Stage, event: PartyEvent::PartyStarted\n        { join_code: JoinCode(\"0427\".to_owned()), },\n    },\n}"
+---
+{
+  "type": "partyChanged",
+  "party": {
+    "partyId": "0123456789abcdef0123456789abcdef",
+    "stageId": "main",
+    "joinCode": "0427",
+    "startedAtMs": 1764000000000
+  },
+  "change": {
+    "actor": {
+      "kind": "stage"
+    },
+    "event": {
+      "code": "partyStarted",
+      "params": {
+        "joinCode": "0427"
+      }
+    }
+  }
+}

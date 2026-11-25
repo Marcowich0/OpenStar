@@ -6,10 +6,13 @@
 
 pub mod admin;
 pub mod jobs;
+pub mod party;
 pub mod song;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+pub use party::{Actor, ChangeEvent, JoinCode, PartyEvent, PartyId, PartyMemberId, PartySnapshot};
 
 /// Body of `GET /api/server-info`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -55,16 +58,6 @@ pub enum LibraryReadOnlyCode {
 #[ts(export)]
 pub struct StageId(pub String);
 
-/// Body of `GET /api/placeholder`: the placeholder live state that stands in
-/// for the Party until #48 replaces it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct StagePlaceholder {
-    pub stage_id: StageId,
-    pub placeholder: String,
-}
-
 /// A message a browser sends over its WebSocket.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(
@@ -76,14 +69,10 @@ pub struct StagePlaceholder {
 pub enum ClientMessage {
     /// Asks the server to answer with a [`ServerMessage::Pong`] carrying the same nonce.
     Ping { nonce: u32 },
-    /// Changes the placeholder live state for everyone. At most
-    /// [`PLACEHOLDER_MAX_LENGTH`] characters. Replaced by the Party's
-    /// messages in #48.
-    SetPlaceholder { text: String },
+    /// Starts a new Party with a new Join code. Accepted only from the
+    /// active Stage; needs no Admin PIN.
+    NewParty,
 }
-
-/// The longest placeholder text, in characters.
-pub const PLACEHOLDER_MAX_LENGTH: u32 = 1000;
 
 /// A message the server sends over a WebSocket.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -102,13 +91,21 @@ pub enum ServerMessage {
     /// every connection, so a browser that reconnects is told the state again.
     LiveState {
         stage_id: StageId,
-        placeholder: String,
+        /// The current Party, or `null` before the first Stage has opened on
+        /// a fresh server.
+        party: Option<PartySnapshot>,
+        /// Whether this connection is the active Stage.
+        is_stage: bool,
     },
-    /// The placeholder live state changed (sent to every connection).
-    PlaceholderChanged {
-        stage_id: StageId,
-        placeholder: String,
+    /// An accepted change to the Party (sent to every connection): the whole
+    /// Party after it, plus what changed and who changed it.
+    PartyChanged {
+        party: PartySnapshot,
+        change: ChangeEvent,
     },
+    /// Sent to the Stage when another browser became the Stage. This
+    /// connection is no longer the Stage; the Party carries on unchanged.
+    StageMoved,
     /// HTTP data changed: the frontend refetches what each topic names.
     Changed { topics: Vec<ChangeTopic> },
     /// A background job was queued, started, made progress or ended (sent to
@@ -117,14 +114,12 @@ pub enum ServerMessage {
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
-/// HTTP data the frontend refetches.
+/// HTTP data the frontend refetches. Each area adds a topic per HTTP
+/// resource (library, profiles, downloads, ...); none exists yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub enum ChangeTopic {
-    /// `GET /api/placeholder`.
-    Placeholder,
-}
+pub enum ChangeTopic {}
 
 /// Every user-facing message from the server (errors, rejections and toast
 /// events): a code plus its parameters, `{ "code": ..., "params": {...} }`.
@@ -141,8 +136,8 @@ pub enum ChangeTopic {
 pub enum UserMessage {
     /// The text was not a valid [`ClientMessage`].
     InvalidMessage,
-    /// The placeholder text is longer than `max_length` characters.
-    PlaceholderTooLong { max_length: u32 },
+    /// Only the active Stage may do this.
+    NotTheStage,
     /// Something failed on the server; its log says what.
     ServerError,
     /// The job was cancelled.

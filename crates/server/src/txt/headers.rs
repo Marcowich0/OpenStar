@@ -274,7 +274,7 @@ pub(super) fn parse_version(text: &str) -> Option<u64> {
 }
 
 /// A decimal number with a point or a comma as its separator.
-fn parse_decimal(text: &str) -> Option<f64> {
+pub(super) fn parse_decimal(text: &str) -> Option<f64> {
     let allowed = |c: char| c.is_ascii_digit() || matches!(c, '+' | '-' | '.' | ',');
     if !text.chars().all(allowed) {
         return None;

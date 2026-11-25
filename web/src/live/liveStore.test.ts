@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ClientMessage } from "../generated/ClientMessage";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { LiveClientOptions } from "./liveClient";
+import { initialLiveState, receive } from "./liveState";
 import { createLiveStore } from "./liveStore";
 
 function start() {
@@ -35,36 +37,67 @@ describe("live store", () => {
     store.subscribe(listener);
 
     connection("open");
-    server({ type: "liveState", stageId: "main", placeholder: "Hi" });
+    server({ type: "liveState", stageId: "main", party: null, isStage: true });
 
     expect(store.getSnapshot().connection).toBe("open");
-    expect(store.getSnapshot().stage?.placeholder).toBe("Hi");
+    expect(store.getSnapshot().stage?.isStage).toBe(true);
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
   it("keeps the same snapshot when nothing changed", () => {
     const { store, server } = start();
     const before = store.getSnapshot();
-    server({ type: "changed", topics: ["placeholder"] });
+    server({ type: "changed", topics: [] });
     expect(store.getSnapshot()).toBe(before);
   });
 
   it("tells the listeners of each topic a change notice names", () => {
     const { store, server } = start();
-    const placeholder = vi.fn();
-    const unsubscribe = store.onChanged("placeholder", placeholder);
+    // No area has added a topic yet (`ChangeTopic` is empty), so this
+    // stands one in.
+    const library = "library" as ChangeTopic;
+    const listener = vi.fn();
+    const unsubscribe = store.onChanged(library, listener);
 
-    server({ type: "changed", topics: ["placeholder"] });
-    expect(placeholder).toHaveBeenCalledTimes(1);
+    server({ type: "changed", topics: [library] });
+    expect(listener).toHaveBeenCalledTimes(1);
 
     unsubscribe();
-    server({ type: "changed", topics: ["placeholder"] });
-    expect(placeholder).toHaveBeenCalledTimes(1);
+    server({ type: "changed", topics: [library] });
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it("sends through the client", () => {
     const { store, sent } = start();
-    store.send({ type: "setPlaceholder", text: "Yo" });
-    expect(sent).toEqual([{ type: "setPlaceholder", text: "Yo" }]);
+    store.send({ type: "newParty" });
+    expect(sent).toEqual([{ type: "newParty" }]);
+  });
+
+  it("hands every server message to the reducer", () => {
+    const { store, server } = start();
+    const messages: ServerMessage[] = [
+      { type: "liveState", stageId: "main", party: null, isStage: true },
+      { type: "rejected", reason: { code: "notTheStage" } },
+      {
+        type: "partyChanged",
+        party: {
+          partyId: "p1",
+          stageId: "main",
+          joinCode: "0427",
+          startedAtMs: 1,
+        },
+        change: {
+          actor: { kind: "stage" },
+          event: { code: "partyStarted", params: { joinCode: "0427" } },
+        },
+      },
+      { type: "stageMoved" },
+      { type: "changed", topics: [] },
+      { type: "pong", nonce: 9 },
+    ];
+    for (const message of messages) server(message);
+    expect(store.getSnapshot()).toEqual(
+      messages.reduce(receive, initialLiveState),
+    );
   });
 });

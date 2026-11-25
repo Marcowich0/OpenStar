@@ -6,4 +6,4 @@
  * The frontend turns it into text with `t(code, params)`; the server never
  * sends on-screen English.
  */
-export type UserMessage = { "code": "invalidMessage" } | { "code": "placeholderTooLong", "params": { maxLength: number, } } | { "code": "serverError" } | { "code": "jobCancelled" } | { "code": "jobInterrupted" } | { "code": "toolNotFound", "params": { tool: string, } } | { "code": "toolFailed", "params": { tool: string, exitCode: number | null, } };
+export type UserMessage = { "code": "invalidMessage" } | { "code": "notTheStage" } | { "code": "serverError" } | { "code": "jobCancelled" } | { "code": "jobInterrupted" } | { "code": "toolNotFound", "params": { tool: string, } } | { "code": "toolFailed", "params": { tool: string, exitCode: number | null, } };

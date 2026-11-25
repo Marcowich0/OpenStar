@@ -3,16 +3,19 @@
 //!
 //! [`parse`] splits a file into lines, detects its encoding, classifies the
 //! lines (header, body, `E`, after `E`, blank), interprets the headers and
-//! parses the body into Voices, Lines and Notes.
+//! parses the body into Voices, Lines and Notes. [`write`] patches a parsed
+//! file line by line.
 
 mod body;
 mod encoding;
 mod headers;
 mod lines;
+mod writer;
 
 pub use encoding::TxtEncoding;
 pub use lines::{Line, LineEnding, LineKind};
 use openstar_protocol::song::{ParsedSong, TxtRejection, TxtWarning};
+pub use writer::{ChangedLine, NewNote, Operation, WriteError, Written, write};
 
 /// A `.txt` that parsed into a playable Song.
 #[derive(Debug, Clone, PartialEq)]

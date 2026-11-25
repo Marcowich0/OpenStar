@@ -5,10 +5,11 @@
 use axum::extract::ws::{Message, WebSocket};
 use openstar_protocol::ClientMessage;
 
-use super::LiveHandle;
+use super::{LiveHandle, Role};
+use crate::clock::Clock;
 
-pub async fn run(mut socket: WebSocket, live: LiveHandle) {
-    let Some(mut connection) = live.connect().await else {
+pub async fn run(mut socket: WebSocket, live: LiveHandle, role: Role, clock: Clock) {
+    let Some(mut connection) = live.connect(role, clock.now_millis()).await else {
         return;
     };
     let id = connection.id;
@@ -28,7 +29,7 @@ pub async fn run(mut socket: WebSocket, live: LiveHandle) {
                     let message = serde_json::from_str::<ClientMessage>(&text).map_err(|error| {
                         tracing::debug!(%error, "rejecting a WebSocket message that is not a ClientMessage");
                     });
-                    if !live.received(id, message).await {
+                    if !live.received(id, clock.now_millis(), message).await {
                         break;
                     }
                 }
