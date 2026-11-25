@@ -63,6 +63,9 @@
   /* The sing screen's frosted lanes (#55): a darker ledge and a soft shadow. */
   --color-lane-ledge: rgba(43, 45, 66, 0.18);
   --color-lane-shadow: rgba(0, 0, 0, 0.18);
+  /* The lyric bar (#55): a golden Note's unsung text, and the bar's ledge. */
+  --color-golden-text: #e09a00;
+  --color-lyric-ledge: rgba(43, 45, 66, 0.2);
 
   /* Radii: buttons, chips and pills use `rounded-full`; cards 36–52 px. */
   --radius-card-sm: 36px;
@@ -78,6 +81,8 @@
   --shadow-ledge-red: 0 8px 0 var(--color-red-ledge);
   --shadow-ledge-ink: 0 8px 0 var(--color-ink-ledge);
   --shadow-ledge-yellow: 0 8px 0 var(--color-yellow-ledge);
+  /* Under the sing screen's lyric bar. */
+  --shadow-ledge-lyric: 0 10px 0 var(--color-lyric-ledge);
 
   /* The one springy back-out easing for all UI motion. */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -93,6 +98,7 @@
   --animate-shake: shake 0.3s linear;
   --animate-float: float 9s ease-in-out infinite;
   --animate-toast-out: toast-out 0.35s ease-in both;
+  --animate-line-in: line-in 0.35s var(--ease-spring) both;
 
   /* The breathing Sing / Start button: one breath, up to 6 % larger. */
   @keyframes breathe {
@@ -114,6 +120,15 @@
     to {
       translate: 0 -14px;
       scale: 0.9;
+      opacity: 0;
+    }
+  }
+
+  /* A new lyric Line: up from 24 px lower, from 96 % size. */
+  @keyframes line-in {
+    from {
+      translate: 0 24px;
+      scale: 0.96;
       opacity: 0;
     }
   }

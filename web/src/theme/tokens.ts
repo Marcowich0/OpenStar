@@ -87,6 +87,8 @@ export const INTERFACE_TOKENS = [
   "--color-blob-green",
   "--color-lane-ledge",
   "--color-lane-shadow",
+  "--color-golden-text",
+  "--color-lyric-ledge",
   "--radius-card-sm",
   "--radius-card",
   "--radius-card-lg",
@@ -97,6 +99,7 @@ export const INTERFACE_TOKENS = [
   "--shadow-ledge-red",
   "--shadow-ledge-ink",
   "--shadow-ledge-yellow",
+  "--shadow-ledge-lyric",
   "--ease-spring",
   "--default-transition-timing-function",
   "--animate-breathe",
@@ -104,6 +107,7 @@ export const INTERFACE_TOKENS = [
   "--animate-shake",
   "--animate-float",
   "--animate-toast-out",
+  "--animate-line-in",
   "--font-sans",
 ] as const;
 
