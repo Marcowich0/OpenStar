@@ -3,7 +3,8 @@ import { expect, test } from "../fixtures";
 // The tracer: the built binary serves the app, and both kinds of screen
 // complete the WebSocket round trip: the Stage's page becomes the Stage and
 // shows its Party's Join code on the song browser, a Phone's page is told the
-// same Party, and New party (held in the Stage's People overlay) reaches both.
+// same Party (its QR link's Join code is accepted), and after New party (held
+// in the Stage's People overlay) only the new code is.
 
 const joinCode = /^\d{4}$/;
 
@@ -20,11 +21,10 @@ test("the Stage and a Phone share one Party, and New party reaches both", async 
   const code = await stage.getByTestId("party-join-code").textContent();
 
   const phone = await openPhone();
-  await phone.goto("/");
-  await expect(phone.getByTestId("live-connection")).toHaveText(
-    "WebSocket: open",
-  );
-  await expect(phone.getByTestId("party-join-code")).toHaveText(code ?? "");
+  await phone.goto(`/?join=${code ?? ""}`);
+  await expect(
+    phone.getByRole("heading", { name: "Who's singing?" }),
+  ).toBeVisible();
   await expect(phone.getByRole("button", { name: "New party" })).toHaveCount(0);
 
   // P opens People; New party needs a hold of Enter.
@@ -44,5 +44,10 @@ test("the Stage and a Phone share one Party, and New party reaches both", async 
   await expect(stage.getByTestId("party-join-code")).not.toHaveText(code ?? "");
   await expect(stage.getByTestId("party-join-code")).toHaveText(joinCode);
   const next = await stage.getByTestId("party-join-code").textContent();
-  await expect(phone.getByTestId("party-join-code")).toHaveText(next ?? "");
+  await phone.goto(`/?join=${code ?? ""}`);
+  await expect(phone.getByText("That code is not on the Stage")).toBeVisible();
+  await phone.goto(`/?join=${next ?? ""}`);
+  await expect(
+    phone.getByRole("heading", { name: "Who's singing?" }),
+  ).toBeVisible();
 });
