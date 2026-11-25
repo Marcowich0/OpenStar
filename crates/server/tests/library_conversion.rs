@@ -41,11 +41,10 @@ fn real(name: &str) -> PathBuf {
 
 /// A folder with a stand-in `ffmpeg` running `script(folder)` (a shell body).
 fn tools(script: impl FnOnce(&Path) -> String) -> tempfile::TempDir {
-    use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("ffmpeg");
-    std::fs::write(&path, format!("#!/bin/sh\n{}\n", script(dir.path()))).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let script = format!("#!/bin/sh\n{}\n", script(dir.path()));
+    openstar_test_harness::write_executable(&path, &script).unwrap();
     dir
 }
 

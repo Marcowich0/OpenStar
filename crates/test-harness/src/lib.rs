@@ -23,6 +23,7 @@
 //! local port.
 
 mod app;
+mod executable;
 pub mod fake_mic;
 pub mod fixture_library;
 mod media;
@@ -30,6 +31,7 @@ mod usdb;
 mod ytdlp;
 
 pub use app::{AppFolders, TestApp, TestAppBuilder, WsClient};
+pub use executable::write_executable;
 pub use media::{Media, Signal, placeholder_media};
 pub use usdb::{FakeUsdb, RecordedRequest, Scripted};
 pub use ytdlp::{YtDlpStub, YtDlpStubBehaviour};

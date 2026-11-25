@@ -40,7 +40,6 @@ fn real(name: &str) -> PathBuf {
 /// A folder with an `ffmpeg` that logs the file after its `-i` to `calls`,
 /// waits until `open` exists beside it, then runs the real one.
 fn gated_ffmpeg() -> tempfile::TempDir {
-    use std::os::unix::fs::PermissionsExt;
     let dir = tempfile::tempdir().unwrap();
     let script = format!(
         "#!/bin/sh\n\
@@ -56,8 +55,7 @@ fn gated_ffmpeg() -> tempfile::TempDir {
         ffmpeg = real("ffmpeg").display(),
     );
     let path = dir.path().join("ffmpeg");
-    std::fs::write(&path, script).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    openstar_test_harness::write_executable(&path, &script).unwrap();
     dir
 }
 
