@@ -1,0 +1,7 @@
+#TITLE:Placeholder Title
+#ARTIST:Placeholder Artist
+#MP3:audio.mp3
+#BPM:300
+#COVER:cover.jpg
+: 0 4 0 la
+E

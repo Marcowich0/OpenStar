@@ -1,0 +1,16 @@
+---
+source: crates/server/tests/txt_writer.rs
+description: insert-after-unterminated-last-line
+---
+(
+    Utf8,
+    [
+        ChangedLine {
+            line: 7,
+            old: None,
+            new: Some(
+                "* 8 4 4 lo",
+            ),
+        },
+    ],
+)

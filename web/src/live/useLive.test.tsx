@@ -51,7 +51,7 @@ function StageProbe({
 }) {
   const stage = useLive(selectStage, store);
   rendered("stage");
-  return <p data-testid="stage">{stage?.placeholder ?? ""}</p>;
+  return <p data-testid="stage">{stage?.isStage ? "Stage" : ""}</p>;
 }
 
 describe("useLive", () => {
@@ -73,8 +73,13 @@ describe("useLive", () => {
     expect(screen.getByTestId("connection")).toHaveTextContent("open");
     expect(renders).toEqual({ connection: 2, stage: 1 });
 
-    server({ type: "liveState", stageId: "main", placeholder: "Hi" });
-    expect(screen.getByTestId("stage")).toHaveTextContent("Hi");
+    server({
+      type: "liveState",
+      stageId: "main",
+      party: null,
+      isStage: true,
+    });
+    expect(screen.getByTestId("stage")).toHaveTextContent("Stage");
     expect(renders).toEqual({ connection: 2, stage: 2 });
 
     server({ type: "pong", nonce: 1 });

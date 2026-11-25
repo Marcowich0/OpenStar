@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ServerMessage } from "../generated/ServerMessage";
 import {
   createLiveClient,
+  liveUrl,
   reconnectDelayMs,
   type LiveSocket,
 } from "./liveClient";
@@ -82,9 +83,14 @@ describe("live client", () => {
   it("hands every server message to the store", () => {
     const { messages } = start();
     latest().open();
-    latest().deliver({ type: "liveState", stageId: "main", placeholder: "A" });
+    latest().deliver({
+      type: "liveState",
+      stageId: "main",
+      party: null,
+      isStage: false,
+    });
     expect(messages).toEqual([
-      { type: "liveState", stageId: "main", placeholder: "A" },
+      { type: "liveState", stageId: "main", party: null, isStage: false },
     ]);
   });
 
@@ -124,16 +130,27 @@ describe("live client", () => {
   it("is told the state again by the server after reconnecting", () => {
     const { messages, connections } = start();
     latest().open();
-    latest().deliver({ type: "liveState", stageId: "main", placeholder: "A" });
+    latest().deliver({
+      type: "liveState",
+      stageId: "main",
+      party: null,
+      isStage: false,
+    });
     latest().drop();
     vi.advanceTimersByTime(250);
     latest().open();
-    latest().deliver({ type: "liveState", stageId: "main", placeholder: "B" });
+    latest().deliver({
+      type: "liveState",
+      stageId: "main",
+      party: null,
+      isStage: true,
+    });
     expect(connections.at(-1)).toBe("open");
     expect(messages.at(-1)).toEqual({
       type: "liveState",
       stageId: "main",
-      placeholder: "B",
+      party: null,
+      isStage: true,
     });
   });
 
@@ -152,5 +169,22 @@ describe("live client", () => {
     latest().drop();
     vi.advanceTimersByTime(60_000);
     expect(FakeSocket.all).toHaveLength(1);
+  });
+});
+
+describe("liveUrl", () => {
+  const at = (pathname: string, protocol = "http:") =>
+    liveUrl({ protocol, host: "openstar.test", pathname });
+
+  it("opens the Stage's WebSocket from the Stage's page only", () => {
+    expect(at("/stage")).toBe("ws://openstar.test/ws/stage");
+    expect(at("/stage/")).toBe("ws://openstar.test/ws/stage");
+    expect(at("/")).toBe("ws://openstar.test/ws");
+    expect(at("/admin")).toBe("ws://openstar.test/ws");
+    expect(at("/stagehand")).toBe("ws://openstar.test/ws");
+  });
+
+  it("uses wss on an HTTPS page", () => {
+    expect(at("/stage", "https:")).toBe("wss://openstar.test/ws/stage");
   });
 });

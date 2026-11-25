@@ -1,0 +1,11 @@
+#TITLE:Plàceholder Títle
+#ARTIST:Placeholder Ärtist
+#MP3:audio.mp3
+#BPM:300
+#GAP:1500
+: 0 4 0 Là
+: 4 4 2 lé
+- 10
+: 12 4 4 çà
+: 16 4 2 ñö
+E

@@ -1,0 +1,8 @@
+#ENCODING:CP1252
+#TITLE:Títle
+#ARTIST:Artist
+#MP3:audio.mp3
+#BPM:300
+: 0 4 0 là
+: 4 4 2 la
+E

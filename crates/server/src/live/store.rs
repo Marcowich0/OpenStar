@@ -1,46 +1,54 @@
-//! Persisting the live state in SQLite, so it survives a restart.
-//!
-//! The placeholder state lives in `server_meta` under `placeholder:<stage id>`
-//! until #48 replaces it with the Party's own tables.
+//! Persisting the live state in SQLite, so it survives a restart: the
+//! current Party of each Stage, in `parties`.
 
-use openstar_protocol::StageId;
+use openstar_protocol::{JoinCode, PartyId, PartySnapshot, StageId};
 use rusqlite::OptionalExtension;
 
 use crate::db::Database;
 
-fn key(stage_id: &StageId) -> String {
-    format!("placeholder:{}", stage_id.0)
-}
-
-/// The persisted placeholder of `stage_id`, empty when none was saved.
-pub async fn load_placeholder(db: &Database, stage_id: &StageId) -> anyhow::Result<String> {
-    let key = key(stage_id);
-    let value = db
-        .call(move |conn| {
-            conn.query_row(
-                "SELECT value FROM server_meta WHERE key = ?1",
-                [&key],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()
-        })
-        .await?;
-    Ok(value.unwrap_or_default())
-}
-
-pub async fn save_placeholder(
+/// The current Party of `stage_id`, if one has started.
+pub async fn load_party(
     db: &Database,
     stage_id: &StageId,
-    placeholder: String,
-) -> anyhow::Result<()> {
-    let key = key(stage_id);
+) -> anyhow::Result<Option<PartySnapshot>> {
+    let stage = stage_id.clone();
     db.call(move |conn| {
-        conn.execute(
-            "INSERT INTO server_meta (key, value) VALUES (?1, ?2)
-             ON CONFLICT (key) DO UPDATE SET value = excluded.value",
-            (&key, &placeholder),
+        conn.query_row(
+            "SELECT id, join_code, started_at_ms FROM parties WHERE stage_id = ?1",
+            [&stage.0],
+            |row| {
+                Ok(PartySnapshot {
+                    party_id: PartyId(row.get(0)?),
+                    stage_id: stage.clone(),
+                    join_code: JoinCode(row.get(1)?),
+                    started_at_ms: row.get(2)?,
+                })
+            },
         )
+        .optional()
     })
-    .await?;
-    Ok(())
+    .await
+}
+
+/// Makes `party` the current Party of its Stage, replacing the one before.
+pub async fn replace_party(db: &Database, party: &PartySnapshot) -> anyhow::Result<()> {
+    let party = party.clone();
+    db.call(move |conn| {
+        let tx = conn.transaction()?;
+        tx.execute(
+            "DELETE FROM parties WHERE stage_id = ?1",
+            [&party.stage_id.0],
+        )?;
+        tx.execute(
+            "INSERT INTO parties (id, stage_id, join_code, started_at_ms) VALUES (?1, ?2, ?3, ?4)",
+            (
+                &party.party_id.0,
+                &party.stage_id.0,
+                &party.join_code.0,
+                party.started_at_ms,
+            ),
+        )?;
+        tx.commit()
+    })
+    .await
 }

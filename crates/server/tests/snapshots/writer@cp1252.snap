@@ -1,0 +1,36 @@
+---
+source: crates/server/tests/txt_writer.rs
+description: cp1252
+---
+(
+    Cp1252,
+    [
+        ChangedLine {
+            line: 6,
+            old: Some(
+                ": 0 4 0 Là",
+            ),
+            new: Some(
+                ": 1 3 0 Là",
+            ),
+        },
+        ChangedLine {
+            line: 7,
+            old: Some(
+                ": 4 4 2 lé",
+            ),
+            new: Some(
+                ": 4 4 2 café",
+            ),
+        },
+        ChangedLine {
+            line: 8,
+            old: Some(
+                "- 10",
+            ),
+            new: Some(
+                "- 9",
+            ),
+        },
+    ],
+)
