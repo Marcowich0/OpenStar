@@ -1,0 +1,51 @@
+{
+  "description": "Playback begins at #START (Song time 12 s) at 1000 ms; Restart (a seek back to #START) at 4000 ms while playing.",
+  "media": "video",
+  "clock": [
+    { "at": 500, "event": "seek", "position": 12 },
+    { "at": 1000, "event": "play" },
+    { "at": 4000, "event": "seek", "position": 12 }
+  ],
+  "readings": [
+    {
+      "name": "a reading before the Restart, placed before it",
+      "mic": "phone",
+      "captureTime": 2600,
+      "micDelayMs": 100,
+      "placedAt": 2700,
+      "songTime": 13.5
+    },
+    {
+      "name": "dropped: captured before the Restart, placed after it",
+      "mic": "phone",
+      "captureTime": 3900,
+      "micDelayMs": 100,
+      "placedAt": 4100,
+      "songTime": null
+    },
+    {
+      "name": "dropped: the Mic delay moves the moment before the Restart",
+      "mic": "micBridge",
+      "captureTime": 4150,
+      "micDelayMs": 200,
+      "placedAt": 4300,
+      "songTime": null
+    },
+    {
+      "name": "exactly at the Restart",
+      "mic": "localMic",
+      "captureTime": 4100,
+      "micDelayMs": 100,
+      "placedAt": 4300,
+      "songTime": 12
+    },
+    {
+      "name": "after the Restart",
+      "mic": "phone",
+      "captureTime": 4600,
+      "micDelayMs": 100,
+      "placedAt": 4700,
+      "songTime": 12.5
+    }
+  ]
+}
