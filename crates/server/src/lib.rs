@@ -8,6 +8,7 @@ pub mod db;
 mod frontend;
 pub mod healthcheck;
 mod startup;
+pub mod txt;
 
 use std::path::PathBuf;
 

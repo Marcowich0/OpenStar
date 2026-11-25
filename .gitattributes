@@ -1,0 +1,3 @@
+# Fixture files are data: keep their bytes (mixed CRLF/LF line endings,
+# encodings) exactly as committed.
+/fixtures/**/*.txt -text
