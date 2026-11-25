@@ -9,7 +9,9 @@ pub mod db;
 pub mod endpoints;
 mod frontend;
 pub mod healthcheck;
+pub mod jobs;
 mod live;
+mod profiles;
 mod startup;
 pub mod txt;
 mod unlock;
@@ -31,6 +33,7 @@ use tokio::net::{TcpListener, TcpStream};
 use clock::Clock;
 pub use config::{Config, Secret, UsdbCredentials};
 use db::Database;
+use jobs::Jobs;
 use live::LiveHandle;
 
 /// The build identifier, worked out by `build.rs` (see [`build_id`]).
@@ -46,6 +49,8 @@ struct AppState {
     library_read_only: Option<LibraryReadOnly>,
     /// The live-state task, which owns everything live.
     live: LiveHandle,
+    /// The background job runner.
+    jobs: Jobs,
     /// The time source for every timed rule (the Unlock's idle time).
     clock: Clock,
     /// The fingerprint of the running Admin PIN; Unlocks made with another
@@ -77,6 +82,13 @@ impl Server {
         // Step 5: reload the live state (the Party) before anything is served.
         let live = LiveHandle::start(opened.database.clone()).await?;
         tracing::info!("live state reloaded");
+        let jobs = Jobs::start(
+            opened.database.clone(),
+            live.clone(),
+            config.tool_path.clone(),
+        )
+        .await?;
+        tracing::info!("job runner started");
         Ok(Self {
             state: AppState {
                 db: opened.database,
@@ -84,6 +96,7 @@ impl Server {
                 config: Arc::new(config.clone()),
                 library_read_only,
                 live,
+                jobs,
                 clock: Clock::system(),
                 pin_fingerprint: unlock::pin_fingerprint(config.admin_pin.expose()).into(),
                 test_routes: false,
@@ -110,7 +123,9 @@ impl Server {
 
     /// Mounts the routes that exist only for tests: `POST /api/test/guarded`
     /// and `POST /api/test/library-write`, guarded endpoints that do nothing
-    /// (the second is classified as writing the Library). Never called by `main`.
+    /// (the second is classified as writing the Library), and
+    /// `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel`, which
+    /// queue and cancel test jobs ([`jobs::TestJob`]). Never called by `main`.
     #[doc(hidden)]
     #[must_use]
     pub fn with_test_routes(mut self) -> Self {
@@ -161,8 +176,10 @@ impl Server {
         shutdown: impl Future<Output = ()> + Send + 'static,
     ) -> std::io::Result<()> {
         let live = self.state.live.clone();
+        let jobs = self.state.jobs.clone();
         let shutdown = async move {
             shutdown.await;
+            jobs.shutdown().await;
             live.shutdown().await;
         };
         axum::serve(with_nodelay(listener), self.router())

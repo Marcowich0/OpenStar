@@ -10,6 +10,19 @@ const handlers: CodeHandlers<UserMessage> = {
   invalidMessage: () => t("userMessage.invalidMessage"),
   notTheStage: () => t("userMessage.notTheStage"),
   serverError: () => t("userMessage.serverError"),
+  profileNameEmpty: () => t("userMessage.profileNameEmpty"),
+  profileNameTooLong: ({ params }) =>
+    t("userMessage.profileNameTooLong", params),
+  profileNameTaken: () => t("userMessage.profileNameTaken"),
+  profileNotFound: () => t("userMessage.profileNotFound"),
+  jobCancelled: () => t("userMessage.jobCancelled"),
+  jobInterrupted: () => t("userMessage.jobInterrupted"),
+  toolNotFound: ({ params }) => t("userMessage.toolNotFound", params),
+  toolFailed: ({ params }) =>
+    t("userMessage.toolFailed", {
+      tool: params.tool,
+      exitCode: params.exitCode ?? 0,
+    }),
 };
 
 // A code the Rust side adds (here `partyFull`) fails until it is mapped.

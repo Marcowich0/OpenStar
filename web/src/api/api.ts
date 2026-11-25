@@ -5,9 +5,14 @@
 
 import type { ApiError } from "../generated/ApiError";
 import type { ApiErrorCode } from "../generated/ApiErrorCode";
+import type { JobList } from "../generated/JobList";
+import type { NewProfile } from "../generated/NewProfile";
+import type { Profile } from "../generated/Profile";
+import type { ProfileEdit } from "../generated/ProfileEdit";
 import type { ServerInfo } from "../generated/ServerInfo";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
+import type { UserMessage } from "../generated/UserMessage";
 
 /**
  * Every HTTP+JSON endpoint, keyed `"METHOD /path"` as `endpoints.rs` mounts
@@ -21,6 +26,11 @@ export interface Endpoints {
   "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
   "POST /api/unlock/heartbeat": { response: UnlockStatus };
   "POST /api/lock": { response: UnlockStatus };
+  "GET /api/profiles": { response: Profile[] };
+  "POST /api/profiles": { body: NewProfile; response: Profile };
+  "GET /api/profiles/{id}": { response: Profile };
+  "PATCH /api/profiles/{id}": { body: ProfileEdit; response: Profile };
+  "GET /api/jobs": { response: JobList };
 }
 
 export type Route = keyof Endpoints;
@@ -54,16 +64,24 @@ type RequestArgs<R extends Route> =
     : [options: RequestOptions<R>];
 
 /**
+ * A refusal's body: an `ApiError` (the guard, the Admin PIN) or a
+ * `UserMessage` (an area's own refusals, such as `profileNameTaken`). Their
+ * codes do not overlap, so `switch (refusal.code)` tells them apart.
+ */
+export type Refusal = ApiError | UserMessage;
+
+/**
  * Why a call failed, without any English from the server:
- * - `refused`: the server answered with an `ApiError` (a code plus its
- *   parameters); render it with `apiErrorText` from `i18n/serverText`.
- * - `unexpected`: an error answer that is not an `ApiError` (a 500 with no
+ * - `refused`: the server answered with a `Refusal`, a code plus its
+ *   parameters; render it with `apiErrorText` or `userMessageText` from
+ *   `i18n/serverText`.
+ * - `unexpected`: an error answer that is not a `Refusal` (a 500 with no
  *   body, a body the server's JSON extractor refused, a code this build does
  *   not know). Only its status is kept.
  * - `network`: the request never got an answer (server down, Wi-Fi gone).
  */
 export type ApiFailureReason =
-  | { kind: "refused"; status: number; error: ApiError }
+  | { kind: "refused"; status: number; error: Refusal }
   | { kind: "unexpected"; status: number }
   | { kind: "network" };
 
@@ -80,19 +98,31 @@ export class ApiFailure extends Error {
 
 // Every code a refusal may carry. `satisfies` makes a new Rust code fail tsc
 // here until it is listed, so an unknown code is never passed off as typed.
-const API_ERROR_CODES = {
+const REFUSAL_CODES = {
   wrongPin: true,
   unlockRequired: true,
   libraryReadOnly: true,
-} as const satisfies Record<ApiErrorCode, true>;
+  invalidMessage: true,
+  notTheStage: true,
+  serverError: true,
+  profileNameEmpty: true,
+  profileNameTooLong: true,
+  profileNameTaken: true,
+  profileNotFound: true,
+  jobCancelled: true,
+  jobInterrupted: true,
+  toolNotFound: true,
+  toolFailed: true,
+} as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
-function isApiError(body: unknown): body is ApiError {
+/** A body with a code this build knows; its parameters are the server's. */
+function isRefusal(body: unknown): body is Refusal {
   return (
     typeof body === "object" &&
     body !== null &&
     "code" in body &&
     typeof body.code === "string" &&
-    Object.hasOwn(API_ERROR_CODES, body.code)
+    Object.hasOwn(REFUSAL_CODES, body.code)
   );
 }
 
@@ -158,7 +188,7 @@ export async function api<R extends Route>(
   if (!response.ok) {
     const body = await errorBody(response);
     throw new ApiFailure(
-      isApiError(body)
+      isRefusal(body)
         ? { kind: "refused", status: response.status, error: body }
         : { kind: "unexpected", status: response.status },
     );

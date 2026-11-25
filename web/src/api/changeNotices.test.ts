@@ -13,7 +13,7 @@ import { createLiveStore } from "../live/liveStore";
 import { api } from "./api";
 import { invalidateOnChange } from "./changeNotices";
 import { createQueryClient } from "./queryClient";
-import { serverInfoQuery } from "./queries";
+import { profileQuery, profilesQuery, serverInfoQuery } from "./queries";
 
 /** A stand-in for the browser's WebSocket that the test drives by hand. */
 class FakeSocket implements LiveSocket {
@@ -121,6 +121,42 @@ describe("change notices", () => {
     });
     expect(server.count("/api/server-info")).toBe(2);
     expect(server.count("/api/unlock")).toBe(1);
+  });
+
+  it("refetch the list and every single Profile on a Profiles notice", async () => {
+    let name = "Ada";
+    const profile = (id: number) => ({
+      id,
+      name,
+      avatar: "fox",
+      favouriteColour: "sky",
+      lastDifficulty: null,
+      createdAtMs: 0,
+      lastSungAtMs: null,
+    });
+    const server = mockServer({
+      "/api/server-info": () => info("1"),
+      "/api/profiles": () => [profile(3)],
+      "/api/profiles/3": () => profile(3),
+    });
+    const queryClient = createQueryClient();
+    const { socket } = connect(queryClient);
+    const list = watch(queryClient, profilesQuery);
+    const one = watch(queryClient, profileQuery(3));
+    watch(queryClient, serverInfoQuery);
+    await vi.waitFor(() => {
+      expect(one.data?.name).toBe("Ada");
+      expect(list.data?.[0]?.name).toBe("Ada");
+    });
+
+    name = "Grace";
+    socket.receive({ type: "changed", topics: ["profiles"] });
+
+    await vi.waitFor(() => {
+      expect(one.data?.name).toBe("Grace");
+      expect(list.data?.[0]?.name).toBe("Grace");
+    });
+    expect(server.count("/api/server-info")).toBe(1);
   });
 
   it("refetch nothing for a notice with no topics", async () => {

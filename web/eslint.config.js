@@ -4,7 +4,11 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-import { noPollingSyntax, onlyTheWrapperFetches } from "./lint/apiRules.js";
+import {
+  COLOUR_LITERAL_ALLOWED,
+  colourLiteralRule,
+} from "./checks/colourLiterals.js";
+import { apiPlugin, onlyTheWrapperFetches } from "./lint/apiRules.js";
 import { openstarPlugin } from "./lint/noLiteralJsxText.js";
 
 export default defineConfig(
@@ -29,16 +33,26 @@ export default defineConfig(
     },
   },
   {
+    // Colours by palette key or token only (src/theme/tokens.ts).
+    files: ["src/**/*.{ts,tsx}"],
+    rules: { "no-restricted-syntax": colourLiteralRule },
+  },
+  {
+    files: COLOUR_LITERAL_ALLOWED.filter((file) => !file.endsWith(".css")),
+    rules: { "no-restricted-syntax": "off" },
+  },
+  {
     // HTTP goes through the one typed wrapper, and nothing polls
     // (lint/apiRules.js).
     files: ["src/**/*.{ts,tsx}"],
+    plugins: { api: apiPlugin },
     rules: {
       "no-restricted-globals": ["error", ...onlyTheWrapperFetches.globals],
       "no-restricted-properties": [
         "error",
         ...onlyTheWrapperFetches.properties,
       ],
-      "no-restricted-syntax": ["error", ...noPollingSyntax],
+      "api/no-polling": "error",
     },
   },
   {

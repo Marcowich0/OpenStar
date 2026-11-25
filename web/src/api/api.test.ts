@@ -93,6 +93,33 @@ describe("the typed fetch wrapper", () => {
     });
   });
 
+  it("surfaces a refusal with parameters as its code and parameters", async () => {
+    serverAnswers(
+      answer(409, { code: "profileNameTaken", params: { profileId: 7 } }),
+    );
+
+    const failure = await failureOf(
+      api("PATCH /api/profiles/{id}", {
+        params: { id: "3" },
+        body: { name: "Ada" },
+      }),
+    );
+
+    expect(failure).toEqual({
+      kind: "refused",
+      status: 409,
+      error: { code: "profileNameTaken", params: { profileId: 7 } },
+    });
+  });
+
+  it("fills a route's path parameters", async () => {
+    const fetchMock = serverAnswers(answer(404, { code: "profileNotFound" }));
+
+    await failureOf(api("GET /api/profiles/{id}", { params: { id: "a/b" } }));
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/profiles/a%2Fb");
+  });
+
   it.each([
     ["an empty body", answer(500)],
     [

@@ -35,6 +35,17 @@ export async function apiTypeChecks() {
   // @ts-expect-error: the method is part of the route.
   await api("/api/server-info");
 
+  await api("GET /api/profiles/{id}", { params: { id: "3" } });
+
+  // @ts-expect-error: `GET /api/profiles/{id}` needs its `id`.
+  await api("GET /api/profiles/{id}");
+
+  // @ts-expect-error: the parameter is `id`, not `profileId`.
+  await api("GET /api/profiles/{id}", { params: { profileId: "3" } });
+
+  // @ts-expect-error: `GET /api/server-info` has no path parameters.
+  await api("GET /api/server-info", { params: { id: "3" } });
+
   // A route with `{name}` path parameters needs `params` with those names.
   const both: PathParamNames<"PUT /api/profiles/{id}/avatar/{key}"> = "key";
   const none: [PathParamNames<"GET /api/server-info">] extends [never]

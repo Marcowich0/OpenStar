@@ -1,0 +1,16 @@
+/*
+ * The interface icons: one custom property per SVG file in this folder. Vite
+ * copies each file into the build (`assetsInlineLimit: 0` in vite.config.ts)
+ * and rewrites the url(), so OpenStar serves every icon itself, and because
+ * the properties are plain CSS, every icon is in the build whether or not a
+ * screen uses it yet. Each icon is drawn in black on a transparent ground and
+ * used as a mask (`Icon` in ui/Icon.tsx), so it takes the text colour.
+ *
+ * Add an icon: its file here, its property below, its name in `ICON_NAMES`
+ * (icons.ts). A test keeps the three in step.
+ */
+
+:root {
+  --icon-close: url("./close.svg");
+  --icon-lock: url("./lock.svg");
+}

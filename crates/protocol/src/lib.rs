@@ -5,7 +5,9 @@
 //! committed. `just check` fails when the committed files drift.
 
 pub mod admin;
+pub mod jobs;
 pub mod party;
+pub mod profile;
 pub mod song;
 
 use serde::{Deserialize, Serialize};
@@ -107,6 +109,9 @@ pub enum ServerMessage {
     StageMoved,
     /// HTTP data changed: the frontend refetches what each topic names.
     Changed { topics: Vec<ChangeTopic> },
+    /// A background job was queued, started, made progress or ended (sent to
+    /// every connection).
+    JobChanged { job: jobs::Job },
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
@@ -119,6 +124,8 @@ pub enum ChangeTopic {
     /// `GET /api/server-info` changed (for example the Library became
     /// read-only or writable again).
     ServerInfo,
+    /// `GET /api/profiles` and `GET /api/profiles/{id}`.
+    Profiles,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast
@@ -140,6 +147,27 @@ pub enum UserMessage {
     NotTheStage,
     /// Something failed on the server; its log says what.
     ServerError,
+    /// A Profile name is empty once surrounding spaces are trimmed.
+    ProfileNameEmpty,
+    /// A Profile name is longer than `max_length` characters once
+    /// surrounding spaces are trimmed.
+    ProfileNameTooLong { max_length: u32 },
+    /// Another Profile already has this name (ignoring case and surrounding
+    /// spaces); the person is offered that Profile.
+    ProfileNameTaken { profile_id: profile::ProfileId },
+    /// No Profile has this id (it was deleted, or never existed).
+    ProfileNotFound,
+    /// The job was cancelled.
+    JobCancelled,
+    /// A restart interrupted the job, and its kind does not run again.
+    JobInterrupted,
+    /// A tool the job needs (`ffmpeg`, `yt-dlp`, ...) is not installed.
+    ToolNotFound { tool: String },
+    /// A tool the job ran failed; `exit_code` is `null` when a signal ended it.
+    ToolFailed {
+        tool: String,
+        exit_code: Option<i32>,
+    },
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { colourName } from "./colourNames";
-import { PALETTE_KEYS } from "./paletteKeys";
+import { PALETTE_KEYS } from "../theme/tokens";
 
 describe("colourName", () => {
   it("gives each Party colour its fixed display name", () => {

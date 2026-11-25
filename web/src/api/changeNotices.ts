@@ -3,7 +3,7 @@ import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { LiveConnection } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
-import { serverInfoQuery } from "./queries";
+import { profilesQuery, serverInfoQuery } from "./queries";
 
 /**
  * The queries each change topic invalidates. A key matches every query it
@@ -12,6 +12,7 @@ import { serverInfoQuery } from "./queries";
  */
 export const QUERIES_BY_TOPIC: Record<ChangeTopic, readonly QueryKey[]> = {
   serverInfo: [serverInfoQuery.queryKey],
+  profiles: [profilesQuery.queryKey],
 };
 
 const TOPICS = Object.keys(QUERIES_BY_TOPIC) as ChangeTopic[];

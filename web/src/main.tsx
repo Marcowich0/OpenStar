@@ -2,6 +2,9 @@ import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import "./theme/fonts";
+import "./index.css";
+
 import { invalidateOnChange } from "./api/changeNotices";
 import { createQueryClient } from "./api/queryClient";
 import { liveStore } from "./live/browserLive";

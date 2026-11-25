@@ -27,33 +27,42 @@ const TIMER_CALL = [
   `CallExpression[callee.property.name=${TIMER}]`,
 ];
 
-/**
- * No query refetches on a timer: options for `no-restricted-syntax`. It
- * refuses TanStack Query's `refetchInterval` options and any refetch or
- * invalidation inside (or handed to) `setInterval` / `setTimeout`.
- */
-export const noPollingSyntax = [
-  {
-    // The value of a shorthand property is the same word again: report it once.
-    selector: String.raw`Identifier[name=/^refetchInterval/]:not(Property[shorthand=true] > Identifier.value)`,
-    message: POLLING_MESSAGE,
-  },
+const POLLING_SELECTORS = [
+  // The value of a shorthand property is the same word again: report it once.
+  String.raw`Identifier[name=/^refetchInterval/]:not(Property[shorthand=true] > Identifier.value)`,
   ...TIMER_CALL.flatMap((timer) => [
-    {
-      selector: `${timer} CallExpression[callee.property.name=${REFETCH}]`,
-      message: POLLING_MESSAGE,
-    },
-    {
-      selector: `${timer} CallExpression[callee.name=${REFETCH}]`,
-      message: POLLING_MESSAGE,
-    },
-    {
-      selector: `${timer} > Identifier.arguments[name=${REFETCH}]`,
-      message: POLLING_MESSAGE,
-    },
-    {
-      selector: `${timer} > MemberExpression.arguments[property.name=${REFETCH}]`,
-      message: POLLING_MESSAGE,
-    },
+    `${timer} CallExpression[callee.property.name=${REFETCH}]`,
+    `${timer} CallExpression[callee.name=${REFETCH}]`,
+    `${timer} > Identifier.arguments[name=${REFETCH}]`,
+    `${timer} > MemberExpression.arguments[property.name=${REFETCH}]`,
   ]),
 ];
+
+/**
+ * ESLint rule `api/no-polling`: no query refetches on a timer. It refuses
+ * TanStack Query's `refetchInterval` options and any refetch or invalidation
+ * inside (or handed to) `setInterval` / `setTimeout`.
+ *
+ * @type {import("eslint").Rule.RuleModule}
+ */
+export const noPolling = {
+  meta: {
+    type: "problem",
+    docs: { description: "Refuse timer-driven refetches of queries" },
+    messages: { polling: POLLING_MESSAGE },
+    schema: [],
+  },
+  create(context) {
+    /** @type {import("eslint").Rule.RuleListener} */
+    const listener = {};
+    for (const selector of POLLING_SELECTORS) {
+      listener[selector] = (/** @type {import("eslint").Rule.Node} */ node) => {
+        context.report({ node, messageId: "polling" });
+      };
+    }
+    return listener;
+  },
+};
+
+/** The plugin `eslint.config.js` registers as `api`. */
+export const apiPlugin = { rules: { "no-polling": noPolling } };
