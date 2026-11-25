@@ -11,6 +11,7 @@ pub mod healthcheck;
 mod startup;
 pub mod txt;
 mod unlock;
+pub mod usdb;
 
 use std::path::PathBuf;
 

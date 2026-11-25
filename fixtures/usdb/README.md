@@ -15,15 +15,35 @@ USDB parsers (#47) are tested against. No test ever talks to the real USDB.
 
 ## The pages
 
-The pages here are minimal placeholders that keep USDB's routes, so the harness
-works before the USDB client exists. #47 replaces each with a saved real page,
-stripped down, with **placeholder lyrics and made-up song data only**
-([`../README.md`](../README.md) rule 2): never a real Song's text.
+The repository is public, so these pages are **reconstructed, not saved from
+USDB**: nobody logged in to USDB to make them ([`../README.md`](../README.md)
+rule 2). Each keeps the HTML shape of USDB's real pages as saved in
+usdb_syncer's test resources (`bohning/usdb_syncer` @ `1a4b048`,
+`tests/resources/html/usdb-animux-de/`) and as its scraper
+(`src/usdb_syncer/usdb_scraper.py`) reads them, stripped to what the parsers
+need, with **made-up song data and placeholder lyrics only**. The "not logged
+in" page and the profile pages have no saved original anywhere: they are the
+standard page frame with the sentence and greeting other clients' code looks
+for. When someone with a USDB account checks a real page against these,
+update the page here and say so in this file.
 
-| File                 | Stands in for                                    |
-| -------------------- | ------------------------------------------------ |
-| `home.html`          | the start page (also the answer to a login POST) |
-| `list.html`          | the song list (`?link=list`)                     |
-| `detail-1.html`      | the detail page of song 1 (`?link=detail&id=1`)  |
-| `gettxt-1.html`      | the `.txt` of song 1 (`?link=gettxt&id=1`)       |
-| `not-logged-in.html` | the page USDB shows when the login is missing    |
+| File                     | Stands in for                                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------------------------- |
+| `home.html`              | the start page (also the answer to a login POST)                                                    |
+| `list.html`              | a song list page (`POST ?link=list`), 3 rows: entities, no cover, no year, half stars               |
+| `detail-1.html`          | the detail page of song 1 (`?link=detail&id=1`) read without a login, with 3 comments, newest first |
+| `gettxt-1.html`          | the text of song 1 (`POST ?link=gettxt&id=1`): `Re: Stacks`, `&amp;amp;`, `#VIDEO` with `v=`/`a=`   |
+| `gettxt-2.html`          | the text of song 2: a 1.x text (`#VERSION`) whose `#VIDEO` is a plain link                          |
+| `profil.html`            | the profile page (`?link=profil`) when logged in as `fake-usdb-user`                                |
+| `not-logged-in.html`     | the page USDB shows when the login is missing                                                       |
+| `logged-out/profil.html` | the profile page without a login (not routed by the fake)                                           |
+| `song-txt/*.txt`         | the `song.txt` a Download writes from `gettxt-1` (with a cover) and `gettxt-2` (without), by hand   |
+
+Known differences from the real site that the parsers rely on, all from
+usdb_syncer's saved pages: list rows carry `data-songid` and
+`data-lastchange` (Unix seconds); stars are `images/star.png`,
+`images/half_star.png` and `images/star2.png` (empty); a comment's header row
+is `<tr class="list_tr2"><td>DD.MM.YY - HH:MM | author`, newest comment first;
+a detail page read without a login carries "You are not logged in. Login to
+use this function." inside its comment form, which does not make it the "not
+logged in" page.
