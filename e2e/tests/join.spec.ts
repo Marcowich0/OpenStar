@@ -110,6 +110,9 @@ test("the QR link skips the pad, and a remembered Profile joins with one tap", a
     localStorage.removeItem("openstar.phoneId");
   });
   await phone.goto(`/?join=${code}`);
-  await phone.getByRole("button", { name: `I'm ${name}` }).click();
+  const imName = phone.getByRole("button", { name: `I'm ${name}` });
+  await expect(imName).toBeVisible();
+  // The button breathes forever, so it is never "stable" for a normal click.
+  await imName.click({ force: true });
   await expectRemote(phone, name);
 });
