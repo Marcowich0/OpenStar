@@ -1,7 +1,8 @@
 # Scoring cases
 
 Cases for Beats, reading placement and (from #54) Beat values. Vitest runs them
-(`web/src/clock/beats.test.ts`, `web/src/clock/placement.test.ts`); a second
+(`web/src/clock/beats.test.ts`, `web/src/clock/placement.test.ts`,
+`web/src/scoring/beatValues.test.ts`); a second
 implementation (for example the server rescoring) runs the same files.
 
 ## `beats.json`: `beatAt`
@@ -35,5 +36,27 @@ more than 5 s before `placedAt`).
 
 The clock is driven by events only, never by frame or `currentTime` observations, so
 Song time runs exactly at the rate and every expected value can be worked out by hand.
-Beat-value cases (#54) can add `pitch`, `clarity` and `loudnessDbfs` to a reading;
-placement passes every field through unchanged.
+Placement passes every field of a reading through unchanged, so the Beat-value
+cases below use the same reading shape plus the Pitch reading's own fields.
+
+## `beatValues/*.json`: Beat values
+
+Each file is one Mic's readings and the Beat values they give, under a steady clock:
+a reading's Song time (seconds) is `(captureTime − micDelayMs − songStartMs) / 1000`.
+
+| Field                          | Meaning                                                                                                                           |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `gapSeconds`, `beatsPerMinute` | The Beat grid, as in `beats.json`; `file` shows the headers as written.                                                           |
+| `songStartMs`                  | The Stage time (ms) at which Song time is 0.                                                                                      |
+| `micDelayMs`                   | The Mic's Mic delay.                                                                                                              |
+| `micThresholdDbfs`             | The Mic's effective Mic threshold, fixed for the Song.                                                                            |
+| `firstBeat`, `lastBeat`        | The Beat range, inclusive; readings outside it are ignored.                                                                       |
+| `readings`                     | `captureTime` (ms), `pitch` (fractional MIDI note number or `null`), `clarity` (0–1) and `loudness` (dBFS), as in `PitchReading`. |
+| `beatValues`                   | The expected value of each Beat in the range, in order, as the generated `BeatValue`: `noVoice`, `voiceWithoutPitch` or `pitch`.  |
+| `comment`                      | Optional: how the expected values were worked out by hand.                                                                        |
+
+The rules (#54): Beat _b_ takes every reading in `[start of b, start of b + 1)`. A reading
+passes the Mic threshold at or above it, and is voiced when it also has a pitch and
+clarity ≥ 0.8. With _n_ readings and _h_ = ⌈_n_ / 2⌉: _n_ = 0 → no voice; ≥ _h_ voiced →
+pitch, the lower median (index ⌊(_k_ − 1) / 2⌋ of the _k_ voiced pitches sorted
+ascending); else ≥ _h_ passing the threshold → voice without pitch; else no voice.

@@ -1,0 +1,20 @@
+{
+  "description": "loud enough but clarity under 0.8 gives voice without pitch; clear but under the Mic threshold gives no voice",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "songStartMs": 1000,
+  "micDelayMs": 100,
+  "micThresholdDbfs": -40,
+  "firstBeat": 0,
+  "lastBeat": 1,
+  "readings": [
+    { "captureTime": 1610, "pitch": 60.0, "clarity": 0.79, "loudness": -25 },
+    { "captureTime": 1650, "pitch": 61.0, "clarity": 0.5, "loudness": -25 },
+    { "captureTime": 1690, "pitch": 60.0, "clarity": 0.79, "loudness": -25 },
+
+    { "captureTime": 1750, "pitch": 60.0, "clarity": 0.95, "loudness": -40.5 },
+    { "captureTime": 1800, "pitch": 60.0, "clarity": 0.95, "loudness": -60 }
+  ],
+  "beatValues": [{ "kind": "voiceWithoutPitch" }, { "kind": "noVoice" }]
+}
