@@ -179,6 +179,56 @@ const MIGRATIONS: &[&str] = &[
      ALTER TABLE party_members ADD COLUMN guest_avatar_kind TEXT;
      ALTER TABLE party_members ADD COLUMN guest_avatar_ref TEXT;
      ALTER TABLE party_members ADD COLUMN guest_difficulty TEXT;",
+    // 13: rounds, Score records and Note snapshots (see `scores`). Songs are
+    // their identity key (`library::identity::key`), never a Library row, so
+    // records outlive a Song leaving the Library. A record is a Profile's
+    // (`profile_id`, deleted with it) or a Guest's (`guest_name`). Nothing
+    // limits records per round or per Profile: the seat count and "a Profile
+    // at most once in a Line-up" are Line-up rules, never constraints here.
+    // `beat_values` is one byte per Beat (0 no voice, 1 voice without pitch,
+    // 2 pitch) followed, for a pitch, by its f64 in little-endian. A Note
+    // snapshot is the JSON its fingerprint hashes, stored once.
+    "CREATE TABLE rounds (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        song_identity TEXT NOT NULL,
+        party_id      TEXT NOT NULL,
+        mode          TEXT NOT NULL,
+        started_at_ms INTEGER NOT NULL,
+        ended         TEXT NOT NULL CHECK (ended IN ('played', 'ended', 'skipped')),
+        game_id       TEXT
+    ) STRICT;
+    CREATE INDEX rounds_song ON rounds (song_identity);
+    CREATE TABLE note_snapshots (
+        fingerprint TEXT PRIMARY KEY NOT NULL,
+        snapshot    TEXT NOT NULL
+    ) STRICT, WITHOUT ROWID;
+    CREATE TABLE score_records (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        round_id         INTEGER NOT NULL REFERENCES rounds(id),
+        party_id         TEXT NOT NULL,
+        song_identity    TEXT NOT NULL,
+        profile_id       INTEGER REFERENCES profiles(id) ON DELETE CASCADE,
+        guest_name       TEXT,
+        voice            INTEGER NOT NULL,
+        difficulty       TEXT NOT NULL,
+        recorded_at_ms   INTEGER NOT NULL,
+        total            INTEGER NOT NULL,
+        notes            INTEGER NOT NULL,
+        golden           INTEGER NOT NULL,
+        line_bonus       INTEGER NOT NULL,
+        mic_kind         TEXT NOT NULL,
+        mode             TEXT NOT NULL,
+        unfinished       INTEGER NOT NULL,
+        mic_lost         INTEGER NOT NULL,
+        first_beat       INTEGER NOT NULL,
+        last_beat        INTEGER NOT NULL,
+        note_fingerprint TEXT NOT NULL REFERENCES note_snapshots(fingerprint),
+        beat_values      BLOB NOT NULL,
+        CHECK ((profile_id IS NULL) <> (guest_name IS NULL))
+    ) STRICT;
+    CREATE INDEX score_records_round ON score_records (round_id);
+    CREATE INDEX score_records_song ON score_records (song_identity);
+    CREATE INDEX score_records_profile ON score_records (profile_id);",
 ];
 
 /// The schema version this build migrates to.

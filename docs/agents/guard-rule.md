@@ -53,7 +53,8 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 - Add a Mic bridge, the `/bridge` page and its download;
 - approving a new Mic bridge on the Stage's Mics screen (the Stage browser is already trusted through the PIN);
 - Lock, the Unlock status and the PIN attempt itself;
-- the job list (`GET /api/jobs`) and the job updates on the WebSocket.
+- the job list (`GET /api/jobs`) and the job updates on the WebSocket;
+- storing a round's outcome and its Score records (`POST /api/rounds`), which adds kept data and deletes none.
 
 The test-only routes `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel` (mounted only by `Server::with_test_routes`) are not guarded: a test job runs a harmless child process and touches nothing kept.
 

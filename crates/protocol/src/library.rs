@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::profile::PaletteKey;
+use crate::scoring::NoteFingerprint;
 use crate::song::{ParsedSong, TxtRejection, TxtWarning};
 
 /// Names one indexed `.txt` while it stays in the Library.
@@ -134,6 +135,9 @@ pub struct SongDetail {
     /// The `.txt`, relative to the Library, with `/` between folders.
     pub path: String,
     pub song: ParsedSong,
+    /// The fingerprint of the Song's note content as loaded; the Stage
+    /// returns it with the round's outcome.
+    pub note_fingerprint: NoteFingerprint,
     pub identity: SongIdentity,
     pub length_seconds: Option<f64>,
     pub media: SongMedia,

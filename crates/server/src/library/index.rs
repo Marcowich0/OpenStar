@@ -329,6 +329,7 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
             Ok(SongDetail {
                 id,
                 path: row.get(0)?,
+                note_fingerprint: crate::scores::note_fingerprint(&song),
                 song,
                 identity,
                 length_seconds: row.get(5)?,
