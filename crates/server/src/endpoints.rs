@@ -80,6 +80,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // is kept against a Local mic to its new channel.
         | ClientMessage::SetLocalMicName { .. }
         | ClientMessage::RelinkLocalMic { .. }
+        // The OpenStar volume is everyone's, from the Stage or any Remote.
+        | ClientMessage::ReportStageOutput { .. }
+        | ClientMessage::StepVolume { .. }
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
         | ClientMessage::Join { .. }

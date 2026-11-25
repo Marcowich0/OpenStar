@@ -15,3 +15,14 @@ export function focusDefault(root: Element): void {
     root.querySelector(FOCUSABLE);
   if (target instanceof HTMLElement) target.focus({ preventScroll: true });
 }
+
+/** A field that takes typed text: there, keys are the field's, not the Stage's. */
+export function isTextField(element: Element | null): boolean {
+  if (!(element instanceof HTMLElement)) return false;
+  if (element.isContentEditable) return true;
+  if (element instanceof HTMLTextAreaElement) return true;
+  if (!(element instanceof HTMLInputElement)) return false;
+  return !["button", "checkbox", "radio", "range", "submit"].includes(
+    element.type,
+  );
+}
