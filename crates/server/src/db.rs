@@ -171,6 +171,14 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT, WITHOUT ROWID;
      ALTER TABLE library_files ADD COLUMN length_seconds REAL;
      ALTER TABLE library_files ADD COLUMN has_video INTEGER NOT NULL DEFAULT 0;",
+    // 12: Guests. A member is a Profile (`profile_id` set, the guest columns
+    // NULL) or a Guest (`profile_id` NULL, its name, avatar and Difficulty
+    // here). A Guest goes with its Party like every member. Unique Guest
+    // names (ignoring case) are kept by the live-state task.
+    "ALTER TABLE party_members ADD COLUMN guest_name TEXT;
+     ALTER TABLE party_members ADD COLUMN guest_avatar_kind TEXT;
+     ALTER TABLE party_members ADD COLUMN guest_avatar_ref TEXT;
+     ALTER TABLE party_members ADD COLUMN guest_difficulty TEXT;",
 ];
 
 /// The schema version this build migrates to.

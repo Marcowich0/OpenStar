@@ -10,8 +10,8 @@ use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest};
 use openstar_protocol::library::SongId;
 use openstar_protocol::profile::ProfileId;
 use openstar_protocol::{
-    ClientMessage, JoinAs, JoinCode, MicId, PartyMemberId, PhoneId, PitchReading, QueueMove,
-    RequestId,
+    ClientMessage, JoinAs, JoinCode, MemberEdit, MicId, PartyMemberId, PhoneId, PitchReading,
+    QueueMove, RequestId,
 };
 use reqwest::StatusCode;
 
@@ -318,6 +318,15 @@ fn every_client_message() -> Vec<ClientMessage> {
             join_as: JoinAs::Profile {
                 profile_id: ProfileId(1),
             },
+        },
+        ClientMessage::SwitchIdentity {
+            join_as: JoinAs::Profile {
+                profile_id: ProfileId(1),
+            },
+        },
+        ClientMessage::EditMember {
+            member_id: PartyMemberId(1),
+            edit: MemberEdit::default(),
         },
         ClientMessage::AddRequest {
             song_id: SongId(1),
