@@ -1,0 +1,117 @@
+{
+  "description": "Hand-built match cases for the fit module's match measure. Each case is one Note (kind, pitch in semitones from C4) sung for its whole length at one steady frequency (frameHz, 0 = unvoiced). share is the Note's match share: 1 when every covered frame matches, 0 when none does, null when the Note never counts.",
+  "cases": [
+    {
+      "name": "on the Note's pitch class",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 440,
+      "share": 1
+    },
+    {
+      "name": "a Golden note counts",
+      "kind": "golden",
+      "pitch": 9,
+      "frameHz": 440,
+      "share": 1
+    },
+    {
+      "name": "one semitone sharp",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 466.16,
+      "share": 1
+    },
+    {
+      "name": "one semitone flat",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 415.31,
+      "share": 1
+    },
+    {
+      "name": "one and a half semitones sharp",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 479.82,
+      "share": 0
+    },
+    {
+      "name": "two semitones sharp",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 493.88,
+      "share": 0
+    },
+    {
+      "name": "two semitones flat",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 392,
+      "share": 0
+    },
+    {
+      "name": "an octave below",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 220,
+      "share": 1
+    },
+    {
+      "name": "two octaves above",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 1760,
+      "share": 1
+    },
+    {
+      "name": "a tritone off",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 622.25,
+      "share": 0
+    },
+    {
+      "name": "across the octave fold: B3 on a C",
+      "kind": "normal",
+      "pitch": 0,
+      "frameHz": 247,
+      "share": 1
+    },
+    {
+      "name": "a negative pitch (A3)",
+      "kind": "normal",
+      "pitch": -3,
+      "frameHz": 440,
+      "share": 1
+    },
+    {
+      "name": "an unvoiced frame never matches",
+      "kind": "normal",
+      "pitch": 9,
+      "frameHz": 0,
+      "share": 0
+    },
+    {
+      "name": "a Rap note never counts",
+      "kind": "rap",
+      "pitch": 9,
+      "frameHz": 440,
+      "share": null
+    },
+    {
+      "name": "a Golden rap note never counts",
+      "kind": "goldenRap",
+      "pitch": 9,
+      "frameHz": 440,
+      "share": null
+    },
+    {
+      "name": "a Freestyle note never counts",
+      "kind": "freestyle",
+      "pitch": 9,
+      "frameHz": 440,
+      "share": null
+    }
+  ]
+}
