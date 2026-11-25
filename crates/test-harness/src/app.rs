@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
 use openstar::{Config, Server};
+use openstar_protocol::library::ScanStatus;
 use openstar_protocol::{ClientMessage, ServerMessage};
 use serde::de::DeserializeOwned;
 use tempfile::TempDir;
@@ -28,6 +29,10 @@ const NO_USDB: &str = "http://127.0.0.1:9";
 
 /// How long a WebSocket receive or a graceful stop may take before the test fails.
 const WAIT: Duration = Duration::from_secs(5);
+
+/// How long the start-up Library scan may take; generous, since other builds
+/// may load the machine.
+const SCAN_WAIT: Duration = Duration::from_secs(30);
 
 /// The temporary songs and appdata folders of a [`TestApp`]. They are removed
 /// when this value is dropped.
@@ -76,9 +81,17 @@ pub struct TestAppBuilder {
     usdb_credentials: bool,
     path_prefix: Option<PathBuf>,
     extra: BTreeMap<String, String>,
+    test_routes: bool,
 }
 
 impl TestAppBuilder {
+    /// Mounts the server's test-only routes (`Server::with_test_routes`),
+    /// also after a [`TestApp::restart`].
+    pub fn test_routes(mut self) -> Self {
+        self.test_routes = true;
+        self
+    }
+
     /// Starts on these folders instead of new ones (for example the folders a
     /// stopped app handed back, to start it again).
     pub fn folders(mut self, folders: AppFolders) -> Self {
@@ -150,9 +163,10 @@ impl TestAppBuilder {
             );
         }
 
-        let serving = serve(&vars, listener).await;
+        let serving = serve(&vars, self.test_routes, listener).await;
         TestApp {
             addr,
+            test_routes: self.test_routes,
             folders: Some(folders),
             vars,
             migrations_applied: serving.migrations_applied,
@@ -169,20 +183,80 @@ struct Serving {
     task: JoinHandle<std::io::Result<()>>,
 }
 
-/// Runs the startup steps with `vars` as the only settings, then serves on `listener`.
-async fn serve(vars: &BTreeMap<String, String>, listener: tokio::net::TcpListener) -> Serving {
+/// Runs the startup steps with `vars` as the only settings, then serves on
+/// `listener`, and returns once the start-up Library scan has ended, so its
+/// `changed` notice never reaches a test's WebSocket unasked.
+async fn serve(
+    vars: &BTreeMap<String, String>,
+    test_routes: bool,
+    listener: tokio::net::TcpListener,
+) -> Serving {
+    let addr = listener.local_addr().expect("the bound address");
     let config = Config::from_vars(|name| vars.get(name).cloned())
         .expect("the harness's settings are valid");
-    let server = Server::start(&config).await.expect("the app starts");
+    let mut server = Server::start(&config).await.expect("the app starts");
+    if test_routes {
+        server = server.with_test_routes();
+    }
     let migrations_applied = server.migrations_applied();
     let (shutdown, shutdown_rx) = oneshot::channel::<()>();
     let task = tokio::spawn(server.serve_with_shutdown(listener, async move {
         let _ = shutdown_rx.await;
     }));
+    wait_for_the_start_up_scan(addr).await;
     Serving {
         migrations_applied,
         shutdown,
         task,
+    }
+}
+
+/// Binds the stopped app's address again. The server's side of a connection
+/// the client has not closed yet (a pooled HTTP connection, a WebSocket the
+/// test still holds) stays in FIN-WAIT-2 and blocks the bind until the client
+/// closes it, so this retries for a while.
+async fn bind_again(addr: SocketAddr) -> tokio::net::TcpListener {
+    let deadline = tokio::time::Instant::now() + WAIT;
+    loop {
+        match tokio::net::TcpListener::bind(addr).await {
+            Ok(listener) => return listener,
+            Err(e)
+                if e.kind() == std::io::ErrorKind::AddrInUse
+                    && tokio::time::Instant::now() < deadline =>
+            {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            Err(e) => panic!(
+                "binding {addr} again: {e} (drop the WsClients that are still open before restart)"
+            ),
+        }
+    }
+}
+
+/// Polls `GET /api/library/scan` until no scan runs. The scan starts before
+/// the first request is answered, so a first answer never predates it.
+async fn wait_for_the_start_up_scan(addr: SocketAddr) {
+    let url = format!("http://{addr}/api/library/scan");
+    let http = reqwest::Client::new();
+    let deadline = tokio::time::Instant::now() + SCAN_WAIT;
+    loop {
+        let status: ScanStatus = http
+            .get(&url)
+            .send()
+            .await
+            .and_then(reqwest::Response::error_for_status)
+            .unwrap_or_else(|e| panic!("GET {url}: {e}"))
+            .json()
+            .await
+            .unwrap_or_else(|e| panic!("GET {url}: decoding the body: {e}"));
+        if !status.running {
+            return;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the start-up Library scan did not end within {SCAN_WAIT:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(5)).await;
     }
 }
 
@@ -201,6 +275,7 @@ pub struct TestApp {
     addr: SocketAddr,
     folders: Option<AppFolders>,
     vars: BTreeMap<String, String>,
+    test_routes: bool,
     migrations_applied: usize,
     http: reqwest::Client,
     shutdown: Option<oneshot::Sender<()>>,
@@ -222,6 +297,7 @@ impl TestApp {
             usdb_credentials: false,
             path_prefix: None,
             extra: BTreeMap::new(),
+            test_routes: false,
         }
     }
 
@@ -319,10 +395,10 @@ impl TestApp {
     /// new connection is told the reloaded live state.
     pub async fn restart(&mut self) {
         self.shut_down().await;
-        let listener = tokio::net::TcpListener::bind(self.addr)
-            .await
-            .unwrap_or_else(|e| panic!("binding {} again: {e}", self.addr));
-        let serving = serve(&self.vars, listener).await;
+        let listener = bind_again(self.addr).await;
+        let serving = serve(&self.vars, self.test_routes, listener).await;
+        // Connections kept alive to the stopped app are dead: start afresh.
+        self.http = reqwest::Client::new();
         self.migrations_applied = serving.migrations_applied;
         self.shutdown = Some(serving.shutdown);
         self.task = Some(serving.task);

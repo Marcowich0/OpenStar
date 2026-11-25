@@ -1,0 +1,9 @@
+#TITLE:Duet Take
+#ARTIST:Placeholder Band
+#MP3:shared.mp3
+#BPM:200
+P1
+: 0 4 0 La
+P2
+: 4 4 2 lo
+E

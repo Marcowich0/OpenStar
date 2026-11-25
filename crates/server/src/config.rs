@@ -26,6 +26,9 @@ pub struct Config {
     pub songs_dir: PathBuf,
     /// `OPENSTAR_APPDATA_DIR`: everything OpenStar owns, the database included.
     pub appdata_dir: PathBuf,
+    /// `PATH`: where child processes (ffmpeg, ffprobe, yt-dlp) are found and
+    /// the `PATH` they run with. `None` keeps the process's own.
+    pub tool_path: Option<String>,
 }
 
 /// The USDB login, handed to the Downloads area (#47).
@@ -77,6 +80,7 @@ impl Config {
             log: "info".to_owned(),
             songs_dir: songs_dir.to_path_buf(),
             appdata_dir: appdata_dir.to_path_buf(),
+            tool_path: None,
         }
     }
 
@@ -155,6 +159,7 @@ impl Config {
             log,
             songs_dir: dir("OPENSTAR_SONGS_DIR", "/songs"),
             appdata_dir: dir("OPENSTAR_APPDATA_DIR", "/appdata"),
+            tool_path: var("PATH"),
         })
     }
 
@@ -227,6 +232,13 @@ mod tests {
         assert_eq!(config.log, "info");
         assert_eq!(config.songs_dir, PathBuf::from("/songs"));
         assert_eq!(config.appdata_dir, PathBuf::from("/appdata"));
+        assert_eq!(config.tool_path, None);
+    }
+
+    #[test]
+    fn child_processes_get_the_path_read_through_the_settings() {
+        let config = Config::from_vars(vars(&[PIN, ("PATH", "/stub:/usr/bin")])).unwrap();
+        assert_eq!(config.tool_path.as_deref(), Some("/stub:/usr/bin"));
     }
 
     #[test]

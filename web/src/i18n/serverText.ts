@@ -41,6 +41,13 @@ export const userMessageText = byCode<UserMessage>({
     t("userMessage.profileNameTooLong", params),
   profileNameTaken: () => t("userMessage.profileNameTaken"),
   profileNotFound: () => t("userMessage.profileNotFound"),
+  jobCancelled: () => t("userMessage.jobCancelled"),
+  jobInterrupted: () => t("userMessage.jobInterrupted"),
+  toolNotFound: ({ params }) => t("userMessage.toolNotFound", params),
+  toolFailed: ({ params: { tool, exitCode } }) =>
+    exitCode === null
+      ? t("userMessage.toolStopped", { tool })
+      : t("userMessage.toolFailed", { tool, exitCode }),
 });
 
 /** An accepted change to the Party, as a toast. */
