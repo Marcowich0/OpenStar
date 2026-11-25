@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { profilesQuery, songsQuery } from "../../../api/queries";
 import { createQueryClient } from "../../../api/queryClient";
@@ -13,9 +13,17 @@ import type { Profile } from "../../../generated/Profile";
 import type { Request } from "../../../generated/Request";
 import type { Seat } from "../../../generated/Seat";
 import type { SongSummary } from "../../../generated/SongSummary";
+import type { UserMessage } from "../../../generated/UserMessage";
 import type { LiveClientOptions } from "../../../live/liveClient";
 import { createLiveStore } from "../../../live/liveStore";
+import { AVATAR_KEYS } from "../../../avatars/avatarIcons";
+import { PALETTE_KEYS } from "../../../theme/tokens";
 import { StageFrame } from "../../frame/StageFrame";
+
+// jsdom has no layout, so no scrolling; the Who list scrolls a focused entry into view.
+beforeAll(() => {
+  Element.prototype.scrollIntoView = () => {};
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -116,7 +124,22 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   ...over,
 });
 
-function setup(snapshot: PartySnapshot = party()) {
+const profile = (
+  id: number,
+  name: string,
+  lastSungAt: number | null,
+  favouriteColour: Profile["favouriteColour"] = "lime",
+): Profile => ({
+  id,
+  name,
+  avatar: { kind: "builtIn", key: "fish" },
+  favouriteColour,
+  lastDifficulty: "medium",
+  createdAt: 1,
+  lastSungAt,
+});
+
+function setup(snapshot: PartySnapshot = party(), profiles: Profile[] = [bo]) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
   const sent: ClientMessage[] = [];
@@ -131,7 +154,7 @@ function setup(snapshot: PartySnapshot = party()) {
     };
   });
   const queries = createQueryClient();
-  queries.setQueryData(profilesQuery.queryKey, [bo]);
+  queries.setQueryData(profilesQuery.queryKey, profiles);
   queries.setQueryData(songsQuery().queryKey, {
     songs: [
       song(10, "Islands", true),
@@ -176,7 +199,12 @@ function setup(snapshot: PartySnapshot = party()) {
   };
   const edits = () =>
     sent.flatMap((m) => (m.type === "editLineUp" ? [m.edit] : []));
-  return { sent, edits, changeParty };
+  const reject = (reason: UserMessage) => {
+    live((h) => {
+      h.onMessage({ type: "rejected", reason });
+    });
+  };
+  return { sent, edits, changeParty, reject };
 }
 
 function press(key: string) {
@@ -302,7 +330,7 @@ describe("editing a seat", () => {
       within(list)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Bo", "Mia", "Jonas"]);
+    ).toEqual(["Bo", "Mia", "Jonas", "+ Guest", "+ Profile"]);
     click(within(list).getByRole("menuitem", { name: /Jonas/ }));
     expect(edits()).toEqual([
       { kind: "setWho", seat: 1, who: { kind: "member", memberId: 3 } },
@@ -426,5 +454,301 @@ describe("changes while the Line-up waits", () => {
     });
     expect(seats()).toHaveLength(1);
     expect(within(toasts()).queryByText(/Line-up/)).toBeNull();
+  });
+});
+
+describe("the Who list's Profiles not yet in the Party", () => {
+  const profiles = [
+    bo,
+    profile(8, "Zoe", null),
+    profile(9, "Ann", 500),
+    profile(10, "Cid", 900),
+  ];
+
+  it("follow the Party members, most recently sung first, then + Guest and + Profile", () => {
+    setup(party(), profiles);
+    click(screen.getByRole("button", { name: "Who: Mia" }));
+    expect(
+      within(screen.getByRole("menu", { name: "Who sings" }))
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Bo",
+      "Mia",
+      "Jonas",
+      "Cid",
+      "Ann",
+      "Zoe",
+      "+ Guest",
+      "+ Profile",
+    ]);
+  });
+
+  it("seat a picked Profile, which enters the Party", () => {
+    const { edits } = setup(party(), profiles);
+    click(screen.getByRole("button", { name: "Who: Mia" }));
+    click(screen.getByRole("menuitem", { name: /Ann/ }));
+    expect(edits()).toEqual([
+      { kind: "setWho", seat: 1, who: { kind: "profile", profileId: 9 } },
+    ]);
+  });
+
+  it("adds a seat for a Profile picked from 'Add a singer'", () => {
+    const { edits } = setup(party(), profiles);
+    click(screen.getByRole("button", { name: /Add a singer/ }));
+    click(screen.getByRole("menuitem", { name: /Zoe/ }));
+    expect(edits()).toEqual([
+      { kind: "addSeat", who: { kind: "profile", profileId: 8 } },
+    ]);
+  });
+
+  it("shows 'Party is full' in the list when the server refuses the Profile", async () => {
+    const { reject } = setup(party(), profiles);
+    click(screen.getByRole("button", { name: "Who: Mia" }));
+    click(screen.getByRole("menuitem", { name: /Ann/ }));
+    reject({ code: "partyFull" });
+    const list = screen.getByRole("menu", { name: "Who sings" });
+    expect(await within(list).findByRole("alert")).toHaveTextContent(
+      "Party is full",
+    );
+  });
+
+  it("closes the list once the Profile sits in the seat", () => {
+    const { changeParty } = setup(party(), profiles);
+    click(screen.getByRole("button", { name: "Who: Mia" }));
+    click(screen.getByRole("menuitem", { name: /Ann/ }));
+    const ann: PartyMember = {
+      memberId: 4,
+      identity: { kind: "profile", profileId: 9 },
+      colour: "lime",
+      favouriteTaken: false,
+      onPhone: false,
+      singing: true,
+    };
+    changeParty(
+      party({
+        members: [...members, ann],
+        lineUp: lineUp({ seats: [seat(1, "ph-bo"), seat(4, null)] }),
+      }),
+      {
+        actor: { kind: "stage" },
+        event: {
+          code: "memberJoined",
+          params: { memberId: 4, name: "Ann", colour: "lime" },
+        },
+      },
+    );
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+describe("+ Guest and + Profile", () => {
+  const openForm = (entry: "+ Guest" | "+ Profile", whoButton = "Who: Mia") => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    const result = setup(party(), [bo, profile(9, "Ann", 500)]);
+    click(screen.getByRole("button", { name: whoButton }));
+    click(screen.getByRole("menuitem", { name: entry }));
+    return result;
+  };
+  const list = () => screen.getByRole("menu", { name: "Who sings" });
+  const nameBox = () => within(list()).getByRole("textbox", { name: "Name" });
+  const colours = () =>
+    within(list()).getByRole("radiogroup", { name: "Colour" });
+  const pictures = () =>
+    within(list()).getByRole("radiogroup", { name: "Picture" });
+  const checked = (group: HTMLElement) =>
+    within(group)
+      .getAllByRole("radio")
+      .filter((r) => r.getAttribute("aria-checked") === "true")
+      .map((r) => r.getAttribute("aria-label"));
+  const type = (text: string) => {
+    act(() => {
+      fireEvent.change(nameBox(), { target: { value: text } });
+    });
+  };
+  const ok = () => within(list()).getByRole("button", { name: "OK" });
+
+  it("opens a form in the same list with the name box focused", () => {
+    openForm("+ Guest");
+    expect(within(list()).getByRole("heading")).toHaveTextContent("New Guest");
+    expect(nameBox()).toHaveFocus();
+  });
+
+  it("offers only the free Party colours, the first free one preselected", () => {
+    openForm("+ Guest");
+    expect(
+      within(colours())
+        .getAllByRole("radio")
+        .map((r) => r.getAttribute("aria-label")),
+    ).toEqual([
+      "Cherry",
+      "Navy",
+      "Cocoa",
+      "Teal",
+      "Lime",
+      "Berry",
+      "Mint",
+      "Bubblegum",
+      "Forest",
+    ]);
+    expect(checked(colours())).toEqual(["Cherry"]);
+  });
+
+  it("offers the 24 avatar icons, one prefilled", () => {
+    openForm("+ Profile");
+    expect(within(pictures()).getAllByRole("radio")).toHaveLength(24);
+    expect(checked(pictures())).toEqual(["Picture 1"]);
+  });
+
+  it("steps each row with ← and →, and leaves it with ↑ and ↓", () => {
+    openForm("+ Guest");
+    press("ArrowDown");
+    expect(colours()).toHaveFocus();
+    press("ArrowRight");
+    press("ArrowRight");
+    press("ArrowLeft");
+    expect(checked(colours())).toEqual(["Navy"]);
+    press("ArrowDown");
+    expect(pictures()).toHaveFocus();
+    press("ArrowRight");
+    expect(checked(pictures())).toEqual(["Picture 2"]);
+    press("ArrowUp");
+    expect(colours()).toHaveFocus();
+    press("ArrowUp");
+    expect(nameBox()).toHaveFocus();
+    press("ArrowDown");
+    press("ArrowDown");
+    press("ArrowDown");
+    expect(ok()).toHaveFocus();
+  });
+
+  it("OK seats a new Guest with the typed name, colour and avatar", () => {
+    const { edits } = openForm("+ Guest");
+    type("  Noor ");
+    press("ArrowDown");
+    press("ArrowRight");
+    click(ok());
+    expect(edits()).toEqual([
+      {
+        kind: "setWho",
+        seat: 1,
+        who: {
+          kind: "guest",
+          name: "Noor",
+          colour: "navy",
+          avatar: { kind: "builtIn", key: AVATAR_KEYS[0] },
+        },
+      },
+    ]);
+  });
+
+  it("Enter in the name box seats a new Profile in a new seat", () => {
+    const { edits } = openForm("+ Profile", "Add a singer");
+    type("Noor");
+    press("Enter");
+    expect(edits()).toEqual([
+      {
+        kind: "addSeat",
+        who: {
+          kind: "newProfile",
+          name: "Noor",
+          avatar: { kind: "builtIn", key: AVATAR_KEYS[0] },
+          favouriteColour: "cherry",
+        },
+      },
+    ]);
+  });
+
+  it("closes once the new singer sits in the seat", () => {
+    const { changeParty } = openForm("+ Guest");
+    type("Noor");
+    click(ok());
+    changeParty(
+      party({
+        members: [...members, guest(4, "Noor")],
+        lineUp: lineUp({ seats: [seat(1, "ph-bo"), seat(4, null)] }),
+      }),
+      {
+        actor: { kind: "stage" },
+        event: {
+          code: "memberJoined",
+          params: { memberId: 4, name: "Noor", colour: "cherry" },
+        },
+      },
+    );
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+
+  it("refuses a name that is too long", () => {
+    const { edits } = openForm("+ Guest");
+    type("Abcdefghijklmnopq");
+    expect(within(list()).getByRole("alert")).toHaveTextContent(
+      "16 characters",
+    );
+    click(ok());
+    expect(edits()).toEqual([]);
+  });
+
+  it("offers the existing Profile for a Profile's name", () => {
+    const { edits } = openForm("+ Guest");
+    type("ann");
+    expect(within(list()).getByText("Are you Ann?")).toBeVisible();
+    click(ok());
+    expect(edits()).toEqual([]);
+    click(within(list()).getByRole("button", { name: "Yes" }));
+    expect(edits()).toEqual([
+      { kind: "setWho", seat: 1, who: { kind: "profile", profileId: 9 } },
+    ]);
+  });
+
+  it("refuses the name of a Guest in the Party tonight", () => {
+    openForm("+ Profile");
+    type("jonas");
+    expect(within(list()).getByRole("alert")).toHaveTextContent(
+      "Someone already has that name tonight",
+    );
+  });
+
+  it("shows the server's refusal in the form", async () => {
+    const { reject } = openForm("+ Guest");
+    type("Noor");
+    click(ok());
+    reject({ code: "partyFull" });
+    expect(await within(list()).findByRole("alert")).toHaveTextContent(
+      "Party is full",
+    );
+  });
+
+  it("says 'Party is full' when every Party colour is held", () => {
+    const full = PALETTE_KEYS.map((colour, index) => ({
+      ...guest(index + 1, `G${String(index + 1)}`),
+      colour,
+    }));
+    setup(
+      party({
+        members: full,
+        phones: [],
+        lineUp: lineUp({ seats: [seat(1, null)] }),
+      }),
+    );
+    click(screen.getByRole("button", { name: /Add a singer/ }));
+    click(screen.getByRole("menuitem", { name: "+ Guest" }));
+    expect(within(list()).getByRole("alert")).toHaveTextContent(
+      "Party is full",
+    );
+    expect(within(colours()).queryAllByRole("radio")).toEqual([]);
+  });
+
+  it("keeps the focus in the name box while the mouse passes over the form", () => {
+    openForm("+ Guest");
+    act(() => {
+      fireEvent.pointerOver(colours());
+    });
+    expect(nameBox()).toHaveFocus();
+    press("ArrowDown");
+    act(() => {
+      fireEvent.pointerOver(ok());
+    });
+    expect(ok()).toHaveFocus();
   });
 });

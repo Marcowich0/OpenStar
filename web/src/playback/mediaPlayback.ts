@@ -7,6 +7,11 @@
  * of the audio) and then signals, once, that the Song ended.
  *
  * Everything else reads the position through the clock's `songTime()`.
+ *
+ * The adapter is also the only code that moves the element: once to `#START`
+ * when the Song starts, and again on Restart (#158), the sing screen's only
+ * seek. Pause, resume and stalls never seek, so the media and the clock carry
+ * on from where they stopped.
  */
 
 import { createSongClock, type SongClock } from "../clock/songClock";
@@ -62,8 +67,20 @@ export interface MediaPlayback {
   start(): Promise<void>;
   /** Pauses the element; the clock freezes on its `pause` event. */
   pause(): void;
-  /** Plays the element on from where it paused (#158 adds the countdown before it). */
+  /**
+   * Plays the element on from where it paused. The resume countdown runs
+   * before this (`stage/playback/songControls.ts`); the clock starts on the
+   * element's `playing` event, so it stays frozen until then.
+   */
   resume(): Promise<void>;
+  /**
+   * Restart: seeks the element and the clock back to `#START` and plays,
+   * also from a pause. The clock marks the seek (`lastSeekAt`), so readings
+   * from before it are dropped, and holds Song time at `#START` until the
+   * element's seek lands (`seeked`). Does nothing once the Song has ended.
+   * Rejects like `start()` when the browser refuses to play.
+   */
+  restart(): Promise<void>;
   /** End: stops the Song early and signals `ended`. */
   end(): void;
   /** Stops and lets go of the element, with no signal (Skip, leaving the screen). */
@@ -89,6 +106,8 @@ export function createMediaPlayback(
   let videoFrame: number | null = null;
   let running = false;
   let finished = false;
+  /** A Restart's seek has not landed yet: `playing` says nothing until it does. */
+  let seeking = false;
 
   /** Stops at `#END`; reports whether it did. */
   function checkEnd(): boolean {
@@ -134,7 +153,12 @@ export function createMediaPlayback(
   const listeners: Record<string, () => void> = {
     // Only now does the media really play: the clock starts here, also after a stall.
     playing: () => {
-      clock.play();
+      if (!seeking) clock.play();
+    },
+    seeked: () => {
+      if (!seeking) return;
+      seeking = false;
+      if (!element.paused) clock.play();
     },
     waiting: () => {
       clock.stall();
@@ -194,6 +218,15 @@ export function createMediaPlayback(
     },
     async resume() {
       if (!finished) await element.play();
+    },
+    async restart() {
+      if (finished || !running) return;
+      // Freeze first, so Song time jumps back to `#START` and waits there.
+      clock.pause();
+      seeking = true;
+      element.currentTime = plan.startSeconds;
+      clock.seek(plan.startSeconds);
+      if (element.paused) await element.play();
     },
     end() {
       finish("ended");

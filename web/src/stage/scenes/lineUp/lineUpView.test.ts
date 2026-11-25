@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { LineUp } from "../../../generated/LineUp";
 import type { PartyMember } from "../../../generated/PartyMember";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
+import type { Profile } from "../../../generated/Profile";
 import type { Request } from "../../../generated/Request";
 import {
   micChoices,
@@ -10,6 +11,8 @@ import {
   nextDifficulty,
   nextVoice,
   placeWarnings,
+  pickListTop,
+  profilesToEnter,
   thenSongIds,
 } from "./lineUpView";
 
@@ -165,5 +168,62 @@ describe("the Mic pick list", () => {
     const choices = micChoices(party({ lineUp: seated }), seated, 1, localMics);
     expect(choices[0]).toMatchObject({ usedBy: 1, current: false });
     expect(choices[2]).toMatchObject({ usedBy: null, current: true });
+  });
+});
+
+describe("profilesToEnter", () => {
+  const profile = (
+    id: number,
+    name: string,
+    lastSungAt: number | null,
+  ): Profile => ({
+    id,
+    name,
+    avatar: { kind: "builtIn", key: "cat" },
+    favouriteColour: "sky",
+    lastDifficulty: "medium",
+    createdAt: 1,
+    lastSungAt,
+  });
+
+  it("lists Profiles not in the Party, most recently sung first, then those that never sang by name", () => {
+    const profiles = [
+      profile(1, "Zoe", null),
+      profile(2, "Ann", 100),
+      profile(3, "bea", null),
+      profile(4, "Cid", 300),
+      profile(5, "Dan", 200),
+      profile(6, "Abe", null),
+    ];
+    const members = [member(5)];
+    expect(profilesToEnter(members, profiles).map((p) => p.name)).toEqual([
+      "Cid",
+      "Ann",
+      "Abe",
+      "bea",
+      "Zoe",
+    ]);
+  });
+
+  it("is empty while the Profiles load", () => {
+    expect(profilesToEnter([member(1)], undefined)).toEqual([]);
+  });
+});
+
+describe("pickListTop", () => {
+  // The anchor spans 300..450 in the 1080 px tall reference frame.
+  const anchor = { top: 300, bottom: 450 };
+
+  it("hangs a list that fits 16 px under its field", () => {
+    expect(pickListTop(anchor, 400)).toBe(166);
+  });
+
+  it("opens a list above the field when it does not fit under it", () => {
+    expect(pickListTop({ top: 700, bottom: 820 }, 500)).toBe(-516);
+  });
+
+  it("keeps a list that fits neither way 20 px inside the frame", () => {
+    expect(pickListTop(anchor, 800)).toBe(1060 - 800 - 300);
+    expect(pickListTop(anchor, 1200)).toBe(20 - 300);
   });
 });
