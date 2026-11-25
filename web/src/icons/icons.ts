@@ -2,7 +2,7 @@
 // folder, put on the document as `--icon-<name>` custom properties by
 // `icons.css`; `Icon` (ui/Icon.tsx) draws one by name.
 
-export const ICON_NAMES = ["close", "lock"] as const;
+export const ICON_NAMES = ["backspace", "close", "lock"] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
 
