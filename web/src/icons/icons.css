@@ -12,11 +12,14 @@
 
 :root {
   --icon-backspace: url("./backspace.svg");
+  --icon-check: url("./check.svg");
   --icon-chevron: url("./chevron.svg");
   --icon-close: url("./close.svg");
   --icon-list: url("./list.svg");
   --icon-lock: url("./lock.svg");
   --icon-music: url("./music.svg");
   --icon-people: url("./people.svg");
+  --icon-plus: url("./plus.svg");
+  --icon-search: url("./search.svg");
   --icon-tv: url("./tv.svg");
 }
