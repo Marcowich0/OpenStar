@@ -66,6 +66,14 @@ export interface SongClock {
    * before the clock existed, or in the future).
    */
   songTimeAt(stageTime: number): number | null;
+  /**
+   * Whether the Song was playing at a past Stage time `stageTime` (ms): played
+   * and not paused, stalled, counting down or ended. `false` wherever
+   * `songTimeAt` returns `null`.
+   */
+  playingAt(stageTime: number): boolean;
+  /** Stage time (ms) of the latest `seek` (Restart), `null` before any. */
+  readonly lastSeekAt: number | null;
   /** The rate set by `setRate` (1 unless changed). */
   readonly rate: number;
   /** Whether the clock is running (played, not paused or stalled). */
@@ -90,6 +98,8 @@ interface Segment {
   start: number;
   position: number;
   rate: number;
+  /** Played, as opposed to frozen by a pause or stall (a hold still plays). */
+  playing: boolean;
 }
 
 interface Sample {
@@ -106,17 +116,30 @@ export function createSongClock(options: SongClockOptions): SongClock {
   let rate = 1;
   let playing = false;
   /** Sorted by start. May hold one future segment: where a slew or hold ends. */
-  let segments: Segment[] = [{ start: createdAt, position: 0, rate: 0 }];
+  let segments: Segment[] = [
+    { start: createdAt, position: 0, rate: 0, playing: false },
+  ];
   let samples: Sample[] = [];
+  let lastSeekAt: number | null = null;
 
-  function positionAt(t: number): number | null {
+  function segmentAt(t: number): Segment | undefined {
     let found: Segment | undefined;
     for (const segment of segments) {
       if (segment.start > t) break;
       found = segment;
     }
+    return found;
+  }
+
+  function positionAt(t: number): number | null {
+    const found = segmentAt(t);
     if (!found) return null;
     return found.position + ((t - found.start) / 1000) * found.rate;
+  }
+
+  function inHistory(stageTime: number): boolean {
+    const t = now();
+    return stageTime <= t && stageTime >= t - SONG_CLOCK.historyMs;
   }
 
   function current(): number {
@@ -154,27 +177,28 @@ export function createSongClock(options: SongClockOptions): SongClock {
     const drift = intercept + (rate * t) / 1000 - position_;
 
     if (drift > SONG_CLOCK.snapThresholdS) {
-      anchor(t, { start: t, position: position_ + drift, rate });
+      anchor(t, { start: t, position: position_ + drift, rate, playing });
     } else if (drift < -SONG_CLOCK.snapThresholdS) {
       // Song time never runs backwards while playing: hold until the media catches up.
       const holdMs = (-drift / rate) * 1000;
       anchor(
         t,
-        { start: t, position: position_, rate: 0 },
-        { start: t + holdMs, position: position_, rate },
+        { start: t, position: position_, rate: 0, playing },
+        { start: t + holdMs, position: position_, rate, playing },
       );
     } else if (Math.abs(drift) < SONG_CLOCK.deadbandS) {
-      anchor(t, { start: t, position: position_, rate });
+      anchor(t, { start: t, position: position_, rate, playing });
     } else {
       const slew = Math.sign(drift) * SONG_CLOCK.maxSlew * rate;
       const slewMs = (drift / slew) * 1000;
       anchor(
         t,
-        { start: t, position: position_, rate: rate + slew },
+        { start: t, position: position_, rate: rate + slew, playing },
         {
           start: t + slewMs,
           position: position_ + drift + (rate * slewMs) / 1000,
           rate,
+          playing,
         },
       );
     }
@@ -183,7 +207,7 @@ export function createSongClock(options: SongClockOptions): SongClock {
   function freeze() {
     if (!playing) return;
     const t = now();
-    anchor(t, { start: t, position: current(), rate: 0 });
+    anchor(t, { start: t, position: current(), rate: 0, playing: false });
     playing = false;
     samples = [];
   }
@@ -191,9 +215,13 @@ export function createSongClock(options: SongClockOptions): SongClock {
   return {
     songTime: current,
     songTimeAt(stageTime) {
-      const t = now();
-      if (stageTime > t || stageTime < t - SONG_CLOCK.historyMs) return null;
-      return positionAt(stageTime);
+      return inHistory(stageTime) ? positionAt(stageTime) : null;
+    },
+    playingAt(stageTime) {
+      return inHistory(stageTime) && (segmentAt(stageTime)?.playing ?? false);
+    },
+    get lastSeekAt() {
+      return lastSeekAt;
     },
     get rate() {
       return rate;
@@ -211,7 +239,7 @@ export function createSongClock(options: SongClockOptions): SongClock {
     play() {
       if (playing) return;
       const t = now();
-      anchor(t, { start: t, position: current(), rate });
+      anchor(t, { start: t, position: current(), rate, playing: true });
       playing = true;
       samples = [];
     },
@@ -219,7 +247,8 @@ export function createSongClock(options: SongClockOptions): SongClock {
     stall: freeze,
     seek(position) {
       const t = now();
-      anchor(t, { start: t, position, rate: playing ? rate : 0 });
+      anchor(t, { start: t, position, rate: playing ? rate : 0, playing });
+      lastSeekAt = t;
       samples = [];
     },
     setRate(next) {
@@ -229,7 +258,9 @@ export function createSongClock(options: SongClockOptions): SongClock {
         );
       }
       const t = now();
-      if (playing) anchor(t, { start: t, position: current(), rate: next });
+      if (playing) {
+        anchor(t, { start: t, position: current(), rate: next, playing });
+      }
       rate = next;
       samples = [];
     },

@@ -19,6 +19,8 @@ Ok(
              12 Body ": 24 4 0 one" Lf,
              13 Body ":\t26 4 2\tover" Lf,
         ],
+        encoding: Utf8,
+        bom: false,
         song: ParsedSong {
             headers: SongHeaders {
                 generation: Unversioned,

@@ -261,7 +261,7 @@ pub(super) fn interpret(
 }
 
 /// The major version of a `major.minor.patch` version, if it is one.
-fn parse_version(text: &str) -> Option<u64> {
+pub(super) fn parse_version(text: &str) -> Option<u64> {
     let parts: Vec<&str> = text.split('.').collect();
     let [major, minor, patch] = parts.as_slice() else {
         return None;

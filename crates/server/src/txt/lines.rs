@@ -50,14 +50,16 @@ pub struct Line {
     pub kind: LineKind,
 }
 
+/// Shows the raw bytes, with every non-ASCII byte escaped (`\xE9`), so a
+/// snapshot pins the bytes whatever the file's encoding.
 impl std::fmt::Debug for Line {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:>3} {:?} {:?} {:?}",
+            "{:>3} {:?} \"{}\" {:?}",
             self.number,
             self.kind,
-            String::from_utf8_lossy(&self.bytes),
+            self.bytes.escape_ascii(),
             self.ending
         )
     }
