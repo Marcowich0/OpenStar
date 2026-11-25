@@ -66,18 +66,19 @@ ascending); else ≥ _h_ passing the threshold → voice without pitch; else no 
 Each file is one Song's Voices and one or more Players, each scored alone against
 one Voice from stored Beat values.
 
-| Field                          | Meaning                                                                                                                                                    |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gapSeconds`, `beatsPerMinute` | The Beat grid, as in `beats.json`; `file` shows the headers as written.                                                                                    |
-| `startSeconds`                 | `#START` in seconds, or `null`. A Note whose first Beat starts before it is not scored.                                                                    |
-| `voices`                       | The parsed Song's Voices: `lines`, each with `notes` (`kind` as the generated `NoteKind`, `start` and `length` in Beats, `pitch` with 0 = C4, as written). |
-| `players[].voice`              | The index of the Voice the Player sings.                                                                                                                   |
-| `players[].difficulty`         | `easy`, `medium` or `hard`.                                                                                                                                |
-| `players[].range`              | Optional Beat range `{ firstBeat, lastBeat }`, both included; absent means the whole Voice.                                                                |
-| `players[].firstBeat`          | The Beat the first stored value belongs to; the values follow one per Beat.                                                                                |
-| `players[].beatValues`         | The stored Beat values, compactly: `null` no voice, `"voice"` voice without pitch, a number a pitch (fractional MIDI note number).                         |
-| `players[].expected`           | The range used (`firstBeat`, `lastBeat`), `voiceValue`, the `notes` and `golden` sums, and the judged Beats split into `hitBeats` and `missedBeats`.       |
-| `comment`                      | Optional, at file or Player level: how the expected values were worked out by hand.                                                                        |
+| Field                          | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `gapSeconds`, `beatsPerMinute` | The Beat grid, as in `beats.json`; `file` shows the headers as written.                                                                                                                                                                                                                                                                                                                                                                          |
+| `startSeconds`                 | `#START` in seconds, or `null`. A Note whose first Beat starts before it is not scored.                                                                                                                                                                                                                                                                                                                                                          |
+| `voices`                       | The parsed Song's Voices: `lines`, each with `notes` (`kind` as the generated `NoteKind`, `start` and `length` in Beats, `pitch` with 0 = C4, as written).                                                                                                                                                                                                                                                                                       |
+| `players[].voice`              | The index of the Voice the Player sings.                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `players[].difficulty`         | `easy`, `medium` or `hard`.                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `players[].range`              | Optional Beat range `{ firstBeat, lastBeat }`, both included; absent means the whole Voice.                                                                                                                                                                                                                                                                                                                                                      |
+| `players[].firstBeat`          | The Beat the first stored value belongs to; the values follow one per Beat.                                                                                                                                                                                                                                                                                                                                                                      |
+| `players[].beatValues`         | The stored Beat values, compactly: `null` no voice, `"voice"` voice without pitch, a number a pitch (fractional MIDI note number); `{ "repeat": v, "times": n }` is `v` for `n` Beats in a row.                                                                                                                                                                                                                                                  |
+| `players[].finished`           | Optional: Song times (seconds) at which the Song ends, each with whether the Player's Score is then Finished.                                                                                                                                                                                                                                                                                                                                    |
+| `players[].expected`           | The range used (`firstBeat`, `lastBeat`), `voiceValue`, the `notes` and `golden` sums, and the judged Beats split into `hitBeats` and `missedBeats`. Optional: the `lineBonus` sum, `lines` (each ended scored Line in the order it ended: `lineIndex`, `rating`, `word` as its `t()` key or `null`, and `bonus`), and `score` (the `total` and its `notes`, `golden` and `lineBonus` parts). Long files leave out `hitBeats` and `missedBeats`. |
+| `comment`                      | Optional, at file or Player level: how the expected values were worked out by hand.                                                                                                                                                                                                                                                                                                                                                              |
 
 The rules (#54): a scored Note has factor > 0 (Normal 1, Golden 2, Rap 1, Golden Rap 2,
 Freestyle 0), length > 0, lies wholly inside the range and does not start before
@@ -88,3 +89,19 @@ scored Note covers are not judged. Rap and Golden Rap hit on voice without pitch
 pitch; Normal and Golden hit on a pitch with |d'| ≤ tolerance (Easy 250, Medium 150,
 Hard 50 cents), d = (sung − Note pitch) × 100, d' = d − 1200 × ⌊(d + 600) / 1200⌋. The
 whole Voice runs from the first Beat of its first Note to the last Beat of its last Note.
+
+A **scored Line** has lineValue = Σ length × factor over its scored Notes > 0; it ends when its
+last scored Beat is judged (or a later Beat, if that one was skipped). Then lineMax = 9000 ×
+lineValue / voiceValue; linePerfection = clamp(linePoints / (lineMax − 2), 0, 1) when lineMax > 2,
+else clamp(linePoints / lineMax, 0, 1), where linePoints counts only points earned on the Line's
+own scored Notes; the Line bonus sum grows by 1000 / scoredLineCount × linePerfection; the rating
+is roundHalfUp(linePerfection × 8), with the word 8 `sing.lineRating.perfect`, 6–7 `…great`,
+4–5 `…good`, 2–3 `…ok`, 0–1 none. A Line not ended when the values stop gives nothing. A Score
+is Finished when the Song time is past the end of the last scored Note of the Voice in the range.
+
+## `totals.json`: the total and its parts
+
+Each case is three unrounded `sums` (`notes`, `golden`, `lineBonus`) and the `score` they give.
+total = roundHalfUp(notes + golden + lineBonus). Each part is rounded half up; if they add up to
+more than the total, golden loses 1 if above 0, else Notes if above 0, else the Line bonus; if
+to less, Notes gains 1 if Notes > 0 or golden = 0, else golden gains 1.
