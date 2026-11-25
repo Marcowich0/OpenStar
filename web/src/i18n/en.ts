@@ -236,4 +236,30 @@ export const en = {
     "Stretched around the pinned Line: BPM {fromBpm, number} → {toBpm, number}, GAP {fromGap, number} → {toGap, number} ms",
   "timing.edit.tempoAroundPlayhead":
     "Tempo around the playhead: BPM {fromBpm, number} → {toBpm, number}, GAP {fromGap, number} → {toGap, number} ms",
+  // Line and Note edits: what moved ("Lines 3–5", "Note “la” in Line 3"),
+  // then by how many whole Beats.
+  "timing.lines.one": "Line {line, number}",
+  "timing.lines.range": "Lines {first, number}–{last, number}",
+  "timing.note": "Note “{text}” in Line {line, number}",
+  "timing.edit.shiftLinesLater": {
+    one: "{what}: +{count, number} beat",
+    other: "{what}: +{count, number} beats",
+  },
+  "timing.edit.shiftLinesEarlier": {
+    one: "{what}: −{count, number} beat",
+    other: "{what}: −{count, number} beats",
+  },
+  "timing.edit.stretchLines": "{lines}: stretched ×{factor, number}",
+  "timing.edit.moveNoteLater": {
+    one: "{what} moved +{count, number} beat",
+    other: "{what} moved +{count, number} beats",
+  },
+  "timing.edit.moveNoteEarlier": {
+    one: "{what} moved −{count, number} beat",
+    other: "{what} moved −{count, number} beats",
+  },
+  "timing.edit.noteLength": {
+    one: "{note}: length {from, number} → {count, number} beat",
+    other: "{note}: length {from, number} → {count, number} beats",
+  },
 } as const satisfies Record<string, Entry>;
