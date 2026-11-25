@@ -9,6 +9,8 @@ const party: PartySnapshot = {
   stageId: "main",
   joinCode: "0427",
   startedAtMs: 1000,
+  members: [],
+  phones: [],
 };
 
 const synced = (isStage: boolean, current: PartySnapshot | null = party) =>
@@ -29,6 +31,40 @@ const started = (next: PartySnapshot): ServerMessage => ({
 });
 
 describe("live state reducer", () => {
+  it("knows nothing of this browser's Phone until the server says", () => {
+    expect(initialLiveState.phone).toBeNull();
+    expect(initialLiveState.validJoinCode).toBeNull();
+  });
+
+  it("takes the Party member this Phone uses from its status", () => {
+    const joined = receive(synced(false), {
+      type: "phoneStatus",
+      memberId: 3,
+    });
+    expect(joined.phone).toEqual({ memberId: 3, leftParty: false });
+    const notIn = receive(synced(false), {
+      type: "phoneStatus",
+      memberId: null,
+    });
+    expect(notIn.phone).toEqual({ memberId: null, leftParty: false });
+  });
+
+  it("marks a Phone that left the Party, until its next status", () => {
+    const joined = receive(synced(false), { type: "phoneStatus", memberId: 3 });
+    const left = receive(joined, { type: "leftParty" });
+    expect(left.phone).toEqual({ memberId: null, leftParty: true });
+    const again = receive(left, { type: "phoneStatus", memberId: 1 });
+    expect(again.phone).toEqual({ memberId: 1, leftParty: false });
+  });
+
+  it("keeps the Join code the server confirmed", () => {
+    const checked = receive(synced(false), {
+      type: "joinCodeValid",
+      joinCode: "0427",
+    });
+    expect(checked.validJoinCode).toBe("0427");
+  });
+
   it("takes the whole Stage state from the live-state message", () => {
     expect(synced(true).stage).toEqual({
       stageId: "main",

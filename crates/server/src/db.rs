@@ -54,6 +54,29 @@ const MIGRATIONS: &[&str] = &[
         created_ms       INTEGER NOT NULL,
         last_sung_ms     INTEGER
     ) STRICT;",
+    // 5: the current Party's members and joined Phones. Both go with their
+    // Party (New party deletes the `parties` row), and a member's Phones go
+    // with the member. One holder per colour and one membership per Profile
+    // are kept by the live-state task and backed by UNIQUE here. A member is
+    // a Profile for now; Guests add their columns later.
+    "CREATE TABLE party_members (
+        party_id        TEXT NOT NULL REFERENCES parties(id) ON DELETE CASCADE,
+        member_id       INTEGER NOT NULL,
+        profile_id      INTEGER REFERENCES profiles(id),
+        colour          TEXT NOT NULL,
+        favourite_taken INTEGER NOT NULL,
+        PRIMARY KEY (party_id, member_id),
+        UNIQUE (party_id, colour),
+        UNIQUE (party_id, profile_id)
+    ) STRICT;
+    CREATE TABLE joined_phones (
+        party_id  TEXT NOT NULL,
+        phone_id  TEXT NOT NULL,
+        member_id INTEGER NOT NULL,
+        PRIMARY KEY (party_id, phone_id),
+        FOREIGN KEY (party_id, member_id)
+            REFERENCES party_members(party_id, member_id) ON DELETE CASCADE
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

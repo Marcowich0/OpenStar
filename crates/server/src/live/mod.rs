@@ -18,12 +18,13 @@ mod store;
 use std::collections::HashMap;
 
 use openstar_protocol::{
-    Actor, ChangeEvent, ChangeTopic, ClientMessage, PartyEvent, PartySnapshot, ServerMessage,
-    StageId, UserMessage,
+    Actor, ChangeEvent, ChangeTopic, ClientMessage, JoinAs, JoinCode, JoinedPhone, PartyEvent,
+    PartySnapshot, PhoneId, ServerMessage, StageId, UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
 use crate::db::Database;
+use crate::profiles;
 use hub::{Connection, ConnectionId, Hub};
 
 /// The one Stage id in use in v1.
@@ -146,6 +147,10 @@ struct LiveState {
     current_stage: StageId,
     stages: HashMap<StageId, Stage>,
     hub: Hub,
+    /// The Phone id each connection presented. Kept for the connection's
+    /// life, whether or not that Phone is in the Party, so a Phone told it
+    /// left can join again on the same connection.
+    phones: HashMap<ConnectionId, PhoneId>,
 }
 
 impl LiveState {
@@ -166,6 +171,7 @@ impl LiveState {
             current_stage: stage_id,
             stages,
             hub: Hub::default(),
+            phones: HashMap::new(),
         })
     }
 
@@ -238,6 +244,7 @@ impl LiveState {
 
     fn disconnect(&mut self, id: ConnectionId) {
         self.hub.remove(id);
+        self.phones.remove(&id);
         let stage = self.stage_mut();
         if stage.connection == Some(id) {
             stage.connection = None;
@@ -259,9 +266,45 @@ impl LiveState {
                     self.reject(id, UserMessage::NotTheStage);
                     return;
                 }
+                let left = self.joined_connections();
                 match self.start_party(now_ms).await {
-                    Some(change) => self.party_changed(change),
+                    Some(change) => {
+                        for connection in left {
+                            self.hub.send_to(connection, &ServerMessage::LeftParty);
+                        }
+                        self.party_changed(change);
+                    }
                     None => self.reject(id, UserMessage::ServerError),
+                }
+            }
+            Ok(ClientMessage::Hello { phone_id }) => {
+                if !phone_id.is_valid() {
+                    self.reject(id, UserMessage::InvalidMessage);
+                    return;
+                }
+                self.phones.insert(id, phone_id);
+                self.send_phone_status(id);
+            }
+            Ok(ClientMessage::CheckJoinCode { join_code }) => {
+                if self.is_current_code(&join_code) {
+                    self.hub
+                        .send_to(id, &ServerMessage::JoinCodeValid { join_code });
+                } else {
+                    self.reject(id, UserMessage::JoinCodeWrong);
+                }
+            }
+            Ok(ClientMessage::Join {
+                phone_id,
+                join_code,
+                join_as,
+            }) => {
+                if !phone_id.is_valid() {
+                    self.reject(id, UserMessage::InvalidMessage);
+                    return;
+                }
+                self.phones.insert(id, phone_id.clone());
+                if let Err(reason) = self.join(phone_id, &join_code, join_as).await {
+                    self.reject(id, reason);
                 }
             }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
@@ -293,6 +336,136 @@ impl LiveState {
                 None
             }
         }
+    }
+
+    /// Whether `code` is the current Party's Join code. Wrong codes are not
+    /// counted or delayed.
+    fn is_current_code(&self, code: &JoinCode) -> bool {
+        self.stage()
+            .party
+            .as_ref()
+            .is_some_and(|party| &party.join_code == code)
+    }
+
+    /// The joined Phone that connection `id` presented, if it is in the Party.
+    fn joined_phone(&self, id: ConnectionId) -> Option<&JoinedPhone> {
+        let phone_id = self.phones.get(&id)?;
+        let party = self.stage().party.as_ref()?;
+        party
+            .phones
+            .iter()
+            .find(|phone| &phone.phone_id == phone_id)
+    }
+
+    /// Every connection whose Phone is in the current Party.
+    fn joined_connections(&self) -> Vec<ConnectionId> {
+        self.phones
+            .keys()
+            .copied()
+            .filter(|&id| self.joined_phone(id).is_some())
+            .collect()
+    }
+
+    /// Tells connection `id` which Party member its Phone uses, if any.
+    fn send_phone_status(&mut self, id: ConnectionId) {
+        let member_id = self.joined_phone(id).map(|phone| phone.member_id);
+        self.hub
+            .send_to(id, &ServerMessage::PhoneStatus { member_id });
+    }
+
+    /// Who is making a Remote command from connection `id`: the active
+    /// Stage, or the Party member of a joined Phone. Any other connection is
+    /// not in the Party and is refused with [`UserMessage::NotInParty`].
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "the first Remote commands come with the Queue and Line-up tickets"
+        )
+    )]
+    fn remote_actor(&self, id: ConnectionId) -> Result<Actor, UserMessage> {
+        if self.stage().connection == Some(id) {
+            return Ok(Actor::Stage);
+        }
+        self.joined_phone(id)
+            .map(|phone| Actor::Member {
+                member_id: phone.member_id,
+            })
+            .ok_or(UserMessage::NotInParty)
+    }
+
+    /// Joins `phone_id` to the current Party, stores it and tells everyone.
+    /// Every connection of that Phone gets its [`ServerMessage::PhoneStatus`].
+    async fn join(
+        &mut self,
+        phone_id: PhoneId,
+        join_code: &JoinCode,
+        join_as: JoinAs,
+    ) -> Result<(), UserMessage> {
+        if !self.is_current_code(join_code) {
+            return Err(UserMessage::JoinCodeWrong);
+        }
+        let JoinAs::Profile { profile_id } = join_as;
+        let profile = profiles::get(&self.db, profile_id)
+            .await
+            .map_err(|error| {
+                tracing::error!(?error, "reading a Profile to join");
+                UserMessage::ServerError
+            })?
+            .ok_or(UserMessage::ProfileNotFound)?;
+        let Some(mut party) = self.stage().party.clone() else {
+            return Err(UserMessage::JoinCodeWrong);
+        };
+        let joined = party::join_phone(
+            &mut party,
+            phone_id.clone(),
+            profile_id,
+            profile.favourite_colour,
+        )?;
+        let member = party
+            .members
+            .iter()
+            .find(|member| member.member_id == joined.member_id)
+            .cloned()
+            .ok_or(UserMessage::ServerError)?;
+        let phone = JoinedPhone {
+            phone_id: phone_id.clone(),
+            member_id: joined.member_id,
+        };
+        let new_member = joined.new_member.then_some(&member);
+        if let Err(error) = store::save_join(&self.db, &party.party_id, new_member, &phone).await {
+            tracing::error!(?error, "storing a join");
+            return Err(UserMessage::ServerError);
+        }
+        self.stage_mut().party = Some(party);
+        let joining: Vec<ConnectionId> = self
+            .phones
+            .iter()
+            .filter(|(_, phone)| **phone == phone_id)
+            .map(|(&id, _)| id)
+            .collect();
+        for id in joining {
+            self.send_phone_status(id);
+        }
+        let event = if joined.new_member {
+            PartyEvent::MemberJoined {
+                member_id: member.member_id,
+                name: profile.name,
+                colour: member.colour,
+            }
+        } else {
+            PartyEvent::PhoneJoined {
+                member_id: member.member_id,
+                name: profile.name,
+            }
+        };
+        self.party_changed(ChangeEvent {
+            actor: Actor::Member {
+                member_id: member.member_id,
+            },
+            event,
+        });
+        Ok(())
     }
 
     /// Tells every connection the whole Party after an accepted change, plus
@@ -360,6 +533,74 @@ mod tests {
         assert_eq!(drain(&mut new), vec![stage_only]);
         assert_eq!(drain(&mut old), vec![]);
         assert_eq!(drain(&mut phone), vec![]);
+    }
+
+    #[tokio::test]
+    async fn only_the_stage_and_joined_phones_may_make_remote_commands() {
+        use openstar_protocol::profile::{Avatar, AvatarKey, NewProfile, PaletteKey};
+        use openstar_protocol::{PartyMemberId, PhoneId};
+
+        let (mut state, _dir) = state().await;
+        let stage = state.connect(Role::Stage, 1).await;
+        let browser = state.connect(Role::Browser, 1).await;
+        let hello_only = state.connect(Role::Browser, 1).await;
+        let joined = state.connect(Role::Browser, 1).await;
+        let profile = profiles::create(
+            &state.db,
+            NewProfile {
+                name: "Bo".into(),
+                avatar: Avatar::BuiltIn {
+                    key: AvatarKey::Star,
+                },
+                favourite_colour: PaletteKey::Sky,
+            },
+            1,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        let join_code = state.stage().party.as_ref().unwrap().join_code.clone();
+
+        let phone = |n: u32| PhoneId(format!("phone-{n}"));
+        state
+            .received(
+                hello_only.id,
+                2,
+                Ok(ClientMessage::Hello { phone_id: phone(1) }),
+            )
+            .await;
+        state
+            .received(
+                joined.id,
+                2,
+                Ok(ClientMessage::Join {
+                    phone_id: phone(2),
+                    join_code,
+                    join_as: JoinAs::Profile {
+                        profile_id: profile.id,
+                    },
+                }),
+            )
+            .await;
+
+        assert_eq!(state.remote_actor(stage.id), Ok(Actor::Stage));
+        assert_eq!(
+            state.remote_actor(joined.id),
+            Ok(Actor::Member {
+                member_id: PartyMemberId(1)
+            })
+        );
+        assert_eq!(state.remote_actor(browser.id), Err(UserMessage::NotInParty));
+        assert_eq!(
+            state.remote_actor(hello_only.id),
+            Err(UserMessage::NotInParty)
+        );
+
+        // New party puts every Phone out of the Party.
+        state
+            .received(stage.id, 3, Ok(ClientMessage::NewParty))
+            .await;
+        assert_eq!(state.remote_actor(joined.id), Err(UserMessage::NotInParty));
     }
 
     #[tokio::test]

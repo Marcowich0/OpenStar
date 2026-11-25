@@ -15,16 +15,19 @@ const handlers: CodeHandlers<UserMessage> = {
     t("userMessage.profileNameTooLong", params),
   profileNameTaken: () => t("userMessage.profileNameTaken"),
   profileNotFound: () => t("userMessage.profileNotFound"),
+  joinCodeWrong: () => t("userMessage.joinCodeWrong"),
+  partyFull: () => t("userMessage.partyFull"),
+  notInParty: () => t("userMessage.notInParty"),
 };
 
-// A code the Rust side adds (here `partyFull`) fails until it is mapped.
-type WithNewCode = UserMessage | { code: "partyFull"; params: { max: number } };
-// @ts-expect-error: `partyFull` has no handler.
+// A code the Rust side adds (here `queueFull`) fails until it is mapped.
+type WithNewCode = UserMessage | { code: "queueFull"; params: { max: number } };
+// @ts-expect-error: `queueFull` has no handler.
 export const unmapped = byCode<WithNewCode>(handlers);
 
 export const mapped = byCode<WithNewCode>({
   ...handlers,
-  partyFull: ({ params }) => String(params.max),
+  queueFull: ({ params }) => String(params.max),
 });
 
 declare const missingOne: Omit<typeof handlers, "serverError">;
@@ -34,4 +37,6 @@ export const missing = byCode<UserMessage>(missingOne);
 export const wrongParam = byCode<PartyEvent>({
   // @ts-expect-error: `partyStarted` has `joinCode`, not `max`.
   partyStarted: ({ params }) => String(params.max),
+  memberJoined: ({ params }) => params.name,
+  phoneJoined: ({ params }) => params.name,
 });

@@ -7,4 +7,4 @@ import type { ProfileId } from "./ProfileId";
  * The frontend turns it into text with `t(code, params)`; the server never
  * sends on-screen English.
  */
-export type UserMessage = { "code": "invalidMessage" } | { "code": "notTheStage" } | { "code": "serverError" } | { "code": "profileNameEmpty" } | { "code": "profileNameTooLong", "params": { maxLength: number, } } | { "code": "profileNameTaken", "params": { profileId: ProfileId, } } | { "code": "profileNotFound" };
+export type UserMessage = { "code": "invalidMessage" } | { "code": "notTheStage" } | { "code": "serverError" } | { "code": "profileNameEmpty" } | { "code": "profileNameTooLong", "params": { maxLength: number, } } | { "code": "profileNameTaken", "params": { profileId: ProfileId, } } | { "code": "profileNotFound" } | { "code": "joinCodeWrong" } | { "code": "partyFull" } | { "code": "notInParty" };

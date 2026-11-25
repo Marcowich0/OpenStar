@@ -8,7 +8,25 @@ expression: "ServerMessage::PartyChanged\n{\n    party: party(), change: ChangeE
     "partyId": "0123456789abcdef0123456789abcdef",
     "stageId": "main",
     "joinCode": "0427",
-    "startedAtMs": 1764000000000
+    "startedAtMs": 1764000000000,
+    "members": [
+      {
+        "memberId": 1,
+        "identity": {
+          "kind": "profile",
+          "profileId": 7
+        },
+        "colour": "sky",
+        "favouriteTaken": true,
+        "onPhone": true
+      }
+    ],
+    "phones": [
+      {
+        "phoneId": "3f2c9a51-7d1e-4f7a-9a43-0c2b5e8d1f60",
+        "memberId": 1
+      }
+    ]
   },
   "change": {
     "actor": {

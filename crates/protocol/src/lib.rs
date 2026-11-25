@@ -12,7 +12,10 @@ pub mod song;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-pub use party::{Actor, ChangeEvent, JoinCode, PartyEvent, PartyId, PartyMemberId, PartySnapshot};
+pub use party::{
+    Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, PartyEvent, PartyId, PartyMember,
+    PartyMemberId, PartySnapshot, PhoneId,
+};
 
 /// Body of `GET /api/server-info`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -72,6 +75,24 @@ pub enum ClientMessage {
     /// Starts a new Party with a new Join code. Accepted only from the
     /// active Stage; needs no Admin PIN.
     NewParty,
+    /// Presents the browser's Phone id. A Phone sends it every time its
+    /// WebSocket opens, before anything else. A Phone already in the current
+    /// Party is back in at once with the same identity (silent rejoin). The
+    /// answer is a [`ServerMessage::PhoneStatus`].
+    Hello { phone_id: PhoneId },
+    /// Asks whether this is the current Party's Join code, before the Phone
+    /// picks who it is. Answered with [`ServerMessage::JoinCodeValid`], or
+    /// refused with [`UserMessage::JoinCodeWrong`]. Wrong codes are never
+    /// counted or delayed.
+    CheckJoinCode { join_code: JoinCode },
+    /// Joins the current Party: the Join code plus an identity. Presents the
+    /// Phone id like [`ClientMessage::Hello`]. A Phone already in the Party
+    /// that joins again switches to the new identity.
+    Join {
+        phone_id: PhoneId,
+        join_code: JoinCode,
+        join_as: JoinAs,
+    },
 }
 
 /// A message the server sends over a WebSocket.
@@ -108,6 +129,15 @@ pub enum ServerMessage {
     StageMoved,
     /// HTTP data changed: the frontend refetches what each topic names.
     Changed { topics: Vec<ChangeTopic> },
+    /// The answer to a [`ClientMessage::CheckJoinCode`] with the current code.
+    JoinCodeValid { join_code: JoinCode },
+    /// Sent to a connection after its [`ClientMessage::Hello`] or accepted
+    /// [`ClientMessage::Join`]: the Party member its Phone uses now, or `null`
+    /// when its Phone is not in the current Party and must join with the code.
+    PhoneStatus { member_id: Option<PartyMemberId> },
+    /// Sent to every connection of a Phone that was in the Party and no
+    /// longer is (a new Party started): it needs the new Join code.
+    LeftParty,
 }
 
 /// What a [`ServerMessage::Changed`] notice says changed: each topic names
@@ -150,6 +180,13 @@ pub enum UserMessage {
     ProfileNameTaken { profile_id: profile::ProfileId },
     /// No Profile has this id (it was deleted, or never existed).
     ProfileNotFound,
+    /// The Join code is not the current Party's ("That code is not on the Stage").
+    JoinCodeWrong,
+    /// All twelve Party colours are held, so no new Party member can enter.
+    PartyFull,
+    /// Only a Phone that has joined the Party (with an identity) or the
+    /// Stage may do this.
+    NotInParty,
 }
 
 #[cfg(test)]

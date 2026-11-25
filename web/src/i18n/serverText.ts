@@ -10,6 +10,7 @@ import type { PartyEvent } from "../generated/PartyEvent";
 import type { TxtRejection } from "../generated/TxtRejection";
 import type { TxtWarning } from "../generated/TxtWarning";
 import type { UserMessage } from "../generated/UserMessage";
+import { colourName } from "./colourNames";
 import { t } from "./t";
 
 /** One handler per code of `U`, each given the message narrowed to its code. */
@@ -41,11 +42,21 @@ export const userMessageText = byCode<UserMessage>({
     t("userMessage.profileNameTooLong", params),
   profileNameTaken: () => t("userMessage.profileNameTaken"),
   profileNotFound: () => t("userMessage.profileNotFound"),
+  joinCodeWrong: () => t("userMessage.joinCodeWrong"),
+  partyFull: () => t("userMessage.partyFull"),
+  notInParty: () => t("userMessage.notInParty"),
 });
 
 /** An accepted change to the Party, as a toast. */
 export const partyEventText = byCode<PartyEvent>({
   partyStarted: ({ params }) => t("partyEvent.partyStarted", params),
+  memberJoined: ({ params }) =>
+    t("partyEvent.memberJoined", {
+      name: params.name,
+      colour: colourName(params.colour),
+    }),
+  phoneJoined: ({ params }) =>
+    t("partyEvent.phoneJoined", { name: params.name }),
 });
 
 /** Why an HTTP request was refused. */

@@ -41,6 +41,7 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 - opening the desktop Timing editor on a Song, computing its Pitch track, and working in the editor up to saving;
 - Undo of a Phone's fit proposal, which writes nothing;
 - creating and editing Profiles;
+- checking a Join code and joining the Party (Join code plus identity), and a Phone's silent rejoin with its Phone id;
 - removing a Party member (press and hold) and Leave party;
 - New party (press and hold only);
 - every Queue, Line-up and playback action, including Restart, Skip and End (press and hold);

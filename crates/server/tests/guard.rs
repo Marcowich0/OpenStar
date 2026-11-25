@@ -6,8 +6,9 @@ use std::path::Path;
 
 use openstar::endpoints::{Access, Endpoint, Library, ws_access};
 use openstar::{Config, Server};
-use openstar_protocol::ClientMessage;
 use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest};
+use openstar_protocol::profile::ProfileId;
+use openstar_protocol::{ClientMessage, JoinAs, JoinCode, PhoneId};
 use reqwest::StatusCode;
 
 struct App {
@@ -274,7 +275,23 @@ async fn a_writable_library_lets_an_unlocked_library_write_through() {
 /// Every WebSocket client message, one sample per variant. The completeness
 /// check below fails when a variant is added without a sample here.
 fn every_client_message() -> Vec<ClientMessage> {
-    vec![ClientMessage::Ping { nonce: 0 }, ClientMessage::NewParty]
+    vec![
+        ClientMessage::Ping { nonce: 0 },
+        ClientMessage::NewParty,
+        ClientMessage::Hello {
+            phone_id: PhoneId("phone".to_owned()),
+        },
+        ClientMessage::CheckJoinCode {
+            join_code: JoinCode("0000".to_owned()),
+        },
+        ClientMessage::Join {
+            phone_id: PhoneId("phone".to_owned()),
+            join_code: JoinCode("0000".to_owned()),
+            join_as: JoinAs::Profile {
+                profile_id: ProfileId(1),
+            },
+        },
+    ]
 }
 
 #[test]

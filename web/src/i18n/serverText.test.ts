@@ -25,6 +25,28 @@ describe("server texts", () => {
     expect(
       partyEventText({ code: "partyStarted", params: { joinCode: "0427" } }),
     ).toBe("New party started, Join code 0427");
+    expect(
+      partyEventText({
+        code: "memberJoined",
+        params: { memberId: 1, name: "Bo", colour: "tangerine" },
+      }),
+    ).toBe("Bo joined the Party in Tangerine");
+    expect(
+      partyEventText({
+        code: "phoneJoined",
+        params: { memberId: 1, name: "Bo" },
+      }),
+    ).toBe("Bo joined on another Phone");
+  });
+
+  it("turns join refusals into the Phone's text", () => {
+    expect(userMessageText({ code: "joinCodeWrong" })).toBe(
+      "That code is not on the Stage",
+    );
+    expect(userMessageText({ code: "partyFull" })).toBe("Party is full");
+    expect(userMessageText({ code: "notInParty" })).toBe(
+      "Join the Party first",
+    );
   });
 
   it("turns an HTTP error code into text", () => {

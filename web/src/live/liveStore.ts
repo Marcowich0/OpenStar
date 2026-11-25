@@ -22,10 +22,16 @@ export interface LiveStore {
   close: () => void;
 }
 
+/**
+ * `hello`, when given, makes the message the store sends each time the socket
+ * opens, before anything else: a Phone presents its Phone id on every
+ * connect and reconnect, so a Phone already in the Party is back in at once.
+ */
 export function createLiveStore(
   connect: (
     handlers: Pick<LiveClientOptions, "onMessage" | "onConnection">,
   ) => LiveClient,
+  hello?: () => ClientMessage,
 ): LiveStore {
   let state = initialLiveState;
   const listeners = new Set<() => void>();
@@ -50,6 +56,7 @@ export function createLiveStore(
       update(receive(state, message));
     },
     onConnection(connection) {
+      if (connection === "open" && hello) client.send(hello());
       update(connectionChanged(state, connection));
     },
   });
