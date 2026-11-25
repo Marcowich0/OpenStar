@@ -165,6 +165,7 @@ describe("motion", () => {
       "--animate-pop-in": "pop-in 0.45s var(--ease-spring) both",
       "--animate-shake": "shake 0.3s linear",
       "--animate-float": "float 9s ease-in-out infinite",
+      "--animate-toast-out": "toast-out 0.35s ease-in both",
     });
   });
 
@@ -175,6 +176,12 @@ describe("motion", () => {
   it("pops in from small, overshooting through the spring easing", () => {
     expect(keyframes("pop-in")).toMatch(
       /from\s*\{\s*scale:\s*0\.6;\s*opacity:\s*0;\s*\}/,
+    );
+  });
+
+  it("lets a toast leave by fading upward", () => {
+    expect(keyframes("toast-out")).toMatch(
+      /to\s*\{\s*translate:\s*0 -14px;\s*scale:\s*0\.9;\s*opacity:\s*0;\s*\}/,
     );
   });
 

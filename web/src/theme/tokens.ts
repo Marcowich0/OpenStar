@@ -101,6 +101,7 @@ export const INTERFACE_TOKENS = [
   "--animate-pop-in",
   "--animate-shake",
   "--animate-float",
+  "--animate-toast-out",
   "--font-sans",
 ] as const;
 

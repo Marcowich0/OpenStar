@@ -195,10 +195,31 @@ export const en = {
   "partyEvent.requestPlayNext": "{song} plays next",
   "partyEvent.requestRemoved": "{song} was removed from the Queue",
   "partyEvent.requestedPlayersChanged": "The singers of {song} changed",
-  "toast.songMovedUp": "{actor} moved {song} up",
+  // Stage toasts that name the Remote's Party member (`stage/toasts/`).
+  "toast.list": "Party changes",
+  "toast.requestAdded": "{actor} added {song}",
+  "toast.requestMovedUp": "{actor} moved {song} up",
+  "toast.requestMovedDown": "{actor} moved {song} down",
+  "toast.requestPlayNext": "{actor} made {song} play next",
+  "toast.requestRemoved": "{actor} removed {song}",
+  "toast.requestedPlayersChanged": "{actor} changed who sings {song}",
+  // Toasts whose sender is not built yet: the server ticket that adds the
+  // `PartyEvent` code maps it to one of these in `stage/toasts/toastContent.ts`.
   "toast.backOnMic": "{actor} is back on the mic",
+  "toast.localMicBack": "{mic} is back on {actor}'s seat",
   // A colour parameter is always a palette display name (`colourName`).
   "toast.memberLeft": "{actor} left the Party. {colour} is free",
+  "toast.soundOutputChanged": "Sound output changed: calibrate mics",
+  "toast.requestDroppedSongGone":
+    "{song} left the Library and was taken off the Queue",
+  "toast.requestDroppedProfileDeleted":
+    "{song} was taken off the Queue: {name}'s Profile was deleted",
+  "toast.lineUpChanged": "{actor} changed the Line-up",
+  "toast.seatVoice": "{actor} put {name} on Voice {voice, number}",
+  "toast.seatDifficulty": "{actor} set {name} to {difficulty}",
+  "toast.paused": "{actor} paused the Song",
+  "toast.resumed": "{actor} resumed the Song",
+  "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",
 
   // The Timing editor's edit list: one entry per edit, with the values
   // before and after it (GAP in ms, BPM as in the file, video gap in s).

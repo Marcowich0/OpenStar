@@ -75,33 +75,90 @@ export type Catalogue = {
 
 const PLACEHOLDER = /\{(\w+)(, number)?\}/g;
 
+/**
+ * One run of a translated text: plain text, or the value of the parameter
+ * `param` as put in (so a screen can set names or Song titles in bold).
+ */
+export interface TextPart {
+  text: string;
+  param?: string;
+}
+
+/** Like {@link Translate}, but gives the text as runs. */
+export type TranslateParts<C extends Record<string, Entry>> = <
+  K extends keyof C & string,
+>(
+  key: K,
+  ...args: ArgsOf<C[K]>
+) => TextPart[];
+
+/** Looks an entry up and splits it into runs, parameters filled in. */
+function partsTranslator(
+  catalogue: Readonly<Record<string, Entry>>,
+  locale: string,
+): (key: string, params?: Readonly<Record<string, unknown>>) => TextPart[] {
+  const plurals = new Intl.PluralRules(locale);
+  const numbers = new Intl.NumberFormat(locale);
+
+  const split = (
+    text: string,
+    params: Readonly<Record<string, unknown>>,
+  ): TextPart[] => {
+    const parts: TextPart[] = [];
+    let at = 0;
+    for (const match of text.matchAll(PLACEHOLDER)) {
+      const [whole, name = "", isNumber] = match;
+      if (match.index > at) parts.push({ text: text.slice(at, match.index) });
+      at = match.index + whole.length;
+      const value = params[name];
+      if (isNumber !== undefined && typeof value === "number") {
+        parts.push({ text: numbers.format(value), param: name });
+      } else if (typeof value === "string") {
+        parts.push({ text: value, param: name });
+      } else {
+        parts.push({ text: whole });
+      }
+    }
+    if (at < text.length) parts.push({ text: text.slice(at) });
+    return parts;
+  };
+
+  return (key, params = {}) => {
+    // Types rule out an unknown key; plain JavaScript could still pass one.
+    const entry: Entry | undefined = catalogue[key];
+    if (entry === undefined) return [{ text: key }];
+    if (typeof entry === "string") return split(entry, params);
+    const count = typeof params.count === "number" ? params.count : 0;
+    return split(entry[plurals.select(count)] ?? entry.other, params);
+  };
+}
+
 /** Builds `t` for one catalogue and the language its texts are in. */
 export function createTranslator<const C extends Record<string, Entry>>(
   catalogue: C,
   locale: string,
 ): Translate<C> {
-  const plurals = new Intl.PluralRules(locale);
-  const numbers = new Intl.NumberFormat(locale);
+  const parts = partsTranslator(catalogue, locale);
+  return (key, ...args) =>
+    parts(key, args[0])
+      .map((part) => part.text)
+      .join("");
+}
 
-  const fill = (text: string, params: Readonly<Record<string, unknown>>) =>
-    text.replace(PLACEHOLDER, (whole, name: string, isNumber?: string) => {
-      const value = params[name];
-      if (isNumber !== undefined && typeof value === "number") {
-        return numbers.format(value);
-      }
-      return typeof value === "string" ? value : whole;
-    });
-
-  return (key, ...args) => {
-    // Types rule out an unknown key; plain JavaScript could still pass one.
-    const entry: Entry | undefined = catalogue[key];
-    if (entry === undefined) return key;
-    const params: Readonly<Record<string, unknown>> = args[0] ?? {};
-    if (typeof entry === "string") return fill(entry, params);
-    const count = typeof params.count === "number" ? params.count : 0;
-    return fill(entry[plurals.select(count)] ?? entry.other, params);
-  };
+/** Builds `tParts` for one catalogue and the language its texts are in. */
+export function createPartsTranslator<const C extends Record<string, Entry>>(
+  catalogue: C,
+  locale: string,
+): TranslateParts<C> {
+  const parts = partsTranslator(catalogue, locale);
+  return (key, ...args) => parts(key, args[0]);
 }
 
 /** Turns a catalogue key and its parameters into English text. */
 export const t: Translate<typeof en> = createTranslator(en, "en");
+
+/** Like `t`, as runs of plain text and parameter values. */
+export const tParts: TranslateParts<typeof en> = createPartsTranslator(
+  en,
+  "en",
+);
