@@ -1,0 +1,23 @@
+{
+  "description": "a reading exactly on a Beat boundary belongs to the later Beat; readings outside the Beat range are ignored",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "songStartMs": 1000,
+  "micDelayMs": 100,
+  "micThresholdDbfs": -40,
+  "firstBeat": 1,
+  "lastBeat": 2,
+  "readings": [
+    { "captureTime": 1700, "pitch": 45.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1800, "pitch": 50.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1849.5, "pitch": 51.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1850, "pitch": 52.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1975, "pitch": 47.0, "clarity": 0.9, "loudness": -20 }
+  ],
+  "comment": "Song time 0.75 s (capture 1850) is the start of Beat 2. Beat 1: [50, 51] -> 50. Beat 2: [52] -> 52. Capture 1700 is Beat 0 and 1975 is Beat 3, both outside the range.",
+  "beatValues": [
+    { "kind": "pitch", "pitch": 50.0 },
+    { "kind": "pitch", "pitch": 52.0 }
+  ]
+}

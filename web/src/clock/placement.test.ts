@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { placeReading } from "./placement";
+import { placedSongTime, placeReading } from "./placement";
 import { createSongClock, type ClockMedia, type SongClock } from "./songClock";
 
 /** One Mic's kind, as the fixtures name it. Placement treats them all alike. */
@@ -107,6 +107,19 @@ describe.each(fixtures)("$file", (fixture) => {
             ?.songTime ?? null,
       );
       expect(new Set(results).size).toBe(1);
+    },
+  );
+
+  it.each(fixture.readings)(
+    "$name: the allocation-free form gives the same Song time",
+    (c) => {
+      const clock = clockAt(fixture, c.placedAt);
+      const songTime = placedSongTime(clock, c.captureTime, c.micDelayMs);
+      expect(songTime).toBe(
+        placeReading(clock, { captureTime: c.captureTime }, c.micDelayMs)
+          ?.songTime ?? null,
+      );
+      if (c.songTime !== null) expect(songTime).toBeCloseTo(c.songTime, 9);
     },
   );
 });

@@ -11,6 +11,7 @@ pub mod mics;
 pub mod party;
 pub mod pitch;
 pub mod profile;
+pub mod scoring;
 pub mod song;
 
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,7 @@ pub use party::{
     PartyMemberId, PartySnapshot, PhoneId,
 };
 pub use pitch::{MicId, PitchReading};
+pub use scoring::BeatValue;
 
 /// Body of `GET /api/server-info`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]

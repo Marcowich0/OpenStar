@@ -169,6 +169,30 @@ pub enum NoteKind {
     Freestyle,
 }
 
+/// One timing operation of a Timing edit: the only changes the Timing editor
+/// sends to the server's `.txt` patcher. Notes and Line end markers are named
+/// by the 1-based line number they have in the file as parsed (`Note::line`,
+/// `LineEnd::line`), never renumbered by earlier operations. Later
+/// operations on the same value win. Units are the parser's normalised ones.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "op", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[ts(export)]
+pub enum TimingOperation {
+    /// `#GAP`, in seconds; the file gets whole milliseconds.
+    SetGap { seconds: f64 },
+    /// `#BPM` as the real beat rate (`#BPM` × 4, as in
+    /// [`SongHeaders::beats_per_minute`]); the file gets it ÷ 4.
+    SetBpm { beats_per_minute: f64 },
+    /// `#VIDEOGAP`, in seconds.
+    SetVideoGap { seconds: f64 },
+    /// The first beat of the Note on line `line`.
+    SetNoteStart { line: u32, start: i32 },
+    /// The length in beats of the Note on line `line`; at least 1.
+    SetNoteLength { line: u32, length: i32 },
+    /// The beat of the Line end marker on line `line`.
+    SetLineEnd { line: u32, beat: i32 },
+}
+
 /// A header line OpenStar keeps without interpreting it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -293,5 +317,39 @@ mod tests {
             serde_json::to_string(&Voice { lines: vec![line] }).unwrap(),
             r#"{"lines":[{"notes":[{"kind":"goldenRap","start":12,"length":4,"pitch":-3,"text":" la ","line":8}],"end":{"beat":18,"line":9}}]}"#
         );
+    }
+
+    #[test]
+    fn timing_operations_are_tagged_by_op_in_the_writer_fixture_shape() {
+        let ops = vec![
+            TimingOperation::SetGap { seconds: 0.753 },
+            TimingOperation::SetBpm {
+                beats_per_minute: 865.04,
+            },
+            TimingOperation::SetVideoGap { seconds: -0.25 },
+            TimingOperation::SetNoteStart {
+                line: 12,
+                start: 40,
+            },
+            TimingOperation::SetNoteLength {
+                line: 12,
+                length: 3,
+            },
+            TimingOperation::SetLineEnd { line: 13, beat: 44 },
+        ];
+        let json = serde_json::to_string(&ops).unwrap();
+        assert_eq!(
+            json,
+            concat!(
+                r#"[{"op":"setGap","seconds":0.753},"#,
+                r#"{"op":"setBpm","beatsPerMinute":865.04},"#,
+                r#"{"op":"setVideoGap","seconds":-0.25},"#,
+                r#"{"op":"setNoteStart","line":12,"start":40},"#,
+                r#"{"op":"setNoteLength","line":12,"length":3},"#,
+                r#"{"op":"setLineEnd","line":13,"beat":44}]"#
+            )
+        );
+        let back: Vec<TimingOperation> = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, ops);
     }
 }

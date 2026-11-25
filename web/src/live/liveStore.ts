@@ -1,5 +1,6 @@
 import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ClientMessage } from "../generated/ClientMessage";
+import type { PitchRouter } from "../pitch/pitchRouter";
 import type { LiveClient, LiveClientOptions } from "./liveClient";
 import {
   connectionChanged,
@@ -26,12 +27,17 @@ export interface LiveStore {
  * `hello`, when given, makes the message the store sends each time the socket
  * opens, before anything else: a Phone presents its Phone id on every
  * connect and reconnect, so a Phone already in the Party is back in at once.
+ *
+ * `pitch`, when given, takes every Pitch reading instead of the reducer: about
+ * 100 a second per Mic go straight into their Player's ring buffer and never
+ * cause a React render. Without it, readings are dropped.
  */
 export function createLiveStore(
   connect: (
     handlers: Pick<LiveClientOptions, "onMessage" | "onConnection">,
   ) => LiveClient,
   hello?: () => ClientMessage,
+  pitch?: Pick<PitchRouter, "receive">,
 ): LiveStore {
   let state = initialLiveState;
   const listeners = new Set<() => void>();
@@ -46,8 +52,11 @@ export function createLiveStore(
   const client = connect({
     onMessage(message) {
       // Every server message goes to the reducer, except Pitch readings:
-      // #127 routes those to their Player's ring buffer here, before the
-      // reducer, so they never cause a React render.
+      // those go to their Player's ring buffer, so they never cause a render.
+      if (message.type === "pitchReading") {
+        pitch?.receive(message.mic, message.reading);
+        return;
+      }
       if (message.type === "changed") {
         for (const topic of message.topics) {
           for (const listener of topicListeners.get(topic) ?? []) listener();

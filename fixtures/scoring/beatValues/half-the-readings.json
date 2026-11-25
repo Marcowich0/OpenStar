@@ -1,0 +1,40 @@
+{
+  "description": "at least half the readings voiced, rounded up, gives pitch; one short of it does not",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "songStartMs": 1000,
+  "micDelayMs": 100,
+  "micThresholdDbfs": -40,
+  "firstBeat": 0,
+  "lastBeat": 3,
+  "readings": [
+    { "captureTime": 1600, "pitch": 62.2, "clarity": 0.8, "loudness": -20 },
+    { "captureTime": 1630, "pitch": 61.8, "clarity": 0.9, "loudness": -22 },
+    { "captureTime": 1660, "pitch": 55.0, "clarity": 0.5, "loudness": -21 },
+    { "captureTime": 1690, "pitch": null, "clarity": 0.1, "loudness": -25 },
+
+    { "captureTime": 1725, "pitch": 64.1, "clarity": 0.95, "loudness": -40 },
+    { "captureTime": 1750, "pitch": 63.9, "clarity": 0.9, "loudness": -30 },
+    { "captureTime": 1775, "pitch": 64.0, "clarity": 0.9, "loudness": -28 },
+    { "captureTime": 1800, "pitch": 40.0, "clarity": 0.9, "loudness": -50 },
+    { "captureTime": 1825, "pitch": 41.0, "clarity": 0.9, "loudness": -55 },
+
+    { "captureTime": 1850, "pitch": 66.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1875, "pitch": 66.2, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 1900, "pitch": 66.1, "clarity": 0.9, "loudness": -50 },
+    { "captureTime": 1925, "pitch": 66.1, "clarity": 0.9, "loudness": -60 },
+    { "captureTime": 1950, "pitch": 66.1, "clarity": 0.9, "loudness": -40.5 },
+
+    { "captureTime": 1975, "pitch": 68.0, "clarity": 0.9, "loudness": -20 },
+    { "captureTime": 2010, "pitch": 70.0, "clarity": 0.3, "loudness": -20 },
+    { "captureTime": 2050, "pitch": 68.0, "clarity": 0.9, "loudness": -45 }
+  ],
+  "comment": "Beat 0: n = 4, h = 2, 2 voiced (clarity exactly 0.8 counts) -> lower median of [61.8, 62.2]. Beat 1: n = 5, h = 3, 3 voiced (loudness exactly at the threshold passes) -> median of [63.9, 64.0, 64.1]. Beat 2: n = 5, h = 3, 2 voiced and only 2 pass the threshold -> no voice. Beat 3: n = 3, h = 2, 1 voiced (one short) but 2 pass the threshold -> voice without pitch.",
+  "beatValues": [
+    { "kind": "pitch", "pitch": 61.8 },
+    { "kind": "pitch", "pitch": 64.0 },
+    { "kind": "noVoice" },
+    { "kind": "voiceWithoutPitch" }
+  ]
+}

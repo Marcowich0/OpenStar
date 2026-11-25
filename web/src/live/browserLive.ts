@@ -1,9 +1,21 @@
+import { createPitchRouter, type PitchRouter } from "../pitch/pitchRouter";
 import { createLiveClient, liveUrl } from "./liveClient";
 import type { LiveState } from "./liveState";
 import { createLiveStore, type LiveStore } from "./liveStore";
 import { phoneId, type PhoneStorage } from "./phoneId";
 
 let browserStore: LiveStore | null = null;
+let browserPitch: PitchRouter | null = null;
+
+/**
+ * The browser's one Pitch router: the live store hands it every Pitch
+ * reading, and the sing screen starts it at Start with the Mic-to-Player map
+ * and reads the buffers it returns (`stagePitch().start(...)`).
+ */
+export function stagePitch(): PitchRouter {
+  browserPitch ??= createPitchRouter();
+  return browserPitch;
+}
 
 /**
  * The browser's one live store, with its one WebSocket, made on first use and
@@ -16,6 +28,7 @@ export function liveStore(): LiveStore {
     (handlers) =>
       createLiveClient({ url: liveUrl(window.location), ...handlers }),
     () => ({ type: "hello", phoneId: phoneId(browserStorage()) }),
+    stagePitch(),
   );
   return browserStore;
 }
