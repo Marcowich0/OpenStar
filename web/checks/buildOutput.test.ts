@@ -32,6 +32,13 @@ beforeAll(async () => {
   files = output.output;
 }, 120_000);
 
+function allCss(): string {
+  return files
+    .filter((file) => file.fileName.endsWith(".css"))
+    .map(text)
+    .join("\n");
+}
+
 function text(file: Rolldown.OutputChunk | Rolldown.OutputAsset): string {
   if (file.type === "chunk") return file.code;
   return typeof file.source === "string"
@@ -110,6 +117,27 @@ describe("the build output", () => {
       /font-family:\s*"?Fredoka"?[\s\S]*?url\(\/assets\/fredoka-latin-700-normal[^)]*\.woff2\)/,
     );
   });
+
+  it("sets every page's text in Fredoka", () => {
+    const css = allCss();
+    expect(css).toMatch(/--default-font-family:\s*var\(--font-sans\)/);
+    expect(css).toMatch(
+      /(^|[},])html,:host\{[^}]*font-family:var\(--default-font-family/,
+    );
+  });
+
+  it("makes the spring easing every transition's default", () => {
+    expect(allCss()).toMatch(
+      /--default-transition-timing-function:\s*var\(--ease-spring\)/,
+    );
+  });
+
+  it.each(["breathe", "pop-in", "shake", "float"])(
+    "holds the %s keyframes",
+    (name) => {
+      expect(allCss()).toContain(`@keyframes ${name}{`);
+    },
+  );
 
   it("holds the SVG icons as files", () => {
     const icons = files
