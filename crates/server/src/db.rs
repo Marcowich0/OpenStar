@@ -317,7 +317,17 @@ const MIGRATIONS: &[&str] = &[
         mtime_ns INTEGER NOT NULL,
         lufs     REAL
     ) STRICT, WITHOUT ROWID;",
-    // 20: what is kept per (Stage browser, Stage output) (see
+    // 20: approved Mic bridges (see `mic_bridges`): the SHA-256 of each
+    // approval token (never the token), the name of its computer as it last
+    // said, and when it was approved. `seq` is the order of approval. Not
+    // linked to `parties`: New party keeps them.
+    "CREATE TABLE mic_bridges (
+        seq            INTEGER PRIMARY KEY AUTOINCREMENT,
+        bridge_id      TEXT NOT NULL UNIQUE,
+        host_name      TEXT NOT NULL,
+        approved_at_ms INTEGER NOT NULL
+    ) STRICT;",
+    // 21: what is kept per (Stage browser, Stage output) (see
     // `stage_outputs`): the OpenStar volume, 0 to 100. Not linked to
     // `parties`, so New party keeps it. The A/V offset (#161) belongs here
     // too.

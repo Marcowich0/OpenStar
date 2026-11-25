@@ -382,6 +382,15 @@ fn every_client_message() -> Vec<ClientMessage> {
             ended: openstar_protocol::SongEnd::Ended,
         },
         ClientMessage::CloseResults,
+        ClientMessage::BridgeHello {
+            build: "dev".into(),
+            host_name: "hermes".into(),
+            token: None,
+            interfaces: vec![],
+        },
+        ClientMessage::ApproveBridge {
+            request_id: openstar_protocol::bridge::BridgeRequestId(0),
+        },
     ]
 }
 

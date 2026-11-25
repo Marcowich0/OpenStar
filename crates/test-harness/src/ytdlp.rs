@@ -3,7 +3,6 @@
 use std::ffi::OsString;
 use std::fs;
 use std::io::Write;
-use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use tempfile::TempDir;
@@ -42,8 +41,7 @@ impl YtDlpStub {
     pub fn install(dir: &Path) -> std::io::Result<PathBuf> {
         fs::create_dir_all(dir.join("calls"))?;
         let path = dir.join("yt-dlp");
-        fs::write(&path, STUB_SCRIPT)?;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o755))?;
+        crate::write_executable(&path, STUB_SCRIPT)?;
         Ok(path)
     }
 

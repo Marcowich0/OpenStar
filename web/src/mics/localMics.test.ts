@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import type { LocalMic } from "../generated/LocalMic";
+import type { MicBridge } from "../generated/MicBridge";
 import {
+  bridgeGroupChannels,
   browserChannels,
   browserInputDevices,
   devicesToOpen,
   localMicName,
   micsScreenOrder,
   stageBrowserId,
+  type BridgeSource,
   type BrowserChannel,
+  type LocalMicChannel,
 } from "./localMics";
 
 function device(
@@ -207,5 +211,104 @@ describe("the Stage browser's id", () => {
     const second = stageBrowserId(storage, () => "made-2");
     expect(first).toBe("made-1");
     expect(second).toBe("made-1");
+  });
+});
+
+function bridgeSource(
+  bridgeId: string,
+  label: string,
+  channelNumber: number,
+): BridgeSource {
+  return {
+    kind: "bridge",
+    bridgeId,
+    deviceName: `alsa_card.${label}`,
+    label,
+    channel: channelNumber,
+  };
+}
+
+function bridgeChannel(
+  bridgeId: string,
+  label: string,
+  channelNumber: number,
+): LocalMicChannel {
+  return {
+    localMicId: `bridge:${bridgeId}:alsa_card.${label}:${String(channelNumber)}`,
+    source: bridgeSource(bridgeId, label, channelNumber),
+  };
+}
+
+function bridge(
+  bridgeId: string,
+  open: boolean,
+  channels: LocalMicChannel[] = [],
+): MicBridge {
+  return { bridgeId, hostName: bridgeId, open, channels };
+}
+
+describe("a bridge Local mic", () => {
+  it("defaults to '<device> · Input n', n counted from 1", () => {
+    expect(localMicName(bridgeSource("b", "Scarlett 4i4", 0), "")).toBe(
+      "Scarlett 4i4 · Input 1",
+    );
+    expect(localMicName(bridgeSource("b", "Scarlett 4i4", 3), "")).toBe(
+      "Scarlett 4i4 · Input 4",
+    );
+  });
+
+  it("shows the host's name when one is stored", () => {
+    expect(localMicName(bridgeSource("b", "Scarlett 4i4", 0), "Red mic")).toBe(
+      "Red mic",
+    );
+  });
+
+  it("never opens a device of the Stage browser", () => {
+    const fromBridge = bridgeChannel("b", "USB Audio", 0);
+    expect(
+      devicesToOpen({
+        stageBrowser: "stage",
+        devices: [{ deviceId: "dongle", label: "USB Audio" }],
+        kept: [{ ...fromBridge, name: "", switchedOn: true }],
+        micsScreenOpen: false,
+      }),
+    ).toEqual(new Set());
+  });
+});
+
+describe("a bridge group's channels", () => {
+  it("are an open bridge's channels, devices by name and channels by number", () => {
+    const channels = [
+      bridgeChannel("b", "UMC404HD", 1),
+      bridgeChannel("b", "Scarlett", 1),
+      bridgeChannel("b", "UMC404HD", 0),
+      bridgeChannel("b", "Scarlett", 0),
+    ];
+    expect(
+      bridgeGroupChannels(bridge("b", true, channels), []).map(
+        (c) => c.localMicId,
+      ),
+    ).toEqual([
+      "bridge:b:alsa_card.Scarlett:0",
+      "bridge:b:alsa_card.Scarlett:1",
+      "bridge:b:alsa_card.UMC404HD:0",
+      "bridge:b:alsa_card.UMC404HD:1",
+    ]);
+  });
+
+  it("are a closed bridge's kept Local mics, and no other bridge's or browser's", () => {
+    const own = bridgeChannel("b", "Scarlett", 2);
+    const other = bridgeChannel("c", "Scarlett", 0);
+    const browser = channel("dongle", "USB Audio", 0);
+    const keptMics = [own, other, browser].map((c) => ({
+      ...c,
+      name: "",
+      switchedOn: true,
+    }));
+    expect(
+      bridgeGroupChannels(bridge("b", false), keptMics).map(
+        (c) => c.localMicId,
+      ),
+    ).toEqual([own.localMicId]);
   });
 });
