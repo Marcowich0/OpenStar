@@ -42,6 +42,7 @@ const song = (id: number, title: string, duet = false): SongSummary => ({
   cover: null,
   tileColour: "teal",
   topHighScore: null,
+  year: null,
 });
 
 const bo: Profile = {
