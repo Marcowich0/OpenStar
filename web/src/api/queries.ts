@@ -54,6 +54,22 @@ export function songQuery(id: SongId) {
   });
 }
 
+/**
+ * `GET /api/songs/{id}/high-scores`: the Song's High score tables, one per
+ * Voice and Difficulty. Its key starts with `songsKey`, so the `library`
+ * notice a stored round sends refreshes it.
+ */
+export function songHighScoresQuery(id: SongId) {
+  return queryOptions({
+    queryKey: [...songsKey, id, "highScores"],
+    queryFn: ({ signal }) =>
+      api("GET /api/songs/{id}/high-scores", {
+        params: { id: String(id) },
+        signal,
+      }),
+  });
+}
+
 /** `GET /api/library/problems`: every Library problem. */
 export const libraryProblemsQuery = queryOptions({
   queryKey: ["library", "problems"],
