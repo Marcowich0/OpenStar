@@ -19,6 +19,8 @@ Ok(
              12 Body "- 20" CrLf,
              13 End "E" CrLf,
         ],
+        encoding: Utf8,
+        bom: false,
         song: ParsedSong {
             headers: SongHeaders {
                 generation: Unversioned,
