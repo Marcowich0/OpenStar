@@ -79,6 +79,8 @@ const idle: PartySnapshot = {
   queue: [],
   head: null,
   lineUp: null,
+  playing: null,
+  results: null,
 };
 
 const waiting: PartySnapshot = {

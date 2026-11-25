@@ -4,8 +4,10 @@ import type { JoinedPhone } from "./JoinedPhone";
 import type { LineUp } from "./LineUp";
 import type { PartyId } from "./PartyId";
 import type { PartyMember } from "./PartyMember";
+import type { PlayingSong } from "./PlayingSong";
 import type { Request } from "./Request";
 import type { RequestId } from "./RequestId";
+import type { SongResults } from "./SongResults";
 import type { StageId } from "./StageId";
 
 /**
@@ -35,12 +37,28 @@ queue: Array<Request>,
 /**
  * The head of the Queue: the Request whose Line-up waits or whose Song
  * plays. When set it is always the first Request; it never moves and
- * nothing moves above it. `null` while the song browser shows.
+ * nothing moves above it. `null` while the song browser or the results
+ * show.
  */
 head: RequestId | null, 
 /**
- * The head's Line-up while it waits for Start (the "Line-up waiting"
- * state). `null` while the song browser shows. Prefilled from the
+ * The head's Line-up: waiting for Start (the "Line-up waiting" state)
+ * while `playing` is `null`, and fixed for the Song while it plays.
+ * `null` while the song browser or the results show. Prefilled from the
  * head's Request when it becomes the head; it never starts by itself.
  */
-lineUp: LineUp | null, };
+lineUp: LineUp | null, 
+/**
+ * The head's Song while it plays or is paused (the sing screen), or
+ * `null`. Its Players are the seats of `line_up`, fixed at Start. Never
+ * kept across a restart: only the Song in progress is lost, and the
+ * Line-up waits again.
+ */
+playing: PlayingSong | null, 
+/**
+ * The results of the Song that just ended, while the Stage shows them,
+ * or `null`. Its Request has left the Queue and there is no head until
+ * someone presses Next or Done ([`crate::ClientMessage::CloseResults`]).
+ * Kept across a restart.
+ */
+results: SongResults | null, };

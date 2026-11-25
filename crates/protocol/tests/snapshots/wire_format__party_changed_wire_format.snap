@@ -76,7 +76,13 @@ expression: "ServerMessage::PartyChanged\n{\n    party: party(), change: ChangeE
           }
         }
       ]
-    }
+    },
+    "playing": {
+      "requestId": 3,
+      "songId": 12,
+      "paused": true
+    },
+    "results": null
   },
   "change": {
     "actor": {
