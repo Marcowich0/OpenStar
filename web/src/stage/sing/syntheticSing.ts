@@ -1,4 +1,4 @@
-// Synthetic sing state for the test-only entry (`/stage/sing-test`) and the
+// Synthetic sing state for the test-only screenshot page (`sing-test.html`) and the
 // painter screenshots (#58): a made-up Song with placeholder lyrics, every
 // Note kind, and lanes in distinct Party colours. Nothing here is a real Song.
 // Each lane gets made-up Pitch readings: on pitch, an octave up (drawn folded),
@@ -12,7 +12,7 @@ import type { NoteKind } from "../../generated/NoteKind";
 import { beatAt } from "../../clock/beats";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
 import { PALETTE_KEYS } from "../../theme/tokens";
-import type { SingTestCase } from "../../singTestSearch";
+import type { SingTestCase } from "../../singTest/search";
 import { singVoices, type SingState } from "./frame";
 
 /** Beat 0 at 1 s, half a second per Beat: Song time 6 s is Beat 10. */

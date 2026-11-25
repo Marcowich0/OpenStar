@@ -34,7 +34,7 @@ export function liveStore(): LiveStore {
 }
 
 /** The browser's local storage; reading it can throw when it is blocked. */
-function browserStorage(): PhoneStorage {
+export function browserStorage(): PhoneStorage {
   try {
     return window.localStorage;
   } catch {

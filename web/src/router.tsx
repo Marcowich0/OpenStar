@@ -11,7 +11,6 @@ import {
 
 import { createQueryClient } from "./api/queryClient";
 import { validatePhoneSearch } from "./phone/phoneSearch";
-import { validateSingTestSearch } from "./singTestSearch";
 
 // Every screen is loaded lazily, so each route's code is its own chunk: a
 // Phone downloads only the Phone code. Keep this file free of static imports
@@ -44,20 +43,6 @@ const stageRoute = createRoute({
   component: lazyRouteComponent(
     () => import("./stage/StageScreen"),
     "StageScreen",
-  ),
-});
-
-/**
- * `/stage/sing-test`: test only. The sing screen from synthetic state at a
- * frozen Song time, for the painter screenshots (#58); nothing links to it.
- */
-const singTestRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/stage/sing-test",
-  validateSearch: validateSingTestSearch,
-  component: lazyRouteComponent(
-    () => import("./stage/sing/SingTestScreen"),
-    "SingTestScreen",
   ),
 });
 
@@ -114,7 +99,6 @@ const profilesRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   phoneRoute,
   stageRoute,
-  singTestRoute,
   bridgeRoute,
   adminRoute.addChildren([
     adminIndexRoute,

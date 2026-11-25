@@ -84,3 +84,15 @@ describe("code split by route", () => {
     expect(chunkOf("admin/AdminArea.tsx").isEntry).toBe(false);
   });
 });
+
+describe("the production build", () => {
+  // The painter screenshot page (`sing-test.html`, #203) is built only by
+  // `just e2e` / `just update-screenshots`, never into the binary.
+  it("contains no module of the test-only screenshot page", () => {
+    const ids = chunks.flatMap((c) => c.moduleIds);
+    expect(ids.filter((id) => id.includes("SingTestScreen"))).toEqual([]);
+    expect(
+      ids.filter((id) => id.startsWith(path.join(src, "singTest"))),
+    ).toEqual([]);
+  });
+});
