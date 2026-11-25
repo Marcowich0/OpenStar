@@ -2,7 +2,9 @@
 // Song (#155) until the sing scene plays the head's Request (#164). It plays
 // the Song through the Stage's AudioContext and gain chain on the sing
 // screen, and shows a live `songTime()` readout and the largest frame-to-frame
-// jitter, for checking the clock in real Chromium (144 Hz, #53).
+// jitter, for checking the clock in real Chromium (144 Hz, #53). Its Pause,
+// Resume and Restart buttons are the Stage-local trigger for #158's song
+// controls until the sing scene acts on the server's `controlSong` (#164).
 
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
@@ -16,11 +18,14 @@ import {
   type SongEnding,
 } from "../../playback/mediaPlayback";
 import { playbackPlan } from "../../playback/playbackPlan";
+import { stagePitch } from "../../live/browserLive";
 import { PALETTE_KEYS } from "../../theme/tokens";
 import { Button } from "../../ui/Button";
 import { singVoices, type SingState } from "../sing/frame";
 import { SingBackdrop } from "../sing/SingBackdrop";
 import { SingScreen } from "../sing/SingScreen";
+import { ResumeCountdown } from "./ResumeCountdown";
+import { createSongControls, type SongControlsState } from "./songControls";
 import { stageAudio } from "./stageAudio";
 
 export function PlaybackCheck() {
@@ -81,11 +86,31 @@ function PlaybackView({ detail }: { detail: SongDetail }) {
       }),
     [element, plan],
   );
+  const [started, setStarted] = useState(false);
+  const [controlsState, setControlsState] = useState<SongControlsState>({
+    phase: "playing",
+  });
+  const controls = useMemo(
+    () =>
+      playback &&
+      createSongControls({
+        playback,
+        // No scorers on this page; the sing scene (#164) passes its own.
+        buffers: () => stagePitch().buffers(),
+        scorers: () => [],
+        onChange: setControlsState,
+        onPlayFailed: () => {
+          setFailed(true);
+        },
+      }),
+    [playback],
+  );
   useEffect(
     () => () => {
+      controls?.dispose();
       playback?.dispose();
     },
-    [playback],
+    [playback, controls],
   );
 
   // The readout: Song time and the largest frame-to-frame jitter (how far a
@@ -154,7 +179,7 @@ function PlaybackView({ detail }: { detail: SongDetail }) {
         )}
         {failed && <span>{t("stage.playback.failed")}</span>}
         <Button
-          isDisabled={playback === null}
+          isDisabled={playback === null || started}
           onPress={() => {
             if (!playback) return;
             setEnding(null);
@@ -162,6 +187,9 @@ function PlaybackView({ detail }: { detail: SongDetail }) {
             stageAudio()
               .resume()
               .then(() => playback.start())
+              .then(() => {
+                setStarted(true);
+              })
               .catch(() => {
                 setFailed(true);
               });
@@ -169,7 +197,37 @@ function PlaybackView({ detail }: { detail: SongDetail }) {
         >
           {t("stage.playback.play")}
         </Button>
+        {controls && started && ending === null && (
+          <>
+            {controlsState.phase === "playing" ? (
+              <Button
+                onPress={() => {
+                  controls.pause();
+                }}
+              >
+                {t("stage.playback.pause")}
+              </Button>
+            ) : (
+              <Button
+                isDisabled={controlsState.phase === "countdown"}
+                onPress={() => {
+                  controls.resume();
+                }}
+              >
+                {t("stage.playback.resume")}
+              </Button>
+            )}
+            <Button
+              onPress={() => {
+                controls.restart();
+              }}
+            >
+              {t("stage.playback.restart")}
+            </Button>
+          </>
+        )}
       </div>
+      <ResumeCountdown state={controlsState} />
     </SingScreen>
   );
 }
