@@ -4,12 +4,20 @@
 // return, like `Dialog`; the slide is a CSS transition with the spring
 // easing, driven by `data-entering` and `data-exiting`.
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Dialog as AriaDialog,
   Modal,
   ModalOverlay,
 } from "react-aria-components";
+
+/**
+ * How long the sheet takes to slide in (`duration-450` below). A close
+ * asked for meanwhile waits for it: reversing the slide mid-way cancels the
+ * transition React Aria waits for, which would leave the sheet's invisible
+ * veil over the whole screen.
+ */
+export const SHEET_ENTER_MS = 450;
 
 export interface SheetProps {
   /** The sheet's accessible name. Pass it through `t()`. */
@@ -20,10 +28,27 @@ export interface SheetProps {
 }
 
 export function Sheet({ label, isOpen, onOpenChange, children }: SheetProps) {
+  // True from each opening until the slide in has finished.
+  const [entering, setEntering] = useState(isOpen);
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) setEntering(true);
+  }
+  useEffect(() => {
+    if (!entering) return;
+    const timer = setTimeout(() => {
+      setEntering(false);
+    }, SHEET_ENTER_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [entering]);
+
   return (
     <ModalOverlay
       data-testid="sheet-veil"
-      isOpen={isOpen}
+      isOpen={isOpen || entering}
       onOpenChange={onOpenChange}
       isDismissable
       className="fixed inset-0 z-40 flex items-end bg-veil transition-opacity duration-250 data-entering:opacity-0 data-exiting:opacity-0"

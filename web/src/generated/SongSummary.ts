@@ -46,4 +46,8 @@ tileColour: PaletteKey,
  * The Song's top High score at any Difficulty and either Voice; `None`
  * when no record of its identity counts.
  */
-topHighScore: TopHighScore | null, };
+topHighScore: TopHighScore | null, 
+/**
+ * `#YEAR`, shown as a tag on the Song's row.
+ */
+year: number | null, };

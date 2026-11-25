@@ -19,19 +19,26 @@ export interface ColourChoice {
 /**
  * The twelve colours in palette order, those held tonight marked, and the
  * first free one, which the form preselects (`null` when all are held).
+ * With `self` (a member changing their name, look or colour), that member's
+ * own colour counts as free and is preselected.
  */
-export function colourChoices(members: readonly PartyMember[]): {
+export function colourChoices(
+  members: readonly PartyMember[],
+  self?: PartyMember,
+): {
   choices: ColourChoice[];
   preselected: PaletteKey | null;
 } {
-  const held = new Set(members.map((m) => m.colour));
+  const held = new Set(
+    members.filter((m) => m.memberId !== self?.memberId).map((m) => m.colour),
+  );
   const choices = PALETTE_KEYS.map((colour) => ({
     colour,
     held: held.has(colour),
   }));
   return {
     choices,
-    preselected: choices.find((c) => !c.held)?.colour ?? null,
+    preselected: self?.colour ?? choices.find((c) => !c.held)?.colour ?? null,
   };
 }
 
@@ -46,18 +53,29 @@ export type FormNameCheck =
   /** A Guest of tonight's Party has it: the form can't be sent. */
   | { kind: "takenTonight" };
 
-/** Checks the typed name against the Profiles and tonight's Guests. */
+/**
+ * Checks the typed name against the Profiles and tonight's Guests. With
+ * `self` (a member renaming themselves), their own name is free.
+ */
 export function formNameCheck(
   name: string,
   profiles: readonly Profile[],
   members: readonly PartyMember[],
+  self?: PartyMember,
 ): FormNameCheck {
   const key = nameKey(name);
   if (key === "") return { kind: "empty" };
-  const profile = profiles.find((p) => nameKey(p.name) === key);
+  const ownProfile =
+    self?.identity.kind === "profile" ? self.identity.profileId : null;
+  const profile = profiles.find(
+    (p) => p.id !== ownProfile && nameKey(p.name) === key,
+  );
   if (profile) return { kind: "profile", profile };
   const guestHasIt = members.some(
-    (m) => m.identity.kind === "guest" && nameKey(m.identity.name) === key,
+    (m) =>
+      m.memberId !== self?.memberId &&
+      m.identity.kind === "guest" &&
+      nameKey(m.identity.name) === key,
   );
   return guestHasIt ? { kind: "takenTonight" } : { kind: "free" };
 }

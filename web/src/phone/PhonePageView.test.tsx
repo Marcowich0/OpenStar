@@ -174,10 +174,28 @@ function renderPhone({
   return { sent, server, connect, storage };
 }
 
+/** An empty Library's song list filters (the Remote's Songs tab asks). */
+const NO_FILTERS = {
+  languages: [],
+  genres: [],
+  years: [],
+  editions: [],
+  creators: [],
+  duet: [],
+  hasVideo: [],
+  length: null,
+};
+
 beforeEach(() => {
   vi.stubGlobal(
     "fetch",
-    vi.fn(() => Promise.resolve(Response.json(PROFILES))),
+    vi.fn((input: string | URL) =>
+      Promise.resolve(
+        new URL(input, "http://openstar.test").pathname === "/api/songs"
+          ? Response.json({ songs: [], filters: NO_FILTERS })
+          : Response.json(PROFILES),
+      ),
+    ),
   );
 });
 
@@ -741,6 +759,8 @@ describe("the Remote", () => {
     const { connect, server } = renderPhone();
     connect(1, party([[1, 2]]));
     server({ type: "leftParty" });
+    // "You left the Party" first (#119), then the pad.
+    fireEvent.click(screen.getByRole("button", { name: "Join again" }));
 
     expect(screen.getAllByTestId("code-box")).toHaveLength(4);
   });
