@@ -58,6 +58,7 @@ function plan(overrides: Partial<PlaybackPlan> = {}): PlaybackPlan {
     startSeconds: 0,
     endSeconds: null,
     loudnessLufs: null,
+    follow: null,
     ...overrides,
   };
 }
@@ -132,6 +133,7 @@ function recordingClock() {
     pause: () => fed.push("pause"),
     stall: () => fed.push("stall"),
     seek: (p: number) => fed.push(`seek ${String(p)}`),
+    songTime: () => 0,
   };
   return { fed, clock: clock as unknown as SongClock };
 }
@@ -495,5 +497,246 @@ describe("position reports", () => {
     s.media.fire("playing");
     s.playback.dispose();
     expect(s.reports).toEqual(["1.00@1"]);
+  });
+});
+
+/** The muted video that follows separate audio (#212). */
+class FakeFollowingVideo {
+  paused = true;
+  playbackRate = 1;
+  muted = false;
+  seeking = false;
+  duration = Number.NaN;
+  playCalls = 0;
+  /** Each seek (write to `currentTime`), in order. */
+  seeks: number[] = [];
+  private position = 0;
+  get currentTime() {
+    return this.position;
+  }
+  set currentTime(next: number) {
+    this.position = next;
+    this.seeks.push(next);
+  }
+  /** The video moves by itself (it plays on, or hiccups): not a seek. */
+  place(next: number) {
+    this.position = next;
+  }
+  play() {
+    this.playCalls += 1;
+    this.paused = false;
+    return Promise.resolve();
+  }
+  pause() {
+    this.paused = true;
+  }
+}
+
+/** A Song clock whose Song time the test moves: it runs only while playing. */
+function steppedClock() {
+  const clock = {
+    at: 0,
+    playing: false,
+    rate: 1,
+    lastSeekAt: null,
+    songTime: () => clock.at,
+    play: () => {
+      clock.playing = true;
+    },
+    pause: () => {
+      clock.playing = false;
+    },
+    stall: () => {
+      clock.playing = false;
+    },
+    seek: (position: number) => {
+      clock.at = position;
+    },
+    observeCurrentTime: () => undefined,
+    observeFrame: () => undefined,
+  };
+  return clock;
+}
+
+describe("a separate video following the audio (#212)", () => {
+  function following(gapSeconds: number, startSeconds = 0) {
+    const audio = new FakeMedia();
+    const video = new FakeFollowingVideo();
+    const clock = steppedClock();
+    const shown: boolean[] = [];
+    const s = setUp(
+      audio,
+      plan({ startSeconds, follow: { url: "/video.webm", gapSeconds } }),
+      {
+        video,
+        clock: clock as unknown as SongClock,
+        onVideoShown: (next) => shown.push(next),
+      },
+    );
+    return { ...s, audio, video, clock, shown };
+  }
+
+  /** Time passes: Song time runs while the clock plays, the video while it plays. */
+  function run(f: ReturnType<typeof following>, ms: number) {
+    f.advance(ms);
+    if (f.clock.playing) f.clock.at += ms / 1000;
+    if (!f.video.paused) {
+      f.video.place(f.video.currentTime + (ms / 1000) * f.video.playbackRate);
+    }
+    f.animationFrame();
+  }
+
+  it("mutes the video, and the audio stays the clock", async () => {
+    const f = following(0);
+    const { fed, clock } = recordingClock();
+    const s = setUp(
+      f.audio,
+      plan({ follow: { url: "/video.webm", gapSeconds: 0 } }),
+      { video: f.video, clock },
+    );
+    await s.playback.start();
+    f.audio.fire("playing");
+    s.advance(16);
+    f.audio.currentTime = 0.016;
+    s.animationFrame();
+    expect(f.video.muted).toBe(true);
+    expect(fed).toEqual(["seek 0", "play", "currentTime 0.016@1041"]);
+  });
+
+  it("puts the video at the audio position plus #VIDEOGAP", async () => {
+    const f = following(1.5);
+    await f.playback.start();
+    f.audio.fire("playing");
+    // As the audio really plays: Song time 0 + #VIDEOGAP 1.5 s, one seek.
+    expect(f.video.seeks).toEqual([1.5]);
+    expect(f.video.paused).toBe(false);
+    run(f, 1000);
+    expect(f.video.seeks).toEqual([1.5]);
+    expect(f.video.currentTime).toBeCloseTo(2.5, 9);
+    expect(f.video.playbackRate).toBe(1);
+  });
+
+  it("corrects small drift by playbackRate and a large one by a seek", async () => {
+    const f = following(0);
+    await f.playback.start();
+    f.audio.fire("playing");
+    run(f, 100);
+    expect(f.video.seeks).toEqual([]);
+    // The video runs 20 ms ahead: slowed down a little, no seek.
+    f.video.place(0.12);
+    f.animationFrame();
+    expect(f.video.seeks).toEqual([]);
+    expect(f.video.playbackRate).toBeCloseTo(0.98, 6);
+    // Now 200 ms behind (the video hiccuped): resynced with a seek, rate 1.
+    f.video.place(-0.1);
+    f.animationFrame();
+    expect(f.video.seeks).toEqual([0.1]);
+    expect(f.video.playbackRate).toBe(1);
+  });
+
+  it("does not seek again while the video's last seek is still landing", async () => {
+    const f = following(0);
+    await f.playback.start();
+    f.audio.fire("playing");
+    run(f, 500);
+    f.video.seeking = true;
+    f.video.place(0);
+    run(f, 100);
+    expect(f.video.seeks).toEqual([]);
+    f.video.seeking = false;
+    run(f, 16);
+    expect(f.video.seeks).toHaveLength(1);
+    expect(f.video.seeks[0]).toBeCloseTo(0.616, 9);
+  });
+
+  it("shows the background until the video's position reaches 0, then the video", async () => {
+    // #VIDEOGAP −2 s: the video begins 2 s into the audio.
+    const f = following(-2);
+    await f.playback.start();
+    f.audio.fire("playing");
+    run(f, 1000);
+    expect(f.shown).toEqual([]);
+    expect(f.video.paused).toBe(true);
+    run(f, 1000);
+    expect(f.shown).toEqual([true]);
+    expect(f.video.paused).toBe(false);
+  });
+
+  it("shows a video with #VIDEOGAP 0 from the first frame", async () => {
+    const f = following(0);
+    await f.playback.start();
+    f.audio.fire("playing");
+    run(f, 16);
+    expect(f.shown).toEqual([true]);
+  });
+
+  it("pauses the video with the audio, and it follows again on resume", async () => {
+    const f = following(1);
+    await f.playback.start();
+    f.audio.fire("playing");
+    run(f, 1000);
+    f.playback.pause();
+    expect(f.video.paused).toBe(true);
+    run(f, 5000);
+    expect(f.video.paused).toBe(true);
+    void f.playback.resume();
+    f.audio.fire("playing");
+    run(f, 500);
+    expect(f.video.paused).toBe(false);
+    // Song time 1.5 s, the video at 2.5 s: in step without another seek.
+    expect(f.video.seeks).toEqual([1]);
+    expect(f.video.currentTime).toBeCloseTo(2.5, 6);
+  });
+
+  it("holds the video still while the audio stalls", async () => {
+    const f = following(0);
+    await f.playback.start();
+    f.audio.fire("playing");
+    run(f, 1000);
+    f.audio.fire("waiting");
+    run(f, 16);
+    expect(f.video.paused).toBe(true);
+    run(f, 2000);
+    f.audio.fire("playing");
+    run(f, 16);
+    expect(f.video.paused).toBe(false);
+    // It carried on from where both stopped.
+    expect(f.video.seeks).toEqual([]);
+    expect(f.video.currentTime).toBeCloseTo(1.016, 9);
+  });
+
+  it("follows a Restart back to #START, behind the background again before position 0", async () => {
+    const f = following(-1, 0);
+    await f.playback.start();
+    f.audio.fire("playing");
+    run(f, 3000);
+    expect(f.shown).toEqual([true]);
+    void f.playback.restart();
+    run(f, 16);
+    expect(f.video.paused).toBe(true);
+    f.audio.fire("seeked");
+    run(f, 16);
+    expect(f.shown).toEqual([true, false]);
+    // Held at its start for the next time it shows.
+    expect(f.video.currentTime).toBe(0);
+    run(f, 1000);
+    expect(f.shown).toEqual([true, false, true]);
+    expect(f.video.paused).toBe(false);
+  });
+
+  it("stops the video when the Song ends or is left", async () => {
+    const ended = following(0);
+    await ended.playback.start();
+    ended.audio.fire("playing");
+    run(ended, 500);
+    ended.playback.end();
+    expect(ended.video.paused).toBe(true);
+
+    const left = following(0);
+    await left.playback.start();
+    left.audio.fire("playing");
+    run(left, 500);
+    left.playback.dispose();
+    expect(left.video.paused).toBe(true);
   });
 });
