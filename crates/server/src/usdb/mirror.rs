@@ -380,6 +380,7 @@ pub(crate) async fn update(ctx: &mut JobContext) -> Result<(), UserMessage> {
 /// The mirror's tables (`usdb_songs`, `usdb_mirror`; see `db.rs`).
 mod store {
     use super::{Facts, OptionalExtension, SongListRow, params};
+    use crate::library::normalise;
 
     pub(super) fn facts(conn: &mut rusqlite::Connection) -> rusqlite::Result<Facts> {
         conn.query_row(
@@ -432,10 +433,12 @@ mod store {
         {
             let mut insert = tx.prepare_cached(
                 "INSERT INTO usdb_songs (usdb_id, artist, title, genre, year, edition, golden,
-                     language, creator, rating, views, last_change, refetch)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+                     language, creator, rating, views, last_change, refetch, artist_key,
+                     title_key)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
                  ON CONFLICT (usdb_id) DO UPDATE SET
                      artist = excluded.artist, title = excluded.title,
+                     artist_key = excluded.artist_key, title_key = excluded.title_key,
                      genre = excluded.genre, year = excluded.year,
                      edition = excluded.edition, golden = excluded.golden,
                      language = excluded.language, creator = excluded.creator,
@@ -457,6 +460,8 @@ mod store {
                     row.views,
                     row.last_change,
                     refetch,
+                    normalise(&row.artist),
+                    normalise(&row.title),
                 ])?;
             }
         }

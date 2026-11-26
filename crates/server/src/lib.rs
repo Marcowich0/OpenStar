@@ -62,6 +62,8 @@ struct AppState {
     jobs: Jobs,
     /// The only way to USDB.
     usdb: usdb::UsdbClient,
+    /// USDB covers, cached in `/appdata/cache` as they are first shown.
+    usdb_covers: usdb::covers::Covers,
     /// Scans the Library into the index, one scan at a time.
     scanner: Scanner,
     /// The time source for every timed rule (the Unlock's idle time).
@@ -163,6 +165,7 @@ impl Server {
                 live,
                 jobs,
                 usdb,
+                usdb_covers: usdb::covers::Covers::new(&config.appdata_dir),
                 clock: options.clock,
                 mirror_gate: Arc::default(),
                 admin_pin: pin_wait::AdminPin::new(config.admin_pin.expose()),
@@ -258,9 +261,14 @@ impl Server {
         if self.state.config.usdb.is_some() {
             let usdb = self.state.usdb.clone();
             let mirror = self.state.mirror();
+            let live_for_login = self.state.live.clone();
             usdb_tasks.push(tokio::spawn(async move {
                 let state = usdb.check_login().await;
                 tracing::info!(?state, "USDB login checked");
+                // The Downloads section's notices read the login's status.
+                live_for_login
+                    .changed(vec![openstar_protocol::ChangeTopic::UsdbMirror])
+                    .await;
                 if state == openstar_protocol::usdb::UsdbState::LoggedIn {
                     mirror.at_start().await;
                 }

@@ -23,8 +23,11 @@ mod scan;
 mod search;
 pub(crate) mod timing;
 
+pub(crate) use artwork::tile_colour;
 pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;
+pub(crate) use identity::normalise;
+pub(crate) use index::identity_present;
 pub(crate) use index::song as song_detail;
 pub use loudness::Measurement;
 pub use pitch_track::PitchTrackJob;

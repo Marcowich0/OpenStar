@@ -52,6 +52,28 @@ function adminPin(): string {
 }
 
 /**
+ * The fake USDB `scripts/e2e.sh` gives the server under test (its base URL).
+ * Read and script it over its control endpoints: `GET /__fake/requests`,
+ * `POST /__fake/songs` (the song list), `PUT /__fake/covers/<id>`.
+ */
+export const FAKE_USDB_URL = fakeUsdbUrl();
+
+function fakeUsdbUrl(): string {
+  const url = process.env.OPENSTAR_E2E_USDB_URL;
+  if (url === undefined || url === "")
+    throw new Error(
+      "OPENSTAR_E2E_USDB_URL is not set: run the suite with `just e2e`",
+    );
+  return url;
+}
+
+/**
+ * The USDB id `scripts/e2e.sh` writes into the metadata.json of
+ * {@link FIXTURE_SONGS.sineMelody}, so a USDB song with it is "In Library".
+ */
+export const E2E_USDB_IN_LIBRARY_ID = 900001;
+
+/**
  * Makes every page of `context` a remembered Stage browser: gives the Admin
  * PIN at `POST /api/stage/trust`, as the pad on `/stage` does, and the Stage
  * cookie lands in the context's cookie jar. The `stage` and `micStage`
