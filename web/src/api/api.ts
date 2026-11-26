@@ -57,6 +57,8 @@ export interface Endpoints {
   "GET /api/server-info": { response: ServerInfo };
   "GET /api/local-mics": { response: LocalMic[] };
   "GET /api/mic-bridges": { response: MicBridges };
+  /** Guarded: forgets a Mic bridge and its Local mics; `204`, no body. */
+  "DELETE /api/mic-bridges/{id}": { response: null };
   "GET /api/mic-settings": {
     query: MicSettingsQuery;
     response: StageOutputMicSettings;
@@ -232,6 +234,7 @@ const REFUSAL_CODES = {
   noResults: true,
   notABridge: true,
   bridgeRequestNotFound: true,
+  bridgeNotFound: true,
   adminPinWait: true,
   usdbCredentialsMissing: true,
   usdbLoginFailed: true,

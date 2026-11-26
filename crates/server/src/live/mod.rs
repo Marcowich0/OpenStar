@@ -21,6 +21,7 @@ mod av_sync;
 mod bridges;
 mod calibration;
 pub mod connection;
+mod forget_bridge;
 pub mod hub;
 mod line_up;
 mod local_mic_list;
@@ -136,6 +137,11 @@ enum Command {
     DeleteProfile {
         id: ProfileId,
         reply: oneshot::Sender<anyhow::Result<Result<(), Refused>>>,
+    },
+    /// `DELETE /api/mic-bridges/{id}`: forgets an approved bridge.
+    ForgetBridge {
+        bridge_id: openstar_protocol::bridge::BridgeId,
+        reply: oneshot::Sender<anyhow::Result<bool>>,
     },
     /// `GET /api/mic-bridges`: approved bridges and those waiting.
     MicBridges {
@@ -565,6 +571,9 @@ impl LiveState {
                 }
                 Command::DeleteProfile { id, reply } => {
                     let _ = reply.send(self.delete_profile(id).await);
+                }
+                Command::ForgetBridge { bridge_id, reply } => {
+                    let _ = reply.send(self.forget_bridge(bridge_id).await);
                 }
                 Command::MicBridges { reply } => {
                     let _ = reply.send(self.bridges.listing());

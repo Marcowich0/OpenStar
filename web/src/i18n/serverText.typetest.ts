@@ -60,6 +60,7 @@ const handlers: CodeHandlers<UserMessage> = {
   noResults: () => t("userMessage.noResults"),
   notABridge: () => t("userMessage.notABridge"),
   bridgeRequestNotFound: () => t("userMessage.bridgeRequestNotFound"),
+  bridgeNotFound: () => t("userMessage.bridgeNotFound"),
   adminPinWait: ({ params }) =>
     t("userMessage.adminPinWaitSeconds", { count: params.secondsLeft }),
   usdbCredentialsMissing: () => t("userMessage.usdbCredentialsMissing"),

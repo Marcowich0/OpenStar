@@ -685,6 +685,8 @@ pub enum UserMessage {
     /// No Mic bridge waits for approval under this id (it closed, or was
     /// approved already).
     BridgeRequestNotFound,
+    /// No approved Mic bridge has this id (Forget).
+    BridgeNotFound,
     /// Too many wrong Admin PIN guesses in a row: a wait runs, shared by
     /// every browser, and no PIN (not even the correct one) is checked for
     /// `seconds_left` more seconds. Sent over HTTP with `429`.

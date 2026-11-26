@@ -6,7 +6,8 @@
 // closed, with its channels and their editable names, and while open a live
 // meter per channel fed by the levels the bridge sends), then New bridges
 // waiting for approval with their code and Approve. Naming, switching, Find
-// it and approving need no Admin PIN and are saved at once. Every device,
+// it and approving need no Admin PIN and are saved at once; Forget on a
+// bridge group deletes kept data, so it is a guarded press and hold. Every device,
 // and every interface of every open bridge, is open while the screen is
 // open. The Mic threshold line (#172) comes later.
 
@@ -16,6 +17,7 @@ import type { BridgeRequest } from "../generated/BridgeRequest";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridge } from "../generated/MicBridge";
 import { t } from "../i18n/t";
+import { ForgetBridge } from "./ForgetBridge";
 import { useLocalMics } from "./LocalMics";
 import { SILENCE_DBFS } from "./localMicCapture";
 import {
@@ -199,6 +201,7 @@ function BridgeGroup({
           {bridge.open ? t("mics.bridge.open") : t("mics.bridge.closed")}
         </p>
       </div>
+      <ForgetBridge bridge={bridge} />
       {channels.length === 0 && (
         <p className="text-2xl text-ink-2">{t("mics.bridge.noChannels")}</p>
       )}

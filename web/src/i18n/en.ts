@@ -355,6 +355,9 @@ export const en = {
   "mics.bridge.open": "Open",
   "mics.bridge.closed": "Closed",
   "mics.bridge.noChannels": "No input channel kept yet",
+  "mics.bridge.forget": "Forget the Mic bridge on {host}",
+  "mics.bridge.forgetShort": "Forget",
+  "mics.bridge.forgetFailed": "The Mic bridge could not be forgotten",
   "mics.group.newBridges": "New bridges",
   "mics.newBridge": "New mic bridge {host} · code {code}",
   "mics.approve": "Approve",
@@ -659,6 +662,7 @@ export const en = {
   "userMessage.notABridge": "Only a Mic bridge can do that",
   "userMessage.bridgeRequestNotFound":
     "That Mic bridge is no longer waiting for approval",
+  "userMessage.bridgeNotFound": "That Mic bridge is no longer approved",
   "userMessage.adminPinWaitSeconds": {
     one: "Too many wrong PINs. Try again in {count, number} second",
     other: "Too many wrong PINs. Try again in {count, number} seconds",

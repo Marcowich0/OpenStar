@@ -10,7 +10,7 @@
 use std::fmt::Write as _;
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use openstar_protocol::UserMessage;
@@ -108,6 +108,61 @@ pub async fn set_host_name(db: &Database, approved: Approved) -> anyhow::Result<
     .await
 }
 
+/// The start of every Local mic id of bridge `bridge_id`
+/// ([`openstar_protocol::bridge::bridge_local_mic_id`]).
+fn local_mic_id_prefix(bridge_id: &BridgeId) -> String {
+    format!("bridge:{}:", bridge_id.0)
+}
+
+/// Forget: removes approved bridge `bridge_id` and its Local mics with every
+/// Mic setting stored against them (at every Stage output), in one
+/// transaction. Says whether the bridge was approved.
+pub async fn forget(db: &Database, bridge_id: BridgeId) -> anyhow::Result<bool> {
+    db.call(move |conn| {
+        let tx = conn.transaction()?;
+        let forgotten = tx.execute(
+            "DELETE FROM mic_bridges WHERE bridge_id = ?1",
+            params![bridge_id.0],
+        )? > 0;
+        if forgotten {
+            let prefix = local_mic_id_prefix(&bridge_id);
+            tx.execute(
+                "DELETE FROM local_mics WHERE substr(id, 1, length(?1)) = ?1",
+                params![prefix],
+            )?;
+            tx.execute(
+                "DELETE FROM mic_settings
+                 WHERE mic_kind = 'localMic' AND substr(mic_id, 1, length(?1)) = ?1",
+                params![prefix],
+            )?;
+        }
+        tx.commit()?;
+        Ok(forgotten)
+    })
+    .await
+}
+
+/// `DELETE /api/mic-bridges/{bridgeId}` (guarded: it deletes kept data):
+/// `204` once the bridge and its Local mics are forgotten and its connection
+/// closed, `404 bridgeNotFound` when no bridge with that id is approved.
+pub(crate) async fn forget_bridge(
+    State(state): State<AppState>,
+    Path(bridge_id): Path<String>,
+) -> Response {
+    match state.live.forget_bridge(BridgeId(bridge_id)).await {
+        Ok(true) => StatusCode::NO_CONTENT.into_response(),
+        Ok(false) => (StatusCode::NOT_FOUND, Json(UserMessage::BridgeNotFound)).into_response(),
+        Err(error) => {
+            tracing::error!(?error, "forgetting a Mic bridge");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(UserMessage::ServerError),
+            )
+                .into_response()
+        }
+    }
+}
+
 /// `GET /api/mic-bridges`.
 pub(crate) async fn read(State(state): State<AppState>) -> Response {
     match state.live.mic_bridges().await {
@@ -144,6 +199,16 @@ mod tests {
         let taken: Vec<String> = (0..9_999).map(|n| format!("{n:04}")).collect();
         let taken: Vec<&str> = taken.iter().map(String::as_str).collect();
         assert_eq!(draw_code(&taken).unwrap(), "9999");
+    }
+
+    #[test]
+    fn every_local_mic_id_of_a_bridge_starts_with_its_prefix() {
+        let id = BridgeId("ab12".into());
+        let local_mic_id = openstar_protocol::bridge::bridge_local_mic_id(&id, "usb:x", 3);
+        assert!(local_mic_id.starts_with(&local_mic_id_prefix(&id)));
+        let other =
+            openstar_protocol::bridge::bridge_local_mic_id(&BridgeId("ab123".into()), "x", 0);
+        assert!(!other.starts_with(&local_mic_id_prefix(&id)));
     }
 
     #[test]
