@@ -109,15 +109,31 @@ function SeatMeter({
 }
 
 /** A red warning bubble with a pointer up to the card. */
-function WarningBubble({ text }: { text: string }) {
+/**
+ * One warning under a seat card: its text, and for "Not calibrated" the
+ * Calibrate mics button that goes with it.
+ */
+export type SeatWarning = string | { text: string; onCalibrate: () => void };
+
+function WarningBubble({ warning }: { warning: SeatWarning }) {
+  const text = typeof warning === "string" ? warning : warning.text;
   return (
-    <p className="relative animate-pop-in rounded-[26px] bg-red px-[22px] py-2.5 text-center text-2xl font-bold whitespace-nowrap text-white shadow-[0_5px_0_var(--color-red-ledge)]">
+    <div className="relative flex animate-pop-in items-center gap-4 rounded-[26px] bg-red px-[22px] py-2.5 text-center text-2xl font-bold whitespace-nowrap text-white shadow-[0_5px_0_var(--color-red-ledge)]">
       <span
         aria-hidden="true"
         className="absolute -top-2 left-1/2 size-5 -translate-x-1/2 rotate-45 rounded-[3px] bg-red"
       />
-      <span className="relative">{text}</span>
-    </p>
+      <p className="relative">{text}</p>
+      {typeof warning !== "string" && (
+        <button
+          type="button"
+          onClick={warning.onCalibrate}
+          className="relative -mr-2.5 cursor-pointer rounded-full bg-white px-5 py-1.5 text-xl font-bold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+        >
+          {t("stage.overlay.calibrateMics")}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -142,8 +158,8 @@ export interface SeatCardProps {
   micText: string;
   /** No Mic, or a blocked one: the Mic field turns warn colours. */
   micBad: boolean;
-  /** The warning texts that hang under this card. */
-  warnings: readonly string[];
+  /** The warnings that hang under this card. */
+  warnings: readonly SeatWarning[];
   /** Pop-in order: the seat's position. */
   order: number;
   /** The scene's first focus. */
@@ -275,8 +291,11 @@ export function SeatCard({
       </button>
       {warnings.length > 0 && (
         <div className="absolute top-full left-1/2 mt-6 flex -translate-x-1/2 flex-col items-center gap-5">
-          {warnings.map((text) => (
-            <WarningBubble key={text} text={text} />
+          {warnings.map((warning) => (
+            <WarningBubble
+              key={typeof warning === "string" ? warning : warning.text}
+              warning={warning}
+            />
           ))}
         </div>
       )}

@@ -131,6 +131,10 @@ describe("where each warning hangs", () => {
       micHasProblem([{ code: "micBlocked", params: { memberId: 1 } }]),
     ).toBe(true);
     expect(micHasProblem([])).toBe(false);
+    // "Not calibrated" warns; the Mic itself works.
+    expect(
+      micHasProblem([{ code: "notCalibrated", params: { memberId: 1 } }]),
+    ).toBe(false);
   });
 });
 

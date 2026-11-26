@@ -167,6 +167,7 @@ export const partyEventText = byCode<PartyEvent>({
   micOpened: ({ params }) => t("partyEvent.micOpened", { name: params.name }),
   lineUpChanged: () => t("partyEvent.lineUpChanged"),
   localMicsChanged: () => t("partyEvent.localMicsChanged"),
+  calibrationChanged: () => t("partyEvent.calibrationChanged"),
   seatMoved: ({ params }) => t("partyEvent.seatMoved", { name: params.name }),
   seatVoice: ({ params }) =>
     t("partyEvent.seatVoice", {
@@ -218,6 +219,7 @@ export function lineUpWarningText(
       t("lineUpWarning.duetNeedsVoice", {
         voice: voiceNumber(params.voice),
       }),
+    notCalibrated: () => t("lineUpWarning.notCalibrated"),
   })(warning);
 }
 

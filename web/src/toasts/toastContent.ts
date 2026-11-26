@@ -163,6 +163,9 @@ export function toastContent(
         }),
       };
     }
+    case "soundOutputChanged":
+      // Raised by the Stage itself (`StageMicSettingsLoader`).
+      return { actor: null, parts: tParts("toast.soundOutputChanged") };
     case "micBlocked":
       return {
         actor: memberLook(party, profiles, event.params.memberId),
@@ -243,6 +246,9 @@ export function toastContent(
     case "localMicsChanged":
       // Never a toast (`toastsFor`); worded in case one is shown.
       return { actor, parts: tParts("partyEvent.localMicsChanged") };
+    case "calibrationChanged":
+      // Never a toast (`toastsFor`): the seats' warnings show it.
+      return { actor, parts: tParts("partyEvent.calibrationChanged") };
     case "lineUpChanged":
       return actor
         ? { actor, parts: tParts("toast.lineUpChanged", { actor: actor.name }) }

@@ -91,6 +91,34 @@ describe("the Stage tab while a Line-up waits", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows “Not calibrated” in the seat's row with a Calibrate mics button that ticks that seat's Mic, and Start stays on", async () => {
+    const { sent } = renderTab({
+      ...LINE_UP,
+      warnings: [{ code: "notCalibrated", params: { memberId: 2 } }],
+    });
+    const row = await screen.findByRole("group", { name: /^Jonas/ });
+    expect(within(row).getByText("Not calibrated")).toBeInTheDocument();
+    expect(
+      within(await screen.findByRole("group", { name: /^Bo/ })).queryByText(
+        "Not calibrated",
+      ),
+    ).toBeNull();
+    // Once, in the row: not again in the list under the seats.
+    expect(screen.getAllByText("Not calibrated")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Start" })).toHaveAttribute(
+      "aria-disabled",
+      "false",
+    );
+
+    fireEvent.click(
+      within(row).getByRole("button", { name: "Calibrate mics" }),
+    );
+    expect(sent.at(-1)).toEqual({
+      type: "openCalibrationFor",
+      mic: { kind: "localMic", localMicId: "red" },
+    });
+  });
+
   it("adds a singer while seats are free and opens their sheet", async () => {
     const { sent, lineUpChanged } = renderTab();
     fireEvent.click(

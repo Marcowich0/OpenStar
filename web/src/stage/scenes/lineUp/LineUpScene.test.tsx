@@ -758,6 +758,30 @@ describe("warnings and Start", () => {
     ]);
   });
 
+  it("shows 'Not calibrated' as a bubble under the seat with a Calibrate mics button that opens the checklist with that seat's Mic ticked, and Start stays on", () => {
+    const { sent } = setup(
+      party({
+        lineUp: lineUp({
+          warnings: [{ code: "notCalibrated", params: { memberId: 2 } }],
+        }),
+      }),
+    );
+    const mia = within(seats()[1] as HTMLElement);
+    expect(mia.getByText("Not calibrated")).toBeVisible();
+    expect(
+      within(seats()[0] as HTMLElement).queryByText("Not calibrated"),
+    ).toBeNull();
+    expect(startButton()).toHaveAttribute("aria-disabled", "false");
+
+    click(mia.getByRole("button", { name: "Calibrate mics" }));
+    expect(sent.filter((m) => m.type === "openCalibrationFor")).toEqual([
+      {
+        type: "openCalibrationFor",
+        mic: { kind: "phone", phoneId: "ph-mia" },
+      },
+    ]);
+  });
+
   it("does not start on Space while a pick list is open", () => {
     const { sent } = setup();
     click(screen.getByRole("button", { name: "Who: Bo" }));

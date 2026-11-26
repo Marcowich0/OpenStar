@@ -24,12 +24,20 @@ export const MAX_TOASTS = 3;
  * lost-Mic rule runs on the Stage). A code plus parameters like a
  * `PartyEvent`, made in the frontend, so no English is stored.
  */
-export type StageToastEvent = {
-  /** "Mia is back on the mic": a seat's lost Mic came back during a Song. */
-  code: "backOnMic";
-  /** `name` is the member's name at Start, for when they have left since. */
-  params: { memberId: PartyMemberId; name: string };
-};
+export type StageToastEvent =
+  | {
+      /** "Mia is back on the mic": a seat's lost Mic came back during a Song. */
+      code: "backOnMic";
+      /** `name` is the member's name at Start, for when they have left since. */
+      params: { memberId: PartyMemberId; name: string };
+    }
+  | {
+      /**
+       * "Sound output changed: calibrate mics": the Stage's output changed to
+       * one at which no Mic has values stored.
+       */
+      code: "soundOutputChanged";
+    };
 
 /** One Party change (or Stage-made notice) to show as a toast. */
 export interface Toast {
@@ -51,16 +59,19 @@ function pushToast(
   };
 }
 
-/** Adds a toast the Stage raised itself; it is about the member it names. */
+/**
+ * Adds a toast the Stage raised itself; it is about the member it names, or
+ * the Stage's own when it names none.
+ */
 export function addStageToast(
   state: Pick<LiveState, "toasts" | "nextToastId">,
   event: StageToastEvent,
 ): Pick<LiveState, "toasts" | "nextToastId"> {
-  return pushToast(
-    state,
-    { kind: "member", memberId: event.params.memberId },
-    event,
-  );
+  const actor: Actor =
+    event.code === "backOnMic"
+      ? { kind: "member", memberId: event.params.memberId }
+      : { kind: "stage" };
+  return pushToast(state, actor, event);
 }
 
 /** Whether a change gets a toast in this browser. */
@@ -68,6 +79,9 @@ export function toastsFor(isStage: boolean, change: ChangeEvent): boolean {
   // The Local mic list changing (plugged in, a bridge closed) is shown by
   // the Mic lists themselves.
   if (change.event.code === "localMicsChanged") return false;
+  // Calibrations stored or the output changed: the seats' "Not calibrated"
+  // warnings show it.
+  if (change.event.code === "calibrationChanged") return false;
   return !(isStage && change.actor.kind === "stage");
 }
 

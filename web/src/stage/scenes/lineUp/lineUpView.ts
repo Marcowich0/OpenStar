@@ -51,7 +51,8 @@ export function placeWarnings(lineUp: LineUp): PlacedWarnings {
   for (const warning of lineUp.warnings) {
     switch (warning.code) {
       case "noMic":
-      case "micBlocked": {
+      case "micBlocked":
+      case "notCalibrated": {
         const seat = lineUp.seats.findIndex(
           (s) => s.memberId === warning.params.memberId,
         );

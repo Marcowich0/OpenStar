@@ -20,7 +20,11 @@ export function StageScreen() {
   return (
     <StageTrustGate trust={stageTrust()}>
       <StageOutputProvider store={store}>
-        <StageMicSettingsLoader />
+        <StageMicSettingsLoader
+          onUncalibratedOutput={() => {
+            store.showStageToast({ code: "soundOutputChanged" });
+          }}
+        />
         <LocalMicsProvider store={store}>
           <StageFrame store={store} />
         </LocalMicsProvider>

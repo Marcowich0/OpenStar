@@ -58,6 +58,7 @@ impl LiveState {
         self.hub.send_all(&ServerMessage::Changed {
             topics: vec![ChangeTopic::MicSettings, ChangeTopic::MicBridges],
         });
+        self.refresh_calibrated().await;
         self.reload_local_mics().await;
         Ok(true)
     }
