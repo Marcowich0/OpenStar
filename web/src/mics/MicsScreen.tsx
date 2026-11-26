@@ -122,7 +122,7 @@ function LevelMeter({
         aria-valuemin={METER_FLOOR_DBFS}
         aria-valuemax={0}
         aria-valuenow={METER_FLOOR_DBFS}
-        className="relative h-6 overflow-hidden rounded-full bg-white shadow-ledge-sm"
+        className="relative h-6 overflow-hidden rounded-full bg-cream shadow-ledge-sm"
       >
         <div ref={fill} className="h-full w-0 rounded-full bg-green" />
       </div>
