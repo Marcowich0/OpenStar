@@ -17,6 +17,8 @@ pub enum YtDlpStubBehaviour {
     Fail { exit_code: u8, message: String },
     /// Never exits (until killed).
     Hang,
+    /// Waits this long, then succeeds as usual.
+    Delay(std::time::Duration),
 }
 
 /// A folder holding the `yt-dlp` stub, for the front of `PATH`. The folder is
@@ -64,6 +66,7 @@ impl YtDlpStub {
                 format!("fail {exit_code} {}", message.replace('\n', " "))
             }
             YtDlpStubBehaviour::Hang => "hang".to_owned(),
+            YtDlpStubBehaviour::Delay(wait) => format!("delay {:.3}", wait.as_secs_f64()),
         };
         let mut file = fs::OpenOptions::new()
             .create(true)
@@ -78,6 +81,20 @@ impl YtDlpStub {
     /// The arguments of every call so far, in call order.
     pub fn calls(&self) -> Vec<Vec<String>> {
         read_calls(self.dir())
+    }
+
+    /// When each call so far ran, in call order: its start and end in Unix
+    /// seconds, or `None` while it runs (or when it was killed).
+    pub fn call_spans(&self) -> Vec<Option<(f64, f64)>> {
+        let count = self.calls().len();
+        (1..=count)
+            .map(|call| {
+                let text =
+                    fs::read_to_string(self.dir().join(format!("calls/{call:06}.span"))).ok()?;
+                let mut times = text.split_whitespace().map(|time| time.parse::<f64>().ok());
+                Some((times.next()??, times.next()??))
+            })
+            .collect()
     }
 }
 

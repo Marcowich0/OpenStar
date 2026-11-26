@@ -6,7 +6,8 @@
 // far the mirror's first fill is, and why the last mirror run failed.
 // Opening the section asks for a fresh mirror (the server updates it only
 // when it is more than a day old); a button starts a full refetch. Nothing
-// here needs the Admin PIN. Starting a Download (guarded) is a later ticket.
+// here needs the Admin PIN. Tapping a result opens the video picker
+// (`VideoPicker`); starting a Download (guarded) is a later ticket.
 
 import {
   keepPreviousData,
@@ -38,6 +39,7 @@ import { t } from "../i18n/t";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
+import { VideoPicker } from "./VideoPicker";
 
 function searchQuery(search: string, sort: UsdbSort): UsdbSearchQuery {
   const words = search.trim();
@@ -311,32 +313,44 @@ function Search() {
   );
 }
 
-/** One USDB song: its cover, title, artist, rating and views, and the badge. */
+/**
+ * One USDB song: its cover, title, artist, rating and views, and the badge.
+ * Tapping it opens the video picker.
+ */
 function UsdbSongRow({ song }: { song: UsdbSong }) {
+  const [picking, setPicking] = useState(false);
   return (
-    <li className="flex min-w-0 items-center gap-3">
-      <Cover
-        src={song.cover}
-        tileColour={song.tileColour}
-        rim={3}
-        lazy
-        className="w-14 shrink-0"
-      />
-      <div className="flex min-w-0 grow flex-col gap-0.5">
-        <span className="truncate text-lg leading-tight font-semibold text-ink">
-          {song.title}
-        </span>
-        <span className="truncate text-sm text-ink-2">{song.artist}</span>
-        <span className="flex flex-wrap items-center gap-x-3 text-sm text-ink-2">
-          <span>{t("admin.downloads.rating", { rating: song.rating })}</span>
-          <span>{t("admin.downloads.views", { count: song.views })}</span>
-        </span>
-      </div>
-      {song.inLibrary ? (
-        <span className="shrink-0 rounded-full bg-green px-2.5 py-0.5 text-sm font-semibold text-white">
-          {t("admin.downloads.inLibrary")}
-        </span>
-      ) : null}
+    <li className="min-w-0">
+      <AriaButton
+        onPress={() => {
+          setPicking(true);
+        }}
+        className="flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-card-sm text-left outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:bg-white"
+      >
+        <Cover
+          src={song.cover}
+          tileColour={song.tileColour}
+          rim={3}
+          lazy
+          className="w-14 shrink-0"
+        />
+        <div className="flex min-w-0 grow flex-col gap-0.5">
+          <span className="truncate text-lg leading-tight font-semibold text-ink">
+            {song.title}
+          </span>
+          <span className="truncate text-sm text-ink-2">{song.artist}</span>
+          <span className="flex flex-wrap items-center gap-x-3 text-sm text-ink-2">
+            <span>{t("admin.downloads.rating", { rating: song.rating })}</span>
+            <span>{t("admin.downloads.views", { count: song.views })}</span>
+          </span>
+        </div>
+        {song.inLibrary ? (
+          <span className="shrink-0 rounded-full bg-green px-2.5 py-0.5 text-sm font-semibold text-white">
+            {t("admin.downloads.inLibrary")}
+          </span>
+        ) : null}
+      </AriaButton>
+      <VideoPicker song={song} isOpen={picking} onOpenChange={setPicking} />
     </li>
   );
 }

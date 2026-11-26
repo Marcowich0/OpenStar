@@ -24,6 +24,7 @@ mod startup;
 pub mod txt;
 mod unlock;
 pub mod usdb;
+pub mod ytdlp;
 
 use std::path::PathBuf;
 
@@ -64,6 +65,8 @@ struct AppState {
     usdb: usdb::UsdbClient,
     /// USDB covers, cached in `/appdata/cache` as they are first shown.
     usdb_covers: usdb::covers::Covers,
+    /// The video picker's yt-dlp queue, outside the job runner's lanes.
+    video_lookups: usdb::videos::VideoLookups,
     /// Scans the Library into the index, one scan at a time.
     scanner: Scanner,
     /// The time source for every timed rule (the Unlock's idle time).
@@ -155,6 +158,7 @@ impl Server {
             Jobs::start_with_usdb(env.clone(), Some(usdb_env), config.tool_path.clone()).await?;
         tracing::info!("job runner started");
         let scanner = Scanner::new(env, jobs.clone(), config.tool_path.clone());
+        let ytdlp = ytdlp::YtDlp::new(&config.appdata_dir, config.tool_path.clone());
         Ok(Self {
             state: AppState {
                 scanner,
@@ -166,6 +170,7 @@ impl Server {
                 jobs,
                 usdb,
                 usdb_covers: usdb::covers::Covers::new(&config.appdata_dir),
+                video_lookups: usdb::videos::VideoLookups::new(ytdlp),
                 clock: options.clock,
                 mirror_gate: Arc::default(),
                 admin_pin: pin_wait::AdminPin::new(config.admin_pin.expose()),

@@ -149,3 +149,27 @@ export const usdbSongsQuery = (query: UsdbSearchQuery = {}) =>
     queryKey: ["usdb", "songs", query],
     queryFn: ({ signal }) => api("GET /api/usdb/songs", { query, signal }),
   });
+
+/**
+ * `GET /api/usdb/songs/{id}/videos`: the video picker's candidates. Not under
+ * `["usdb"]`, so the mirror's notices do not ask USDB and yt-dlp again.
+ */
+export const videoCandidatesQuery = (usdbId: number) =>
+  queryOptions({
+    queryKey: ["videoPicker", usdbId],
+    queryFn: ({ signal }) =>
+      api("GET /api/usdb/songs/{id}/videos", {
+        params: { id: String(usdbId) },
+        signal,
+      }),
+    retry: false,
+  });
+
+/** `GET /api/usdb/video-details`: what yt-dlp reads about one candidate. */
+export const videoDetailsQuery = (url: string) =>
+  queryOptions({
+    queryKey: ["videoDetails", url],
+    queryFn: ({ signal }) =>
+      api("GET /api/usdb/video-details", { query: { url }, signal }),
+    retry: false,
+  });

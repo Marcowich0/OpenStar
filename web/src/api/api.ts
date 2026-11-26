@@ -36,6 +36,9 @@ import type { UsdbMirrorStatus } from "../generated/UsdbMirrorStatus";
 import type { UsdbSearchQuery } from "../generated/UsdbSearchQuery";
 import type { UsdbSearchResults } from "../generated/UsdbSearchResults";
 import type { UsdbStatus } from "../generated/UsdbStatus";
+import type { UsdbVideoCandidates } from "../generated/UsdbVideoCandidates";
+import type { VideoDetails } from "../generated/VideoDetails";
+import type { VideoDetailsQuery } from "../generated/VideoDetailsQuery";
 import type { UserMessage } from "../generated/UserMessage";
 
 /**
@@ -89,6 +92,11 @@ export interface Endpoints {
   "GET /api/usdb/mirror": { response: UsdbMirrorStatus };
   "POST /api/usdb/mirror/refresh": { response: UsdbMirrorStatus };
   "POST /api/usdb/mirror/refetch": { response: UsdbMirrorStatus };
+  "GET /api/usdb/songs/{id}/videos": { response: UsdbVideoCandidates };
+  "GET /api/usdb/video-details": {
+    query: VideoDetailsQuery;
+    response: VideoDetails;
+  };
 }
 
 export type Route = keyof Endpoints;

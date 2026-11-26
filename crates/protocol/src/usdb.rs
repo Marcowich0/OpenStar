@@ -21,6 +21,17 @@
 //!   from the cache in `/appdata/cache` after that; `404` when USDB has none
 //!   (not guarded).
 //!
+//! - `GET /api/usdb/songs/{id}/videos`: the video picker's
+//!   [`UsdbVideoCandidates`] for a USDB song (not guarded: only starting a
+//!   Download needs the Admin PIN). The server reads the song's text and
+//!   detail page through USDB's paced queue and runs the yt-dlp search.
+//! - `GET /api/usdb/video-details?<VideoDetailsQuery>`: what yt-dlp reads
+//!   about one candidate, [`VideoDetails`]; `502` with the code when yt-dlp
+//!   cannot read it (show the candidate as unavailable). Not guarded.
+//!
+//! The picker's yt-dlp lookups (the search and every candidate's details)
+//! run one at a time in their own queue, outside the Download cap.
+//!
 //! Progress and completion of a mirror run reach browsers as
 //! [`ServerMessage::JobChanged`](crate::ServerMessage::JobChanged) (kinds
 //! `usdbMirrorRefetch` and `usdbMirrorUpdate`) and as
@@ -179,6 +190,76 @@ pub struct UsdbSong {
     /// The tile's colour when there is no cover: the one the Library picks
     /// for a Song with this USDB id.
     pub tile_colour: PaletteKey,
+}
+
+/// How many yt-dlp search hits the video picker offers at most.
+pub const VIDEO_SEARCH_HITS: u32 = 5;
+
+/// Body of `GET /api/usdb/songs/{id}/videos`: the video candidates for one
+/// USDB song, in the order the picker shows them (the first is
+/// preselected).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct UsdbVideoCandidates {
+    pub usdb_id: u32,
+    /// The Song's length from USDB's text (`#END`, else the end of its last
+    /// Note), to set beside each candidate's duration; `null` when the text
+    /// gives none.
+    pub song_length_seconds: Option<f64>,
+    /// `#VIDEO` tags first, then comment links (newest comment first), then
+    /// yt-dlp search hits; a link already offered is not offered again.
+    pub candidates: Vec<VideoCandidate>,
+    /// Why the yt-dlp search found nothing, when it failed (the other
+    /// candidates are still offered).
+    pub search_failure: Option<UserMessage>,
+}
+
+/// One video the admin can download a USDB song's audio and video from. Any
+/// host yt-dlp supports.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct VideoCandidate {
+    pub url: String,
+    pub source: VideoSource,
+    /// Already known for a search hit; otherwise ask
+    /// `GET /api/usdb/video-details` for it.
+    pub details: Option<VideoDetails>,
+}
+
+/// Where a video candidate came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum VideoSource {
+    /// A `v=` or `a=` tag of the `#VIDEO` header in USDB's text: the video
+    /// the text was timed to.
+    VideoTag,
+    /// A link in the song's USDB comments.
+    Comment,
+    /// A yt-dlp search hit for `Artist - Title`.
+    Search,
+}
+
+/// What yt-dlp reads about a video.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct VideoDetails {
+    pub title: String,
+    pub duration_seconds: Option<f64>,
+    /// The thumbnail's URL on the video's host.
+    pub thumbnail: Option<String>,
+}
+
+/// The URL query of `GET /api/usdb/video-details`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct VideoDetailsQuery {
+    /// An `http://` or `https://` link.
+    pub url: String,
 }
 
 #[cfg(test)]

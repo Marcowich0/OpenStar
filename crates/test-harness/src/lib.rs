@@ -34,7 +34,7 @@ pub use app::{AppFolders, DEFAULT_ADMIN_PIN, TestApp, TestAppBuilder, WsClient, 
 pub use executable::write_executable;
 pub use media::{Media, Signal, placeholder_media};
 pub use usdb::{FakeSong, FakeUsdb, RecordedRequest, Scripted};
-pub use ytdlp::{YtDlpStub, YtDlpStubBehaviour};
+pub use ytdlp::{YtDlpStub, YtDlpStubBehaviour, read_calls as read_ytdlp_calls};
 
 /// The settings variable the USDB client (#47) reads its base URL from. The
 /// harness always sets it, so the app under test never talks to the real USDB.

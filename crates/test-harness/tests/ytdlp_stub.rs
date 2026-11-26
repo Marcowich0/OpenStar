@@ -176,3 +176,70 @@ fn can_be_scripted_to_hang_until_killed() {
         "only the scripted call hangs"
     );
 }
+
+#[test]
+fn a_search_prints_flat_hits_for_the_query() {
+    let stub = YtDlpStub::new();
+    let output = yt_dlp(
+        &stub,
+        &[
+            "--flat-playlist",
+            "-j",
+            "--match-filter",
+            "url!*=/shorts/",
+            "ytsearch5:Some \"Artist\" - Title",
+        ],
+    );
+    assert!(output.status.success());
+
+    let hits: Vec<serde_json::Value> = String::from_utf8(output.stdout)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert_eq!(hits.len(), 5);
+    assert_eq!(
+        hits[0]["url"],
+        "https://www.youtube.com/watch?v=stubsearch1"
+    );
+    assert_eq!(hits[4]["id"], "stubsearch5");
+    assert_eq!(hits[0]["title"], "Some \"Artist\" - Title (stub hit 1)");
+    assert!(hits[0]["duration"].as_f64().unwrap() > 0.0);
+    assert!(hits[0]["thumbnails"][0]["url"].is_string());
+}
+
+#[test]
+fn a_video_lookup_prints_title_duration_and_thumbnail() {
+    let stub = YtDlpStub::new();
+    let output = yt_dlp(&stub, &["-j", "--no-playlist", "https://example.invalid/v"]);
+    let info: serde_json::Value =
+        serde_json::from_str(String::from_utf8(output.stdout).unwrap().trim()).unwrap();
+    assert_eq!(info["title"], "Stub video 1");
+    assert_eq!(info["duration"], 2);
+    assert!(
+        info["thumbnail"]
+            .as_str()
+            .unwrap()
+            .starts_with("data:image/")
+    );
+}
+
+#[test]
+fn can_be_scripted_to_take_a_while_and_records_when_each_call_ran() {
+    let stub = YtDlpStub::new();
+    stub.script(YtDlpStubBehaviour::Delay(Duration::from_millis(300)), 1);
+
+    assert!(
+        yt_dlp(&stub, &["-j", "https://example.invalid/v"])
+            .status
+            .success()
+    );
+    assert!(yt_dlp(&stub, &["--version"]).status.success());
+
+    let spans = stub.call_spans();
+    assert_eq!(spans.len(), 2);
+    let (start, end) = spans[0].expect("the first call ended");
+    assert!(end - start >= 0.3, "{start} .. {end}");
+    let (second_start, _) = spans[1].expect("the second call ended");
+    assert!(second_start >= end);
+}

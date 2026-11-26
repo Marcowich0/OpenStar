@@ -14,6 +14,7 @@ pub(crate) mod mirror;
 mod search;
 mod song_txt;
 mod text;
+pub(crate) mod videos;
 
 pub use client::{
     FIRST_BACKOFF, MAX_BACKOFF, MAX_TRIES, PACING, SystemTimer, UsdbClient, UsdbTimer,

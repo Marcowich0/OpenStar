@@ -348,6 +348,21 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             usdb::covers::cover,
         )
+        // The video picker is free to open and use: it reads USDB's text and
+        // comments and runs yt-dlp lookups, but writes nothing. Only starting
+        // the Download needs the Admin PIN.
+        .add(
+            Method::GET,
+            "/api/usdb/songs/{id}/videos",
+            NotGuarded,
+            usdb::videos::candidates_for,
+        )
+        .add(
+            Method::GET,
+            "/api/usdb/video-details",
+            NotGuarded,
+            usdb::videos::details,
+        )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage: the handler refuses a browser without Stage trust
         // (`stage_trust`), which is not an Unlock.
