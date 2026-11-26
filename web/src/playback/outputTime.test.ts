@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { outputTime, type OutputTimestampSource } from "./outputTime";
+import {
+  contextTimeAt,
+  outputTime,
+  type OutputTimestampSource,
+} from "./outputTime";
 
 /** An `AudioContext` whose output timestamp and `currentTime` are set by hand. */
 function context(
@@ -35,6 +39,25 @@ describe("AudioContext time to the Stage's clock", () => {
     expect(outputTime(context({}), 1)).toBeNull();
     expect(
       outputTime(context({ contextTime: 0, performanceTime: 0 }), 1),
+    ).toBeNull();
+  });
+});
+
+describe("the Stage's clock to AudioContext time", () => {
+  it("is the same mapping read the other way", () => {
+    const audio = context({ contextTime: 10, performanceTime: 5000 });
+    // 10 + (5250 − 5000) / 1000
+    expect(contextTimeAt(audio, 5250)).toBeCloseTo(10.25, 9);
+    expect(outputTime(audio, contextTimeAt(audio, 4321) ?? 0)).toBeCloseTo(
+      4321,
+      9,
+    );
+  });
+
+  it("has no answer before the context reports any output", () => {
+    expect(contextTimeAt(context({}), 1)).toBeNull();
+    expect(
+      contextTimeAt(context({ contextTime: 0, performanceTime: 0 }), 1),
     ).toBeNull();
   });
 });

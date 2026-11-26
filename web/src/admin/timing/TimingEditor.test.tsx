@@ -25,6 +25,11 @@ import {
 import { song as testSong } from "../../timing/testSong";
 import { TimingEditor } from "./TimingEditor";
 
+// jsdom has no AudioContext: the page's one context is the recording fake.
+vi.mock("../../stage/playback/stageAudio", async () =>
+  (await import("../../avSync/fakeStageAudio")).fakeStageAudioModule(),
+);
+
 // A Song with GAP 0 and one Beat 0.1 s: one Line of two Notes of pitch C,
 // 0–1 s and 1–2 s.
 function detail(): SongDetail {
@@ -83,6 +88,8 @@ interface ServerOptions {
   /** The Song and its Pitch track, when not the two-Note Song above. */
   detail?: SongDetail;
   track?: ArrayBuffer;
+  /** This browser's stored A/V offset, ms. */
+  avOffsetMs?: number;
 }
 
 interface Server {
@@ -145,6 +152,15 @@ function fakeServer(start: unknown, options: ServerOptions = {}): Server {
             headers: { "Content-Type": "application/json" },
           }),
         );
+      if (route.startsWith("GET /api/av-offset?")) {
+        const query = new URLSearchParams(route.split("?")[1]);
+        return json(200, {
+          browser: query.get("browser"),
+          output: query.get("output"),
+          avOffsetMs: options.avOffsetMs ?? 0,
+        });
+      }
+      if (route === "PUT /api/av-offset") return json(200, body);
       switch (route) {
         case "GET /api/songs/7":
           return json(200, options.detail ?? detail());
@@ -244,8 +260,15 @@ const detailCanvas = () => screen.getByRole("img", { name: /detail/i });
 const overviewCanvas = () => screen.getByRole("img", { name: /overview/i });
 const share = () => screen.getByRole("meter", { name: "Notes on the singing" });
 
+let mediaPlay: ReturnType<typeof vi.fn>;
+
 beforeEach(() => {
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+  // jsdom does not play media.
+  mediaPlay = vi
+    .spyOn(HTMLMediaElement.prototype, "play")
+    .mockResolvedValue(undefined);
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockReturnValue(undefined);
   // jsdom has no pointer capture.
   Element.prototype.setPointerCapture = vi.fn();
 });
@@ -268,7 +291,10 @@ describe("opening a Song's Timing editor", () => {
     await open({ state: "ready" });
     // 100 of the 200 covered frames match.
     expect(share()).toHaveAttribute("aria-valuenow", "50");
-    expect(screen.getByText("50 %")).toBeInTheDocument();
+    // The speed choice "50 %" aside.
+    expect(
+      screen.getAllByText("50 %").filter((e) => !e.closest("label")),
+    ).toHaveLength(1);
     expect(detailCanvas()).toHaveAttribute("data-pitch-track", "ready");
   });
 
@@ -780,5 +806,220 @@ describe("Lines still off", () => {
     press("Undo");
     await settle();
     expect(entries().at(-1)?.undone).toBe(true);
+  });
+});
+
+describe("checking by ear: playback", () => {
+  const media = () => document.querySelector("audio") as HTMLAudioElement;
+
+  it("plays and pauses with Space and P, and with the Play button", async () => {
+    await open();
+    expect(detailCanvas()).toHaveAttribute("data-playing", "false");
+    await key({ key: " " });
+    expect(detailCanvas()).toHaveAttribute("data-playing", "true");
+    expect(mediaPlay).toHaveBeenCalled();
+    await key({ key: "p" });
+    expect(detailCanvas()).toHaveAttribute("data-playing", "false");
+    press("Play");
+    await settle();
+    expect(detailCanvas()).toHaveAttribute("data-playing", "true");
+    press("Pause");
+    await settle();
+    expect(detailCanvas()).toHaveAttribute("data-playing", "false");
+  });
+
+  it("plays the Song's audio from one element through the page's AudioContext", async () => {
+    await open();
+    expect(document.querySelectorAll("audio, video")).toHaveLength(1);
+    expect(media()).toHaveAttribute("src", "/api/songs/7/media/audio");
+  });
+
+  it("sets 100, 75 and 50 % speed with 1, 2 and 3, keeping the pitch", async () => {
+    await open();
+    await key({ key: " " });
+    await key({ key: "2" });
+    expect(detailCanvas()).toHaveAttribute("data-rate", "0.75");
+    expect(media().playbackRate).toBe(0.75);
+    expect(media().preservesPitch).toBe(true);
+    await key({ key: "3" });
+    expect(detailCanvas()).toHaveAttribute("data-rate", "0.5");
+    expect(media().playbackRate).toBe(0.5);
+    await key({ key: "1" });
+    expect(detailCanvas()).toHaveAttribute("data-rate", "1");
+    expect(screen.getByRole("radio", { name: "100 %" })).toBeChecked();
+  });
+
+  it("F brings the view back to following the playhead", async () => {
+    await open();
+    expect(detailCanvas()).toHaveAttribute("data-following", "true");
+    fireEvent.wheel(detailCanvas(), { deltaY: 220 });
+    expect(detailCanvas()).toHaveAttribute("data-following", "false");
+    await key({ key: "f" });
+    expect(detailCanvas()).toHaveAttribute("data-following", "true");
+  });
+
+  it("L loops the Line at the playhead, from 1.5 s before to 0.6 s after, and plays it", async () => {
+    await open();
+    // The one Line runs 0–2 s.
+    await key({ key: "l" });
+    expect(detailCanvas()).toHaveAttribute("data-loop", "0-2.6");
+    expect(detailCanvas()).toHaveAttribute("data-playing", "true");
+    expect(screen.getByRole("button", { name: "Loop a Line" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await key({ key: "l" });
+    expect(detailCanvas()).not.toHaveAttribute("data-loop");
+  });
+
+  it("clicks on by default, hum off; both can be switched", async () => {
+    await open();
+    const clicks = screen.getByRole("checkbox", { name: "Clicks" });
+    const hum = screen.getByRole("checkbox", { name: "Hum the Notes" });
+    expect(clicks).toBeChecked();
+    expect(hum).not.toBeChecked();
+    act(() => {
+      fireEvent.click(hum);
+    });
+    expect(hum).toBeChecked();
+  });
+
+  it("keeps the keys for a text field while typing in it", async () => {
+    await open();
+    act(() => {
+      fireEvent.keyDown(gapField(), { key: "p" });
+    });
+    await settle();
+    expect(detailCanvas()).toHaveAttribute("data-playing", "false");
+  });
+});
+
+describe("checking by ear: the A/V offset", () => {
+  it("draws at Song time minus this browser's A/V offset", async () => {
+    const { server } = await open({ state: "ready" }, { avOffsetMs: 200 });
+    const canvas = detailCanvas();
+    // Paused, with no offset known yet: the playhead is where it is put.
+    fireEvent.pointerDown(canvas, { clientX: 550, clientY: 10, pointerId: 1 });
+    fireEvent.pointerUp(canvas, { clientX: 550, clientY: 10, pointerId: 1 });
+    expect(canvas).toHaveAttribute("data-playhead", "5");
+    // Play reads this browser's output and its offset: the drawing runs
+    // 200 ms behind Song time.
+    await key({ key: " " });
+    await settle();
+    expect(
+      server.calls.some((c) => c.startsWith("GET /api/av-offset?browser=")),
+    ).toBe(true);
+    expect(canvas).toHaveAttribute("data-playhead", "4.8");
+  });
+
+  it("has its own Check A/V sync, with the Stage's test pattern and no PIN", async () => {
+    const { server } = await open();
+    press("Check A/V sync");
+    await settle();
+    const dialog = screen.getByRole("dialog", { name: "Check A/V sync" });
+    expect(within(dialog).getByTestId("av-sync")).toBeInTheDocument();
+    act(() => {
+      fireEvent.click(
+        within(dialog).getByRole("button", { name: "A/V offset up" }),
+      );
+    });
+    await settle();
+    expect(server.bodies["PUT /api/av-offset"]?.at(-1)).toMatchObject({
+      avOffsetMs: 10,
+    });
+    expect(server.calls).not.toContain("POST /api/unlock");
+    expect(within(dialog).getByTestId("av-sync-value")).toHaveTextContent(
+      "+10",
+    );
+    act(() => {
+      fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+    });
+    await settle();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("leaves Auto-fit unaffected", async () => {
+    await open(
+      { state: "ready" },
+      { ...fitCase(fitCases.gapAndBpmError), avOffsetMs: 300 },
+    );
+    await key({ key: " " });
+    await key({ key: " " });
+    press("Fit to the singing");
+    await settle();
+    const gap = Number(gapField().getAttribute("value"));
+    expect(Math.abs(gap - 753)).toBeLessThanOrEqual(10);
+    expect(
+      Math.abs(Number(bpmField().getAttribute("value")) - 216.26),
+    ).toBeLessThanOrEqual(0.01);
+  });
+});
+
+describe("#VIDEOGAP", () => {
+  function separateVideo(): SongDetail {
+    const base = detail();
+    return {
+      ...base,
+      song: {
+        ...base.song,
+        headers: { ...base.song.headers, videoGapSeconds: 1.5 },
+      },
+      media: {
+        ...base.media,
+        video: {
+          kind: "file",
+          file: { url: "/api/songs/7/media/video", native: true },
+          gapSeconds: 1.5,
+        },
+      },
+    };
+  }
+  const videoGapField = () =>
+    screen.queryByRole("textbox", { name: "#VIDEOGAP (s)" });
+
+  it("shows the field when the audio and video are separate files, with the muted video", async () => {
+    await open({ state: "ready" }, { detail: separateVideo() });
+    expect(videoGapField()).toHaveValue("1.5");
+    const video = document.querySelector("video") as HTMLVideoElement;
+    expect(video).toHaveAttribute("src", "/api/songs/7/media/video");
+    expect(video.muted).toBe(true);
+    // The audio stays the one element that sounds.
+    expect(document.querySelector("audio")).toHaveAttribute(
+      "src",
+      "/api/songs/7/media/audio",
+    );
+  });
+
+  it("adds an edit in seconds, rounded to two decimals", async () => {
+    await open({ state: "ready" }, { detail: separateVideo() });
+    const field = videoGapField() as HTMLElement;
+    act(() => {
+      fireEvent.change(field, { target: { value: "1.234" } });
+      fireEvent.keyDown(field, { key: "Enter" });
+    });
+    await settle();
+    expect(videoGapField()).toHaveValue("1.23");
+    expect(entries()).toEqual([
+      { text: "Video gap typed: 1.5 → 1.23 s", undone: false },
+    ]);
+  });
+
+  it("is hidden when both headers name one file", async () => {
+    const base = detail();
+    await open(
+      { state: "ready" },
+      {
+        detail: {
+          ...base,
+          media: { ...base.media, video: { kind: "inAudio" } },
+        },
+      },
+    );
+    expect(videoGapField()).toBeNull();
+  });
+
+  it("is hidden for a Song with no video", async () => {
+    await open();
+    expect(videoGapField()).toBeNull();
   });
 });

@@ -54,3 +54,70 @@ test("a desktop browser opens a Song's Timing editor and sees the singing, witho
   expect(writes[0]).toMatch(/^POST \/api\/songs\/\d+\/pitch-track$/);
   await context.close();
 });
+
+// Checking by ear (#220): the editor plays the Song through the page's one
+// AudioContext in real Chromium; the drawn playhead follows Song time, the
+// speeds keep the pitch, L loops the Line at the playhead.
+test("the Timing editor plays the Song, slows it and loops a Line", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ viewport: DESKTOP });
+  const page = await context.newPage();
+  await page.goto("/admin/songs");
+  await page.getByRole("link", { name: "Timing of Sine Melody" }).click();
+  const detail = page.getByRole("img", { name: /detail view/ });
+  await expect(detail).toHaveAttribute("data-playing", "false");
+  // No #VIDEOGAP field: this Song's video is no separate file.
+  await expect(
+    page.getByRole("textbox", { name: "#VIDEOGAP (s)" }),
+  ).toHaveCount(0);
+
+  await page.keyboard.press("Space");
+  await expect(detail).toHaveAttribute("data-playing", "true");
+  // Song time runs, and the drawing with it.
+  await expect
+    .poll(async () => Number(await detail.getAttribute("data-playhead")), {
+      timeout: 10_000,
+    })
+    .toBeGreaterThan(1);
+
+  await page.keyboard.press("3");
+  await expect(detail).toHaveAttribute("data-rate", "0.5");
+  expect(
+    await page.evaluate(() => {
+      const audio = document.querySelector("audio");
+      return audio && [audio.playbackRate, audio.preservesPitch];
+    }),
+  ).toEqual([0.5, true]);
+
+  await page.keyboard.press("l");
+  const loop = await detail.getAttribute("data-loop");
+  expect(loop).toMatch(/^[\d.]+-[\d.]+$/);
+  const [start, end] = (loop ?? "").split("-").map(Number);
+  // It plays inside the loop.
+  await expect
+    .poll(async () => {
+      const at = Number(await detail.getAttribute("data-playhead"));
+      return at >= (start ?? 0) - 0.3 && at <= (end ?? 0) + 0.3;
+    })
+    .toBe(true);
+
+  await page.keyboard.press("p");
+  await expect(detail).toHaveAttribute("data-playing", "false");
+  await context.close();
+});
+
+test("the #VIDEOGAP field shows for a Song whose video is a separate file", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ viewport: DESKTOP });
+  const page = await context.newPage();
+  await page.goto("/admin/songs");
+  await page.getByRole("link", { name: "Timing of Separate Video" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "#VIDEOGAP (s)" }),
+  ).toHaveValue("-1.5");
+  // The muted video that follows the audio.
+  await expect(page.locator("video")).toHaveJSProperty("muted", true);
+  await context.close();
+});
