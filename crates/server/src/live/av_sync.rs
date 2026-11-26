@@ -25,6 +25,9 @@ impl LiveState {
         {
             return Err(UserMessage::NotWhileSongPlays);
         }
+        if self.calibration_open() {
+            return Err(UserMessage::CalibrationRunning);
+        }
         if !self.stage().av_sync {
             self.stage_mut().av_sync = true;
             self.hub.send_all(&ServerMessage::AvSync { running: true });

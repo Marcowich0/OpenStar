@@ -89,6 +89,15 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::StartAvSync
         | ClientMessage::StepAvSync { .. }
         | ClientMessage::EndAvSync
+        // Calibrate mics needs no Admin PIN (v1 spec #52): it stores only
+        // Mic settings, which a later run overwrites.
+        | ClientMessage::OpenCalibration
+        | ClientMessage::ChooseCalibrationMic { .. }
+        | ClientMessage::StartCalibration
+        | ClientMessage::CalibrationListening
+        | ClientMessage::CalibrationGo
+        | ClientMessage::FinishCalibration { .. }
+        | ClientMessage::EndCalibration
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
         | ClientMessage::Join { .. }

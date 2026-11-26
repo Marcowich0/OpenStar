@@ -1,13 +1,14 @@
 // What each overlay shows, and the overlay itself: a veil over the whole
 // screen and a cream modal (44 px radius) in the reference frame. Songs,
-// Queue and People are `../overlays/`; Calibrate mics (#52) is a placeholder
-// until its ticket fills it. Mics is `mics/MicsScreen.tsx`, Check A/V sync
+// Queue and People are `../overlays/`. Mics is `mics/MicsScreen.tsx`,
+// Calibrate mics `calibration/StageCalibration.tsx`, Check A/V sync
 // `avSync/StageAvSync.tsx`.
 
 import { useId, type ComponentType } from "react";
 
 import { t, type MessageKey } from "../../i18n/t";
 import { StageAvSync } from "../../avSync/StageAvSync";
+import { StageCalibration } from "../../calibration/StageCalibration";
 import { MicsScreen } from "../../mics/MicsScreen";
 import { Icon } from "../../ui/Icon";
 import { PeopleOverlay } from "../overlays/PeopleOverlay";
@@ -22,10 +23,6 @@ export interface OverlayDefinition {
   component: ComponentType;
 }
 
-function ComingSoon() {
-  return <p className="text-3xl text-ink-2">{t("stage.overlay.comingSoon")}</p>;
-}
-
 export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
   songs: { title: "stage.overlay.songs", component: SongsOverlay },
   queue: { title: "stage.overlay.queue", component: QueueOverlay },
@@ -33,7 +30,7 @@ export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
   mics: { title: "stage.overlay.mics", component: MicsScreen },
   calibrateMics: {
     title: "stage.overlay.calibrateMics",
-    component: ComingSoon,
+    component: StageCalibration,
   },
   avSync: { title: "stage.overlay.avSync", component: StageAvSync },
 };

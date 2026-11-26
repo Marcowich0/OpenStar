@@ -8,7 +8,7 @@ use anyhow::Context as _;
 use openstar_mic_bridge::cli::{self, Action};
 use openstar_mic_bridge::client::{self, Input};
 use openstar_mic_bridge::config::ConfigDir;
-use openstar_mic_bridge::{BUILD_ID, wav};
+use openstar_mic_bridge::{BUILD_ID, wav, window};
 
 fn main() -> ExitCode {
     let action = match cli::parse(std::env::args().skip(1)) {
@@ -28,6 +28,7 @@ fn main() -> ExitCode {
             Ok(())
         }
         Action::Wav(file) => headless(&file),
+        Action::Window => windowed(),
     };
     match ran {
         Ok(()) => ExitCode::SUCCESS,
@@ -36,6 +37,14 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Opens the window and connects while it is open. Real capture (#205)
+/// adds its interfaces here; until then the window lists none.
+fn windowed() -> anyhow::Result<()> {
+    let config = ConfigDir::locate(|name| std::env::var(name).ok())
+        .context("neither XDG_CONFIG_HOME nor HOME is set")?;
+    window::run(config, Vec::new())
 }
 
 /// Runs without a window, offering the WAV file's channels as one interface.

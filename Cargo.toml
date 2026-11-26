@@ -32,12 +32,20 @@ openstar-test-harness = { path = "crates/test-harness" }
 anyhow = "=1.0.105"
 axum = { version = "=0.8.9", features = ["ws"] }
 chardetng = "=1.0.0"
+# The Mic bridge's window (#204): the glow backend, X11 and Wayland, all of
+# whose system libraries (OpenGL/EGL, X11, Wayland, xkbcommon) winit and
+# glutin load at run time, so the binary links none of them.
+eframe = { version = "=0.37.0", default-features = false, features = ["glow", "x11", "wayland", "default_fonts"] }
+egui = { version = "=0.37.0", default-features = false, features = ["default_fonts"] }
+# The bridge window's snapshot tests, drawn by the test's own CPU renderer.
+egui_kittest = { version = "=0.37.0", features = ["snapshot"] }
 encoding_rs = "=0.8.44"
 futures-util = "=0.3.34"
 getrandom = "=0.4.3"
 html-escape = "=0.3.1"
 icu_casemap = "=2.4.0"
 icu_normalizer = "=2.4.0"
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
 insta = { version = "=1.49.0", features = ["json"] }
 mime_guess = "=2.0.5"
 proptest = "=1.12.0"

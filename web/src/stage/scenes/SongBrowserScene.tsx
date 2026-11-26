@@ -26,7 +26,9 @@ import { SongInfo } from "./songBrowser/SongInfo";
 import { addStageRequest } from "./songBrowser/stageRequest";
 import { useCarouselPreview } from "./songBrowser/useCarouselPreview";
 
-const selectAvSync = (live: LiveState) => live.avSync;
+/** Check A/V sync runs or a Calibrate mics run is open. */
+const selectHeld = (live: LiveState) =>
+  live.avSync || live.calibration !== null;
 
 /** The logo's star, on a 64-unit grid. */
 const STAR = "M32 4l8 18 19 2-14 13 4 19-17-10-17 10 4-19L5 24l19-2z";
@@ -42,9 +44,10 @@ export function SongBrowserScene() {
   const found = songs?.findIndex((s) => s.id === selectedId) ?? -1;
   const index = found === -1 ? 0 : found;
   const song: SongSummary | undefined = songs?.[index];
-  // Previews stop while Check A/V sync runs (#163): only its click plays.
-  const avSync = useLive(selectAvSync, store);
-  const detail = useCarouselPreview(song?.id ?? null, avSync);
+  // Previews stop while Check A/V sync runs (#163), so only its click
+  // plays, and from the Calibrate mics checklist until its run ends (#170).
+  const held = useLive(selectHeld, store);
+  const detail = useCarouselPreview(song?.id ?? null, held);
 
   const select = (next: number) => {
     const nextSong = songs?.[next];

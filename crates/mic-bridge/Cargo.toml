@@ -19,12 +19,16 @@ openstar-protocol.workspace = true
 openstar-detector.workspace = true
 openstar-capture-clock.workspace = true
 anyhow.workspace = true
+eframe.workspace = true
+egui.workspace = true
 futures-util.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["fs", "sync", "time"] }
 tokio-tungstenite.workspace = true
 
 [dev-dependencies]
+egui_kittest.workspace = true
+image.workspace = true
 openstar.workspace = true
 openstar-test-harness.workspace = true
 insta.workspace = true
