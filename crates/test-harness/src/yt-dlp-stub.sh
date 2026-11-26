@@ -6,17 +6,22 @@
 #   behaviours         one line per scripted call, used up in order:
 #                        fail <exit code> <message for stderr>
 #                        hang
+#                        delay <seconds>  (waits, then succeeds)
 #                      With no line left, the call succeeds.
+#   calls/NNNNNN.span  "<start> <end>" in Unix seconds, once the call exits.
 #
 # On success it writes tiny generated media (made with ffmpeg) where -o/--output
 # and -P/--paths ask: audio with -x/--extract-audio (format from --audio-format,
 # default m4a), else a tiny video (format from --merge-output-format or
 # --remux-video, default mp4). -j/--dump-json prints one JSON line per URL
-# instead and writes nothing. --version prints a stub version.
+# instead and writes nothing: for a `ytsearchN:<query>` URL, N flat search hits
+# (`stubsearch1` ...), as with --flat-playlist (no match filter is applied).
+# --version prints a stub version.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$here/calls"
+started="$(date +%s.%N)"
 
 {
     flock 9
@@ -30,6 +35,7 @@ mkdir -p "$here/calls"
         mv "$here/behaviours.next" "$here/behaviours"
     fi
 } 9>"$here/calls/.lock"
+trap 'printf "%s %s\n" "$started" "$(date +%s.%N)" >"$here/calls/$call.span"' EXIT
 
 case "$behaviour" in
 fail\ *)
@@ -41,6 +47,9 @@ fail\ *)
     ;;
 hang)
     exec sleep 2147483647
+    ;;
+delay\ *)
+    sleep "${behaviour#delay }"
     ;;
 esac
 
@@ -71,12 +80,27 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+json_string() {
+    local text="${1//\\/\\\\}"
+    printf '"%s"' "${text//\"/\\\"}"
+}
+
 if $dump_json; then
+    thumbnail='data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs='
     n=0
     for url in "${urls[@]}"; do
+        if [[ "$url" =~ ^ytsearch([0-9]*):(.*)$ ]]; then
+            hits="${BASH_REMATCH[1]:-1}"
+            query="${BASH_REMATCH[2]}"
+            for ((k = 1; k <= hits; k++)); do
+                printf '{"_type":"url","ie_key":"Youtube","id":"stubsearch%s","url":"https://www.youtube.com/watch?v=stubsearch%s","title":%s,"duration":%s,"thumbnails":[{"url":"%s"}]}\n' \
+                    "$k" "$k" "$(json_string "$query (stub hit $k)")" "$((170 + k))" "$thumbnail"
+            done
+            continue
+        fi
         n=$((n + 1))
-        printf '{"id":"stub%s","title":"Stub video %s","webpage_url":"%s","duration":2,"ext":"mp4"}\n' \
-            "$n" "$n" "$url"
+        printf '{"id":"stub%s","title":"Stub video %s","webpage_url":%s,"duration":2,"ext":"mp4","thumbnail":"%s"}\n' \
+            "$n" "$n" "$(json_string "$url")" "$thumbnail"
     done
     exit 0
 fi
