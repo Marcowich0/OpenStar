@@ -418,6 +418,11 @@ struct LiveState {
     /// Phone asleep at the time hears [`ServerMessage::LeftParty`] in answer
     /// to its next Hello. Kept while the server runs.
     left_phones: HashSet<PhoneId>,
+    /// The last Line-end total the Stage reported for each Phone that is a
+    /// seat's Mic, with its Request: a Phone back after a reload or a drop
+    /// hears it again at once (while that Request plays), not 0 until the
+    /// next Line ends.
+    line_totals: HashMap<PhoneId, (RequestId, u32)>,
     /// The Mics with a Mic delay stored at the Stage output last reported
     /// (`None` until one is): a seated Mic not in it is "Not calibrated".
     /// Kept when the Stage closes, so the warnings do not flicker.
@@ -482,6 +487,7 @@ impl LiveState {
             silent_local_mics: HashSet::new(),
             blocked_phones: HashSet::new(),
             left_phones: HashSet::new(),
+            line_totals: HashMap::new(),
             calibrated_mics: None,
             bridges,
             last_started_ms: HashMap::new(),
@@ -1040,6 +1046,7 @@ impl LiveState {
                     self.hub.send_to(id, &ServerMessage::LeftParty);
                 } else {
                     self.send_phone_status(id);
+                    self.send_line_total(id);
                 }
             }
             Ok(ClientMessage::CheckJoinCode { join_code }) => {
@@ -2759,17 +2766,43 @@ impl LiveState {
         let Some(MicKey::Phone { phone_id }) = &seat.mic else {
             return Ok(());
         };
+        let phone_id = PhoneId(phone_id.clone());
         let phones: Vec<ConnectionId> = self
             .phones
             .iter()
-            .filter(|(_, phone)| &phone.0 == phone_id)
+            .filter(|(_, phone)| **phone == phone_id)
             .map(|(&connection, _)| connection)
             .collect();
+        self.line_totals.insert(phone_id, (request_id, total));
         for connection in phones {
             self.hub
                 .send_to(connection, &ServerMessage::LineScore { request_id, total });
         }
         Ok(())
+    }
+
+    /// Tells connection `id` the last Line-end total of its Phone's seat,
+    /// while that Request still plays (see `line_totals`).
+    fn send_line_total(&mut self, id: ConnectionId) {
+        let Some(phone_id) = self.phones.get(&id) else {
+            return;
+        };
+        let Some(&(request_id, total)) = self.line_totals.get(phone_id) else {
+            return;
+        };
+        let plays = self
+            .stage()
+            .party
+            .as_ref()
+            .and_then(|party| party.playing.as_ref())
+            .is_some_and(|playing| playing.request_id == request_id);
+        if plays {
+            self.hub
+                .send_to(id, &ServerMessage::LineScore { request_id, total });
+        } else {
+            let phone_id = phone_id.clone();
+            self.line_totals.remove(&phone_id);
+        }
     }
 
     /// The latest position report, aged to `now_ms`, while its Request

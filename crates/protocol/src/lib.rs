@@ -593,7 +593,9 @@ pub enum ServerMessage {
     /// To a seat's Phone alone: that seat's running total at its latest
     /// Line end in the playing Request `request_id`, as the Stage's scorer
     /// reported it ([`ClientMessage::ReportLineScore`]). The mic takeover's
-    /// Score; never sent continuously.
+    /// Score; never sent continuously. A Phone back after a reload or a
+    /// drop hears the last one again right after its
+    /// [`ServerMessage::PhoneStatus`], while that Request plays.
     LineScore { request_id: RequestId, total: u32 },
     /// To a Mic bridge whose hello named another build than the server's
     /// (newer or older): the server's `build`. The bridge is neither
