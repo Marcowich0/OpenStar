@@ -1,3 +1,4 @@
+import type { CalibrationRun } from "../generated/CalibrationRun";
 import type { JoinCode } from "../generated/JoinCode";
 import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PartySnapshot } from "../generated/PartySnapshot";
@@ -72,6 +73,11 @@ export interface LiveState {
    * Stage shows the test pattern, a Remote its big −/+ and Done.
    */
   avSync: boolean;
+  /**
+   * The open Calibrate mics run (#170), as the server told it, or `null`:
+   * its checklist, each chosen Mic waiting or ready, the tones, the results.
+   */
+  calibration: CalibrationRun | null;
 }
 
 /** A seat's running total at its last Line end, in Request `requestId`. */
@@ -94,6 +100,7 @@ export const initialLiveState: LiveState = {
   songProgress: null,
   lineScore: null,
   avSync: false,
+  calibration: null,
 };
 
 /** The progress, kept only while its Request is the one playing in `party`. */
@@ -121,9 +128,10 @@ export function receive(
       return {
         ...state,
         // The server tells the latest report again right after this, and
-        // whether Check A/V sync runs.
+        // whether Check A/V sync runs and the open Calibration run.
         songProgress: null,
         avSync: false,
+        calibration: null,
         stage: {
           stageId: message.stageId,
           party: message.party,
@@ -186,6 +194,8 @@ export function receive(
       return state.avSync === message.running
         ? state
         : { ...state, avSync: message.running };
+    case "calibration":
+      return { ...state, calibration: message.run };
     case "stepAvSync":
       // Stage only: routed to the Check A/V sync screen in liveStore.ts.
       return state;

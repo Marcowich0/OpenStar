@@ -209,6 +209,43 @@ pub enum ClientMessage {
     /// not run changes nothing. It also ends when the Stage closes, another
     /// browser becomes the Stage, or a Song starts.
     EndAvSync,
+    /// Calibrate mics (#170), from the Stage's Setup pill (or any joined
+    /// Remote), with no Admin PIN: opens the run's checklist with every
+    /// joined Phone ticked. Every connection is told
+    /// [`ServerMessage::Calibration`]. Refused with
+    /// [`UserMessage::NotWhileSongPlays`] while a Song plays,
+    /// [`UserMessage::AvSyncRunning`] during Check A/V sync and
+    /// [`UserMessage::NoStage`] with no Stage open. Opening it while a run
+    /// is open changes nothing.
+    OpenCalibration,
+    /// Ticks or unticks a Mic on the open checklist. Refused with
+    /// [`UserMessage::CalibrationNotRunning`] outside the checklist and
+    /// [`UserMessage::InvalidMessage`] for a Mic it does not list.
+    ChooseCalibrationMic { mic: mics::MicKey, chosen: bool },
+    /// Continue on the checklist: asks every chosen Mic to listen. Refused
+    /// with [`UserMessage::NoMicsChosen`] when nothing is ticked and
+    /// [`UserMessage::NoStage`] while the Stage has reported no output (the
+    /// results are stored against the output in effect now).
+    StartCalibration,
+    /// "I'm listening", from a chosen Phone: its Mic is ready. When every
+    /// chosen Mic is ready the tones start. Refused with
+    /// [`UserMessage::NotInCalibration`] for a Phone that is not chosen and
+    /// [`UserMessage::CalibrationNotRunning`] unless the run waits.
+    CalibrationListening,
+    /// Go: the tones start now; chosen Mics not ready take no part. Refused
+    /// with [`UserMessage::NoMicReady`] while no Mic is ready.
+    CalibrationGo,
+    /// Stage only: the analysis after the tones. `results` (successes) are
+    /// stored against the Stage output of [`ClientMessage::StartCalibration`];
+    /// every other Mic in the run failed and keeps its values. Refused with
+    /// [`UserMessage::CalibrationNotRunning`] unless the tones play.
+    FinishCalibration {
+        results: Vec<mics::CalibrationResult>,
+    },
+    /// Cancel or Done: closes the run, from the Stage or any joined Remote;
+    /// nothing more is stored. It also ends when the Stage closes or moves,
+    /// a Song starts, or a new Party starts.
+    EndCalibration,
     /// Presents the browser's Phone id. A Phone sends it every time its
     /// WebSocket opens, before anything else. A Phone already in the current
     /// Party is back in at once with the same identity (silent rejoin). The
@@ -464,6 +501,10 @@ pub enum ServerMessage {
     /// Stage only: a Remote's press during Check A/V sync (see
     /// [`ClientMessage::StepAvSync`]).
     StepAvSync { step: av_offset::AvSyncStep },
+    /// The Calibration run, or `None` when it ended, sent to every
+    /// connection on every change, and to a new connection after its
+    /// [`ServerMessage::LiveState`] while one is open.
+    Calibration { run: Option<mics::CalibrationRun> },
     /// A background job was queued, started, made progress or ended (sent to
     /// every connection).
     JobChanged { job: jobs::Job },
@@ -706,6 +747,18 @@ pub enum UserMessage {
     NotWhileSongPlays,
     /// Check A/V sync does not run, so there is nothing to step.
     AvSyncNotRunning,
+    /// Check A/V sync runs, so Calibrate mics cannot start.
+    AvSyncRunning,
+    /// Calibrate mics runs, so Check A/V sync cannot start.
+    CalibrationRunning,
+    /// The Calibration run is not at the step this needs (or not open).
+    CalibrationNotRunning,
+    /// No Mic is ticked on the Calibration checklist.
+    NoMicsChosen,
+    /// No chosen Mic is ready, so the tones cannot start.
+    NoMicReady,
+    /// This Phone is not chosen for the Calibration run.
+    NotInCalibration,
 }
 
 #[cfg(test)]

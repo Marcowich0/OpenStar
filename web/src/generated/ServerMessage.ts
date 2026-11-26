@@ -3,6 +3,7 @@ import type { AvSyncStep } from "./AvSyncStep";
 import type { BridgeChannelSettings } from "./BridgeChannelSettings";
 import type { BridgeId } from "./BridgeId";
 import type { BridgeInput } from "./BridgeInput";
+import type { CalibrationRun } from "./CalibrationRun";
 import type { ChangeEvent } from "./ChangeEvent";
 import type { ChangeTopic } from "./ChangeTopic";
 import type { Job } from "./Job";
@@ -35,4 +36,4 @@ isStage: boolean, } | { "type": "partyChanged", party: PartySnapshot, change: Ch
 /**
  * To a Mic bridge only: the Local mic whose ping this answers.
  */
-input?: BridgeInput, } | { "type": "micClosed", mic: MicId, } | { "type": "micPage", mic: MicId, visible: boolean, } | { "type": "joinCodeValid", joinCode: JoinCode, } | { "type": "phoneStatus", memberId: PartyMemberId | null, } | { "type": "leftParty" } | { "type": "volume", volume: number, stepped: boolean, } | { "type": "avSync", running: boolean, } | { "type": "stepAvSync", step: AvSyncStep, } | { "type": "jobChanged", job: Job, } | { "type": "controlSong", requestId: RequestId, songId: SongId, control: SongControl, } | { "type": "songProgress", progress: SongProgress, } | { "type": "lineScore", requestId: RequestId, total: number, } | { "type": "bridgeWaiting", code: string, } | { "type": "bridgeApproved", token: string, } | { "type": "bridgeConnected", bridgeId: BridgeId, } | { "type": "bridgeChannels", channels: Array<BridgeChannelSettings>, } | { "type": "bridgeMicsScreen", open: boolean, } | { "type": "bridgeDetecting", channels: Array<BridgeInput>, } | { "type": "localMicLevels", levels: Array<LocalMicLevel>, };
+input?: BridgeInput, } | { "type": "micClosed", mic: MicId, } | { "type": "micPage", mic: MicId, visible: boolean, } | { "type": "joinCodeValid", joinCode: JoinCode, } | { "type": "phoneStatus", memberId: PartyMemberId | null, } | { "type": "leftParty" } | { "type": "volume", volume: number, stepped: boolean, } | { "type": "avSync", running: boolean, } | { "type": "stepAvSync", step: AvSyncStep, } | { "type": "calibration", run: CalibrationRun | null, } | { "type": "jobChanged", job: Job, } | { "type": "controlSong", requestId: RequestId, songId: SongId, control: SongControl, } | { "type": "songProgress", progress: SongProgress, } | { "type": "lineScore", requestId: RequestId, total: number, } | { "type": "bridgeWaiting", code: string, } | { "type": "bridgeApproved", token: string, } | { "type": "bridgeConnected", bridgeId: BridgeId, } | { "type": "bridgeChannels", channels: Array<BridgeChannelSettings>, } | { "type": "bridgeMicsScreen", open: boolean, } | { "type": "bridgeDetecting", channels: Array<BridgeInput>, } | { "type": "localMicLevels", levels: Array<LocalMicLevel>, };

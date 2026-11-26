@@ -111,6 +111,12 @@ export const userMessageText = byCode<UserMessage>({
   noOriginal: () => t("userMessage.noOriginal"),
   notWhileSongPlays: () => t("userMessage.notWhileSongPlays"),
   avSyncNotRunning: () => t("userMessage.avSyncNotRunning"),
+  avSyncRunning: () => t("userMessage.avSyncRunning"),
+  calibrationRunning: () => t("userMessage.calibrationRunning"),
+  calibrationNotRunning: () => t("userMessage.calibrationNotRunning"),
+  noMicsChosen: () => t("userMessage.noMicsChosen"),
+  noMicReady: () => t("userMessage.noMicReady"),
+  notInCalibration: () => t("userMessage.notInCalibration"),
 });
 
 /** An accepted change to the Party, as a toast. */

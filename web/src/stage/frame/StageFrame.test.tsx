@@ -254,7 +254,7 @@ describe("StageFrame overlays", () => {
   });
 
   it("holds a Setup menu of Mics, Calibrate mics and Check A/V sync", () => {
-    setup();
+    const { sent } = setup();
     act(() => {
       fireEvent.click(screen.getByRole("button", { name: "Setup" }));
     });
@@ -270,7 +270,9 @@ describe("StageFrame overlays", () => {
       );
     });
     expect(screen.queryByRole("menu")).toBeNull();
-    expect(overlay()).toHaveAccessibleName("Calibrate mics");
+    // The server holds the run: the overlay opens once it says so.
+    expect(sent.at(-1)).toEqual({ type: "openCalibration" });
+    expect(overlay()).toBeNull();
   });
 
   it("shows Setup on the song browser and the Line-up only", () => {
