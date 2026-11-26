@@ -2562,6 +2562,8 @@ dependencies = [
  "image",
  "insta",
  "openstar",
+ "openstar-capture-clock",
+ "openstar-detector",
  "openstar-protocol",
  "openstar-test-harness",
  "proptest",
