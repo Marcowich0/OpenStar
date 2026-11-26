@@ -148,17 +148,20 @@ async fn readings_from_two_phones_name_different_mics() {
     alice
         .send(&ClientMessage::PitchReading {
             reading: reading(1.0),
+            input: None,
         })
         .await;
     let (alice_mic, _) = reading_at_stage(&mut stage).await;
     bob.send(&ClientMessage::PitchReading {
         reading: reading(2.0),
+        input: None,
     })
     .await;
     let (bob_mic, _) = reading_at_stage(&mut stage).await;
     alice
         .send(&ClientMessage::PitchReading {
             reading: reading(3.0),
+            input: None,
         })
         .await;
     let (again, third) = reading_at_stage(&mut stage).await;
@@ -177,11 +180,17 @@ async fn a_ping_reaches_the_stage_and_its_pong_goes_back_to_the_phone_that_pinge
     phone
         .send(&ClientMessage::PitchReading {
             reading: reading(10.0),
+            input: None,
         })
         .await;
     let (reading_mic, _) = reading_at_stage(&mut stage).await;
 
-    phone.send(&ClientMessage::ClockPing { t0: 5012.375 }).await;
+    phone
+        .send(&ClientMessage::ClockPing {
+            t0: 5012.375,
+            input: None,
+        })
+        .await;
     let (mic, t0) = ping_at_stage(&mut stage).await;
     assert_eq!(
         (mic.clone(), t0),
@@ -203,6 +212,7 @@ async fn a_ping_reaches_the_stage_and_its_pong_goes_back_to_the_phone_that_pinge
             t0: 5012.375,
             ts: 88123.456,
             epoch: 1_764_000_000_123.25,
+            input: None,
         }
     );
     heard_nothing(&mut other_phone).await;
@@ -217,7 +227,12 @@ async fn only_the_active_stage_may_answer_a_ping() {
     let mut phone = open_phone(&app).await;
     let mut impostor = open_phone(&app).await;
 
-    phone.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    phone
+        .send(&ClientMessage::ClockPing {
+            t0: 1.0,
+            input: None,
+        })
+        .await;
     let (mic, _) = ping_at_stage(&mut stage).await;
     impostor
         .send(&ClientMessage::ClockPong {
@@ -242,7 +257,12 @@ async fn a_pong_for_a_phone_that_has_gone_is_dropped() {
     let app = TestApp::start().await;
     let mut stage = open_stage(&app).await;
     let mut phone = open_phone(&app).await;
-    phone.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    phone
+        .send(&ClientMessage::ClockPing {
+            t0: 1.0,
+            input: None,
+        })
+        .await;
     let (mic, _) = ping_at_stage(&mut stage).await;
     drop(phone);
     assert_eq!(
@@ -270,9 +290,15 @@ async fn readings_and_pings_are_dropped_not_queued_while_there_is_no_stage() {
     phone
         .send(&ClientMessage::PitchReading {
             reading: reading(1.0),
+            input: None,
         })
         .await;
-    phone.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    phone
+        .send(&ClientMessage::ClockPing {
+            t0: 1.0,
+            input: None,
+        })
+        .await;
     heard_nothing(&mut phone).await;
 
     // After the Stage closed.
@@ -285,9 +311,15 @@ async fn readings_and_pings_are_dropped_not_queued_while_there_is_no_stage() {
     phone
         .send(&ClientMessage::PitchReading {
             reading: reading(2.0),
+            input: None,
         })
         .await;
-    phone.send(&ClientMessage::ClockPing { t0: 2.0 }).await;
+    phone
+        .send(&ClientMessage::ClockPing {
+            t0: 2.0,
+            input: None,
+        })
+        .await;
     heard_nothing(&mut phone).await;
 
     // A Stage that opens afterwards hears none of them, only what comes next.
@@ -297,6 +329,7 @@ async fn readings_and_pings_are_dropped_not_queued_while_there_is_no_stage() {
     phone
         .send(&ClientMessage::PitchReading {
             reading: reading(3.0),
+            input: None,
         })
         .await;
     assert_eq!(reading_at_stage(&mut stage).await.1, reading(3.0));
@@ -312,6 +345,7 @@ async fn when_a_phones_websocket_closes_the_stage_is_told_which_mic_closed() {
         phone
             .send(&ClientMessage::PitchReading {
                 reading: reading(1.0),
+                input: None,
             })
             .await;
     }
@@ -358,10 +392,16 @@ async fn relaying_readings_writes_nothing_to_sqlite() {
         phone
             .send(&ClientMessage::PitchReading {
                 reading: reading(f64::from(i) * 10.0),
+                input: None,
             })
             .await;
     }
-    phone.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    phone
+        .send(&ClientMessage::ClockPing {
+            t0: 1.0,
+            input: None,
+        })
+        .await;
     for _ in 0..200 {
         reading_at_stage(&mut stage).await;
     }
@@ -395,9 +435,15 @@ async fn a_phones_mic_is_the_phone_id_it_presented() {
     phone
         .send(&ClientMessage::PitchReading {
             reading: reading(1.0),
+            input: None,
         })
         .await;
-    phone.send(&ClientMessage::ClockPing { t0: 4.0 }).await;
+    phone
+        .send(&ClientMessage::ClockPing {
+            t0: 4.0,
+            input: None,
+        })
+        .await;
     let mic = MicId::Phone {
         phone_id: phone_id.clone(),
     };
@@ -418,9 +464,15 @@ async fn a_browser_that_presented_no_phone_id_is_not_relayed() {
     anonymous
         .send(&ClientMessage::PitchReading {
             reading: reading(1.0),
+            input: None,
         })
         .await;
-    anonymous.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    anonymous
+        .send(&ClientMessage::ClockPing {
+            t0: 1.0,
+            input: None,
+        })
+        .await;
     heard_nothing(&mut anonymous).await;
     heard_nothing(&mut stage).await;
     close(anonymous).await;
@@ -437,7 +489,12 @@ async fn a_reconnected_phone_is_the_same_mic_and_its_pongs_go_to_the_new_connect
     };
 
     let mut first = open_phone_as(&app, &phone_id).await;
-    first.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    first
+        .send(&ClientMessage::ClockPing {
+            t0: 1.0,
+            input: None,
+        })
+        .await;
     assert_eq!(ping_at_stage(&mut stage).await, (mic.clone(), 1.0));
     close(first).await;
     assert_eq!(
@@ -449,13 +506,19 @@ async fn a_reconnected_phone_is_the_same_mic_and_its_pongs_go_to_the_new_connect
     again
         .send(&ClientMessage::PitchReading {
             reading: reading(2.0),
+            input: None,
         })
         .await;
     assert_eq!(
         reading_at_stage(&mut stage).await,
         (mic.clone(), reading(2.0))
     );
-    again.send(&ClientMessage::ClockPing { t0: 3.0 }).await;
+    again
+        .send(&ClientMessage::ClockPing {
+            t0: 3.0,
+            input: None,
+        })
+        .await;
     assert_eq!(ping_at_stage(&mut stage).await, (mic.clone(), 3.0));
     stage
         .send(&ClientMessage::ClockPong {
@@ -470,7 +533,8 @@ async fn a_reconnected_phone_is_the_same_mic_and_its_pongs_go_to_the_new_connect
         ServerMessage::ClockPong {
             t0: 3.0,
             ts: 9.0,
-            epoch: 7.0
+            epoch: 7.0,
+            input: None,
         }
     );
 }
@@ -486,10 +550,16 @@ async fn a_phone_on_this_path_hears_only_its_pongs() {
         phone
             .send(&ClientMessage::PitchReading {
                 reading: reading(f64::from(i)),
+                input: None,
             })
             .await;
     }
-    phone.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    phone
+        .send(&ClientMessage::ClockPing {
+            t0: 1.0,
+            input: None,
+        })
+        .await;
     for _ in 0..20 {
         reading_at_stage(&mut stage).await;
     }
@@ -507,7 +577,8 @@ async fn a_phone_on_this_path_hears_only_its_pongs() {
         ServerMessage::ClockPong {
             t0: 1.0,
             ts: 2.0,
-            epoch: 3.0
+            epoch: 3.0,
+            input: None,
         }
     );
     heard_nothing(&mut phone).await;

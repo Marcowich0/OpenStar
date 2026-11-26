@@ -181,6 +181,7 @@ async fn a_reconnecting_phone_is_the_same_player_in_the_same_seat_and_its_readin
     phone
         .send(&ClientMessage::PitchReading {
             reading: reading(1.0),
+            input: None,
         })
         .await;
     assert_eq!(
@@ -218,6 +219,7 @@ async fn a_reconnecting_phone_is_the_same_player_in_the_same_seat_and_its_readin
     again
         .send(&ClientMessage::PitchReading {
             reading: reading(2.0),
+            input: None,
         })
         .await;
     assert_eq!(
