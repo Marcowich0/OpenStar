@@ -26,6 +26,7 @@ import type { SongHighScores } from "../generated/SongHighScores";
 import type { SongId } from "../generated/SongId";
 import type { SongList } from "../generated/SongList";
 import type { SongQuery } from "../generated/SongQuery";
+import type { TrashList } from "../generated/TrashList";
 import type { RoundStored } from "../generated/RoundStored";
 import type { StageOutputMicSettings } from "../generated/StageOutputMicSettings";
 import type { StageTrustRequest } from "../generated/StageTrustRequest";
@@ -95,6 +96,9 @@ export interface Endpoints {
   /** Guarded, writes the Library: moves the Song's folder to the trash; `204`. */
   "DELETE /api/songs/{id}": { response: null };
   "GET /api/library/originals": { response: SongId[] };
+  "GET /api/library/trash": { response: TrashList };
+  /** Guarded, writes the Library: moves a trashed folder back; `204`. */
+  "POST /api/library/trash/{id}/restore": { response: null };
   "GET /api/library/problems": { response: LibraryProblem[] };
   "GET /api/library/scan": { response: ScanStatus };
   "POST /api/library/rescan": { response: ScanStatus };
@@ -254,6 +258,8 @@ const REFUSAL_CODES = {
   noOriginal: true,
   songFolderShared: true,
   songInLibraryRoot: true,
+  notInTrash: true,
+  restoreFolderExists: true,
   notWhileSongPlays: true,
   avSyncNotRunning: true,
   avSyncRunning: true,

@@ -752,6 +752,13 @@ pub enum UserMessage {
     /// The Song's `.txt` sits directly in the Library root, so it has no
     /// folder of its own to delete. Nothing is moved. Sent with `409`.
     SongInLibraryRoot,
+    /// The trash holds no Song folder of this id (it was restored or
+    /// purged). Sent with `404`.
+    NotInTrash,
+    /// A folder named `path` (relative to the Library) exists where the
+    /// trashed Song folder would be restored, and OpenStar never writes into
+    /// an existing folder. Nothing is moved. Sent with `409`.
+    RestoreFolderExists { path: String },
     /// A Song plays on the Stage, so this (Check A/V sync) cannot start.
     NotWhileSongPlays,
     /// Check A/V sync does not run, so there is nothing to step.

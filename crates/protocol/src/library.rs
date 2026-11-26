@@ -342,6 +342,33 @@ pub struct ScanStatus {
     pub last: Option<ScanReport>,
 }
 
+/// Names one trashed Song folder (a row of the trash ledger).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TrashId(#[ts(type = "number")] pub i64);
+
+/// A Song folder in the 30-day trash (`GET /api/library/trash`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct TrashedSong {
+    pub id: TrashId,
+    /// The folder's path relative to the Library when it was deleted, with
+    /// `/` between segments; a restore moves it back there.
+    pub original_path: String,
+    /// When it was deleted, in ms since the Unix epoch. It is purged 30 days
+    /// after this.
+    #[ts(type = "number")]
+    pub deleted_ms: i64,
+}
+
+/// Every Song folder in the trash, the most recently deleted first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TrashList {
+    pub songs: Vec<TrashedSong>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

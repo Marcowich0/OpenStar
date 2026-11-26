@@ -4,7 +4,8 @@
 // change notice, like every Song list. Each row is where the Song's admin
 // actions attach: Restore Original (#188, on a Song with an Original), Delete (#190,
 // press and hold, to the trash), the Timing editor
-// (#218) and Fit to the singing (#223), passed as the row's `children`. The
+// (#218) and Fit to the singing (#223), passed as the row's `children`.
+// Below the list, the trash (#191) lists the deleted Songs to restore. The
 // editor's link shows only with a fine pointer and room for it
 // (`useFullTimingEditor`); any other browser gets Fit to the singing instead.
 
@@ -21,6 +22,7 @@ import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
 import { DeleteSong } from "./DeleteSong";
 import { RestoreOriginal } from "./RestoreOriginal";
+import { Trash } from "./Trash";
 import { PhoneAutoFit } from "./timing/PhoneAutoFit";
 import { TimingEditorLink } from "./timing/TimingEditorLink";
 import { useFullTimingEditor } from "./timing/useFullTimingEditor";
@@ -100,6 +102,8 @@ export function Songs() {
             {t(list.isError ? "admin.songs.failed" : "admin.songs.loading")}
           </p>
         )}
+
+        <Trash />
       </div>
     </AdminSection>
   );

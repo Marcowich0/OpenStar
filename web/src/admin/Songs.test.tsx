@@ -131,6 +131,22 @@ describe("the Songs section", () => {
     expect(rows()[0]).toHaveTextContent("Bohemian Rhapsody");
   });
 
+  it("lists the trash below the Songs", async () => {
+    fakeLibraryServer({
+      "GET /api/songs": songList(SONGS),
+      "GET /api/library/trash": {
+        songs: [{ id: 4, originalPath: "Old - Song", deletedMs: 0 }],
+      },
+    });
+    await renderLive(<SongsInRouter />);
+
+    const trash = screen.getByRole("list", { name: "Songs in the trash" });
+    expect(trash).toHaveTextContent("Old - Song");
+    expect(
+      within(trash).getByRole("button", { name: "Restore Old - Song" }),
+    ).toBeVisible();
+  });
+
   it("says when nothing matches and when the Library is empty", async () => {
     fakeLibraryServer({ "GET /api/songs": songList([]) });
     await renderLive(<SongsInRouter />);

@@ -90,6 +90,16 @@ export const originalsQuery = queryOptions({
   queryFn: ({ signal }) => api("GET /api/library/originals", { signal }),
 });
 
+/**
+ * `GET /api/library/trash`: the Song folders in the trash. Its key starts
+ * with `songsKey`, so the `library` notice (a delete, restore or purge)
+ * refreshes it.
+ */
+export const trashQuery = queryOptions({
+  queryKey: [...songsKey, "trash"],
+  queryFn: ({ signal }) => api("GET /api/library/trash", { signal }),
+});
+
 /** `GET /api/library/problems`: every Library problem. */
 export const libraryProblemsQuery = queryOptions({
   queryKey: ["library", "problems"],

@@ -84,6 +84,9 @@ const handlers: CodeHandlers<UserMessage> = {
   songFolderShared: ({ params }) =>
     t("userMessage.songFolderShared", { otherTxt: params.otherTxt }),
   songInLibraryRoot: () => t("userMessage.songInLibraryRoot"),
+  notInTrash: () => t("userMessage.notInTrash"),
+  restoreFolderExists: ({ params }) =>
+    t("userMessage.restoreFolderExists", { path: params.path }),
   notWhileSongPlays: () => t("userMessage.notWhileSongPlays"),
   avSyncNotRunning: () => t("userMessage.avSyncNotRunning"),
   avSyncRunning: () => t("userMessage.avSyncRunning"),
