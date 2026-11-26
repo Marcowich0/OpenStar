@@ -28,6 +28,8 @@ test("the Stage picks a Song in the carousel and Sing! shows its Line-up", async
   await stage.keyboard.press("ArrowRight");
   await expect(title()).toHaveText(picked);
 
+  // The focus follows the selection a render later; Enter needs it there.
+  await expect(stage.getByTestId("carousel-selected")).toBeFocused();
   await stage.keyboard.press("Enter");
   await expect(frame).toHaveAttribute("data-scene", "lineUp");
   await expect(stage.getByRole("heading", { level: 1 })).toHaveText(picked);
