@@ -123,6 +123,40 @@ export function PhonePageView({
   const closeMeScreen = () => {
     setMeScreen(null);
   };
+  // The takeover in front closes a Me sheet screen opened from the Remote
+  // on top of it, so it never shows up later, after the Song.
+  if (page === "micTakeover" && !remoteOnTop && meScreen !== null)
+    setMeScreen(null);
+
+  /** The Me sheet action's screen, drawn instead of the Remote. */
+  function meScreenView() {
+    if (meScreen?.kind === "switch")
+      return (
+        <JoinFlow
+          linkCode={undefined}
+          store={store}
+          storage={storage}
+          switching={{ onBack: closeMeScreen, onDone: closeMeScreen }}
+          {...(random ? { random } : {})}
+        />
+      );
+    if (meScreen?.kind === "edit" && member)
+      return (
+        <JoinForm
+          kind="edit"
+          store={store}
+          member={member}
+          look={meScreen.look}
+          onBack={closeMeScreen}
+          onSave={async (edit) => {
+            const refusal = await editMember(store, member.memberId, edit);
+            if (refusal === null) closeMeScreen();
+            return refusal;
+          }}
+        />
+      );
+    return null;
+  }
 
   switch (page) {
     case "joinFlow":
@@ -158,48 +192,27 @@ export function PhonePageView({
           />
         );
       return (
-        <Remote
-          store={store}
-          phoneId={myPhoneId}
-          me={me}
-          {...(takeover
-            ? {
-                backToMic: {
-                  colour: takeover.colour,
-                  onBack: () => {
-                    setRemoteOnTop(false);
+        meScreenView() ?? (
+          <Remote
+            store={store}
+            phoneId={myPhoneId}
+            me={me}
+            {...(takeover
+              ? {
+                  backToMic: {
+                    colour: takeover.colour,
+                    onBack: () => {
+                      setRemoteOnTop(false);
+                    },
                   },
-                },
-              }
-            : {})}
-        />
+                }
+              : {})}
+          />
+        )
       );
-    case "remote":
-      if (meScreen?.kind === "switch")
-        return (
-          <JoinFlow
-            linkCode={undefined}
-            store={store}
-            storage={storage}
-            switching={{ onBack: closeMeScreen, onDone: closeMeScreen }}
-            {...(random ? { random } : {})}
-          />
-        );
-      if (meScreen?.kind === "edit" && member)
-        return (
-          <JoinForm
-            kind="edit"
-            store={store}
-            member={member}
-            look={meScreen.look}
-            onBack={closeMeScreen}
-            onSave={async (edit) => {
-              const refusal = await editMember(store, member.memberId, edit);
-              if (refusal === null) closeMeScreen();
-              return refusal;
-            }}
-          />
-        );
+    case "remote": {
+      const shown = meScreenView();
+      if (shown) return shown;
       if (
         joinedHere &&
         member?.identity.kind === "profile" &&
@@ -223,5 +236,6 @@ export function PhonePageView({
           {...(toStageTab ? { initialTab: "stage" as const } : {})}
         />
       );
+    }
   }
 }

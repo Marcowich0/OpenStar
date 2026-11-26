@@ -286,6 +286,36 @@ describe("the mic takeover", () => {
     expect(takeover()).toBeTruthy();
   });
 
+  it("opens the Me sheet's screens from the Remote on top of the takeover", async () => {
+    renderPage(PARTY, fakeMic("on"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Queue & controls" }),
+    );
+    const openMe = async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /^Me/ }));
+      return screen.getByRole("dialog", { name: "Me" });
+    };
+    fireEvent.click(
+      within(await openMe()).getByRole("button", {
+        name: "Someone else is using this phone",
+      }),
+    );
+    expect(screen.getByRole("list", { name: "Who's singing?" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("tablist")).toBeTruthy();
+
+    fireEvent.click(
+      within(await openMe()).getByRole("button", {
+        name: "Change name, look or colour",
+      }),
+    );
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("tablist")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back to my mic" }));
+    expect(takeover()).toBeTruthy();
+  });
+
   it("shows the Party's toasts too", async () => {
     const { server } = renderPage(PARTY, fakeMic("on"));
     await screen.findByText("Sing a note to check");
