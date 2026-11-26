@@ -13,6 +13,7 @@ import {
 } from "./frame";
 import { confettiBurst, ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
+import { LineRatings } from "./lineRating";
 
 // One Beat lasts 0.5 s (beatsPerMinute is the real rate, #BPM × 4); Beat 0
 // falls at 1 s. Beat b starts at Song time 1 + b / 2.
@@ -437,9 +438,15 @@ describe("frame", () => {
     );
     const effects = new ParticlePool(64);
     confettiBurst(effects, 300, 300, "grape");
+    const ratings = new LineRatings();
+    ratings.show(1, "sing.lineRating.good");
     const colours: unknown[] = [];
     for (const t of [3, 3.95, 9]) {
-      for (const entry of frame({ ...duet, effects }, t, laneLayout(2))) {
+      for (const entry of frame(
+        { ...duet, effects, ratings },
+        t,
+        laneLayout(2),
+      )) {
         switch (entry.type) {
           case "lane":
             colours.push(entry.colour, entry.separator.colour);
@@ -471,6 +478,7 @@ describe("frame", () => {
             colours.push(entry.track, entry.fill);
             break;
           case "particle":
+          case "lineRating":
             colours.push(entry.colour);
             break;
           case "laneEnd":

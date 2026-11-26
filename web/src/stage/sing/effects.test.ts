@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { DrawList } from "./frame";
+import type { HeadBallEntry } from "./pitchTrace";
 import {
   confettiBurst,
+  GoldenSparkles,
+  SPARKLE_RATE,
   MAX_FRAME_DELTA,
   ParticlePool,
   type ParticleEntry,
@@ -208,5 +211,81 @@ describe("the confetti burst (#55)", () => {
     a.advance(0.3);
     b.advance(0.3);
     expect(particles(a)).toEqual(particles(b));
+  });
+});
+
+describe("the golden-Note sparkle at the head ball (#55)", () => {
+  function ball(golden: boolean, lane = 0): HeadBallEntry {
+    return {
+      type: "headBall",
+      lane,
+      x: 600,
+      y: 900,
+      pitch: 0,
+      radius: 14,
+      colour: "teal",
+      rim: "--color-white",
+      rimWidth: 3,
+      squash: { x: 1, y: 1 },
+      golden,
+    };
+  }
+
+  it("throws confetti from the head ball while it hits a golden Note, at a steady rate of real time", () => {
+    const pool = new ParticlePool(256, { seed: 5 });
+    const sparkles = new GoldenSparkles();
+    sparkles.emit([ball(true)], pool, 0.25);
+    expect(pool.live).toBe(Math.round(SPARKLE_RATE * 0.25));
+    expect(SPARKLE_RATE).toBeGreaterThan(5);
+    for (const p of particles(pool)) {
+      expect(p).toMatchObject({ x: 600, y: 900 });
+      expect(p.size).toBeGreaterThanOrEqual(8);
+      expect(p.size).toBeLessThanOrEqual(20);
+      expect([
+        "teal",
+        "--color-red",
+        "--color-blue",
+        "--color-green",
+        "--color-yellow",
+        "--color-purple",
+      ]).toContain(p.colour);
+    }
+  });
+
+  it("spawns the same number at 144 Hz as in one long frame", () => {
+    const smooth = new ParticlePool(256);
+    const s = new GoldenSparkles();
+    for (let i = 0; i < 144; i++) s.emit([ball(true)], smooth, 1 / 144);
+    const jumpy = new ParticlePool(256);
+    const j = new GoldenSparkles();
+    for (let i = 0; i < 4; i++) j.emit([ball(true)], jumpy, 0.25);
+    expect(smooth.live).toBe(SPARKLE_RATE);
+    expect(jumpy.live).toBe(SPARKLE_RATE);
+  });
+
+  it("is quiet on a Normal Note, without a head ball, and on a frozen frame", () => {
+    const pool = new ParticlePool(256);
+    const sparkles = new GoldenSparkles();
+    sparkles.emit([ball(false)], pool, 1);
+    sparkles.emit([], pool, 1);
+    sparkles.emit([ball(true)], pool, 0);
+    expect(pool.live).toBe(0);
+  });
+
+  it("starts each golden stretch afresh, lane by lane", () => {
+    const pool = new ParticlePool(256);
+    const sparkles = new GoldenSparkles();
+    // Lane 1 sparkles; lane 0 is between golden Notes.
+    sparkles.emit([ball(false, 0), ball(true, 1)], pool, 0.25);
+    expect(pool.live).toBe(Math.round(SPARKLE_RATE * 0.25));
+  });
+
+  it("never allocates pool memory", () => {
+    const pool = new ParticlePool(16);
+    const memory = pool.memory;
+    const sparkles = new GoldenSparkles();
+    for (let i = 0; i < 1000; i++) sparkles.emit([ball(true)], pool, 0.1);
+    expect(pool.memory).toBe(memory);
+    expect(pool.live).toBe(16);
   });
 });

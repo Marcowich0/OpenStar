@@ -59,6 +59,7 @@ import {
   type LiveScoringOutcome,
 } from "../../../scoring/liveScoring";
 import type { SingState } from "../../sing/frame";
+import { lineEnded } from "../../sing/lineRating";
 import {
   createSongControls,
   type SongControls,
@@ -198,6 +199,8 @@ interface Session {
   detail: SongDetail | null;
   setup: SingSetup | null;
   scoring: LiveScoring | null;
+  /** What the sing screen draws; its pops and particles start over on Restart. */
+  sing: SingState | null;
   /** The animation frame ticking the scoring, while the Song plays. */
   frame: number | null;
   buffers: readonly PitchBuffer[];
@@ -313,7 +316,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
     s.controls = createSongControls({
       playback,
       buffers: () => s.buffers,
-      scorers: () => (scoring ? [scoring] : []),
+      scorers: () => (scoring ? [scoring, effectsOf(s)] : []),
       onChange: (controls) => {
         if (session === s) update({ controls });
       },
@@ -323,6 +326,16 @@ export function createStageSong(options: StageSongOptions): StageSong {
       ...(options.schedule ? { schedule: options.schedule } : {}),
     });
     play(s);
+  }
+
+  /** A Restart drops the Line rating pops and the particles still flying. */
+  function effectsOf(s: Session): { reset(): void } {
+    return {
+      reset() {
+        s.sing?.ratings?.clear();
+        s.sing?.effects?.clear();
+      },
+    };
   }
 
   function play(s: Session) {
@@ -446,6 +459,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
       detail: null,
       setup: null,
       scoring: null,
+      sing: null,
       frame: null,
       buffers: [],
       clock: null,
@@ -509,6 +523,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
         },
       });
       const state = setup.state(s.buffers);
+      s.sing = state;
       // The last running total each seat's Phone was told (#167).
       const told: (number | null)[] = setup.players.map(() => null);
       scoring.onChange((change) => {
@@ -532,6 +547,10 @@ export function createStageSong(options: StageSongOptions): StageSong {
         if (player) player.score = change.score.total;
         // The lost lane is drawn from `trace.lostAt`, read every frame (#213).
         if (lane?.trace) lane.trace.lostAt = change.lostAt;
+        // Each ended Line pops its rating; Perfect! throws confetti (#216).
+        for (const result of change.lineEnds) {
+          lineEnded(state, change.player, result);
+        }
         if (change.back) {
           const seat = setup.players[change.player];
           if (seat) {
