@@ -18,9 +18,7 @@ use std::time::Duration;
 
 use openstar_protocol::admin::{ApiError, ApiErrorCode};
 use openstar_protocol::jobs::{JobKind, JobList, JobState};
-use openstar_protocol::library::{
-    ScanStatus, SongDetail, SongId, SongList, SongVideo, TrashList,
-};
+use openstar_protocol::library::{ScanStatus, SongDetail, SongId, SongList, SongVideo, TrashList};
 use openstar_protocol::song::{TimingEdit, TimingOperation, TimingPreview, TimingSave};
 use openstar_protocol::{
     ClientMessage, LibraryReadOnly, LibraryReadOnlyCode, ServerInfo, ServerMessage,
@@ -289,7 +287,11 @@ async fn a_read_only_library_refuses_each_write_whatever_the_unlock() {
     let mut app = TestApp::start().await;
     let songs = app.songs_dir().to_owned();
     write_song(&songs.join("Kept"), "Kept", &mp3, None);
-    std::fs::copy(songs.join("Kept/song.txt"), songs.join("Kept/song.txt.orig")).unwrap();
+    std::fs::copy(
+        songs.join("Kept/song.txt"),
+        songs.join("Kept/song.txt.orig"),
+    )
+    .unwrap();
     write_song(&songs.join("Gone"), "Gone", &mp3, None);
     app.restart().await;
     let cookie = app.unlock().await;

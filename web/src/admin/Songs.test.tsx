@@ -453,9 +453,7 @@ describe("the Songs section with a read-only Library", () => {
     }
     vi.useRealTimers();
     await settle();
-    expect(
-      server.calls.filter((call) => !call.startsWith("GET ")),
-    ).toEqual([]);
+    expect(server.calls.filter((call) => !call.startsWith("GET "))).toEqual([]);
   });
 });
 
