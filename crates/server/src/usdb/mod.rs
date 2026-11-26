@@ -9,9 +9,9 @@ mod detail;
 mod html;
 pub(crate) mod http;
 mod list;
-mod search;
 mod login;
 pub(crate) mod mirror;
+mod search;
 mod song_txt;
 mod text;
 

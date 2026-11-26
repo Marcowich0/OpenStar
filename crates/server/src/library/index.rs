@@ -585,14 +585,8 @@ pub(crate) fn media_path(
 }
 
 /// Whether a playable Song with `identity` is in the Library now. Scoring
-/// shows a Song's Score records only while this holds.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "Scoring hides and shows Score records by it (#54)"
-    )
-)]
+/// shows a Song's Score records only while this holds; USDB search marks a
+/// song "In Library" by it.
 pub(crate) fn identity_present(
     conn: &Connection,
     identity: &SongIdentity,

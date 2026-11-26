@@ -132,7 +132,9 @@ pub(crate) async fn cover(
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         },
-        Ok(None) | Err(UserMessage::UsdbCredentialsMissing) => StatusCode::NOT_FOUND.into_response(),
+        Ok(None) | Err(UserMessage::UsdbCredentialsMissing) => {
+            StatusCode::NOT_FOUND.into_response()
+        }
         Err(message) => (StatusCode::BAD_GATEWAY, Json(message)).into_response(),
     }
 }

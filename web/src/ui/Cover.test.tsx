@@ -25,6 +25,11 @@ describe("Cover", () => {
     expect(cover().style.backgroundColor).toBe("");
   });
 
+  it("loads its image only when it nears the screen, when asked to", () => {
+    render(<Cover src="/media/1/cover.jpg" tileColour="sky" rim={4} lazy />);
+    expect(cover().querySelector("img")).toHaveAttribute("loading", "lazy");
+  });
+
   it("shows the generated tile in the Library's colour when the Song has no cover", () => {
     render(<Cover src={null} tileColour="berry" rim={4} />);
     expect(cover().querySelector("img")).toBeNull();

@@ -10,11 +10,11 @@ use std::time::Duration;
 
 use openstar::clock::ManualClock;
 use openstar::usdb::{UsdbTimer, VirtualTimer};
+use openstar_protocol::jobs::JobState;
 use openstar_protocol::usdb::{
     USDB_SEARCH_LIMIT, UsdbMirrorState, UsdbMirrorStatus, UsdbSearchQuery, UsdbSearchResults,
     UsdbSort,
 };
-use openstar_protocol::jobs::JobState;
 use openstar_protocol::{ChangeTopic, ServerMessage, UserMessage};
 use openstar_test_harness::{AppFolders, FakeSong, FakeUsdb, Scripted, TestApp};
 
@@ -152,7 +152,10 @@ async fn results_sort_by_rating_or_by_views() {
         sort: Some(sort),
     };
     assert_eq!(ids(&search(&app, &by(UsdbSort::Views)).await), [3, 1, 4, 2]);
-    assert_eq!(ids(&search(&app, &by(UsdbSort::Rating)).await), [2, 1, 4, 3]);
+    assert_eq!(
+        ids(&search(&app, &by(UsdbSort::Rating)).await),
+        [2, 1, 4, 3]
+    );
 }
 
 #[tokio::test]
@@ -169,7 +172,10 @@ async fn a_search_answers_at_most_the_limit_and_says_how_many_matched() {
 #[tokio::test]
 async fn a_song_whose_usdb_id_is_in_the_library_is_marked_in_library() {
     let folders = AppFolders::new();
-    write_downloaded_song(&folders.songs_dir().join("Placeholder Band - Straße Song"), 1);
+    write_downloaded_song(
+        &folders.songs_dir().join("Placeholder Band - Straße Song"),
+        1,
+    );
     let usdb = FakeUsdb::start().await;
     usdb.set_songs(some_songs());
     let app = app_with(&usdb, folders).await;
@@ -225,7 +231,11 @@ async fn a_cover_is_fetched_once_when_first_shown_and_then_served_from_the_cache
     let jpeg = b"\xFF\xD8\xFF\xE0 placeholder cover bytes".to_vec();
     usdb.set_cover(1, jpeg.clone());
     let app = filled(&usdb).await;
-    assert_eq!(cover_requests(&usdb, 1), 0, "nothing fetched before it is shown");
+    assert_eq!(
+        cover_requests(&usdb, 1),
+        0,
+        "nothing fetched before it is shown"
+    );
 
     for _ in 0..2 {
         let response = app
@@ -239,7 +249,11 @@ async fn a_cover_is_fetched_once_when_first_shown_and_then_served_from_the_cache
         assert_eq!(response.bytes().await.unwrap().to_vec(), jpeg);
     }
 
-    assert_eq!(cover_requests(&usdb, 1), 1, "the second one came from the cache");
+    assert_eq!(
+        cover_requests(&usdb, 1),
+        1,
+        "the second one came from the cache"
+    );
     let cached = app.appdata_dir().join("cache/usdb-covers/1.jpg");
     assert_eq!(std::fs::read(cached).unwrap(), jpeg);
 }
@@ -283,9 +297,7 @@ async fn a_cover_usdb_answers_empty_counts_as_none() {
         .unwrap();
     assert_eq!(response.status(), 404);
     assert!(
-        !app.appdata_dir()
-            .join("cache/usdb-covers/3.jpg")
-            .exists(),
+        !app.appdata_dir().join("cache/usdb-covers/3.jpg").exists(),
         "no zero-byte cover"
     );
 }

@@ -23,8 +23,8 @@ mod scan;
 mod search;
 pub(crate) mod timing;
 
-pub use conversion::Conversion;
 pub(crate) use artwork::tile_colour;
+pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;
 pub(crate) use identity::normalise;
 pub(crate) use index::identity_present;
