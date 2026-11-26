@@ -18,3 +18,6 @@
 /crates/mic-bridge/tests/snapshots/*.new.png
 /crates/mic-bridge/tests/snapshots/*.diff.png
 /crates/mic-bridge/tests/snapshots/*.old.png
+
+# TypeScript incremental build state.
+*.tsbuildinfo

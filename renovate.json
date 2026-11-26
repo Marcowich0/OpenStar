@@ -53,6 +53,11 @@
   ],
   "packageRules": [
     {
+      "description": "Our own image in the compose examples (compose.yaml, compose.caddy.yaml) follows a release tag; Renovate must not pin it by digest.",
+      "matchDepNames": ["ghcr.io/marcowich0/openstar"],
+      "enabled": false
+    },
+    {
       "description": "Crates (Cargo.toml, `=` pins, and cargo-deny in CI): one weekly group of non-major bumps, for review.",
       "matchDatasources": ["crate"],
       "matchUpdateTypes": ["minor", "patch"],

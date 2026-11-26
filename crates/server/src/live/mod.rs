@@ -2335,12 +2335,13 @@ impl LiveState {
             .clone();
         let change = self.request_change(&request).await;
         let blocked = self.blocked_phones.clone();
+        let calibrated = self.calibrated_mics.clone();
         let stage = self.stage_mut();
         if let Some(party) = stage.party.as_mut() {
             party.playing = None;
             // A taking-over Stage hears the live state before the change:
             // it must say already that the Line-up can start again.
-            refresh_computed(party, &blocked);
+            refresh_computed(party, &blocked, calibrated.as_ref());
         }
         stage.progress = None;
         Some(ChangeEvent {
