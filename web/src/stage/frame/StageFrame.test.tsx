@@ -487,7 +487,7 @@ describe("StageFrame hold to confirm", () => {
     expect(sent).not.toContainEqual({ type: "newParty" });
   });
 
-  it("takes the Stage back after a mouse hold on Stage moved here", () => {
+  it("takes the Stage back after a mouse hold on Stage moved here", async () => {
     vi.useFakeTimers();
     const { live, takeStageBack } = setup();
     live((h) => {
@@ -499,8 +499,10 @@ describe("StageFrame hold to confirm", () => {
     act(() => {
       fireEvent.pointerDown(button);
     });
-    act(() => {
-      vi.advanceTimersByTime(HOLD_DURATION_MS);
+    // The hold asks the server for Stage trust again (unreachable here, so
+    // it takes the Stage back and lets `/stage` ask).
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(HOLD_DURATION_MS);
     });
     expect(takeStageBack).toHaveBeenCalledOnce();
   });

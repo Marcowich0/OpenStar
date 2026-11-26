@@ -481,6 +481,9 @@ export const en = {
   "stage.moved.title": "The Stage moved to another screen",
   "stage.moved.body":
     "Someone opened OpenStar's Stage on another browser, so the party carries on there. Phones stay in the Party and follow it.",
+  "stage.moved.knowsPin":
+    "Hold for a moment. This browser already knows the admin PIN.",
+  "stage.moved.needsPin": "Hold for a moment, then enter the admin PIN.",
   "bridge.title": "Mic bridge",
   // Getting the Mic bridge: the `/bridge` page and Add a Mic bridge.
   "bridge.intro":
