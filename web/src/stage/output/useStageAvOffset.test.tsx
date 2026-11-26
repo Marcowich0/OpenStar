@@ -169,7 +169,11 @@ describe("the Stage's A/V offset", () => {
 
     await act(() => t.offset().save(200));
     expect(kept).toEqual({ Speakers: 200 });
-    expect(t.offset().ms).toBe(200);
+    // The saved value reaches the hook through the query cache, a render
+    // later on a loaded machine.
+    await waitFor(() => {
+      expect(t.offset().ms).toBe(200);
+    });
     const [, init] = fetchMock.mock.calls[1] ?? [];
     expect(init?.method).toBe("PUT");
     expect(JSON.parse(bodyOf(init))).toEqual({
