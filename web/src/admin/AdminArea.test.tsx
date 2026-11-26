@@ -9,7 +9,6 @@ import {
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { validateAdminSearch } from "../adminSearch";
 import { createQueryClient } from "../api/queryClient";
 import { ADMIN_PIN, fakeServer } from "../guarded/fakeServer";
 import { HEARTBEAT_MS } from "../guarded/useUnlockHeartbeat";
@@ -19,6 +18,8 @@ import { Downloads } from "./Downloads";
 import { LibraryProblems } from "./LibraryProblems";
 import { Profiles } from "./Profiles";
 import { Songs } from "./Songs";
+import { setAdminTestSlot } from "./adminTestSlot";
+import { TestGuardedAction } from "../adminTest/TestGuardedAction";
 
 /** The Admin area's routes as `router.tsx` has them, without lazy loading. */
 async function renderAdmin(url = "/admin") {
@@ -33,7 +34,6 @@ async function renderAdmin(url = "/admin") {
   const home = createRoute({
     getParentRoute: () => admin,
     path: "/",
-    validateSearch: validateAdminSearch,
     component: AdminHome,
   });
   const router = createRouter({
@@ -92,6 +92,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  setAdminTestSlot(null);
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -146,7 +147,8 @@ describe("the Admin area", () => {
 
   it("asks for the PIN on the next guarded action after Lock", async () => {
     fakeServer({ unlocked: true });
-    await renderAdmin("/admin?test=guarded");
+    setAdminTestSlot(<TestGuardedAction />);
+    await renderAdmin();
 
     press("Lock");
     await settle();
@@ -157,7 +159,8 @@ describe("the Admin area", () => {
 
   it("completes the test-only guarded action after the PIN and shows Lock", async () => {
     const server = fakeServer();
-    await renderAdmin("/admin?test=guarded");
+    setAdminTestSlot(<TestGuardedAction />);
+    await renderAdmin();
 
     press("Test guarded action");
     await settle();
@@ -171,7 +174,7 @@ describe("the Admin area", () => {
     expect(lockButton()).toBeInTheDocument();
   });
 
-  it("has no test-only guarded action unless asked for", async () => {
+  it("has no test-only guarded action unless a test build adds it", async () => {
     fakeServer();
     await renderAdmin();
     expect(
