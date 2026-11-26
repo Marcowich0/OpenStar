@@ -7,6 +7,7 @@ import {
   browserChannels,
   browserInputDevices,
   devicesToOpen,
+  presentLocalMics,
   localMicName,
   matchLocalMics,
   micsScreenOrder,
@@ -350,6 +351,51 @@ describe("which devices are open, for a missing Local mic", () => {
         micsScreenOpen: false,
       }),
     ).toEqual(new Set(["dongle-new"]));
+  });
+});
+
+describe("which of this browser's Local mics are present", () => {
+  const left = channel("dongle", "USB Audio", 0);
+  const right = channel("dongle", "USB Audio", 1);
+  const mono = channel("webcam", "Webcam", 1);
+
+  it("are those whose device is listed, as long as the device has that channel", () => {
+    expect(
+      presentLocalMics({
+        stageBrowser: "stage",
+        devices: [device("dongle", "USB Audio"), device("webcam", "Webcam")],
+        // The webcam opened with one channel: it has no channel 1.
+        open: new Map([
+          ["dongle", 2],
+          ["webcam", 1],
+        ]),
+        kept: [kept(left, true), kept(right, false), kept(mono, true)],
+      }),
+    ).toEqual([left.localMicId, right.localMicId]);
+  });
+
+  it("are none of an unplugged device or of another Stage browser", () => {
+    const elsewhere = {
+      ...kept(left, true),
+      localMicId: "browser:other:dongle:0",
+      source: { ...left.source, stageBrowser: "other" },
+    };
+    expect(
+      presentLocalMics({
+        stageBrowser: "stage",
+        devices: [device("webcam", "Webcam")],
+        open: new Map(),
+        kept: [kept(left, true)],
+      }),
+    ).toEqual([]);
+    expect(
+      presentLocalMics({
+        stageBrowser: "stage",
+        devices: [device("dongle", "USB Audio")],
+        open: new Map([["dongle", 2]]),
+        kept: [elsewhere],
+      }),
+    ).toEqual([]);
   });
 });
 

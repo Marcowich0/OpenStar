@@ -646,6 +646,19 @@ impl WsClient {
         }
     }
 
+    /// [`Self::recv`], also skipping the Party changes that only list the
+    /// switched-on Local mics again (`localMicsChanged`): for tests of
+    /// what the Local mics keep rather than of the Line-up.
+    pub async fn recv_past_local_mics(&mut self) -> ServerMessage {
+        loop {
+            match self.recv().await {
+                ServerMessage::PartyChanged { change, .. }
+                    if change.event == openstar_protocol::PartyEvent::LocalMicsChanged => {}
+                message => return message,
+            }
+        }
+    }
+
     /// Waits up to five seconds for the server to close the WebSocket,
     /// skipping messages still in flight.
     pub async fn closed(&mut self) {

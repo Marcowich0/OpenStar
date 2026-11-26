@@ -27,11 +27,11 @@ fn left_of_dongle() -> (String, LocalMicSource) {
 async fn open_stage(app: &TestApp) -> WsClient {
     let mut stage = app.connect_stage().await;
     assert!(matches!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::LiveState { is_stage: true, .. }
     ));
     assert!(matches!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::PartyChanged { .. }
     ));
     stage
@@ -46,7 +46,7 @@ async fn switch(stage: &mut WsClient, id: &str, source: &LocalMicSource, on: boo
         })
         .await;
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Changed {
             topics: vec![ChangeTopic::MicSettings]
         }
@@ -135,7 +135,7 @@ async fn only_the_active_stage_switches_a_local_mic() {
     let _stage = open_stage(&app).await;
     let mut phone = app.connect_ws().await;
     assert!(matches!(
-        phone.recv().await,
+        phone.recv_past_local_mics().await,
         ServerMessage::LiveState { .. }
     ));
     let (id, source) = left_of_dongle();
@@ -147,7 +147,7 @@ async fn only_the_active_stage_switches_a_local_mic() {
         })
         .await;
     assert_eq!(
-        phone.recv().await,
+        phone.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::NotTheStage
         }
@@ -167,7 +167,7 @@ fn browser_source(device_id: &str, label: &str, channel: u32) -> LocalMicSource 
 
 async fn expect_changed(stage: &mut WsClient) {
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Changed {
             topics: vec![ChangeTopic::MicSettings]
         }
@@ -231,7 +231,7 @@ async fn only_the_active_stage_names_a_local_mic() {
     let _stage = open_stage(&app).await;
     let mut phone = app.connect_ws().await;
     assert!(matches!(
-        phone.recv().await,
+        phone.recv_past_local_mics().await,
         ServerMessage::LiveState { .. }
     ));
     let (id, source) = left_of_dongle();
@@ -243,7 +243,7 @@ async fn only_the_active_stage_names_a_local_mic() {
         })
         .await;
     assert_eq!(
-        phone.recv().await,
+        phone.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::NotTheStage
         }
@@ -343,7 +343,7 @@ async fn find_it_refuses_a_channel_that_is_already_a_local_mic_and_a_local_mic_t
 
     relink(&mut stage, &id, other, &other_source).await;
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::ChannelAlreadyLocalMic
         }
@@ -356,7 +356,7 @@ async fn find_it_refuses_a_channel_that_is_already_a_local_mic_and_a_local_mic_t
     )
     .await;
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::LocalMicNotFound
         }
@@ -372,12 +372,12 @@ async fn only_the_active_stage_uses_find_it() {
     switch(&mut stage, &id, &source, true).await;
     let mut phone = app.connect_ws().await;
     assert!(matches!(
-        phone.recv().await,
+        phone.recv_past_local_mics().await,
         ServerMessage::LiveState { .. }
     ));
     relink(&mut phone, &id, "browser:stage-1:new:0", &source).await;
     assert_eq!(
-        phone.recv().await,
+        phone.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::NotTheStage
         }

@@ -55,6 +55,7 @@ const party = (memberIds: number[]): PartySnapshot => ({
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 });
 
 describe("checking a Join code", () => {

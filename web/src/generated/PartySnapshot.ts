@@ -3,6 +3,7 @@ import type { JoinCode } from "./JoinCode";
 import type { JoinedPhone } from "./JoinedPhone";
 import type { LineUp } from "./LineUp";
 import type { PartyId } from "./PartyId";
+import type { PartyLocalMic } from "./PartyLocalMic";
 import type { PartyMember } from "./PartyMember";
 import type { PlayingSong } from "./PlayingSong";
 import type { Request } from "./Request";
@@ -61,4 +62,11 @@ playing: PlayingSong | null,
  * someone presses Next or Done ([`crate::ClientMessage::CloseResults`]).
  * Kept across a restart.
  */
-results: SongResults | null, };
+results: SongResults | null, 
+/**
+ * Every switched-on Local mic, in Mics-screen order, with whether it
+ * is present: what the Mic lists of the Line-up offer. Not kept: made
+ * by the server from the kept Local mics and what the Stage and the
+ * Mic bridges report.
+ */
+localMics: Array<PartyLocalMic>, };

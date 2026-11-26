@@ -4,7 +4,7 @@
 // cream pills: Mic with its level meter, Voice (duets only) and Difficulty.
 // Warnings hang under the card as red bubbles. Cards pop in 80 ms apart.
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import type { Avatar as AvatarValue } from "../../../generated/Avatar";
 import type { LineUpEdit } from "../../../generated/LineUpEdit";
@@ -34,19 +34,50 @@ function fieldColours(bad: boolean): string {
 }
 
 /**
- * A Mic's level with its Mic threshold line. Static at silence until #154
- * feeds live levels; the line sits at the uncalibrated default until the
- * stored threshold reaches the Line-up (#172 adds the adjust mode).
+ * A Mic's live level with its Mic threshold line, redrawn every frame from
+ * `read` (dBFS, `null` for silence) without a React render. The line sits
+ * at the uncalibrated default until the stored threshold reaches the
+ * Line-up (#172 adds it and the adjust mode).
  */
-function SeatMeter({ mic, label }: { mic: MicKey | null; label: string }) {
+function SeatMeter({
+  mic,
+  label,
+  read,
+}: {
+  mic: MicKey | null;
+  label: string;
+  read: () => number | null;
+}) {
   const threshold =
     mic?.kind === "localMic"
       ? MIC_THRESHOLD.localMicDefaultDbfs
       : MIC_THRESHOLD.phoneFallbackDbfs;
   const at = (dbfs: number) =>
     `${String(((dbfs - METER_FLOOR_DBFS) / -METER_FLOOR_DBFS) * 100)}%`;
+  const meter = useRef<HTMLSpanElement>(null);
+  const fill = useRef<HTMLSpanElement>(null);
+  // The newest `read`, so the frame loop is not restarted on every render.
+  const reader = useRef(read);
+  useEffect(() => {
+    reader.current = read;
+  });
+  useEffect(() => {
+    let frame = 0;
+    const draw = () => {
+      const dbfs = reader.current() ?? METER_FLOOR_DBFS;
+      const shown = Math.max(METER_FLOOR_DBFS, Math.min(0, dbfs));
+      if (fill.current) fill.current.style.width = at(shown);
+      meter.current?.setAttribute("aria-valuenow", String(Math.round(shown)));
+      frame = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, []);
   return (
     <span
+      ref={meter}
       role="meter"
       aria-label={label}
       aria-valuemin={METER_FLOOR_DBFS}
@@ -54,7 +85,7 @@ function SeatMeter({ mic, label }: { mic: MicKey | null; label: string }) {
       aria-valuenow={METER_FLOOR_DBFS}
       className="relative block h-3 w-full rounded-full bg-white"
     >
-      <span className="block h-full w-0 rounded-full bg-green" />
+      <span ref={fill} className="block h-full w-0 rounded-full bg-green" />
       <span
         aria-hidden="true"
         className="absolute -top-1.5 -bottom-1.5 w-1 -translate-x-1/2 rounded-full bg-ink"
@@ -79,6 +110,8 @@ function WarningBubble({ text }: { text: string }) {
 
 export interface SeatCardProps {
   seat: Seat;
+  /** The seat's Mic level now, in dBFS (`null`: silence), read every frame. */
+  readLevel: () => number | null;
   duet: boolean;
   /** The member's name and avatar; empty and `null` while a Profile loads. */
   name: string;
@@ -105,6 +138,7 @@ export interface SeatCardProps {
 
 export function SeatCard({
   seat,
+  readLevel,
   duet,
   name,
   avatar,
@@ -170,6 +204,7 @@ export function SeatCard({
           </span>
           <SeatMeter
             mic={seat.mic}
+            read={readLevel}
             label={t("stage.lineUp.micLevel", { name })}
           />
         </button>

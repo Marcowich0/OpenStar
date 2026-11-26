@@ -143,6 +143,7 @@ export const partyEventText = byCode<PartyEvent>({
   micBlocked: ({ params }) => t("partyEvent.micBlocked", { name: params.name }),
   micOpened: ({ params }) => t("partyEvent.micOpened", { name: params.name }),
   lineUpChanged: () => t("partyEvent.lineUpChanged"),
+  localMicsChanged: () => t("partyEvent.localMicsChanged"),
   seatMoved: ({ params }) => t("partyEvent.seatMoved", { name: params.name }),
   seatVoice: ({ params }) =>
     t("partyEvent.seatVoice", {

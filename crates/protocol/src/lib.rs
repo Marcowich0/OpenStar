@@ -315,6 +315,12 @@ pub enum ClientMessage {
     /// ([`ServerMessage::BridgeMicsScreen`]). It counts as closed once that
     /// Stage closes or another browser becomes the Stage.
     SetMicsScreenOpen { open: bool },
+    /// From the active Stage, whenever it changes and on every connect:
+    /// which of its own Local mics are present now (their device plugged in
+    /// and listed). Replaces the last report; the server lists them in the
+    /// Party snapshot and offers the switched-on ones to the Line-up.
+    /// Gone when that Stage closes or another browser becomes the Stage.
+    ReportPresentLocalMics { local_mic_ids: Vec<String> },
     /// From an open (approved, connected) Mic bridge, ten times a second:
     /// the meter level of each channel it meters. Relayed to the Stage as
     /// [`ServerMessage::LocalMicLevels`]; dropped from any other socket and

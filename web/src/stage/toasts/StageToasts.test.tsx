@@ -44,6 +44,7 @@ const party: PartySnapshot = {
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 };
 
 const bo: Profile = {

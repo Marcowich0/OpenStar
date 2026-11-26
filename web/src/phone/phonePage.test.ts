@@ -25,6 +25,7 @@ const party: PartySnapshot = {
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 };
 
 function live(memberId: number | null): LiveState {

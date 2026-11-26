@@ -160,6 +160,7 @@ export function testParty(over: Partial<PartySnapshot> = {}): PartySnapshot {
     lineUp: testLineUp([MIA_SEAT]),
     playing: null,
     results: null,
+    localMics: [],
     ...over,
   };
 }

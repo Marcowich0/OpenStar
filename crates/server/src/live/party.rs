@@ -37,6 +37,10 @@ pub fn start_party(
         line_up: None,
         playing: None,
         results: None,
+        // Local mics are not the Party's: a new Party sees the same ones.
+        local_mics: previous
+            .map(|party| party.local_mics.clone())
+            .unwrap_or_default(),
     })
 }
 

@@ -16,6 +16,7 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
   ...over,
 });
 

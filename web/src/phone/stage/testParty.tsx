@@ -10,7 +10,7 @@ import { vi } from "vitest";
 import { createQueryClient } from "../../api/queryClient";
 import type { ClientMessage } from "../../generated/ClientMessage";
 import type { LineUp } from "../../generated/LineUp";
-import type { LocalMic } from "../../generated/LocalMic";
+import type { PartyLocalMic } from "../../generated/PartyLocalMic";
 import type { PartyMember } from "../../generated/PartyMember";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { Profile } from "../../generated/Profile";
@@ -51,11 +51,12 @@ const member = (
 /** Bo (member 1) uses this Phone, "bo-phone"; Jonas (2) "jonas-phone". */
 export const MY_PHONE = "bo-phone";
 
-export const LOCAL_MICS: LocalMic[] = [
+/** The Party's switched-on Local mics. */
+export const LOCAL_MICS: PartyLocalMic[] = [
   {
     localMicId: "red",
     name: "Red mic",
-    switchedOn: true,
+    present: true,
     source: {
       kind: "browser",
       stageBrowser: "s",
@@ -115,6 +116,7 @@ export const PARTY: PartySnapshot = {
   lineUp: LINE_UP,
   playing: null,
   results: null,
+  localMics: LOCAL_MICS,
 };
 
 const song = (id: number, title: string, voices: number) => ({
@@ -133,14 +135,12 @@ const SONGS: Record<number, unknown> = {
   41: song(41, "Islands", 2),
 };
 
-/** Answers the Profiles, the Song details and the Local mics. */
+/** Answers the Profiles and the Song details. */
 export function stubFetch() {
   vi.stubGlobal(
     "fetch",
     vi.fn((input: string | URL) => {
       const path = new URL(input, "http://openstar.test").pathname;
-      if (path === "/api/local-mics")
-        return Promise.resolve(Response.json(LOCAL_MICS));
       const songPath = /^\/api\/songs\/(\d+)$/.exec(path);
       if (songPath)
         return Promise.resolve(Response.json(SONGS[Number(songPath[1])]));

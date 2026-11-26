@@ -1,9 +1,9 @@
 // What the Stage tab and its seat sheet read: the waiting Line-up, its Song,
-// the Party members' looks and the kept Local mics.
+// the Party members' looks and the switched-on Local mics.
 
 import { useQuery } from "@tanstack/react-query";
 
-import { localMicsQuery, profilesQuery, songQuery } from "../../api/queries";
+import { profilesQuery, songQuery } from "../../api/queries";
 import type { LineUp } from "../../generated/LineUp";
 import type { PartyMember } from "../../generated/PartyMember";
 import type { PartyMemberId } from "../../generated/PartyMemberId";
@@ -31,7 +31,7 @@ export function useLineUp(store: LiveStore) {
     enabled: songId !== null,
   }).data;
   const profiles = useQuery(profilesQuery).data;
-  const localMics = useQuery(localMicsQuery).data ?? [];
+  const localMics = party?.localMics ?? [];
   const members = party?.members ?? [];
 
   const memberOf = (memberId: PartyMemberId): PartyMember | undefined =>

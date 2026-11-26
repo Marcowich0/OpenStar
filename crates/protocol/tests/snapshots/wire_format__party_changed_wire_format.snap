@@ -82,7 +82,22 @@ expression: "ServerMessage::PartyChanged\n{\n    party: party(), change: ChangeE
       "songId": 12,
       "paused": true
     },
-    "results": null
+    "results": null,
+    "localMics": [
+      {
+        "localMicId": "browser:stage-1:device-1:0",
+        "source": {
+          "kind": "browser",
+          "stageBrowser": "stage-1",
+          "deviceId": "device-1",
+          "label": "USB Audio",
+          "channel": 0,
+          "stereo": true
+        },
+        "name": "Red mic",
+        "present": false
+      }
+    ]
   },
   "change": {
     "actor": {

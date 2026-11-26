@@ -95,6 +95,7 @@ const idle: PartySnapshot = {
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 };
 
 const waiting: PartySnapshot = {
