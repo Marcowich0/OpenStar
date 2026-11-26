@@ -4,9 +4,12 @@
 //! Library into a folder and writes, for every `.txt` the Library's own parser
 //! accepts, the audio file it references: a sine tone per Note at the Note's
 //! pitch and time, encoded by the real ffmpeg. So the text and the audio can
-//! never disagree. Server tests use [`AppFolders::with_fixture_library`];
+//! never disagree. A Song that names a separate `#VIDEO` also gets a tiny
+//! silent test-pattern video, as long as the audio from where it starts
+//! (*audio position + `#VIDEOGAP`*). Server tests use [`AppFolders::with_fixture_library`];
 //! `just e2e` runs `openstar-harness fixture-library <dir>`.
 
+use std::ffi::OsStr;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
@@ -22,6 +25,9 @@ pub const STEADY_TONE: &str = "Placeholder Artist - Steady Tone/steady-tone.txt"
 pub const SINE_MELODY: &str = "Placeholder Artist - Sine Melody/sine-melody.txt";
 /// A duet: two Voices, sometimes singing at once.
 pub const DUET: &str = "Placeholder Duo - Two Voices/duet.txt";
+/// Separate audio and video files (#212): the steady-tone Song's Notes with a
+/// silent video that starts 1.5 s into the audio (`#VIDEOGAP:-1.5`).
+pub const SEPARATE_VIDEO: &str = "Placeholder Artist - Separate Video/separate-video.txt";
 /// A `.txt` the parser rejects (`#VERSION:2.0.0`): a Library problem.
 pub const REJECTED: &str = "Placeholder Artist - Rejected/rejected.txt";
 
@@ -68,8 +74,15 @@ pub fn install_with_ffmpeg(dest: &Path, ffmpeg: &Path) -> anyhow::Result<()> {
         };
         let folder = txt.parent().context("a .txt has a folder")?;
         let audio = folder.join(inside(reference)?);
-        write_audio(&song, &audio, ffmpeg)
+        let seconds = write_audio(&song, &audio, ffmpeg)
             .with_context(|| format!("generating the audio of {}", txt.display()))?;
+        if let Some(video) = song.headers.video.as_deref()
+            && video != reference
+        {
+            let gap = song.headers.video_gap_seconds.unwrap_or(0.0);
+            write_video(&folder.join(inside(video)?), seconds + gap, ffmpeg)
+                .with_context(|| format!("generating the video of {}", txt.display()))?;
+        }
     }
     Ok(())
 }
@@ -117,9 +130,10 @@ pub fn render(song: &ParsedSong, sample_rate: u32) -> Vec<f32> {
 }
 
 /// Renders `song` and encodes it with ffmpeg into `audio` (the container and
-/// codec follow its extension).
-fn write_audio(song: &ParsedSong, audio: &Path, ffmpeg: &Path) -> anyhow::Result<()> {
+/// codec follow its extension); returns the audio's length in seconds.
+fn write_audio(song: &ParsedSong, audio: &Path, ffmpeg: &Path) -> anyhow::Result<f64> {
     let samples = render(song, SAMPLE_RATE);
+    let seconds = samples.len() as f64 / f64::from(SAMPLE_RATE);
     let scratch = tempfile::Builder::new()
         .prefix("openstar-fixture-audio-")
         .tempdir()?;
@@ -128,15 +142,41 @@ fn write_audio(song: &ParsedSong, audio: &Path, ffmpeg: &Path) -> anyhow::Result
     if let Some(parent) = audio.parent() {
         std::fs::create_dir_all(parent)?;
     }
+    run_ffmpeg(ffmpeg, [OsStr::new("-i"), wav.as_os_str()], audio)?;
+    Ok(seconds)
+}
+
+/// A silent VP8 WebM test pattern (64×36, 25 fps), `seconds` long, at `video`.
+fn write_video(video: &Path, seconds: f64, ffmpeg: &Path) -> anyhow::Result<()> {
+    if seconds <= 0.0 {
+        bail!("the video would start after the audio ends ({seconds} s long)");
+    }
+    if let Some(parent) = video.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let pattern = format!("testsrc=size=64x36:rate=25:duration={seconds:.3}");
+    let args = [
+        "-f", "lavfi", "-i", &pattern, "-an", "-c:v", "libvpx", "-b:v", "100k", "-pix_fmt",
+        "yuv420p",
+    ];
+    run_ffmpeg(ffmpeg, args, video)
+}
+
+/// Runs ffmpeg quietly with `args` (its inputs and options), writing `output`.
+fn run_ffmpeg<I, S>(ffmpeg: &Path, args: I, output: &Path) -> anyhow::Result<()>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<OsStr>,
+{
     let result = Command::new(ffmpeg)
-        .args(["-hide_banner", "-loglevel", "error", "-nostdin", "-y", "-i"])
-        .arg(&wav)
-        .arg(audio)
+        .args(["-hide_banner", "-loglevel", "error", "-nostdin", "-y"])
+        .args(args)
+        .arg(output)
         .output();
     let result = match result {
         Ok(result) => result,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => bail!(
-            "ffmpeg was not found ({}): install ffmpeg to generate the fixture Library's audio; \
+            "ffmpeg was not found ({}): install ffmpeg to generate the fixture Library's media; \
              CI's setup installs it",
             ffmpeg.display()
         ),
@@ -145,7 +185,7 @@ fn write_audio(song: &ParsedSong, audio: &Path, ffmpeg: &Path) -> anyhow::Result
     if !result.status.success() {
         bail!(
             "ffmpeg failed encoding {} ({}): {}",
-            audio.display(),
+            output.display(),
             result.status,
             String::from_utf8_lossy(&result.stderr).trim()
         );
