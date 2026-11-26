@@ -21,16 +21,19 @@ const live = (party: PartySnapshot | null): LiveState => ({
 const boResult = { mic: BO_SEAT.mic } as PlayerResult;
 
 /** The Song ended: its results show, and no Line-up waits yet. */
+const songResults = (players: PlayerResult[]) =>
+  ({
+    requestId: 1,
+    songId: 40,
+    ended: "played",
+    players,
+  }) as PartySnapshot["results"];
+
 const RESULTS: PartySnapshot = {
   ...PARTY,
   head: null,
   lineUp: null,
-  results: {
-    requestId: 1,
-    songId: 40,
-    ended: "finished",
-    players: [boResult],
-  } as PartySnapshot["results"],
+  results: songResults([boResult]),
 };
 
 const SONG_BROWSER: PartySnapshot = { ...PARTY, head: null, lineUp: null };
@@ -49,10 +52,7 @@ describe("micRole", () => {
     expect(micRole(live(without), MY_PHONE)).toBe("left");
     expect(micRole(live(SONG_BROWSER), MY_PHONE)).toBe("left");
     expect(
-      micRole(
-        live({ ...RESULTS, results: { ...RESULTS.results!, players: [] } }),
-        MY_PHONE,
-      ),
+      micRole(live({ ...RESULTS, results: songResults([]) }), MY_PHONE),
     ).toBe("left");
   });
 
