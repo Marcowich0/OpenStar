@@ -5,8 +5,10 @@ import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
 // The Stage plays the head's Request (#164): Start on the Line-up switches
 // to the sing scene and the Song plays from its start; Pause, Resume,
 // Restart, End and Skip from a Remote reach the Stage's playback through the
-// server; an ended Song's round is stored and its results shown (#175). A Phone sends its commands over a second socket of its own page,
-// as `line-up.spec.ts` does.
+// server; an ended Song's round is stored and its results shown (#175). The
+// Stage's own pause menu (#217) shows whenever the Song is paused and drives
+// the same controls. A Phone sends its commands over a second socket of its
+// own page, as `line-up.spec.ts` does.
 
 interface Snapshot {
   queue: { requestId: number }[];
@@ -146,16 +148,13 @@ test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and 
     await stage.waitForTimeout(500);
     expect(await mediaTime(stage)).toBeGreaterThan(before);
 
-    // Pause from the Phone freezes it.
+    // Pause from the Phone freezes it, and the Stage shows its pause menu.
     await sendFromPhone(phone, {
       type: "controlSong",
       requestId,
       control: "pause",
     });
-    // (A toast is a status too.)
-    await expect(
-      stage.getByRole("status").filter({ hasText: /^Paused$/ }),
-    ).toBeVisible();
+    await expect(stage.getByRole("dialog", { name: "Paused" })).toBeVisible();
     await expect.poll(async () => (await media(stage))[0]?.playing).toBe(false);
     const paused = await mediaTime(stage);
     await stage.waitForTimeout(400);
@@ -171,6 +170,7 @@ test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and 
       "data-count",
       "3",
     );
+    await expect(stage.getByRole("dialog", { name: "Paused" })).toHaveCount(0);
     expect(await mediaTime(stage)).toBe(paused);
     await expect(stage.getByTestId("resume-countdown")).toHaveCount(0, {
       timeout: 6000,
@@ -312,6 +312,152 @@ test("End stops the Song: the Stage stores the ended round and the Stage and the
   } finally {
     if (ended) await sendFromPhone(phone, { type: "closeResults" });
     else
+      await sendFromPhone(phone, {
+        type: "controlSong",
+        requestId,
+        control: "skip",
+      }).catch(() => undefined);
+  }
+});
+
+/** Holds Enter on the focused control a little past the 700 ms hold. */
+async function holdEnter(stage: Page) {
+  await stage.keyboard.down("Enter");
+  await stage.waitForTimeout(1000);
+  await stage.keyboard.up("Enter");
+}
+
+test("The Stage's pause menu: Space opens it, Esc resumes with the countdown, a held End shows the results", async ({
+  stage,
+  openPhone,
+  request,
+}) => {
+  test.setTimeout(60_000);
+  const { phone, requestId, frame } = await partyWithRequest(
+    stage,
+    openPhone,
+    request,
+  );
+  let ended = false;
+  try {
+    await stage.keyboard.press(" ");
+    await expect(frame).toHaveAttribute("data-scene", "sing");
+    await expect.poll(() => mediaTime(stage)).toBeGreaterThan(0.5);
+
+    // Space pauses: the menu over the frozen frame, Resume focused.
+    await stage.keyboard.press(" ");
+    const menu = stage.getByRole("dialog", { name: "Paused" });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByRole("button", { name: "Resume" })).toBeFocused();
+    for (const name of [
+      "Restart",
+      "Skip to the next Song",
+      "End and show results",
+    ]) {
+      await expect(menu.getByRole("button", { name })).toBeVisible();
+    }
+    await expect(menu).toContainText(
+      "Restart, Skip and End: hold Enter or press and hold",
+    );
+    await expect.poll(async () => (await media(stage))[0]?.playing).toBe(false);
+    const paused = await mediaTime(stage);
+    // Settled, for the notes' screenshot (an attachment of this test).
+    await stage.waitForTimeout(500);
+    await stage.screenshot({ path: test.info().outputPath("pause-menu.png") });
+
+    // Esc on the menu resumes: 3-2-1 over the frozen frame, then it plays.
+    await stage.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+    const countdown = stage.getByTestId("resume-countdown");
+    await expect(countdown).toHaveAttribute("data-count", "3");
+    await expect(countdown).toHaveAttribute("data-count", "2");
+    await stage.waitForTimeout(500);
+    await stage.screenshot({ path: test.info().outputPath("countdown.png") });
+    expect(await mediaTime(stage)).toBe(paused);
+    await expect(countdown).toHaveCount(0, { timeout: 4000 });
+    await expect.poll(() => mediaTime(stage)).toBeGreaterThan(paused + 0.2);
+
+    // Esc pauses too; a short Enter on End does nothing, a held one ends.
+    await stage.keyboard.press("Escape");
+    await expect(menu).toBeVisible();
+    const end = menu.getByRole("button", { name: "End and show results" });
+    await end.focus();
+    await stage.keyboard.press("Enter");
+    await expect(menu).toBeVisible();
+    await holdEnter(stage);
+    ended = true;
+    await expect(frame).toHaveAttribute("data-scene", "results");
+    expect(await media(stage)).toEqual([]);
+    await stage.getByRole("button", { name: "Done" }).press("Enter");
+    await expect(frame).toHaveAttribute("data-scene", "songBrowser");
+    ended = false;
+  } finally {
+    if (ended) await sendFromPhone(phone, { type: "closeResults" });
+    else
+      await sendFromPhone(phone, {
+        type: "controlSong",
+        requestId,
+        control: "skip",
+      }).catch(() => undefined);
+  }
+});
+
+test("A held Skip on the pause menu goes straight on with no results; a held Restart plays from the start", async ({
+  stage,
+  openPhone,
+  request,
+}) => {
+  test.setTimeout(60_000);
+  const { phone, requestId, frame } = await partyWithRequest(
+    stage,
+    openPhone,
+    request,
+  );
+  let skipped = false;
+  try {
+    await stage.keyboard.press(" ");
+    await expect(frame).toHaveAttribute("data-scene", "sing");
+    await expect.poll(() => mediaTime(stage)).toBeGreaterThan(1);
+    const menu = stage.getByRole("dialog", { name: "Paused" });
+
+    // Restart from the menu: back to the start, playing, no countdown.
+    await stage.keyboard.press(" ");
+    await expect(menu).toBeVisible();
+    const from = await mediaTime(stage);
+    await menu.getByRole("button", { name: "Restart" }).focus();
+    await holdEnter(stage);
+    await expect(menu).toHaveCount(0);
+    await expect.poll(() => mediaTime(stage)).toBeLessThan(from);
+    await expect(stage.getByTestId("resume-countdown")).toHaveCount(0);
+    await expect.poll(async () => (await media(stage))[0]?.playing).toBe(true);
+
+    // Skip, held with the mouse. Every scene the frame shows from here is
+    // recorded, to see that no results scene comes between.
+    await stage.evaluate(() => {
+      const frame = document.querySelector("[data-stage-frame]");
+      const seen: string[] = [];
+      Object.assign(window, { seenScenes: seen });
+      if (!frame) return;
+      new MutationObserver(() => {
+        seen.push(frame.getAttribute("data-scene") ?? "");
+      }).observe(frame, { attributes: true, attributeFilter: ["data-scene"] });
+    });
+    await stage.keyboard.press(" ");
+    const skip = menu.getByRole("button", { name: "Skip to the next Song" });
+    await skip.hover();
+    await stage.mouse.down();
+    await stage.waitForTimeout(1000);
+    await stage.mouse.up();
+    skipped = true;
+    // The Queue is empty: the song browser, with no results scene between.
+    await expect(frame).toHaveAttribute("data-scene", "songBrowser");
+    expect(
+      await stage.evaluate(
+        () => (window as unknown as { seenScenes: string[] }).seenScenes,
+      ),
+    ).not.toContain("results");
+  } finally {
+    if (!skipped)
       await sendFromPhone(phone, {
         type: "controlSong",
         requestId,
