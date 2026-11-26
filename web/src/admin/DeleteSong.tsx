@@ -35,6 +35,7 @@ export function DeleteSong({ song }: { song: SongSummary }) {
         size="small"
         aria-label={t("admin.songs.delete", { title: song.title })}
         onHold={onHold}
+        isDisabled={remove.isDisabled}
         className="w-36 shrink-0"
       >
         {t("admin.songs.deleteShort")}

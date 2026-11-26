@@ -101,6 +101,7 @@ function TrashRow({ song }: { song: TrashedSong }) {
             path: song.originalPath,
           })}
           onHold={onHold}
+          isDisabled={restore.isDisabled}
           className="w-36 shrink-0"
         >
           {t("admin.songs.trash.restoreShort")}

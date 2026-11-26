@@ -405,6 +405,60 @@ describe("the Songs section", () => {
   });
 });
 
+describe("the Songs section with a read-only Library", () => {
+  it("says why and disables every Library write, whatever the Unlock", async () => {
+    screenFor(true);
+    const server = fakeLibraryServer({
+      "GET /api/server-info": {
+        version: "dev",
+        schemaVersion: 1,
+        libraryReadOnly: { code: "songsFolderNotWritable", songsDir: "/songs" },
+        publicUrl: null,
+      },
+      "GET /api/songs": songList(SONGS),
+      "GET /api/library/originals": [1],
+      "GET /api/library/trash": {
+        songs: [{ id: 4, originalPath: "Old - Song", deletedMs: 0 }],
+      },
+      "GET /api/unlock": { unlocked: true },
+    });
+    await renderLive(<SongsInRouter />);
+
+    expect(
+      screen.getByText(
+        "OpenStar cannot write to the songs folder /songs, so the Library is read-only",
+      ),
+    ).toBeVisible();
+    const writes = [
+      screen.getByRole("button", { name: "Restore Original" }),
+      screen.getByRole("button", { name: "Delete Waterloo" }),
+      screen.getByRole("button", { name: "Delete Bohemian Rhapsody" }),
+      screen.getByRole("button", { name: "Restore Old - Song" }),
+    ];
+    for (const button of writes)
+      expect(button).toHaveAttribute("aria-disabled", "true");
+
+    vi.useFakeTimers();
+    for (const button of writes) {
+      act(() => {
+        fireEvent.click(button);
+        fireEvent.pointerDown(button);
+      });
+      act(() => {
+        vi.advanceTimersByTime(HOLD_DURATION_MS);
+      });
+      act(() => {
+        fireEvent.pointerUp(button);
+      });
+    }
+    vi.useRealTimers();
+    await settle();
+    expect(
+      server.calls.filter((call) => !call.startsWith("GET ")),
+    ).toEqual([]);
+  });
+});
+
 describe("Restore Original while the Song plays on the Stage", () => {
   const party = (songId: number | null): PartySnapshot => ({
     partyId: "p1",
