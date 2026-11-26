@@ -23,6 +23,7 @@ import type { SongQuery } from "../generated/SongQuery";
 import type { StoredRound } from "../generated/StoredRound";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
+import type { UsdbMirrorStatus } from "../generated/UsdbMirrorStatus";
 import type { UserMessage } from "../generated/UserMessage";
 
 /**
@@ -53,6 +54,9 @@ export interface Endpoints {
   "GET /api/library/scan": { response: ScanStatus };
   "POST /api/library/rescan": { response: ScanStatus };
   "POST /api/rounds": { body: RoundOutcome; response: StoredRound };
+  "GET /api/usdb/mirror": { response: UsdbMirrorStatus };
+  "POST /api/usdb/mirror/refresh": { response: UsdbMirrorStatus };
+  "POST /api/usdb/mirror/refetch": { response: UsdbMirrorStatus };
 }
 
 export type Route = keyof Endpoints;

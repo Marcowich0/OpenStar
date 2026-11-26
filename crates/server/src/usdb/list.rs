@@ -78,6 +78,16 @@ pub fn parse_song_list(html: &str) -> Vec<SongListRow> {
         .collect()
 }
 
+/// The "There are N results" line above the list.
+static TOTAL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"There are\s+(\d+)\s+results").expect("valid regex"));
+
+/// How many songs the whole list has, as the page's "There are N results"
+/// line says; `None` when the page has no such line.
+pub fn parse_song_list_total(html: &str) -> Option<u32> {
+    TOTAL.captures(html)?[1].parse().ok()
+}
+
 /// "Yes" in each language USDB's pages come in.
 fn is_yes(text: &str) -> bool {
     matches!(text, "Yes" | "Ja" | "Oui")
