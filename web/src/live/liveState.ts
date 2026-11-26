@@ -67,6 +67,11 @@ export interface LiveState {
    * Request it was sung in; `null` before the first report.
    */
   lineScore: LineScore | null;
+  /**
+   * Check A/V sync runs on the Stage (#163), as the server told it: the
+   * Stage shows the test pattern, a Remote its big −/+ and Done.
+   */
+  avSync: boolean;
 }
 
 /** A seat's running total at its last Line end, in Request `requestId`. */
@@ -88,6 +93,7 @@ export const initialLiveState: LiveState = {
   volumeSteps: 0,
   songProgress: null,
   lineScore: null,
+  avSync: false,
 };
 
 /** The progress, kept only while its Request is the one playing in `party`. */
@@ -114,8 +120,10 @@ export function receive(
     case "liveState":
       return {
         ...state,
-        // The server tells the latest report again right after this.
+        // The server tells the latest report again right after this, and
+        // whether Check A/V sync runs.
         songProgress: null,
+        avSync: false,
         stage: {
           stageId: message.stageId,
           party: message.party,
@@ -174,6 +182,13 @@ export function receive(
         ...state,
         lineScore: { requestId: message.requestId, total: message.total },
       };
+    case "avSync":
+      return state.avSync === message.running
+        ? state
+        : { ...state, avSync: message.running };
+    case "stepAvSync":
+      // Stage only: routed to the Check A/V sync screen in liveStore.ts.
+      return state;
     case "changed":
       // Change notices invalidate HTTP data; they change no live state.
       return state;

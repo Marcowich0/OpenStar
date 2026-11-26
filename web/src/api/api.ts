@@ -245,6 +245,8 @@ const REFUSAL_CODES = {
   songFileChanged: true,
   songPlaying: true,
   noOriginal: true,
+  notWhileSongPlays: true,
+  avSyncNotRunning: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */
