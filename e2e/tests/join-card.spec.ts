@@ -26,6 +26,11 @@ test("the join card's QR code opens the public address with the Join code", asyn
 
   const qr = stage.getByRole("img", { name: "QR code to join the Party" });
   await expect(qr).toBeVisible();
+  // In the song browser's bottom-right corner, whole on the 1920 × 1080 Stage.
+  const box = await qr.boundingBox();
+  expect(box?.x ?? 0).toBeGreaterThan(1300);
+  expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThan(1920);
+  expect(box?.y ?? 0).toBeGreaterThan(400);
   await expect(qr).toHaveAttribute(
     "data-qr-text",
     `${PUBLIC_URL}/?join=${code}`,

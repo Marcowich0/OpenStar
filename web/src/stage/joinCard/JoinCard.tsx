@@ -39,7 +39,7 @@ export interface JoinCardProps {
   /** False on the People overlay, which always shows the code. */
   hideable?: boolean;
   storage?: () => HideStorage;
-  /** Placement from the caller. */
+  /** Placement from the caller, on a wrapper (card and chip alike). */
   className?: string;
 }
 
@@ -58,63 +58,65 @@ export function JoinCard({
 
   if (hidden) {
     return (
-      <AriaButton
-        aria-label={t("stage.joinCard.chip", { code: joinCode })}
-        onPress={() => {
-          hide(false);
-        }}
-        className={`flex items-center gap-3 rounded-full bg-white px-7 py-3 text-[34px] font-semibold text-ink shadow-ledge outline-none ${className}`}
-      >
-        <span data-testid="party-join-code" className="sr-only">
-          {joinCode}
-        </span>
-        <span aria-hidden="true">
-          {t("stage.joinCard.chip", { code: joinCode })}
-        </span>
-        {join.warning !== "none" && (
-          <span
-            role="img"
-            aria-label={t("stage.joinCard.cantSing")}
-            className="flex size-10 items-center justify-center rounded-full bg-red text-white shadow-ledge-red"
-          >
-            <Icon name="lock" className="size-6" />
+      <div className={className}>
+        <AriaButton
+          aria-label={t("stage.joinCard.chip", { code: joinCode })}
+          onPress={() => {
+            hide(false);
+          }}
+          className="flex items-center gap-3 rounded-full bg-white px-7 py-3 text-[34px] font-semibold text-ink shadow-ledge outline-none"
+        >
+          <span data-testid="party-join-code" className="sr-only">
+            {joinCode}
           </span>
-        )}
-      </AriaButton>
+          <span aria-hidden="true">
+            {t("stage.joinCard.chip", { code: joinCode })}
+          </span>
+          {join.warning !== "none" && (
+            <span
+              role="img"
+              aria-label={t("stage.joinCard.cantSing")}
+              className="flex size-10 items-center justify-center rounded-full bg-red text-white shadow-ledge-red"
+            >
+              <Icon name="lock" className="size-6" />
+            </span>
+          )}
+        </AriaButton>
+      </div>
     );
   }
 
   return (
-    <aside
-      className={`relative flex w-[420px] flex-col items-center gap-4 rounded-card bg-white p-7 text-ink shadow-ledge-lg ${className}`}
-    >
-      {join.warning === "none" ? (
-        <QrCode
-          text={joinLink(join, joinCode)}
-          label={t("stage.joinCard.qr")}
-          className="size-[230px]"
-        />
-      ) : (
-        <JoinWarning warning={join.warning} />
-      )}
-      <p className="max-w-full truncate text-[26px] font-semibold text-ink-2">
-        {t("stage.joinCard.goTo", { address: typedAddress(join) })}
-      </p>
-      <CodeBoxes joinCode={joinCode} />
-      <p className="text-[28px] font-bold">
-        {t("stage.browser.pickFromPhone")}
-      </p>
-      {hideable && (
-        <AriaButton
-          onPress={() => {
-            hide(true);
-          }}
-          className="absolute -top-5 -right-3 rounded-full bg-ink px-5 py-1.5 text-[22px] font-semibold text-white shadow-ledge-ink outline-none"
-        >
-          {t("stage.joinCard.hide")}
-        </AriaButton>
-      )}
-    </aside>
+    <div className={className}>
+      <aside className="relative flex w-[420px] flex-col items-center gap-4 rounded-card bg-white p-7 text-ink shadow-ledge-lg">
+        {join.warning === "none" ? (
+          <QrCode
+            text={joinLink(join, joinCode)}
+            label={t("stage.joinCard.qr")}
+            className="size-[230px]"
+          />
+        ) : (
+          <JoinWarning warning={join.warning} />
+        )}
+        <p className="max-w-full truncate text-[26px] font-semibold text-ink-2">
+          {t("stage.joinCard.goTo", { address: typedAddress(join) })}
+        </p>
+        <CodeBoxes joinCode={joinCode} />
+        <p className="text-[28px] font-bold">
+          {t("stage.browser.pickFromPhone")}
+        </p>
+        {hideable && (
+          <AriaButton
+            onPress={() => {
+              hide(true);
+            }}
+            className="absolute -top-5 -right-3 rounded-full bg-ink px-5 py-1.5 text-[22px] font-semibold text-white shadow-ledge-ink outline-none"
+          >
+            {t("stage.joinCard.hide")}
+          </AriaButton>
+        )}
+      </aside>
+    </div>
   );
 }
 
@@ -138,7 +140,7 @@ function CodeBoxes({ joinCode }: { joinCode: string }) {
 /** In place of the QR code: a white card, dashed red border, lock, why and how. */
 function JoinWarning({ warning }: { warning: "notHttps" | "localhost" }) {
   return (
-    <div className="flex size-[266px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-white p-5 text-center leading-tight font-semibold text-warn-fg">
+    <div className="flex min-h-[266px] w-[310px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-white p-5 text-center leading-tight font-semibold text-warn-fg">
       <Icon name="lock" className="size-14" />
       <p className="text-[24px]">{t("stage.joinCard.cantSing")}</p>
       <p className="text-[17px] font-medium text-ink-2">
