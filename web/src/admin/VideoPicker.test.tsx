@@ -84,6 +84,7 @@ function server(
   } = {},
 ) {
   let hasUnlock = answers.unlocked ?? false;
+  downloadsSent = [];
   return fakeLibraryServer({
     "GET /api/server-info": {
       version: "dev",
@@ -99,7 +100,8 @@ function server(
       hasUnlock = true;
       return { unlocked: true };
     },
-    "POST /api/downloads": () => {
+    "POST /api/downloads": (_url: URL, init: RequestInit) => {
+      downloadsSent.push(JSON.parse(init.body as string) as unknown);
       if (answers.libraryReadOnly)
         return answer(409, { code: "libraryReadOnly" });
       if (!hasUnlock) return answer(401, { code: "unlockRequired" });
@@ -288,16 +290,8 @@ async function pressDownload(dialog: HTMLElement) {
   await settle();
 }
 
-/** The body of every `POST /api/downloads` sent. */
-function downloadsSent(): unknown[] {
-  const fetch = vi.mocked(globalThis.fetch);
-  return fetch.mock.calls
-    .filter(
-      ([url, init]) =>
-        String(url) === "/api/downloads" && init?.method === "POST",
-    )
-    .map(([, init]) => JSON.parse(String(init?.body)) as unknown);
-}
+/** The body of every `POST /api/downloads` sent, in order. */
+let downloadsSent: unknown[] = [];
 
 describe("starting a Download", () => {
   it("asks for the Admin PIN without an Unlock, then starts the chosen video's Download", async () => {
@@ -314,7 +308,7 @@ describe("starting a Download", () => {
     await enterPin(PIN);
     expect(pad()).toBeNull();
     expect(calls.count("POST /api/downloads")).toBe(2);
-    expect(downloadsSent().at(-1)).toEqual({
+    expect(downloadsSent.at(-1)).toEqual({
       usdbId: 11,
       videoUrl: COMMENT,
       browser: expect.any(String) as string,
@@ -339,7 +333,7 @@ describe("starting a Download", () => {
     await pressDownload(dialog);
     expect(pad()).toBeNull();
     expect(calls.count("POST /api/downloads")).toBe(1);
-    expect(downloadsSent()).toEqual([
+    expect(downloadsSent).toEqual([
       { usdbId: 11, videoUrl: TAG, browser: "this-browser" },
     ]);
   });

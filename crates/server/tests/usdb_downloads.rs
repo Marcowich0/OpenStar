@@ -55,7 +55,12 @@ async fn fake_usdb() -> FakeUsdb {
         FakeSong::new(1, "Placeholder Artist", "Re: Stacks", LAST_CHANGE),
         FakeSong::new(2, "Fake & Band", "Re: Stacks", LAST_CHANGE - 10),
         FakeSong::new(3, "Placeholder Artist", "No Tempo", LAST_CHANGE - 20),
-        FakeSong::new(4, "Placeholder Artist", "Another Placeholder", LAST_CHANGE - 30),
+        FakeSong::new(
+            4,
+            "Placeholder Artist",
+            "Another Placeholder",
+            LAST_CHANGE - 30,
+        ),
     ]);
     usdb.set_cover(1, COVER.to_vec());
     usdb
@@ -84,11 +89,14 @@ fn browser() -> PhoneId {
 }
 
 async fn start_download(app: &TestApp, cookie: Option<&str>, id: u32) -> reqwest::Response {
-    let mut request = app.http().post(app.url("/api/downloads")).json(&StartDownload {
-        usdb_id: id,
-        video_url: VIDEO.to_owned(),
-        browser: browser(),
-    });
+    let mut request = app
+        .http()
+        .post(app.url("/api/downloads"))
+        .json(&StartDownload {
+            usdb_id: id,
+            video_url: VIDEO.to_owned(),
+            browser: browser(),
+        });
     if let Some(cookie) = cookie {
         request = request.header("cookie", cookie);
     }
@@ -98,13 +106,20 @@ async fn start_download(app: &TestApp, cookie: Option<&str>, id: u32) -> reqwest
 /// Starts a Download with an Unlock and returns its job.
 async fn download(app: &TestApp, cookie: &str, id: u32) -> JobId {
     let response = start_download(app, Some(cookie), id).await;
-    assert_eq!(response.status(), StatusCode::OK, "starting a Download of {id}");
+    assert_eq!(
+        response.status(),
+        StatusCode::OK,
+        "starting a Download of {id}"
+    );
     response.json::<DownloadStarted>().await.unwrap().job_id
 }
 
 async fn job(app: &TestApp, id: JobId) -> Job {
     let list: JobList = app.get_json("/api/jobs").await;
-    list.jobs.into_iter().find(|job| job.id == id).expect("the job is listed")
+    list.jobs
+        .into_iter()
+        .find(|job| job.id == id)
+        .expect("the job is listed")
 }
 
 /// Waits for the job to end and returns its end state.
@@ -182,7 +197,11 @@ async fn put_song_with_usdb_id(app: &TestApp, cookie: &str, folder: &str, usdb_i
         "#ARTIST:Someone\n#TITLE:Already Here\n#MP3:song.m4a\n#BPM:200\n: 0 4 0 La\nE\n",
     )
     .unwrap();
-    std::fs::write(dir.join("metadata.json"), format!(r#"{{"apiId": {usdb_id}}}"#)).unwrap();
+    std::fs::write(
+        dir.join("metadata.json"),
+        format!(r#"{{"apiId": {usdb_id}}}"#),
+    )
+    .unwrap();
     let response = app
         .http()
         .post(app.url("/api/library/rescan"))
@@ -190,7 +209,11 @@ async fn put_song_with_usdb_id(app: &TestApp, cookie: &str, folder: &str, usdb_i
         .send()
         .await
         .unwrap();
-    assert!(response.status().is_success(), "rescan: {}", response.status());
+    assert!(
+        response.status().is_success(),
+        "rescan: {}",
+        response.status()
+    );
     let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
     loop {
         let version: UsdbTextVersion = app
@@ -199,7 +222,10 @@ async fn put_song_with_usdb_id(app: &TestApp, cookie: &str, folder: &str, usdb_i
         if version != UsdbTextVersion::NotInLibrary {
             return;
         }
-        assert!(tokio::time::Instant::now() < deadline, "the rescan never found it");
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the rescan never found it"
+        );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
 }
@@ -216,7 +242,11 @@ async fn starting_a_download_needs_an_unlock_but_the_picker_does_not() {
         .send()
         .await
         .unwrap();
-    assert_eq!(picker.status(), StatusCode::OK, "the picker needs no Unlock");
+    assert_eq!(
+        picker.status(),
+        StatusCode::OK,
+        "the picker needs no Unlock"
+    );
 
     let refused = start_download(&app, None, 1).await;
     assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
@@ -335,18 +365,28 @@ async fn yt_dlp_prefers_h264_mp4_up_to_1080p_and_always_writes_video_mp4() {
     assert_eq!(calls.len(), 1, "{calls:?}");
     let call = &calls[0];
     let value_of = |flag: &str| {
-        let at = call.iter().position(|arg| arg == flag).unwrap_or_else(|| panic!("{flag} in {call:?}"));
+        let at = call
+            .iter()
+            .position(|arg| arg == flag)
+            .unwrap_or_else(|| panic!("{flag} in {call:?}"));
         call[at + 1].clone()
     };
     // A sort, not a filter: an AV1-only video is still taken.
     assert_eq!(value_of("-S"), "vcodec:h264,res:1080,ext:mp4:m4a");
-    assert!(!call.iter().any(|arg| arg == "-f" || arg == "--format"), "{call:?}");
+    assert!(
+        !call.iter().any(|arg| arg == "-f" || arg == "--format"),
+        "{call:?}"
+    );
     assert_eq!(value_of("-o"), "video.%(ext)s");
     assert_eq!(value_of("--merge-output-format"), "mp4");
     assert_eq!(value_of("--remux-video"), "mp4");
     assert!(call.iter().any(|arg| arg == "--no-playlist"));
     assert_eq!(call.last().unwrap(), VIDEO);
-    assert_eq!(call[call.len() - 2], "--", "the link is never read as an option");
+    assert_eq!(
+        call[call.len() - 2],
+        "--",
+        "the link is never read as an option"
+    );
 }
 
 #[tokio::test]
@@ -378,7 +418,8 @@ async fn a_usdb_id_already_in_the_library_is_refused_when_the_download_starts() 
     let cookie = app.unlock().await;
     put_song_with_usdb_id(&app, &cookie, "Mine", 1).await;
     assert_eq!(
-        app.get_json::<UsdbTextVersion>("/api/usdb/songs/1/version").await,
+        app.get_json::<UsdbTextVersion>("/api/usdb/songs/1/version")
+            .await,
         UsdbTextVersion::Unknown,
         "a Library Song with a USDB id that OpenStar did not download"
     );
@@ -438,11 +479,12 @@ async fn a_taken_folder_name_gets_a_number_and_the_old_folder_is_untouched() {
     );
     assert_eq!(files_in(&taken), vec!["notes.md"]);
     assert_eq!(std::fs::read(taken.join("notes.md")).unwrap(), b"mine");
-    assert!(app
-        .songs_dir()
-        .join(format!("{SONG_1_FOLDER} (2)"))
-        .join("song.txt")
-        .exists());
+    assert!(
+        app.songs_dir()
+            .join(format!("{SONG_1_FOLDER} (2)"))
+            .join("song.txt")
+            .exists()
+    );
 }
 
 #[tokio::test]

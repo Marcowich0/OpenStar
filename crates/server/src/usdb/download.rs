@@ -297,7 +297,11 @@ pub(crate) async fn start(
     };
     match state.jobs.enqueue(JobParams::Download(job)).await {
         Ok(job_id) => {
-            tracing::info!(usdb_id = body.usdb_id, job = job_id.0, "a Download is queued");
+            tracing::info!(
+                usdb_id = body.usdb_id,
+                job = job_id.0,
+                "a Download is queued"
+            );
             Json(DownloadStarted { job_id }).into_response()
         }
         Err(error) => {
@@ -308,7 +312,10 @@ pub(crate) async fn start(
 }
 
 /// `GET /api/usdb/songs/{id}/version`: [`UsdbTextVersion`] (not guarded).
-pub(crate) async fn text_version(State(state): State<AppState>, UrlPath(id): UrlPath<u32>) -> Response {
+pub(crate) async fn text_version(
+    State(state): State<AppState>,
+    UrlPath(id): UrlPath<u32>,
+) -> Response {
     match version(&state.db, id).await {
         Ok(version) => Json(version).into_response(),
         Err(error) => {

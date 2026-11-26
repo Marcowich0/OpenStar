@@ -36,19 +36,19 @@ standard page frame with the sentence and greeting other clients' code looks
 for. When someone with a USDB account checks a real page against these,
 update the page here and say so in this file.
 
-| File                     | Stands in for                                                                                       |
-| ------------------------ | --------------------------------------------------------------------------------------------------- |
-| `home.html`              | the start page (also the answer to a login POST)                                                    |
-| `list.html`              | a song list page (`POST ?link=list`), 3 rows: entities, no cover, no year, half stars               |
-| `detail-1.html`          | the detail page of song 1 (`?link=detail&id=1`) read without a login, with 3 comments, newest first |
-| `gettxt-1.html`          | the text of song 1 (`POST ?link=gettxt&id=1`): `Re: Stacks`, `&amp;amp;`, `#VIDEO` with `v=`/`a=`   |
-| `gettxt-2.html`          | the text of song 2: a 1.x text (`#VERSION`) whose `#VIDEO` is a plain link                          |
+| File                     | Stands in for                                                                                         |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `home.html`              | the start page (also the answer to a login POST)                                                      |
+| `list.html`              | a song list page (`POST ?link=list`), 3 rows: entities, no cover, no year, half stars                 |
+| `detail-1.html`          | the detail page of song 1 (`?link=detail&id=1`) read without a login, with 3 comments, newest first   |
+| `gettxt-1.html`          | the text of song 1 (`POST ?link=gettxt&id=1`): `Re: Stacks`, `&amp;amp;`, `#VIDEO` with `v=`/`a=`     |
+| `gettxt-2.html`          | the text of song 2: a 1.x text (`#VERSION`) whose `#VIDEO` is a plain link                            |
 | `gettxt-3.html`          | the text of song 3: no `#BPM`, so the Library's parser rejects it (a Download fails before the video) |
-| `gettxt-4.html`          | the text of song 4: song 1's text under another title, for a third Download at once |
-| `profil.html`            | the profile page (`?link=profil`) when logged in as `fake-usdb-user`                                |
-| `not-logged-in.html`     | the page USDB shows when the login is missing                                                       |
-| `logged-out/profil.html` | the profile page without a login (served for `?link=profil` without the session cookie)             |
-| `song-txt/*.txt`         | the `song.txt` a Download writes from `gettxt-1` (with a cover) and `gettxt-2` (without), by hand   |
+| `gettxt-4.html`          | the text of song 4: song 1's text under another title, for a third Download at once                   |
+| `profil.html`            | the profile page (`?link=profil`) when logged in as `fake-usdb-user`                                  |
+| `not-logged-in.html`     | the page USDB shows when the login is missing                                                         |
+| `logged-out/profil.html` | the profile page without a login (served for `?link=profil` without the session cookie)               |
+| `song-txt/*.txt`         | the `song.txt` a Download writes from `gettxt-1` (with a cover) and `gettxt-2` (without), by hand     |
 
 Known differences from the real site that the parsers rely on, all from
 usdb_syncer's saved pages: list rows carry `data-songid` and
