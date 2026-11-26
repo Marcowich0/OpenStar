@@ -354,7 +354,9 @@ describe("the song browser", () => {
     const { sent } = setup();
     // As in a browser: no act() around the presses, so React renders and
     // runs its effects on its own schedule between them.
-    const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    const env = globalThis as {
+      IS_REACT_ACT_ENVIRONMENT?: boolean | undefined;
+    };
     const before = env.IS_REACT_ACT_ENVIRONMENT;
     env.IS_REACT_ACT_ENVIRONMENT = false;
     const key = (k: string) =>
