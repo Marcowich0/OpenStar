@@ -12,7 +12,12 @@ import type { PartyMemberId } from "../../../generated/PartyMemberId";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
 import type { Profile } from "../../../generated/Profile";
 import type { SongDetail } from "../../../generated/SongDetail";
-import { resolveMicSettings, type MicKind } from "../../../mics/micSettings";
+import type { MicKind, StoredMicSettings } from "../../../mics/micSettings";
+import {
+  micKindOf,
+  seatMicSettings,
+  stageMicSettings,
+} from "../../../mics/stageMicSettings";
 import { OPENSTAR_VOLUME } from "../../../playback/gain";
 import { memberLook } from "../../../phone/memberLook";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
@@ -59,6 +64,12 @@ export interface SingSetupInput {
   micIdFor?: (mic: MicKey) => PitchMic | null;
   /** The OpenStar volume the Mic thresholds are fixed at. */
   volume?: number;
+  /**
+   * What is stored for a seated Mic at the current Stage output
+   * (`undefined`: its defaults). By default the Stage's loaded values,
+   * `stageMicSettings()`, as they are now.
+   */
+  storedFor?: (mic: MicKey) => StoredMicSettings | undefined;
 }
 
 export interface SingSetup {
@@ -83,34 +94,33 @@ export function pitchMicFor(mic: MicKey): PitchMic {
     : { kind: "localMic", localMicId: mic.localMicId };
 }
 
-function micKind(mic: MicKey | null): MicKind {
-  return mic?.kind === "localMic" ? "localMic" : "phone";
-}
-
 export function singSetup(input: SingSetupInput): SingSetup {
   const { detail, party } = input;
   const lineUp: LineUp | null = party.lineUp;
   if (!lineUp) throw new Error("Start without a Line-up");
   const song = detail.song;
   const volume = input.volume ?? OPENSTAR_VOLUME.default;
+  const storedFor =
+    input.storedFor ?? ((mic: MicKey) => stageMicSettings().storedFor(mic));
   const lastVoice = Math.max(song.voices.length - 1, 0);
 
   const players: SingPlayer[] = lineUp.seats.map((seat) => {
     const member = party.members.find((m) => m.memberId === seat.memberId);
     const look = member && memberLook(member, input.profiles);
-    // #169 applies each Mic's stored values; until then the defaults.
-    const settings = resolveMicSettings({
-      kind: micKind(seat.mic),
-      stored: undefined,
+    // Fixed for the whole Song: a later volume step or Calibration does not
+    // change them.
+    const settings = seatMicSettings(
+      seat.mic,
+      seat.mic ? storedFor(seat.mic) : undefined,
       volume,
-    });
+    );
     return {
       memberId: seat.memberId,
       colour: member?.colour ?? "cherry",
       voice: Math.min(seat.voice === "p2" ? 1 : 0, lastVoice),
       difficulty: seat.difficulty,
       mic: seat.mic,
-      micKind: micKind(seat.mic),
+      micKind: micKindOf(seat.mic),
       look: look
         ? {
             name: look.name,
