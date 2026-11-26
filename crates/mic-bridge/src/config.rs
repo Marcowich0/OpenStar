@@ -91,19 +91,18 @@ impl ConfigDir {
     }
 }
 
-/// The WebSocket address of a server: `http://host` → `ws://host/ws/bridge`.
+/// The WebSocket address of a server: `http://host` → `ws://host/ws/bridge`,
+/// `https://host` → `wss://host/ws/bridge` (checked against the system's
+/// root certificates).
 pub fn bridge_socket_url(server: &str) -> anyhow::Result<String> {
     let server = server.trim_end_matches('/');
     if let Some(rest) = server.strip_prefix("http://") {
         return Ok(format!("ws://{rest}/ws/bridge"));
     }
-    if server.starts_with("https://") {
-        // The update ticket (#209) brings HTTPS with the self-update download.
-        anyhow::bail!(
-            "This Mic bridge build cannot reach an https:// server yet: use its http:// address"
-        );
+    if let Some(rest) = server.strip_prefix("https://") {
+        return Ok(format!("wss://{rest}/ws/bridge"));
     }
-    anyhow::bail!("The server address must start with http://, got {server:?}")
+    anyhow::bail!("The server address must start with http:// or https://, got {server:?}")
 }
 
 #[cfg(test)]
@@ -167,6 +166,9 @@ mod tests {
             "ws://10.0.0.5:8080/ws/bridge"
         );
         assert!(bridge_socket_url("10.0.0.5").is_err());
-        assert!(bridge_socket_url("https://openstar.example").is_err());
+        assert_eq!(
+            bridge_socket_url("https://openstar.example").unwrap(),
+            "wss://openstar.example/ws/bridge"
+        );
     }
 }

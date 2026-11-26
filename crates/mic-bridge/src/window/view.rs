@@ -97,15 +97,35 @@ fn card(fill: Color32) -> Frame {
 
 fn status(ui: &mut Ui, status: &Status) {
     let (fill, dot, title, detail) = match status {
-        Status::Connecting { problem } => (WHITE, YELLOW, "Connecting…", problem.clone()),
+        Status::Updating { build } => (
+            WHITE,
+            BLUE,
+            crate::update::updating_line(build),
+            Some("The bridge restarts by itself in a moment.".to_owned()),
+        ),
+        Status::BuildMismatch(mismatch) => (
+            WARN_BG,
+            WARN_FG,
+            mismatch.message(),
+            Some(
+                "This copy cannot update itself here. To update it, run this on this computer:"
+                    .to_owned(),
+            ),
+        ),
+        Status::Connecting { problem } => (WHITE, YELLOW, "Connecting…".into(), problem.clone()),
         Status::Waiting { code } => (
             WHITE,
             BLUE,
-            "Waiting for approval",
+            "Waiting for approval".into(),
             Some(format!("Approve code {code} on the Stage's Mics screen.")),
         ),
-        Status::Connected => (WHITE, GREEN, "Connected", None),
-        Status::Stopped { problem } => (WARN_BG, WARN_FG, "Not running", Some(problem.clone())),
+        Status::Connected => (WHITE, GREEN, "Connected".into(), None),
+        Status::Stopped { problem } => (
+            WARN_BG,
+            WARN_FG,
+            "Not running".into(),
+            Some(problem.clone()),
+        ),
     };
     card(fill).show(ui, |ui| {
         ui.set_width(ui.available_width());
@@ -121,6 +141,23 @@ fn status(ui: &mut Ui, status: &Status) {
         });
         if let Some(detail) = detail {
             ui.label(RichText::new(detail).size(14.0).color(INK_2));
+        }
+        if let Status::BuildMismatch(mismatch) = status {
+            // A label (egui's are selectable, so it can be copied), not a control.
+            Frame::new()
+                .fill(WHITE)
+                .stroke(Stroke::new(1.5, LEDGE))
+                .corner_radius(CornerRadius::same(10))
+                .inner_margin(Margin::symmetric(10, 6))
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.label(
+                        RichText::new(&mismatch.install_command)
+                            .monospace()
+                            .size(13.0)
+                            .color(INK),
+                    );
+                });
         }
     });
 }

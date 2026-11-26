@@ -15,6 +15,7 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable as _;
 use openstar_mic_bridge::client::{self, Event, Input};
 use openstar_mic_bridge::config::ConfigDir;
+use openstar_mic_bridge::update::{self, Plan};
 use openstar_mic_bridge::wav;
 use openstar_mic_bridge::window::state::{Status, WindowState};
 use openstar_mic_bridge::window::{self, Shared, view};
@@ -128,9 +129,45 @@ fn connected_shows_each_channel_with_its_name_on_or_off_and_its_meter() {
     snapshot(&mut harness, "connected");
 }
 
+fn updating() -> WindowState {
+    let mut state = connected();
+    state.apply(Event::Updating { build: "1.4.0" });
+    state
+}
+
+fn build_mismatch() -> WindowState {
+    let Plan::Mismatch(mismatch) = update::plan("1.3.2", "1.4.0", SERVER, false) else {
+        panic!("a mismatch");
+    };
+    let mut state = WindowState::new(SERVER, scarlett());
+    state.apply(Event::BuildMismatch(&mismatch));
+    state
+}
+
+#[test]
+fn updating_shows_the_build_it_updates_to_and_no_prompt() {
+    let mut harness = harness(updating());
+    harness.get_by_label("Updating to 1.4.0…");
+    snapshot(&mut harness, "updating");
+}
+
+#[test]
+fn a_bridge_that_cannot_update_itself_shows_both_builds_and_the_install_command() {
+    let mut harness = harness(build_mismatch());
+    harness.get_by_label("This Mic bridge is 1.3.2, the server is 1.4.0");
+    harness.get_by_label("curl -fsSL http://openstar.lan:8080/bridge/install.sh | sh");
+    snapshot(&mut harness, "build-mismatch");
+}
+
 #[test]
 fn the_window_offers_no_controls() {
-    for state in [WindowState::new(SERVER, scarlett()), waiting(), connected()] {
+    for state in [
+        WindowState::new(SERVER, scarlett()),
+        waiting(),
+        connected(),
+        updating(),
+        build_mismatch(),
+    ] {
         let harness = harness(state);
         for role in [
             Role::Button,
@@ -193,9 +230,8 @@ async fn the_bridge_is_connected_only_while_its_window_is_open() {
         let mut report = shared.clone();
         async move {
             let inputs: Vec<Box<dyn Input>> = vec![Box::new(input)];
-            client::run_reporting(config, inputs, &mut report)
-                .await
-                .unwrap();
+            let ended = client::run_reporting(config, inputs, &mut report).await;
+            panic!("the same build never stops connecting: {ended:?}");
         }
     };
 

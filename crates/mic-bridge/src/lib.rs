@@ -8,8 +8,9 @@
 //! hardware channel, and the file name is the interface's device name. It
 //! sends meter levels ([`levels`]) and, for the channels the server says
 //! are seated in the Song that plays ([`detecting`]), Pitch readings that
-//! [`sender`] stamps on the Stage's clock. Capture (#205) and updates (#209)
-//! come later.
+//! [`sender`] stamps on the Stage's clock. It always runs its server's exact
+//! build, replacing itself when the two differ ([`update`]). Capture (#205)
+//! comes later.
 
 pub mod cli;
 pub mod client;
@@ -17,6 +18,7 @@ pub mod config;
 pub mod detecting;
 pub mod levels;
 pub mod sender;
+pub mod update;
 pub mod wav;
 pub mod window;
 

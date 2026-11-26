@@ -16,7 +16,7 @@ use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
-use crate::client::{self, Event, Input, Report};
+use crate::client::{self, Ended, Event, Input, Report};
 use crate::config::ConfigDir;
 use state::WindowState;
 
@@ -113,8 +113,16 @@ pub fn run(config: ConfigDir, inputs: Vec<Box<dyn Input>>) -> anyhow::Result<()>
             if problem.is_some() {
                 return;
             }
-            if let Err(error) = client::run_reporting(config, inputs, &mut report).await {
-                report.stop(format!("{error:#}"));
+            match client::run_reporting(config, inputs, &mut report).await {
+                // The window goes with this process; the new build opens
+                // its own.
+                Ok(Ended::Updated(exe)) => {
+                    let error = crate::update::restart(&exe);
+                    report.stop(format!("starting the updated {}: {error}", exe.display()));
+                }
+                // The window keeps showing the mismatch.
+                Ok(Ended::BuildMismatch(_)) => {}
+                Err(error) => report.stop(format!("{error:#}")),
             }
         }
     };

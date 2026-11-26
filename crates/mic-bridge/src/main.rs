@@ -6,9 +6,9 @@ use std::process::ExitCode;
 
 use anyhow::Context as _;
 use openstar_mic_bridge::cli::{self, Action};
-use openstar_mic_bridge::client::{self, Input};
+use openstar_mic_bridge::client::{self, Ended, Input};
 use openstar_mic_bridge::config::ConfigDir;
-use openstar_mic_bridge::{BUILD_ID, wav, window};
+use openstar_mic_bridge::{BUILD_ID, update, wav, window};
 
 mod uninstall;
 
@@ -80,15 +80,22 @@ fn headless(file: &Path) -> anyhow::Result<()> {
         input.interface().device_name
     );
     let inputs: Vec<Box<dyn Input>> = vec![Box::new(input)];
-    tokio::runtime::Builder::new_multi_thread()
+    let ended = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?
         .block_on(async {
             tokio::select! {
-                ran = client::run(config, inputs) => ran,
-                _ = tokio::signal::ctrl_c() => Ok(()),
+                ran = client::run(config, inputs) => ran.map(Some),
+                _ = tokio::signal::ctrl_c() => Ok(None),
             }
-        })
+        })?;
+    match ended {
+        None => Ok(()),
+        // Returns only if the new build does not start.
+        Some(Ended::Updated(exe)) => Err(anyhow::Error::new(update::restart(&exe))
+            .context(format!("starting the updated {}", exe.display()))),
+        Some(Ended::BuildMismatch(mismatch)) => anyhow::bail!("{}", mismatch.message()),
+    }
 }
 
 /// The WAV file as an interface, named by its file name.
