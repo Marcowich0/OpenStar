@@ -421,6 +421,7 @@ describe("the Calibration and Mic threshold constants", () => {
       toneLoudnessLufs: -18,
       readingWindowStartMs: -150,
       readingWindowEndMs: 700,
+      onsetSilenceMs: 200,
       pitchToleranceCents: 50,
       minClarity: 0.8,
       minTonesHeard: 5,

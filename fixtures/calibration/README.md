@@ -29,8 +29,12 @@ analysed against it (each Mic alone).
   after the tone's output time (both ends included), its pitch is within ±50 cents of
   A4 (MIDI 69) after octave folding (both ends included), and its clarity is ≥ 0.8. A
   reading inside two tones' windows counts for the later tone.
-- A tone's **delay** is the capture time of its earliest counting reading minus the
-  tone's output time. A tone with no counting reading is not heard.
+- A counting reading **starts a tone** when no counting reading came in the 200 ms
+  before it (the first counting reading always does). Only those count for a tone's
+  delay, so the end of a tone heard late, which runs into the next tone's window, is
+  never taken for the next tone's start. Mic delays up to about 450 ms calibrate.
+- A tone's **delay** is the capture time of its earliest counting reading that starts a
+  tone, minus the tone's output time. A tone with no such reading is not heard.
 - Fewer than 5 tones heard → `tooFewTones`. Otherwise a **sample** standard deviation
   (divided by n − 1, as in the measurements behind the limit) of the delays above
   25 ms → `delaysTooSpread`.

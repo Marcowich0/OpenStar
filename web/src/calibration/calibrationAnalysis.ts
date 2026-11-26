@@ -70,10 +70,19 @@ function analyseMic(
   volume: number,
   readings: readonly PitchReading[],
 ): MicCalibration {
-  // The earliest counting reading per tone.
+  // The earliest tone start per tone: a counting reading after at least
+  // `onsetSilenceMs` without one. The rest of a tone heard late can run into
+  // the next tone's window, and must not count as that tone's start.
   const onsets: (number | undefined)[] = tones.map(() => undefined);
-  for (const reading of readings) {
+  let lastCounting = Number.NEGATIVE_INFINITY;
+  for (const reading of [...readings].sort(
+    (a, b) => a.captureMs - b.captureMs,
+  )) {
     if (!countsAsTone(reading)) continue;
+    const startsTone =
+      reading.captureMs - lastCounting >= CALIBRATION.onsetSilenceMs;
+    lastCounting = reading.captureMs;
+    if (!startsTone) continue;
     const tone = toneFor(tones, reading.captureMs);
     if (tone === undefined) continue;
     const onset = onsets[tone];

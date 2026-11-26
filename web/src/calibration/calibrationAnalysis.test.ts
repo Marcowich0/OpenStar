@@ -48,6 +48,7 @@ describe("analyseCalibration", () => {
       "bleed.json",
       "chatter.json",
       "clean.json",
+      "long-delay.json",
       "overlap.json",
       "spread.json",
       "tones-heard.json",

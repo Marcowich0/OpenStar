@@ -43,6 +43,13 @@ export const CALIBRATION = {
   readingWindowStartMs: -150,
   /** …to this long after it. */
   readingWindowEndMs: 700,
+  /**
+   * A counting reading starts a tone only after this long without one. The
+   * tones are 400 ms apart, so a tone heard late, whose end runs into the next
+   * tone's window, is never taken for the next tone's start: Mic delays up to
+   * about 450 ms (a Phone through a TV, soundbar or Bluetooth) still calibrate.
+   */
+  onsetSilenceMs: 200,
   /** Within this many cents of A4, octave folded. */
   pitchToleranceCents: 50,
   minClarity: 0.8,
