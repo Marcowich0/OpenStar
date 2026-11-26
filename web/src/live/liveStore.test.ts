@@ -84,6 +84,24 @@ describe("live store", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it("hands every job update to its listeners", () => {
+    const { store, server } = start();
+    const listener = vi.fn();
+    const unsubscribe = store.onJobChanged(listener);
+    const job = {
+      id: 7,
+      kind: "pitchTrack",
+      state: { type: "running", percent: 40 },
+    } as const;
+
+    server({ type: "jobChanged", job });
+    expect(listener).toHaveBeenCalledWith(job);
+
+    unsubscribe();
+    server({ type: "jobChanged", job });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
   it("presents the Phone id each time the socket opens", () => {
     const hello: ClientMessage = { type: "hello", phoneId: "phone-1" };
     const { connection, sent } = start(() => hello);
