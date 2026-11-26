@@ -22,8 +22,12 @@ use openstar_test_harness::{
     AppFolders, FakeSong, FakeUsdb, TestApp, TestAppBuilder, YtDlpStub, YtDlpStubBehaviour,
 };
 
+/// The yt-dlp self-update is on, so the resolver may pick the own copy in
+/// `/appdata/bin`; with no release server attached its checks fail
+/// (a closed port) and change nothing.
 fn builder(usdb: &FakeUsdb, stub: &YtDlpStub) -> TestAppBuilder {
     TestApp::builder()
+        .var("OPENSTAR_YTDLP_AUTOUPDATE", "true")
         .usdb(usdb)
         .ytdlp_stub(stub)
         .clock(&ManualClock::new())
@@ -342,8 +346,7 @@ async fn the_own_copy_in_appdata_bin_is_used_when_it_runs() {
     let usdb = fake_usdb().await;
     let on_path = YtDlpStub::new();
     let folders = AppFolders::new();
-    let own = folders.appdata_dir().join("bin");
-    YtDlpStub::install(&own).unwrap();
+    let own = YtDlpStub::install_own_copy(folders.appdata_dir()).unwrap();
     let app = builder(&usdb, &on_path).folders(folders).start().await;
 
     assert_eq!(
@@ -365,8 +368,7 @@ async fn the_image_copy_is_used_when_the_own_copy_does_not_run() {
     let usdb = fake_usdb().await;
     let on_path = YtDlpStub::new();
     let folders = AppFolders::new();
-    let own = folders.appdata_dir().join("bin");
-    YtDlpStub::install(&own).unwrap();
+    let own = YtDlpStub::install_own_copy(folders.appdata_dir()).unwrap();
     std::fs::write(own.join("behaviours"), "fail 1 broken\n").unwrap();
     let app = builder(&usdb, &on_path).folders(folders).start().await;
 

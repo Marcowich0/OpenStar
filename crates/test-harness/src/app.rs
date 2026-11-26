@@ -22,7 +22,10 @@ use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-use crate::{FAKE_USDB_PASSWORD, FAKE_USDB_USERNAME, FakeUsdb, USDB_BASE_URL_VAR, YtDlpStub};
+use crate::{
+    FAKE_USDB_PASSWORD, FAKE_USDB_USERNAME, FakeUsdb, FakeYtDlpReleases, USDB_BASE_URL_VAR,
+    YTDLP_RELEASES_URL_VAR, YtDlpStub,
+};
 
 /// The Admin PIN a [`TestApp`] gets unless the test chooses another.
 pub const DEFAULT_ADMIN_PIN: &str = "1234";
@@ -30,6 +33,10 @@ pub const DEFAULT_ADMIN_PIN: &str = "1234";
 /// Where USDB points when no [`FakeUsdb`] is attached: port 9 (discard) on the
 /// loopback address, which nothing listens on, so any USDB call fails fast.
 const NO_USDB: &str = "http://127.0.0.1:9";
+
+/// Where yt-dlp releases are when no [`FakeYtDlpReleases`] is attached: a
+/// closed local port, never GitHub.
+const CLOSED_RELEASES_URL: &str = "http://127.0.0.1:9/releases";
 
 /// How long a WebSocket receive or a graceful stop may take before the test
 /// fails; generous, since other builds may load the machine, and a passing
@@ -89,6 +96,7 @@ pub struct TestAppBuilder {
     extra: BTreeMap<String, String>,
     test_routes: bool,
     bridge_dir: Option<PathBuf>,
+    ytdlp_releases_url: Option<String>,
     times: Times,
 }
 
@@ -97,6 +105,7 @@ pub struct TestAppBuilder {
 struct Times {
     clock: Option<ManualClock>,
     usdb_timer: Option<Arc<dyn UsdbTimer>>,
+    ytdlp_update_every: Option<Duration>,
 }
 
 impl Times {
@@ -108,6 +117,7 @@ impl Times {
                 .map(ManualClock::clock)
                 .unwrap_or_default(),
             usdb_timer: self.usdb_timer.clone(),
+            ytdlp_update_every: self.ytdlp_update_every,
         }
     }
 }
@@ -163,6 +173,21 @@ impl TestAppBuilder {
         self
     }
 
+    /// Points the yt-dlp self-update at `releases` instead of GitHub and
+    /// turns it on (`OPENSTAR_YTDLP_AUTOUPDATE=true` unless set with
+    /// [`Self::var`]). Without it the update is off.
+    pub fn ytdlp_releases(mut self, releases: &FakeYtDlpReleases) -> Self {
+        self.ytdlp_releases_url = Some(releases.releases_url());
+        self
+    }
+
+    /// Checks for a yt-dlp update this often instead of daily, also after a
+    /// [`TestApp::restart`].
+    pub fn ytdlp_update_every(mut self, every: Duration) -> Self {
+        self.times.ytdlp_update_every = Some(every);
+        self
+    }
+
     /// Puts the stub's folder first on the `PATH` the app runs tools with.
     pub fn ytdlp_stub(mut self, stub: &YtDlpStub) -> Self {
         self.path_prefix = Some(stub.dir().to_path_buf());
@@ -177,7 +202,8 @@ impl TestAppBuilder {
     }
 
     /// Sets another settings variable. Variables the harness owns (the
-    /// folders, the port, USDB) cannot be overridden this way.
+    /// folders, the port, USDB, the yt-dlp releases URL) cannot be
+    /// overridden this way; `OPENSTAR_YTDLP_AUTOUPDATE` can.
     pub fn var(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.extra.insert(name.into(), value.into());
         self
@@ -206,7 +232,17 @@ impl TestAppBuilder {
         );
         set("OPENSTAR_ADMIN_PIN", self.admin_pin);
         set(USDB_BASE_URL_VAR, self.usdb_base_url);
-        set("OPENSTAR_YTDLP_AUTOUPDATE", "false".to_owned());
+        // On with a fake release server attached, unless the test says otherwise.
+        vars.entry("OPENSTAR_YTDLP_AUTOUPDATE".to_owned())
+            .or_insert_with(|| self.ytdlp_releases_url.is_some().to_string());
+        let mut set = |name: &str, value: String| {
+            vars.insert(name.to_owned(), value);
+        };
+        set(
+            YTDLP_RELEASES_URL_VAR,
+            self.ytdlp_releases_url
+                .unwrap_or_else(|| CLOSED_RELEASES_URL.to_owned()),
+        );
         set("PATH", tool_path(self.path_prefix.as_deref()));
         vars.remove("OPENSTAR_USDB_USERNAME");
         vars.remove("OPENSTAR_USDB_PASSWORD");
@@ -375,6 +411,7 @@ impl TestApp {
             extra: BTreeMap::new(),
             test_routes: false,
             bridge_dir: None,
+            ytdlp_releases_url: None,
             times: Times::default(),
         }
     }

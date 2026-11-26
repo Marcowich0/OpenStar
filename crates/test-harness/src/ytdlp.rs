@@ -47,6 +47,16 @@ impl YtDlpStub {
         Ok(path)
     }
 
+    /// Installs the stub as OpenStar's own copy below `appdata_dir`
+    /// (`bin/yt-dlp`), with its checksum recorded the way the self-update
+    /// records it, so the resolver trusts it. Returns the stub's folder.
+    pub fn install_own_copy(appdata_dir: &Path) -> std::io::Result<PathBuf> {
+        let dir = appdata_dir.join("bin");
+        let path = Self::install(&dir)?;
+        openstar::ytdlp::record_checksum(&path)?;
+        Ok(dir)
+    }
+
     /// The folder to put first on `PATH`.
     pub fn dir(&self) -> &Path {
         self.dir.path()

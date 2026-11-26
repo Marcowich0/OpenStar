@@ -102,12 +102,18 @@ pub struct StartOptions {
     pub clock: Clock,
     /// What the USDB client paces and backs off by; real time by default.
     pub usdb_timer: Option<Arc<dyn usdb::UsdbTimer>>,
+    /// How often yt-dlp's self-update checks after the check at start;
+    /// daily ([`ytdlp::update::DAILY`]) by default.
+    pub ytdlp_update_every: Option<std::time::Duration>,
 }
 
 /// A started server: the database is open and migrated, nothing is served yet.
 pub struct Server {
     state: AppState,
     migrations_applied: usize,
+    /// The resolver whose own copy the self-update writes.
+    ytdlp: ytdlp::YtDlp,
+    ytdlp_update_every: std::time::Duration,
 }
 
 impl Server {
@@ -150,7 +156,13 @@ impl Server {
             songs_dir: config.songs_dir.clone(),
             appdata_dir: config.appdata_dir.clone(),
         };
-        let ytdlp = ytdlp::YtDlp::new(&config.appdata_dir, config.tool_path.clone());
+        // With the self-update off, only the image's yt-dlp runs, even when
+        // an earlier start left a copy in appdata/bin.
+        let ytdlp = if config.ytdlp_autoupdate {
+            ytdlp::YtDlp::new(&config.appdata_dir, config.tool_path.clone())
+        } else {
+            ytdlp::YtDlp::image_only(&config.appdata_dir, config.tool_path.clone())
+        };
         let (give_scanner, scanner_given) = tokio::sync::watch::channel(None);
         let usdb_env = jobs::UsdbEnv {
             usdb: usdb.clone(),
@@ -174,13 +186,15 @@ impl Server {
                 jobs,
                 usdb,
                 usdb_covers: usdb::covers::Covers::new(&config.appdata_dir),
-                video_lookups: usdb::videos::VideoLookups::new(ytdlp),
+                video_lookups: usdb::videos::VideoLookups::new(ytdlp.clone()),
                 clock: options.clock,
                 mirror_gate: Arc::default(),
                 admin_pin: pin_wait::AdminPin::new(config.admin_pin.expose()),
                 test_routes: false,
             },
             migrations_applied: opened.migrations_applied,
+            ytdlp,
+            ytdlp_update_every: options.ytdlp_update_every.unwrap_or(ytdlp::update::DAILY),
         })
     }
 
@@ -295,9 +309,23 @@ impl Server {
             self.state.scanner.clone(),
             self.state.clock.clone(),
         ));
+        // yt-dlp's own copy is updated at start and daily, unless turned off.
+        let ytdlp_update = if self.state.config.ytdlp_autoupdate {
+            let updater = ytdlp::update::Updater::new(
+                self.ytdlp.clone(),
+                self.state.config.ytdlp_releases_url.clone(),
+            );
+            Some(tokio::spawn(updater.run(self.ytdlp_update_every)))
+        } else {
+            tracing::info!("the yt-dlp self-update is off; the image's yt-dlp is used");
+            None
+        };
         let shutdown = async move {
             shutdown.await;
             purge.abort();
+            if let Some(task) = ytdlp_update {
+                task.abort();
+            }
             for task in usdb_tasks {
                 task.abort();
             }
