@@ -162,7 +162,16 @@ export function renderJoinedPhone(
   ) => {
     server({ type: "partyChanged", party, change: { actor, event } });
   };
-  return { sent, server, change, storage };
+  /** The socket closes (the Phone locks or sleeps) and opens again. */
+  const reconnect = () => {
+    act(() => {
+      handlers?.onConnection("reconnecting");
+    });
+    act(() => {
+      handlers?.onConnection("open");
+    });
+  };
+  return { sent, server, change, storage, reconnect };
 }
 
 /** An empty Library for the Songs tab. */

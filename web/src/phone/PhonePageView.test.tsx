@@ -135,7 +135,12 @@ function memoryStorage(initial: Record<string, string> = {}): PhoneStorage & {
 function renderPhone({
   joinCode,
   storage = memoryStorage({ "openstar.phoneId": PHONE_ID }),
-}: { joinCode?: string; storage?: PhoneStorage } = {}) {
+  onInParty,
+}: {
+  joinCode?: string;
+  storage?: PhoneStorage;
+  onInParty?: () => void;
+} = {}) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
   const sent: ClientMessage[] = [];
@@ -154,7 +159,12 @@ function renderPhone({
   );
   render(
     <QueryClientProvider client={createQueryClient()}>
-      <PhonePageView joinCode={joinCode} store={store} storage={storage} />
+      <PhonePageView
+        joinCode={joinCode}
+        store={store}
+        storage={storage}
+        {...(onInParty ? { onInParty } : {})}
+      />
     </QueryClientProvider>,
   );
   const server = (...messages: ServerMessage[]) => {
@@ -227,6 +237,15 @@ describe("the Phone page's join flow", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getAllByTestId("code-box")).toHaveLength(4);
+  });
+
+  it("says once it is in the Party, so the QR link's code can be dropped", () => {
+    const onInParty = vi.fn();
+    const { connect } = renderPhone({ joinCode: "4821", onInParty });
+    connect(null);
+    expect(onInParty).not.toHaveBeenCalled();
+    connect(1, party([[1, 2]]));
+    expect(onInParty).toHaveBeenCalledTimes(1);
   });
 
   it("shows no pad before the server has answered the Phone id", () => {

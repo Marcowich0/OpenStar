@@ -196,7 +196,8 @@ async fn a_removed_phone_is_out_and_needs_the_code_to_come_back() {
         UserMessage::NotInParty
     );
 
-    // Reconnecting with its Phone id no longer rejoins it silently.
+    // Reconnecting with its Phone id no longer rejoins it silently: it is
+    // told again that it left (it may have been asleep when it was removed).
     drop(lukas_phone);
     let mut back = app.connect_ws().await;
     live_party(&mut back).await;
@@ -204,10 +205,7 @@ async fn a_removed_phone_is_out_and_needs_the_code_to_come_back() {
         phone_id: phone_id(2),
     })
     .await;
-    assert_eq!(
-        recv(&mut back).await,
-        ServerMessage::PhoneStatus { member_id: None }
-    );
+    assert_eq!(recv(&mut back).await, ServerMessage::LeftParty);
     assert_eq!(
         refused(
             &mut back,

@@ -1,5 +1,5 @@
-import { useSearch } from "@tanstack/react-router";
-import { useCallback, useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
 
 import { browserStorage } from "../live/browserLive";
 import type { LiveState } from "../live/liveState";
@@ -30,7 +30,18 @@ const selectOutside = (state: LiveState) =>
 /** `/`: the Phone screens. `?join=<code>` comes from the Stage's QR code. */
 export function PhoneScreen() {
   const { join } = useSearch({ from: "/" });
-  return <PhonePageView joinCode={join} />;
+  const navigate = useNavigate();
+  // Once in the Party the QR link's code has done its job: a reload after
+  // a new Party must not check the old one.
+  const dropJoinCode = useCallback(() => {
+    void navigate({ to: "/", search: {}, replace: true });
+  }, [navigate]);
+  return (
+    <PhonePageView
+      joinCode={join}
+      {...(join !== undefined ? { onInParty: dropJoinCode } : {})}
+    />
+  );
 }
 
 export interface PhonePageViewProps {
@@ -42,6 +53,8 @@ export interface PhonePageViewProps {
   random?: () => number;
   /** This Phone's mic (tests pass a fake); the browser's by default. */
   mic?: PhoneMic;
+  /** Runs once this Phone is in the Party (the QR link's code is dropped). */
+  onInParty?: () => void;
 }
 
 /** The Phone page: one of its states, picked from the store by `phonePage`. */
@@ -51,6 +64,7 @@ export function PhonePageView({
   storage = browserStorage(),
   random,
   mic: givenMic,
+  onInParty,
 }: PhonePageViewProps) {
   const myPhoneId = phoneId(storage);
   // The Request whose After the Song screen was closed with Done.
@@ -82,6 +96,10 @@ export function PhonePageView({
     if (afterFor !== null) setRemoteOnTop(false);
   }
   const member = useLive(phoneMember, store);
+  const inParty = member !== null;
+  useEffect(() => {
+    if (inParty) onInParty?.();
+  }, [inParty, onInParty]);
   const outside = useLive(selectOutside, store);
   // The favourite-colour notice is for a Phone that joined through the flow
   // here, not one the server found already in the Party.

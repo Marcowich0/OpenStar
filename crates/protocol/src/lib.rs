@@ -270,7 +270,9 @@ pub enum ClientMessage {
     /// Presents the browser's Phone id. A Phone sends it every time its
     /// WebSocket opens, before anything else. A Phone already in the current
     /// Party is back in at once with the same identity (silent rejoin). The
-    /// answer is a [`ServerMessage::PhoneStatus`].
+    /// answer is a [`ServerMessage::PhoneStatus`], or
+    /// [`ServerMessage::LeftParty`] for a Phone that was in the Party and is
+    /// out (it may have been asleep when it left) and has not joined since.
     Hello { phone_id: PhoneId },
     /// Asks whether this is the current Party's Join code, before the Phone
     /// picks who it is. Answered with [`ServerMessage::JoinCodeValid`], or
@@ -535,7 +537,9 @@ pub enum ServerMessage {
     PhoneStatus { member_id: Option<PartyMemberId> },
     /// Sent to every connection of a Phone that was in the Party and no
     /// longer is (a new Party started, or its Party member left or was
-    /// removed): it needs the Join code to come back.
+    /// removed): it needs the Join code to come back. A Phone that was not
+    /// connected then hears it in answer to its next
+    /// [`ClientMessage::Hello`].
     LeftParty,
     /// The Stage's current OpenStar volume (0 to 100), sent to every
     /// connection when the Stage reports its output and on every step, and to

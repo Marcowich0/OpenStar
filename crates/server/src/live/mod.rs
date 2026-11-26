@@ -413,6 +413,11 @@ struct LiveState {
     /// Phones that reported their mic could not open. Kept while the
     /// server runs; a Phone reports again after a restart.
     blocked_phones: HashSet<PhoneId>,
+    /// Phones that were in the Party and are out (a new Party started, or
+    /// their Party member left or was removed) and have not joined since. A
+    /// Phone asleep at the time hears [`ServerMessage::LeftParty`] in answer
+    /// to its next Hello. Kept while the server runs.
+    left_phones: HashSet<PhoneId>,
     /// The Mics with a Mic delay stored at the Stage output last reported
     /// (`None` until one is): a seated Mic not in it is "Not calibrated".
     /// Kept when the Stage closes, so the warnings do not flicker.
@@ -476,6 +481,7 @@ impl LiveState {
             capturing_browser_mics: HashSet::new(),
             silent_local_mics: HashSet::new(),
             blocked_phones: HashSet::new(),
+            left_phones: HashSet::new(),
             calibrated_mics: None,
             bridges,
             last_started_ms: HashMap::new(),
@@ -827,8 +833,15 @@ impl LiveState {
                     return;
                 }
                 let left = self.joined_connections();
+                let left_phones: Vec<PhoneId> = self
+                    .stage()
+                    .party
+                    .iter()
+                    .flat_map(|party| party.phones.iter().map(|phone| phone.phone_id.clone()))
+                    .collect();
                 match self.start_party(now_ms).await {
                     Some(change) => {
+                        self.left_phones.extend(left_phones);
                         // The run's Phones were the old Party's.
                         self.calibration_ended();
                         for connection in left {
@@ -1018,7 +1031,16 @@ impl LiveState {
                     return;
                 }
                 self.phones.insert(id, phone_id);
-                self.send_phone_status(id);
+                if self.joined_phone(id).is_none()
+                    && self
+                        .phones
+                        .get(&id)
+                        .is_some_and(|phone| self.left_phones.contains(phone))
+                {
+                    self.hub.send_to(id, &ServerMessage::LeftParty);
+                } else {
+                    self.send_phone_status(id);
+                }
             }
             Ok(ClientMessage::CheckJoinCode { join_code }) => {
                 if self.is_current_code(&join_code) {
@@ -1038,7 +1060,12 @@ impl LiveState {
                     return;
                 }
                 self.phones.insert(id, phone_id.clone());
-                let joined = self.join(phone_id, &join_code, join_as, now_ms).await;
+                let joined = self
+                    .join(phone_id.clone(), &join_code, join_as, now_ms)
+                    .await;
+                if joined.is_ok() {
+                    self.left_phones.remove(&phone_id);
+                }
                 self.refuse_on_error(id, joined);
             }
             Ok(ClientMessage::SwitchIdentity { join_as }) => {
@@ -2023,6 +2050,7 @@ impl LiveState {
         self.stage_mut().last_local_mics.remove(&member_id);
         for phone in phones {
             self.blocked_phones.remove(phone);
+            self.left_phones.insert(phone.clone());
         }
         let out: Vec<ConnectionId> = self
             .phones

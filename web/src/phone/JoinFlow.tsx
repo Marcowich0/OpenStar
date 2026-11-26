@@ -30,6 +30,9 @@ type Step =
 const selectAnswered = (state: LiveState) =>
   state.connection === "open" && state.phone !== null;
 
+/** The server said this Phone was in the Party and is out now. */
+const selectLeft = (state: LiveState) => state.phone?.leftParty ?? false;
+
 export interface JoinFlowProps {
   /** The text after `?join=` from the QR link: the pad is skipped when it is right. */
   linkCode: string | undefined;
@@ -74,6 +77,15 @@ export function JoinFlow({
       ? { kind: "who", joinCode: "" }
       : firstStep(linkCode, store.getSnapshot().phone?.leftParty ?? false),
   );
+  // A Phone that wakes after it left (a new Party started, or its member
+  // was removed while it slept) opens this flow before the server answers
+  // its Phone id: "You left the Party" once the answer says so.
+  const left = useLive(selectLeft, store);
+  const [leftSeen, setLeftSeen] = useState(left);
+  if (left !== leftSeen) {
+    setLeftSeen(left);
+    if (left && !switching) setStep({ kind: "left" });
+  }
   const [retrying, setRetrying] = useState(false);
   const linkChecked = useRef(false);
 

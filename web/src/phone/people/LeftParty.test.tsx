@@ -64,6 +64,23 @@ describe("a Phone whose member is no longer in the Party", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows it to a Phone that was asleep when a new Party replaced this one", () => {
+    const { server, reconnect } = renderJoinedPhone(partyOf([bo, lukas]));
+    reconnect();
+    // The new Party arrives first: the join flow opens before the server
+    // answers the Phone id.
+    server({
+      type: "liveState",
+      stageId: "main",
+      party: { ...partyOf([]), partyId: "p2", joinCode: "1357" },
+      isStage: false,
+    });
+    server({ type: "leftParty" });
+    expect(
+      screen.getByRole("heading", { name: "You left the Party" }),
+    ).toBeInTheDocument();
+  });
+
   it("leads to the Join code pad with Join again", () => {
     const { server } = renderJoinedPhone(partyOf([bo, lukas]));
     server({ type: "leftParty" });
