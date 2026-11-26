@@ -10,56 +10,22 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { profilesQuery } from "../api/queries";
-import type { CalibrationMic } from "../generated/CalibrationMic";
 import type { CalibrationRun } from "../generated/CalibrationRun";
 import type { MicKey } from "../generated/MicKey";
-import type { PartySnapshot } from "../generated/PartySnapshot";
-import type { Profile } from "../generated/Profile";
 import { t } from "../i18n/t";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
-import { localMicName } from "../mics/localMics";
-import { memberLook } from "../phone/memberLook";
 import { useStageFrame } from "../stage/frame/stageFrameContext";
 import { stageAudio } from "../stage/playback/stageAudio";
 import { Button } from "../ui/Button";
 import { Icon } from "../ui/Icon";
+import { calibrationMicName, calibrationResultText } from "./calibrationText";
 import { runCalibrationTones } from "./stageCalibration";
 import { playToneRun } from "./toneRun";
 
 const selectRun = (live: LiveState) => live.calibration;
 const selectParty = (live: LiveState) => live.stage?.party ?? null;
-
-/** A Mic's name on its row: a Phone's Party member's name. */
-export function calibrationMicName(
-  mic: MicKey,
-  party: PartySnapshot | null,
-  profiles: readonly Profile[] | undefined,
-): string {
-  if (mic.kind === "localMic") {
-    const local = party?.localMics.find((m) => m.localMicId === mic.localMicId);
-    return local ? localMicName(local.source, local.name) : mic.localMicId;
-  }
-  const phone = party?.phones.find((p) => p.phoneId === mic.phoneId);
-  const member = party?.members.find((m) => m.memberId === phone?.memberId);
-  return (
-    (member && memberLook(member, profiles)?.name) || t("calibration.aPhone")
-  );
-}
-
-/** A result row's text, through the catalogue. */
-export function calibrationResultText(
-  entry: CalibrationMic,
-  name: string,
-): string {
-  return entry.outcome?.result === "calibrated"
-    ? t("calibration.success", {
-        name,
-        ms: Math.round(entry.outcome.micDelayMs),
-      })
-    : t("calibration.failed", { name });
-}
 
 /** A key that changes exactly when the tones of a new set of Mics start. */
 function tonesKey(run: CalibrationRun | null): string | null {

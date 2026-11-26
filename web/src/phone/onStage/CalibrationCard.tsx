@@ -14,7 +14,7 @@ import { profilesQuery } from "../../api/queries";
 import {
   calibrationMicName,
   calibrationResultText,
-} from "../../calibration/StageCalibration";
+} from "../../calibration/calibrationText";
 import type { CalibrationRun } from "../../generated/CalibrationRun";
 import type { MicKey } from "../../generated/MicKey";
 import { t } from "../../i18n/t";
