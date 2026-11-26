@@ -865,6 +865,8 @@ export const en = {
   "partyEvent.songSkipped": "{song} was skipped",
   "partyEvent.resultsShown": "The results of {song}",
   "partyEvent.resultsClosed": "On to the next Song",
+  "partyEvent.songAborted":
+    "The Stage dropped, so {song} stopped. Its Line-up waits to start again",
   "partyEvent.autoFitAccepted": "The Auto-fit of {song} was accepted",
   // Line-up warnings: the screen resolves the member's name.
   "lineUpWarning.noMic": "{name} has no mic",

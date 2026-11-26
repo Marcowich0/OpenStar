@@ -144,6 +144,7 @@ export const wrongParam = byCode<PartyEvent>({
   songSkipped: ({ params }) => params.title,
   resultsShown: ({ params }) => params.title,
   resultsClosed: () => "",
+  songAborted: ({ params }) => params.title,
   autoFitAccepted: ({ params }) => params.title,
 });
 

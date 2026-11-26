@@ -575,7 +575,7 @@ impl LiveState {
                     let connection = self.connect(role, now_ms).await;
                     let id = connection.id;
                     if reply.send(connection).is_err() {
-                        self.disconnect(id);
+                        self.disconnect(id).await;
                     }
                 }
                 Command::Received {
@@ -583,7 +583,7 @@ impl LiveState {
                     now_ms,
                     message,
                 } => self.received(id, now_ms, message).await,
-                Command::Disconnect { id } => self.disconnect(id),
+                Command::Disconnect { id } => self.disconnect(id).await,
                 Command::SendAll { message } => self.hub.send_all(&message),
                 Command::CreateProfile { new, now_ms, reply } => {
                     let _ = reply.send(self.create_profile(new, now_ms).await);
@@ -643,12 +643,15 @@ impl LiveState {
         let connection = self.hub.add();
         let id = connection.id;
         let mut started = None;
+        let mut aborted = None;
         if role == Role::Bridge {
             self.bridges.sockets.insert(id);
         }
         if role == Role::Stage {
             if let Some(previous) = self.stage_mut().connection.replace(id) {
                 self.hub.send_to(previous, &ServerMessage::StageMoved);
+                // A takeover aborts the Song the old Stage was playing.
+                aborted = self.abort_song().await;
             }
             // The new Stage reports its own output.
             self.stage_mut().output = None;
@@ -683,7 +686,7 @@ impl LiveState {
         }
         self.tell_av_sync(id);
         self.tell_calibration_to(id);
-        if let Some(change) = started {
+        if let Some(change) = started.or(aborted) {
             self.party_changed(change);
         }
         if role == Role::Stage {
@@ -692,11 +695,14 @@ impl LiveState {
         connection
     }
 
-    fn disconnect(&mut self, id: ConnectionId) {
+    async fn disconnect(&mut self, id: ConnectionId) {
         self.hub.remove(id);
         self.phones.remove(&id);
-        let stage = self.stage_mut();
-        if stage.connection == Some(id) {
+        if self.stage().connection == Some(id) {
+            if let Some(change) = self.abort_song().await {
+                self.party_changed(change);
+            }
+            let stage = self.stage_mut();
             stage.connection = None;
             stage.output = None;
             self.av_sync_ended();
@@ -2317,6 +2323,32 @@ impl LiveState {
         Ok(())
     }
 
+    /// The active Stage dropped or was taken over: a Song it was playing is
+    /// aborted, with no results and nothing stored (a late outcome for it is
+    /// refused, see [`Self::finish_round`]). The Request stays at the head
+    /// and its Line-up, fixed at Start, waits again as it was. Returns the
+    /// change to tell everyone, if a Song played.
+    async fn abort_song(&mut self) -> Option<ChangeEvent> {
+        let playing = self.stage().party.as_ref()?.playing.clone()?;
+        let request = queue::find(self.stage().party.as_ref()?, playing.request_id)
+            .ok()?
+            .clone();
+        let change = self.request_change(&request).await;
+        let blocked = self.blocked_phones.clone();
+        let stage = self.stage_mut();
+        if let Some(party) = stage.party.as_mut() {
+            party.playing = None;
+            // A taking-over Stage hears the live state before the change:
+            // it must say already that the Line-up can start again.
+            refresh_computed(party, &blocked);
+        }
+        stage.progress = None;
+        Some(ChangeEvent {
+            actor: Actor::Stage,
+            event: PartyEvent::SongAborted(change),
+        })
+    }
+
     /// The Stage's outcome of the Song that just ended (`POST /api/rounds`).
     ///
     /// - The outcome must be the current Party's. An outcome already stored
@@ -3319,7 +3351,7 @@ mod tests {
         let (mut state, _dir) = state().await;
         let stage = state.connect(Role::Stage, 1).await;
         let mut phone = state.connect(Role::Browser, 1).await;
-        state.disconnect(stage.id);
+        state.disconnect(stage.id).await;
         drain(&mut phone);
         state.send_to_stage(&ServerMessage::Pong { nonce: 5 });
         assert_eq!(drain(&mut phone), vec![]);
