@@ -127,6 +127,7 @@ import { overviewFrame, overviewTimeAt } from "./overviewFrame";
 import { AutoFitPanel, type FitOutcome } from "./AutoFitPanel";
 import { EditList, SaveSection, ShareMeter, TypedValue } from "./TimingPanel";
 import { PlaybackPanel } from "./PlaybackPanel";
+import { isFormField } from "../../ui/formField";
 
 export interface TimingEditorProps {
   song: SongId;
@@ -899,11 +900,7 @@ function usePlaybackKeys(actions: {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       const target = event.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement
-      )
-        return;
+      if (isFormField(target)) return;
       const key = event.key.toLowerCase();
       const act = latest.current;
       if (key === " " || key === "p") {
@@ -943,11 +940,7 @@ function useGestureKeys(actions: {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       const target = event.target;
-      if (
-        target instanceof HTMLInputElement ||
-        target instanceof HTMLTextAreaElement
-      )
-        return;
+      if (isFormField(target)) return;
       const act = latest.current;
       const big = event.shiftKey;
       switch (event.key) {
@@ -1097,7 +1090,7 @@ function useUndoKeys(
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-      if (event.target instanceof HTMLInputElement) return;
+      if (isFormField(event.target)) return;
       const key = event.key.toLowerCase();
       const step =
         key === "z"
