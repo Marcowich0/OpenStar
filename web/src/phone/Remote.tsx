@@ -117,6 +117,7 @@ export function Remote({
       <div className="sticky bottom-0 flex flex-col">
         {strip && (
           <StatusStrip
+            store={store}
             strip={strip}
             onOpenStage={() => {
               setTab("stage");

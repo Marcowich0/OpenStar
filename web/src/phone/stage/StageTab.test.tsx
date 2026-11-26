@@ -198,8 +198,12 @@ describe("the Stage tab while the results show", () => {
       { ...bo, memberId: 2, mic: JONAS_SEAT.mic, total: 9000 },
       bo,
     ]);
+    expect(
+      within(await screen.findByTestId("results-card")).getByText(
+        "Results on the Stage",
+      ),
+    ).toBeInTheDocument();
     const card = await screen.findByTestId("my-result");
-    expect(within(card).getByText("Results on the Stage")).toBeInTheDocument();
     expect(within(card).getByText("Your Score: 6,115")).toBeInTheDocument();
     expect(within(card).getByText("New high score!")).toBeInTheDocument();
     // The Rank title, from the same strings as the Stage's results.
