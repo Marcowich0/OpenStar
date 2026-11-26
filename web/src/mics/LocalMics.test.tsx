@@ -6,6 +6,7 @@ import { createQueryClient } from "../api/queryClient";
 import { localMicsQuery, micBridgesQuery } from "../api/queries";
 import type { ClientMessage } from "../generated/ClientMessage";
 import type { LocalMic } from "../generated/LocalMic";
+import type { MicBridges } from "../generated/MicBridges";
 import type { LiveClientOptions } from "../live/liveClient";
 import { createLiveStore } from "../live/liveStore";
 import type { PartySnapshot } from "../generated/PartySnapshot";
@@ -22,6 +23,7 @@ import {
   type LocalMicsApi,
 } from "./LocalMics";
 import { browserChannels, type BrowserChannel } from "./localMics";
+import { stageMicSettings } from "./stageMicSettings";
 
 const DONGLE = { deviceId: "dongle", label: "USB Audio" };
 const WEBCAM = { deviceId: "webcam", label: "Webcam Mic" };
@@ -33,8 +35,14 @@ const [, dongleRight] = browserChannels("stage", DONGLE, 2) as [
 function fakeCapture(
   devices = [DONGLE, WEBCAM],
   open: ReadonlyMap<string, number> = new Map(),
+  inputDelaysMs: ReadonlyMap<string, number> = new Map(),
 ) {
-  const snapshot: CaptureSnapshot = { status: "ready", devices, open };
+  const snapshot: CaptureSnapshot = {
+    status: "ready",
+    devices,
+    open,
+    inputDelaysMs,
+  };
   const readingListeners = new Set<ReadingListener>();
   const capture = {
     subscribe: () => () => {},
@@ -68,10 +76,15 @@ function setup({
   kept = [keptRight],
   capture = fakeCapture(),
   pitch = createPitchRouter(),
+  bridges = {
+    bridges: [],
+    requests: [{ requestId: 7, hostName: "hermes", code: "4821" }],
+  },
 }: {
   kept?: LocalMic[];
   capture?: LocalMicCapture;
   pitch?: ReturnType<typeof createPitchRouter>;
+  bridges?: MicBridges;
 } = {}) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
@@ -88,10 +101,7 @@ function setup({
   });
   const queryClient = createQueryClient();
   queryClient.setQueryData(localMicsQuery.queryKey, kept);
-  queryClient.setQueryData(micBridgesQuery.queryKey, {
-    bridges: [],
-    requests: [{ requestId: 7, hostName: "hermes", code: "4821" }],
-  });
+  queryClient.setQueryData(micBridgesQuery.queryKey, bridges);
   const makeCapture = vi.fn(() => capture);
   let api: LocalMicsApi | null = null;
   function Probe() {
@@ -179,6 +189,40 @@ describe("the Stage browser's Local mic readings", () => {
     ]);
     becomeStage(true, seated(false));
     expect(capture.setDetecting).toHaveBeenLastCalledWith([]);
+  });
+
+  it("run the detector of a Calibration run's Local mic, seated or not", () => {
+    const capture = openDongle();
+    const { becomeStage, server } = setup({ capture });
+    becomeStage(true, testParty({ localMics: seated(false).localMics }));
+    expect(capture.setDetecting).toHaveBeenLastCalledWith([]);
+    const mics = [
+      {
+        mic: { kind: "localMic" as const, localMicId: dongleRight.localMicId },
+        chosen: true,
+        ready: true,
+      },
+    ];
+    server({ type: "calibration", run: { phase: "waiting", mics } });
+    expect(capture.setDetecting).toHaveBeenLastCalledWith([
+      { deviceId: "dongle", channel: 1 },
+    ]);
+    server({ type: "calibration", run: { phase: "results", mics } });
+    expect(capture.setDetecting).toHaveBeenLastCalledWith([]);
+  });
+
+  it("hand each reading on under its Local mic id, for a Calibration run", () => {
+    const capture = openDongle();
+    const { becomeStage, api } = setup({ capture });
+    becomeStage(true);
+    const heard: [string, number][] = [];
+    const stop = api().subscribeLocalMicReadings((localMicId, reading) => {
+      heard.push([localMicId, reading.captureMs]);
+    });
+    capture.read("dongle", 1, READING);
+    stop();
+    capture.read("dongle", 1, READING);
+    expect(heard).toEqual([[dongleRight.localMicId, 1234]]);
   });
 
   it("reach the Pitch router's buffer of the Player the Local mic sings for", () => {
@@ -301,6 +345,85 @@ describe("the Stage browser's Local mics", () => {
       [dongleRight.localMicId],
       [dongleRight.localMicId],
     ]);
+  });
+
+  it("report which of its Local mics capture: their device is open", () => {
+    const capturing = (sent: ClientMessage[]) =>
+      sent.flatMap((m) =>
+        m.type === "reportCapturingLocalMics" ? [m.localMicIds] : [],
+      );
+    const closed = setup();
+    closed.becomeStage(true);
+    expect(capturing(closed.sent)).toEqual([[]]);
+    const open = setup({
+      capture: fakeCapture([DONGLE], new Map([["dongle", 2]])),
+    });
+    open.becomeStage(true);
+    expect(capturing(open.sent)).toEqual([[dongleRight.localMicId]]);
+    // A mono device has no Right channel to capture.
+    const mono = setup({
+      capture: fakeCapture([DONGLE], new Map([["dongle", 1]])),
+    });
+    mono.becomeStage(true);
+    expect(capturing(mono.sent)).toEqual([[]]);
+  });
+
+  it("hold each Local mic's reported input delay, from its open device or its Mic bridge, for Start", () => {
+    const bridgeMic = "bridge:zeus:card:1";
+    const { becomeStage } = setup({
+      capture: fakeCapture(
+        [DONGLE, WEBCAM],
+        new Map([
+          ["dongle", 2],
+          ["webcam", 1],
+        ]),
+        new Map([["dongle", 11]]),
+      ),
+      bridges: {
+        bridges: [
+          {
+            bridgeId: "zeus",
+            hostName: "zeus",
+            open: true,
+            channels: [
+              {
+                localMicId: bridgeMic,
+                source: {
+                  kind: "bridge",
+                  bridgeId: "zeus",
+                  deviceName: "card",
+                  label: "Scarlett",
+                  channel: 1,
+                },
+                reportedInputDelayMs: 4,
+              },
+              {
+                localMicId: "bridge:zeus:card:0",
+                source: {
+                  kind: "bridge",
+                  bridgeId: "zeus",
+                  deviceName: "card",
+                  label: "Scarlett",
+                  channel: 0,
+                },
+              },
+            ],
+            interfaces: [],
+          },
+        ],
+        requests: [],
+      },
+    });
+    try {
+      becomeStage(true);
+      const holder = stageMicSettings();
+      expect(holder.reportedInputDelayMs(dongleRight.localMicId)).toBe(11);
+      expect(holder.reportedInputDelayMs(bridgeMic)).toBe(4);
+      expect(holder.reportedInputDelayMs("bridge:zeus:card:0")).toBeNull();
+      expect(holder.reportedInputDelayMs("browser:stage:webcam:0")).toBeNull();
+    } finally {
+      stageMicSettings().setReportedInputDelays(new Map());
+    }
   });
 
   it("report a Local mic whose device is unplugged as not present", () => {

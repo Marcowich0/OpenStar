@@ -40,13 +40,36 @@ function fakeStore() {
       return () => listeners.delete(listener);
     },
   };
-  const relay = (phoneId: string, readings: PitchReading[]) => {
+  const relayFrom = (mic: MicId, readings: PitchReading[]) => {
     for (const reading of readings)
-      for (const listener of [...listeners])
-        listener({ kind: "phone", phoneId }, reading);
+      for (const listener of [...listeners]) listener(mic, reading);
   };
-  return { store, sent, relay, listening: () => listeners.size };
+  const relay = (phoneId: string, readings: PitchReading[]) => {
+    relayFrom({ kind: "phone", phoneId }, readings);
+  };
+  return { store, sent, relay, relayFrom, listening: () => listeners.size };
 }
+
+/** The Stage browser's own Local mics, as `subscribeLocalMicReadings`. */
+function fakeLocalMics() {
+  const listeners = new Set<(localMicId: string, r: PitchReading) => void>();
+  return {
+    subscribe: (listener: (localMicId: string, r: PitchReading) => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    read: (localMicId: string, readings: PitchReading[]) => {
+      for (const reading of readings)
+        for (const listener of [...listeners]) listener(localMicId, reading);
+    },
+    listening: () => listeners.size,
+  };
+}
+
+const localMic = (localMicId: string): MicKey => ({
+  kind: "localMic",
+  localMicId,
+});
 
 /** Tones that "play" while `during` relays readings, then resolve. */
 function tones(during: () => void): () => Promise<ToneRun> {
@@ -80,6 +103,47 @@ describe("the Stage's Calibration tones", () => {
       },
     ]);
     expect(listening()).toBe(0);
+  });
+
+  it("hears a bridge's Local mic relayed and the Stage browser's own, and sets each one's Mic threshold to its bleed level + 6 dB", async () => {
+    const { store, sent, relayFrom } = fakeStore();
+    const local = fakeLocalMics();
+    await runCalibrationTones({
+      store,
+      localMicReadings: local.subscribe,
+      mics: [localMic("bridge:b:card:0"), localMic("browser:s:red:0")],
+      playTones: tones(() => {
+        relayFrom(
+          { kind: "bridge", bridgeId: "b", localMicId: "bridge:b:card:0" },
+          heard(12),
+        );
+        local.read("browser:s:red:0", heard(30));
+        // A Local mic not in the run is ignored.
+        local.read("browser:s:blue:0", heard(5));
+      }),
+      wait: noWait,
+      signal: new AbortController().signal,
+    });
+    expect(sent).toEqual([
+      {
+        type: "finishCalibration",
+        results: [
+          {
+            mic: localMic("bridge:b:card:0"),
+            micDelayMs: 12,
+            bleedLevelDbfs: -40,
+            micThresholdDbfs: -34,
+          },
+          {
+            mic: localMic("browser:s:red:0"),
+            micDelayMs: 30,
+            bleedLevelDbfs: -40,
+            micThresholdDbfs: -34,
+          },
+        ],
+      },
+    ]);
+    expect(local.listening()).toBe(0);
   });
 
   it("keeps listening for late readings after the last tone", async () => {

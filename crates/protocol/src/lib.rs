@@ -256,6 +256,13 @@ pub enum ClientMessage {
     FinishCalibration {
         results: Vec<mics::CalibrationResult>,
     },
+    /// "Calibrate this mic now" (#210), offered when a Local mic is switched
+    /// on: the normal run with that Local mic as the only chosen Mic, past
+    /// the checklist (as if Continue was pressed). Refused like
+    /// [`ClientMessage::OpenCalibration`], with
+    /// [`UserMessage::CalibrationRunning`] while a run is open and
+    /// [`UserMessage::InvalidMessage`] for a Local mic not switched on.
+    CalibrateLocalMicNow { local_mic_id: String },
     /// Cancel or Done: closes the run, from the Stage or any joined Remote;
     /// nothing more is stored. It also ends when the Stage closes or moves,
     /// a Song starts, or a new Party starts.
@@ -437,6 +444,12 @@ pub enum ClientMessage {
     /// Party snapshot and offers the switched-on ones to the Line-up.
     /// Gone when that Stage closes or another browser becomes the Stage.
     ReportPresentLocalMics { local_mic_ids: Vec<String> },
+    /// From the active Stage, whenever it changes and on every connect:
+    /// which of its own Local mics have their capture running now (their
+    /// device open). Replaces the last report; a chosen Stage-browser Local
+    /// mic of a Calibration run is ready while listed (#210). Gone when
+    /// that Stage closes or another browser becomes the Stage.
+    ReportCapturingLocalMics { local_mic_ids: Vec<String> },
     /// From the active Stage, whenever it changes: which switched-on Local
     /// mics (its own or a Mic bridge's) delivered exact digital silence,
     /// every sample zero, for more than 2 s. Replaces the last report; the

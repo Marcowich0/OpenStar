@@ -414,6 +414,9 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::CalibrationGo,
         ClientMessage::FinishCalibration { results: vec![] },
         ClientMessage::EndCalibration,
+        ClientMessage::CalibrateLocalMicNow {
+            local_mic_id: "browser:stage:device:0".into(),
+        },
         ClientMessage::LeaveParty,
         ClientMessage::RemoveMember {
             member_id: PartyMemberId(1),
@@ -455,6 +458,9 @@ fn every_client_message() -> Vec<ClientMessage> {
             local_mic_ids: vec!["browser:stage:device:0".into()],
         },
         ClientMessage::ReportSilentLocalMics {
+            local_mic_ids: vec!["browser:stage:device:0".into()],
+        },
+        ClientMessage::ReportCapturingLocalMics {
             local_mic_ids: vec!["browser:stage:device:0".into()],
         },
         ClientMessage::BridgeLevels { levels: vec![] },

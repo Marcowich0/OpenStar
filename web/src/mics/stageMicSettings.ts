@@ -34,6 +34,15 @@ export interface StageMicSettings {
    * so nothing to set it for).
    */
   setByHand(localMicId: string, referenceDbfs: number): string | null;
+  /**
+   * Replaces the input delays the Local mics report now, by Local mic id:
+   * a Stage-browser device's (its track's `latency`) and a Mic bridge
+   * channel's (`BridgeChannel.reportedInputDelayMs`, #153). Kept apart from
+   * the stored values; listeners are not told.
+   */
+  setReportedInputDelays(delays: ReadonlyMap<string, number>): void;
+  /** A Local mic's reported input delay now, ms (`null`: none reported). */
+  reportedInputDelayMs(localMicId: string): number | null;
   /** Called after every `set`. */
   subscribe: (listener: () => void) => () => void;
   /** The loaded values (for `useSyncExternalStore`). */
@@ -48,6 +57,7 @@ function sameMic(a: MicKey, b: MicKey): boolean {
 
 export function createStageMicSettings(): StageMicSettings {
   let loaded: StageOutputMicSettings | null = null;
+  let reported: ReadonlyMap<string, number> = new Map();
   const listeners = new Set<() => void>();
   const set = (values: StageOutputMicSettings | null) => {
     loaded = values;
@@ -75,6 +85,10 @@ export function createStageMicSettings(): StageMicSettings {
       });
       return stageOutput;
     },
+    setReportedInputDelays(delays) {
+      reported = delays;
+    },
+    reportedInputDelayMs: (localMicId) => reported.get(localMicId) ?? null,
     subscribe(listener) {
       listeners.add(listener);
       return () => {
@@ -100,13 +114,19 @@ export function micKindOf(mic: MicKey | null): MicKind {
 /**
  * The Mic delay and effective Mic threshold of a seat's Mic at the OpenStar
  * volume `volume`, from what is stored for it at the current Stage output
- * (`undefined`: the defaults). A Local mic's reported input delay is not
- * known on the Stage yet, so an uncalibrated Local mic uses 0 ms.
+ * (`undefined`: the defaults). An uncalibrated Local mic's Mic delay is its
+ * reported input delay (`reportedInputDelayMs`), or 0 ms when none is.
  */
 export function seatMicSettings(
   mic: MicKey | null,
   stored: StoredMicSettings | undefined,
   volume: number,
+  reportedInputDelayMs: number | null = null,
 ): MicSettings {
-  return resolveMicSettings({ kind: micKindOf(mic), stored, volume });
+  return resolveMicSettings({
+    kind: micKindOf(mic),
+    stored,
+    volume,
+    reportedInputDelayMs,
+  });
 }

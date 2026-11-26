@@ -60,6 +60,12 @@ export interface CaptureSnapshot {
   devices: readonly BrowserDevice[];
   /** Open devices and the number of channels each opened with (1 or 2). */
   open: ReadonlyMap<string, number>;
+  /**
+   * The input delay each open device's track reports (its `latency`), ms;
+   * a device that reports none is left out. An uncalibrated Local mic's
+   * default Mic delay (#210).
+   */
+  inputDelaysMs?: ReadonlyMap<string, number>;
 }
 
 /**
@@ -140,6 +146,8 @@ interface OpenDevice {
   levels: (number | null)[];
   /** Each channel's newest window's `zero`; `null` before the first. */
   zeros: (boolean | null)[];
+  /** The input delay its track reports, ms (`null`: none). */
+  inputDelayMs: number | null;
 }
 
 /** `navigator.mediaDevices`, which is missing outside a secure context. */
@@ -186,6 +194,11 @@ export function createLocalMicCapture({
     update({
       open: new Map(
         [...opened].map(([id, device]) => [id, device.nodes.length]),
+      ),
+      inputDelaysMs: new Map(
+        [...opened].flatMap(([id, device]) =>
+          device.inputDelayMs === null ? [] : [[id, device.inputDelayMs]],
+        ),
       ),
     });
   }
@@ -239,10 +252,13 @@ export function createLocalMicCapture({
     }
     const audio = (context ??= createContext());
     const [track] = stream.getAudioTracks();
-    const channels = Math.min(
-      2,
-      Math.max(1, track?.getSettings().channelCount ?? 1),
-    );
+    const settings: MediaTrackSettings & { latency?: number } =
+      track?.getSettings() ?? {};
+    const channels = Math.min(2, Math.max(1, settings.channelCount ?? 1));
+    const inputDelayMs =
+      typeof settings.latency === "number" && Number.isFinite(settings.latency)
+        ? Math.max(0, settings.latency * 1000)
+        : null;
     const levels: (number | null)[] = Array.from(
       { length: channels },
       () => null,
@@ -293,7 +309,15 @@ export function createLocalMicCapture({
     const splitter = audio.createChannelSplitter(channels);
     source.connect(splitter);
     nodes.forEach((node, channel) => splitter.connect(node, channel));
-    opened.set(deviceId, { stream, source, nodes, sessions, levels, zeros });
+    opened.set(deviceId, {
+      stream,
+      source,
+      nodes,
+      sessions,
+      levels,
+      zeros,
+      inputDelayMs,
+    });
     // `setDetecting` may have changed while this device was opening.
     nodes.forEach((node, channel) => {
       setNodeDetecting(node, detecting.has(channelKey(deviceId, channel)));

@@ -1,14 +1,16 @@
 /**
  * The Stage's part of a Calibrate mics run (v1 spec #52, ticket #170): once
  * the server says the tones start, the Stage plays them (`playToneRun`),
- * gathers the Pitch readings each Mic in the run sends meanwhile (relayed,
- * window-centre stamps on the Stage's clock), runs the Calibration analysis
+ * gathers the Pitch readings each Mic in the run sends meanwhile (a Phone's
+ * or a Mic bridge's relayed, the Stage browser's own Local mics' from its
+ * capture; window-centre stamps on the Stage's clock), runs the Calibration analysis
  * and reports only the successes with `finishCalibration`. The server stores
  * them against the Stage output in effect when the run started; every other
  * Mic in the run failed and keeps its values.
  */
 
 import type { LiveStore } from "../live/liveStore";
+import type { MicId } from "../generated/MicId";
 import type { MicKey } from "../generated/MicKey";
 import type { PitchReading } from "../generated/PitchReading";
 import { CALIBRATION } from "../mics/micSettings";
@@ -26,6 +28,13 @@ export const LISTEN_AFTER_TONES_MS = CALIBRATION.readingWindowEndMs + 500;
 
 export interface CalibrationTones {
   store: CalibrationStore;
+  /**
+   * The Stage browser's own Local mics' readings, under their Local mic ids
+   * (`LocalMicsApi.subscribeLocalMicReadings`); they are never relayed.
+   */
+  localMicReadings?: (
+    listener: (localMicId: string, reading: PitchReading) => void,
+  ) => () => void;
   /** The Mics taking part in the run. */
   mics: readonly MicKey[];
   /** Plays the tones (`playToneRun` on the Stage's gain chain). */
@@ -36,8 +45,17 @@ export interface CalibrationTones {
   signal: AbortSignal;
 }
 
-function sameMic(a: MicKey, phoneId: string): boolean {
-  return a.kind === "phone" && a.phoneId === phoneId;
+/** The run's Mic a reading came from: a Phone, or a bridge's Local mic. */
+function keyOf(from: MicId): MicKey {
+  return from.kind === "phone"
+    ? { kind: "phone", phoneId: from.phoneId }
+    : { kind: "localMic", localMicId: from.localMicId };
+}
+
+function sameMic(a: MicKey, b: MicKey): boolean {
+  return a.kind === "phone"
+    ? b.kind === "phone" && a.phoneId === b.phoneId
+    : b.kind === "localMic" && a.localMicId === b.localMicId;
 }
 
 function waitFor(ms: number, signal: AbortSignal): Promise<void> {
@@ -53,19 +71,29 @@ function waitFor(ms: number, signal: AbortSignal): Promise<void> {
 /** Plays the tones, analyses what each Mic heard and reports the successes. */
 export async function runCalibrationTones({
   store,
+  localMicReadings = () => () => {},
   mics,
   playTones,
   wait = waitFor,
   signal,
 }: CalibrationTones): Promise<void> {
   const readings = mics.map(() => [] as PitchReading[]);
-  const stop = store.onPitchReading((from, reading) => {
-    // Only Phones are Mics of a run so far; a Mic bridge's Local mics join
-    // with #210.
-    if (from.kind !== "phone") return;
-    const index = mics.findIndex((mic) => sameMic(mic, from.phoneId));
+  const keep = (from: MicKey, reading: PitchReading) => {
+    const index = mics.findIndex((mic) => sameMic(mic, from));
     if (index >= 0) readings[index]?.push(reading);
+  };
+  // Phones and a Mic bridge's Local mics are relayed; the Stage browser's
+  // own Local mics come straight from its capture.
+  const stopRelayed = store.onPitchReading((from, reading) => {
+    keep(keyOf(from), reading);
   });
+  const stopLocal = localMicReadings((localMicId, reading) => {
+    keep({ kind: "localMic", localMicId }, reading);
+  });
+  const stop = () => {
+    stopRelayed();
+    stopLocal();
+  };
   try {
     let run: ToneRun | null = null;
     try {

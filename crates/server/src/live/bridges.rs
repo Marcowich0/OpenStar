@@ -184,7 +184,7 @@ fn channels_of(open: &Open) -> Vec<BridgeChannel> {
 /// seated in the Line-up while a Song plays (paused included, or the
 /// lost-Mic rule would take a pause for a lost Mic). The same rule as the
 /// Stage browser's (`detectingLocalMics` in `web/src/mics/localMicPitch.ts`).
-/// #210 adds the Local mics of a Calibration run.
+/// The Local mics of a Calibration run are added by the caller (#210).
 fn detecting_local_mics(party: Option<&PartySnapshot>) -> HashSet<String> {
     let Some(party) = party.filter(|party| party.playing.is_some()) else {
         return HashSet::new();
@@ -537,9 +537,11 @@ impl LiveState {
 
     /// Tells every open bridge whose detecting channels changed since it was
     /// last told which of its channels detect now. Called after every Party
-    /// change and when a bridge connects.
+    /// change, every Calibration change and when a bridge connects.
     pub(super) fn tell_bridges_detecting(&mut self) {
-        let detecting = detecting_local_mics(self.stage().party.as_ref());
+        let mut detecting = detecting_local_mics(self.stage().party.as_ref());
+        // Each Local mic of a Calibration run detects, seated or not.
+        detecting.extend(self.calibration_local_mics().map(str::to_owned));
         let mut tell = Vec::new();
         for (&id, open) in &mut self.bridges.open {
             let channels: Vec<BridgeInput> = open
