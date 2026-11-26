@@ -52,7 +52,10 @@ export function followVideo({
   }
   const change = Math.max(
     -VIDEO_FOLLOW.maxRateChange,
-    Math.min(VIDEO_FOLLOW.maxRateChange, -drift / VIDEO_FOLLOW.correctionSeconds),
+    Math.min(
+      VIDEO_FOLLOW.maxRateChange,
+      -drift / VIDEO_FOLLOW.correctionSeconds,
+    ),
   );
   // `+ 0` turns −0 into 0.
   return { kind: "rate", rate: 1 + change + 0 };

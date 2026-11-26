@@ -126,7 +126,11 @@ fn probe(path: &Path) -> (Vec<(String, String)>, f64) {
             )
         })
         .collect();
-    let duration = json["format"]["duration"].as_str().unwrap().parse().unwrap();
+    let duration = json["format"]["duration"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
     (streams, duration)
 }
 
@@ -136,9 +140,14 @@ fn a_song_with_a_separate_video_gets_a_silent_video_as_long_as_it_follows_the_au
     let song = read_song(&library.path().join(SEPARATE_VIDEO))
         .unwrap()
         .unwrap();
-    let folder = library.path().join(Path::new(SEPARATE_VIDEO).parent().unwrap());
+    let folder = library
+        .path()
+        .join(Path::new(SEPARATE_VIDEO).parent().unwrap());
     let gap = song.headers.video_gap_seconds.unwrap();
-    assert!(gap < 0.0, "the video starts after the audio, behind the background");
+    assert!(
+        gap < 0.0,
+        "the video starts after the audio, behind the background"
+    );
     let (audio_streams, audio_seconds) = probe(&audio_path(library.path(), SEPARATE_VIDEO, &song));
     assert_eq!(audio_streams.len(), 1);
     let (streams, video_seconds) = probe(&folder.join(song.headers.video.as_deref().unwrap()));

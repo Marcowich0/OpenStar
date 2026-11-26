@@ -84,7 +84,9 @@ describe("how the Stage plays a Song", () => {
 
   it("has no following video without a video, for one file, or while the video converts", () => {
     expect(playbackPlan(input()).follow).toBeNull();
-    expect(playbackPlan(input({ video: { kind: "inAudio" } })).follow).toBeNull();
+    expect(
+      playbackPlan(input({ video: { kind: "inAudio" } })).follow,
+    ).toBeNull();
     expect(
       playbackPlan(
         input({

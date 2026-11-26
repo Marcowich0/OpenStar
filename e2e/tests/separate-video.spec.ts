@@ -127,9 +127,9 @@ test("a Song with separate audio and video files plays end to end, the video fol
     await expect(frame).toHaveAttribute("data-scene", "sing");
 
     // The audio plays; the video is muted and waits behind the background.
-    await expect.poll(async () => (await media(stage)).audio?.playing).toBe(
-      true,
-    );
+    await expect
+      .poll(async () => (await media(stage)).audio?.playing)
+      .toBe(true);
     const early = await media(stage);
     expect(early.video?.muted).toBe(true);
     if ((early.audio?.time ?? 0) < 1.2) {

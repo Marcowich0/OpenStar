@@ -40,7 +40,7 @@ describe("SingBackdrop", () => {
     );
   });
 
-  it("mutes a separate video file, which follows the audio (#212), but not one in the audio file", () => {
+  it("mutes a separate video file, which follows the audio (ticket 212), but not one in the audio file", () => {
     const separate = render(<SingBackdrop media={media} />).container;
     expect(separate.querySelector("video")?.muted).toBe(true);
     const inAudio = render(

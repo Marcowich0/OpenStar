@@ -558,7 +558,7 @@ function steppedClock() {
   return clock;
 }
 
-describe("a separate video following the audio (#212)", () => {
+describe("a separate video following the audio (ticket 212)", () => {
   function following(gapSeconds: number, startSeconds = 0) {
     const audio = new FakeMedia();
     const video = new FakeFollowingVideo();

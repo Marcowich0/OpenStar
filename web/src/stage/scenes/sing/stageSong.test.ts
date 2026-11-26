@@ -686,7 +686,7 @@ describe("the Stage plays the head's Request", () => {
   });
 });
 
-describe("a Song with separate audio and video files (#212)", () => {
+describe("a Song with separate audio and video files (ticket 212)", () => {
   /** The test Song, its video a separate file that starts 2 s into the audio. */
   function separate() {
     const detail = testDetail();
