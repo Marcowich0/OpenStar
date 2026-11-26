@@ -110,6 +110,9 @@ export const userMessageText = byCode<UserMessage>({
   songFileChanged: () => t("userMessage.songFileChanged"),
   songPlaying: () => t("userMessage.songPlaying"),
   noOriginal: () => t("userMessage.noOriginal"),
+  songFolderShared: ({ params }) =>
+    t("userMessage.songFolderShared", { otherTxt: params.otherTxt }),
+  songInLibraryRoot: () => t("userMessage.songInLibraryRoot"),
   notWhileSongPlays: () => t("userMessage.notWhileSongPlays"),
   avSyncNotRunning: () => t("userMessage.avSyncNotRunning"),
   avSyncRunning: () => t("userMessage.avSyncRunning"),

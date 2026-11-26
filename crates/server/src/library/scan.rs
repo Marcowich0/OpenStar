@@ -230,6 +230,16 @@ pub(crate) fn read_folder(root: &Path, folder: &str) -> anyhow::Result<Vec<ReadF
         .collect())
 }
 
+/// Every `.txt` a scan would read in `folder` (relative to the Library, at
+/// any depth), as paths relative to the Library, `/` between segments.
+pub(crate) fn txt_files(root: &Path, folder: &str) -> anyhow::Result<Vec<String>> {
+    let base = PathBuf::from(folder);
+    Ok(walk(&root.join(&base))?
+        .into_iter()
+        .map(|candidate| slash_path(&base.join(&candidate.path)))
+        .collect())
+}
+
 /// Reads one `.txt` (relative to the Library) as a scan would: for an own
 /// write applied straight to the index.
 pub(crate) fn read_file(root: &Path, path: &str) -> anyhow::Result<ReadFile> {

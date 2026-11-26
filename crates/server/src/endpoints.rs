@@ -142,7 +142,10 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // Which Local mics are plugged in only says what the Line-up may
         // offer; nothing is kept.
         | ClientMessage::ReportPresentLocalMics { .. }
-        | ClientMessage::BridgeLevels { .. } => Access::NotGuarded,
+        | ClientMessage::BridgeLevels { .. }
+        // A bridge's reported input delays are only a default Mic delay,
+        // kept while it is open.
+        | ClientMessage::BridgeInputDelays { .. } => Access::NotGuarded,
     }
 }
 
@@ -219,6 +222,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
         .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
         .add(Method::GET, "/api/songs", NotGuarded, library::songs)
         .add(Method::GET, "/api/songs/{id}", NotGuarded, library::song)
+        // Deleting a Song moves its folder out of the Library (to the trash).
+        .add(
+            Method::DELETE,
+            "/api/songs/{id}",
+            Guarded(Writes),
+            library::trash::delete,
+        )
         // Computing and downloading a Pitch track change no file and delete
         // no kept data: the Timing editor opens a Song without a PIN.
         .add(

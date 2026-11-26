@@ -147,3 +147,63 @@ test("a named Local mic keeps its name and switch across a reload that changes i
   await again.getByRole("textbox").press("Enter");
   await expect.poll(ours).toEqual([]);
 });
+
+test("a Local mic's Mic threshold line moves 1 dB with the arrows, saved at once as set by hand", async ({
+  micStage: stage,
+}) => {
+  // The Stage output the Stage reports: the values are kept per output.
+  const outputs: string[] = [];
+  stage.on("websocket", (ws) => {
+    ws.on("framesent", (frame) => {
+      const message = JSON.parse(String(frame.payload)) as {
+        type: string;
+        stageOutput?: string;
+      };
+      if (message.type === "reportStageOutput" && message.stageOutput)
+        outputs.push(message.stageOutput);
+    });
+  });
+  await stage.goto("/stage");
+  await stage.getByRole("button", { name: "Setup" }).click();
+  await stage.getByRole("menuitem", { name: "Mics", exact: true }).click();
+  const mics = stage.getByRole("dialog", { name: "Mics" });
+  // The first row with a meter, and its line.
+  const row = mics
+    .locator("li")
+    .filter({ has: stage.getByRole("slider") })
+    .first();
+  const line = row.getByRole("slider");
+  await expect(line).toBeVisible();
+  await expect.poll(() => outputs.length).toBeGreaterThan(0);
+  const before = Number(await line.getAttribute("data-threshold-dbfs"));
+
+  await line.focus();
+  await stage.keyboard.press("ArrowRight");
+  await expect
+    .poll(async () => Number(await line.getAttribute("data-threshold-dbfs")))
+    .toBeCloseTo(before + 1);
+  await expect(row.getByText("set by hand")).toBeVisible();
+
+  // Kept on the server at once, at the current Stage output, set by hand.
+  const localMicId = await row.getAttribute("data-local-mic");
+  const stored = async () => {
+    const response = await stage.request.get("/api/mic-settings", {
+      params: { stageOutput: outputs.at(-1) ?? "" },
+    });
+    const body = (await response.json()) as {
+      mics: {
+        mic: { localMicId?: string };
+        settings: { micThreshold?: { setBy: string } };
+      }[];
+    };
+    return body.mics.find((m) => m.mic.localMicId === localMicId)?.settings
+      .micThreshold?.setBy;
+  };
+  await expect.poll(stored).toBe("hand");
+
+  // Back where it was, so later tests keep the same threshold.
+  await stage.keyboard.press("ArrowLeft");
+  await expect
+    .poll(async () => Number(await line.getAttribute("data-threshold-dbfs")))
+    .toBeCloseTo(before);
+});

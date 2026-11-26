@@ -493,6 +493,162 @@ describe("the seat meters' Mic threshold line", () => {
   });
 });
 
+describe("setting a Local mic's Mic threshold on its seat", () => {
+  afterEach(() => {
+    act(() => {
+      stageMicSettings().set(null);
+    });
+  });
+
+  const redSeat = (memberId: number): Seat => ({
+    ...seat(memberId, null),
+    mic: { kind: "localMic", localMicId: red.localMicId },
+  });
+  const twoSeats = () =>
+    party({
+      localMics: [red],
+      lineUp: lineUp({ seats: [seat(1, "ph-bo"), redSeat(2)] }),
+    });
+  const loaded = (referenceDbfs?: number) => {
+    act(() => {
+      stageMicSettings().set({
+        stageOutput: "Speakers",
+        mics:
+          referenceDbfs === undefined
+            ? []
+            : [
+                {
+                  mic: { kind: "localMic", localMicId: red.localMicId },
+                  settings: {
+                    calibration: { micDelayMs: 30, bleedLevelDbfs: -50 },
+                    micThreshold: { referenceDbfs, setBy: "calibration" },
+                  },
+                },
+              ],
+      });
+    });
+  };
+  const thresholds = (sent: ClientMessage[]) =>
+    sent.filter((m) => m.type === "setMicThreshold");
+  const line = (card: HTMLElement) =>
+    card.querySelector<HTMLElement>("[data-threshold-dbfs]");
+  const focusMeter = (card: HTMLElement) => {
+    act(() => {
+      within(card).getByRole("meter").focus();
+    });
+  };
+
+  it("Enter on a Local mic seat's meter starts the adjust mode: the line turns yellow, ←/→ move it 1 dB and save it at once, Enter ends it", () => {
+    const { sent } = setup(twoSeats());
+    loaded(-44);
+    const mia = seats()[1] as HTMLElement;
+    focusMeter(mia);
+
+    // Not adjusting yet: → moves the focus, as everywhere.
+    expect(line(mia)).not.toHaveAttribute("data-adjusting");
+    press("Enter");
+    expect(line(mia)).toHaveAttribute("data-adjusting");
+    expect(line(mia)?.className).toContain("bg-yellow");
+
+    press("ArrowRight");
+    press("ArrowRight");
+    press("ArrowLeft");
+    expect(thresholds(sent)).toEqual([
+      {
+        type: "setMicThreshold",
+        stageOutput: "Speakers",
+        localMicId: red.localMicId,
+        referenceDbfs: -43,
+      },
+      {
+        type: "setMicThreshold",
+        stageOutput: "Speakers",
+        localMicId: red.localMicId,
+        referenceDbfs: -42,
+      },
+      {
+        type: "setMicThreshold",
+        stageOutput: "Speakers",
+        localMicId: red.localMicId,
+        referenceDbfs: -43,
+      },
+    ]);
+    // The line follows at once, and the value is marked set by hand.
+    expect(Number(line(mia)?.dataset.thresholdDbfs)).toBe(-43);
+    expect(
+      stageMicSettings().storedFor({
+        kind: "localMic",
+        localMicId: red.localMicId,
+      }),
+    ).toEqual({
+      calibration: { micDelayMs: 30, bleedLevelDbfs: -50 },
+      micThreshold: { referenceDbfs: -43, setBy: "hand" },
+    });
+    // Still focused on the meter, which stays where it is.
+    expect(document.activeElement).toBe(within(mia).getByRole("meter"));
+
+    press("Enter");
+    expect(line(mia)).not.toHaveAttribute("data-adjusting");
+    // ← moves the focus again (jsdom has no layout to move it by).
+    press("ArrowLeft");
+    expect(thresholds(sent)).toHaveLength(3);
+  });
+
+  it("Esc ends the adjust mode", () => {
+    const { sent } = setup(twoSeats());
+    loaded();
+    const mia = seats()[1] as HTMLElement;
+    focusMeter(mia);
+    press("Enter");
+    press("Escape");
+    expect(line(mia)).not.toHaveAttribute("data-adjusting");
+    press("ArrowRight");
+    expect(thresholds(sent)).toEqual([]);
+  });
+
+  it("stores the value at the reference volume when the OpenStar volume is not the reference volume", () => {
+    const { sent, volume } = setup(twoSeats());
+    loaded();
+    volume(40);
+    const mia = seats()[1] as HTMLElement;
+    const level = 40 * Math.log10(40 / 80);
+    // The default −40 dBFS, shown at volume 40.
+    expect(Number(line(mia)?.dataset.thresholdDbfs)).toBeCloseTo(-40 + level);
+    focusMeter(mia);
+    press("Enter");
+    press("ArrowLeft");
+    const [message] = thresholds(sent);
+    expect(message?.type === "setMicThreshold" && message.referenceDbfs).toBe(
+      -41,
+    );
+    expect(Number(line(mia)?.dataset.thresholdDbfs)).toBeCloseTo(-41 + level);
+  });
+
+  it("gives a Phone's seat meter its line but no adjust mode", () => {
+    const { sent } = setup(twoSeats());
+    loaded();
+    const bo = seats()[0] as HTMLElement;
+    expect(line(bo)).not.toBeNull();
+    expect(within(bo).getByRole("meter")).not.toHaveAttribute(
+      "data-stage-focus",
+    );
+    act(() => {
+      within(bo).getByRole("button", { name: /Mic/ }).focus();
+    });
+    press("Enter");
+    expect(line(bo)).not.toHaveAttribute("data-adjusting");
+    expect(thresholds(sent)).toEqual([]);
+  });
+
+  it("shows no number on the line", () => {
+    setup(twoSeats());
+    loaded(-44);
+    for (const card of seats()) {
+      expect(line(card)?.textContent).toBe("");
+    }
+  });
+});
+
 describe("editing a seat", () => {
   it("cycles Voice 1 ↔ 2 and Difficulty Easy → Medium → Hard in place", () => {
     const { edits } = setup(party({ lineUp: lineUp({ duet: true }) }));

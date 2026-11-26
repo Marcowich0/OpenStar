@@ -86,6 +86,7 @@ pub struct TestAppBuilder {
     path_prefix: Option<PathBuf>,
     extra: BTreeMap<String, String>,
     test_routes: bool,
+    bridge_dir: Option<PathBuf>,
     times: Times,
 }
 
@@ -130,6 +131,13 @@ impl TestAppBuilder {
     /// also after a [`TestApp::restart`].
     pub fn test_routes(mut self) -> Self {
         self.test_routes = true;
+        self
+    }
+
+    /// Serves the Mic bridge files under `/bridge/` from `dir`
+    /// (`Server::with_bridge_dir`), also after a [`TestApp::restart`].
+    pub fn bridge_dir(mut self, dir: &Path) -> Self {
+        self.bridge_dir = Some(dir.to_path_buf());
         self
     }
 
@@ -211,10 +219,18 @@ impl TestAppBuilder {
             );
         }
 
-        let serving = serve(&vars, self.test_routes, &self.times, listener).await;
+        let serving = serve(
+            &vars,
+            self.test_routes,
+            self.bridge_dir.as_deref(),
+            &self.times,
+            listener,
+        )
+        .await;
         TestApp {
             addr,
             test_routes: self.test_routes,
+            bridge_dir: self.bridge_dir,
             times: self.times,
             folders: Some(folders),
             vars,
@@ -238,6 +254,7 @@ struct Serving {
 async fn serve(
     vars: &BTreeMap<String, String>,
     test_routes: bool,
+    bridge_dir: Option<&Path>,
     times: &Times,
     listener: tokio::net::TcpListener,
 ) -> Serving {
@@ -249,6 +266,9 @@ async fn serve(
         .expect("the app starts");
     if test_routes {
         server = server.with_test_routes();
+    }
+    if let Some(dir) = bridge_dir {
+        server = server.with_bridge_dir(dir);
     }
     let migrations_applied = server.migrations_applied();
     let (shutdown, shutdown_rx) = oneshot::channel::<()>();
@@ -328,6 +348,7 @@ pub struct TestApp {
     folders: Option<AppFolders>,
     vars: BTreeMap<String, String>,
     test_routes: bool,
+    bridge_dir: Option<PathBuf>,
     times: Times,
     migrations_applied: usize,
     http: reqwest::Client,
@@ -351,6 +372,7 @@ impl TestApp {
             path_prefix: None,
             extra: BTreeMap::new(),
             test_routes: false,
+            bridge_dir: None,
             times: Times::default(),
         }
     }
@@ -550,7 +572,14 @@ impl TestApp {
     pub async fn restart(&mut self) {
         self.shut_down().await;
         let listener = bind_again(self.addr).await;
-        let serving = serve(&self.vars, self.test_routes, &self.times, listener).await;
+        let serving = serve(
+            &self.vars,
+            self.test_routes,
+            self.bridge_dir.as_deref(),
+            &self.times,
+            listener,
+        )
+        .await;
         // Connections kept alive to the stopped app are dead: start afresh.
         self.http = reqwest::Client::new();
         self.migrations_applied = serving.migrations_applied;

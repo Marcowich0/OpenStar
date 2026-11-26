@@ -30,3 +30,21 @@ export function outputTime(
   if (at === 0 && performanceTime === 0) return null;
   return performanceTime + (contextTime - at) * 1000;
 }
+
+/**
+ * The same mapping read the other way: the `AudioContext` time (s) whose
+ * sound the browser reports reaching the output at Stage time `stageTime`
+ * (ms). The Timing editor (#220) schedules its clicks and hums at it, so a
+ * Note's sound lands when `songTime()` reaches the Note. `null` like
+ * `outputTime`.
+ */
+export function contextTimeAt(
+  context: OutputTimestampSource,
+  stageTime: number,
+): number | null {
+  const ts = context.getOutputTimestamp();
+  const { contextTime: at, performanceTime } = ts;
+  if (at === undefined || performanceTime === undefined) return null;
+  if (at === 0 && performanceTime === 0) return null;
+  return at + (stageTime - performanceTime) / 1000;
+}

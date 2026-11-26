@@ -410,6 +410,15 @@ pub enum ClientMessage {
     /// [`ServerMessage::LocalMicLevels`]; dropped from any other socket and
     /// for channels the bridge does not offer.
     BridgeLevels { levels: Vec<bridge::BridgeLevel> },
+    /// From an open Mic bridge, whenever its capture backend reports them
+    /// (never in `--wav` mode): the input delay of each listed hardware
+    /// channel. Replaces what it reported before for those channels; listed
+    /// in `GET /api/mic-bridges` as each channel's reported input delay.
+    /// Dropped from any other socket and for channels the bridge does not
+    /// offer.
+    BridgeInputDelays {
+        delays: Vec<bridge::BridgeInputDelay>,
+    },
 }
 
 /// A message the server sends over a WebSocket.
@@ -539,6 +548,11 @@ pub enum ServerMessage {
     /// it changes. While it is open the bridge opens every interface and
     /// meters every channel; otherwise only those with a switched-on channel.
     BridgeMicsScreen { open: bool },
+    /// To a connected Mic bridge: its channels whose detectors run now,
+    /// each a switched-on Local mic seated in the Song that plays (paused
+    /// included). Sent whenever that set changes (not on connect while it
+    /// is empty). The bridge sends Pitch readings for exactly these.
+    BridgeDetecting { channels: Vec<BridgeInput> },
     /// Stage only: meter levels of a Mic bridge's Local mics, ten times a
     /// second each.
     LocalMicLevels { levels: Vec<bridge::LocalMicLevel> },
@@ -731,6 +745,13 @@ pub enum UserMessage {
     /// The Song has no Original (`<name>.txt.orig`) to restore. Sent with
     /// `404`.
     NoOriginal,
+    /// The Song's folder also holds `other_txt` (another Song, a rejected
+    /// file or a duplicate; relative to the Library), so deleting the
+    /// folder would take that with it. Nothing is moved. Sent with `409`.
+    SongFolderShared { other_txt: String },
+    /// The Song's `.txt` sits directly in the Library root, so it has no
+    /// folder of its own to delete. Nothing is moved. Sent with `409`.
+    SongInLibraryRoot,
     /// A Song plays on the Stage, so this (Check A/V sync) cannot start.
     NotWhileSongPlays,
     /// Check A/V sync does not run, so there is nothing to step.

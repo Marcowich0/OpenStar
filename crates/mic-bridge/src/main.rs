@@ -10,6 +10,8 @@ use openstar_mic_bridge::client::{self, Input};
 use openstar_mic_bridge::config::ConfigDir;
 use openstar_mic_bridge::{BUILD_ID, wav, window};
 
+mod uninstall;
+
 fn main() -> ExitCode {
     let action = match cli::parse(std::env::args().skip(1)) {
         Ok(action) => action,
@@ -29,6 +31,7 @@ fn main() -> ExitCode {
         }
         Action::Wav(file) => headless(&file),
         Action::Window => windowed(),
+        Action::Uninstall => remove_installed(),
     };
     match ran {
         Ok(()) => ExitCode::SUCCESS,
@@ -45,6 +48,23 @@ fn windowed() -> anyhow::Result<()> {
     let config = ConfigDir::locate(|name| std::env::var(name).ok())
         .context("neither XDG_CONFIG_HOME nor HOME is set")?;
     window::run(config, Vec::new())
+}
+
+/// Removes what the install script installed and says what went.
+fn remove_installed() -> anyhow::Result<()> {
+    let installed =
+        uninstall::Installed::locate(|name| std::env::var(name).ok()).context("HOME is not set")?;
+    let removed = installed.remove()?;
+    for path in &removed {
+        println!("Removed {}", path.display());
+    }
+    if removed.is_empty() {
+        println!("Nothing to remove: the Mic bridge is not installed for this user");
+    }
+    println!(
+        "The bridge stays approved on the OpenStar server until you forget it on the Stage's Mics screen"
+    );
+    Ok(())
 }
 
 /// Runs without a window, offering the WAV file's channels as one interface.

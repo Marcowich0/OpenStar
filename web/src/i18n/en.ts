@@ -336,6 +336,16 @@ export const en = {
   "calibration.failed":
     "{name} couldn't hear the Stage: move closer or turn the sound up",
   "calibration.aPhone": "A Phone",
+  // The Phone's Calibrating takeover (#173).
+  "phoneCalibrating.label": "Calibrating",
+  "phoneCalibrating.title": "Calibrating",
+  "phoneCalibrating.listenHint":
+    "Hold your phone like a mic, then tap. The Stage plays a few short beeps.",
+  "phoneCalibrating.listen": "I'm listening",
+  "phoneCalibrating.ready": "Ready. Waiting for the others…",
+  "phoneCalibrating.holdStill": "Hold your phone still and stay quiet",
+  "phoneCalibrating.tones": "Listening to the beeps",
+  "phoneCalibrating.stayQuiet": "Please stay quiet and hold still",
   // The Mics screen (Setup › Mics) and Local mic names.
   "mics.group.thisBrowser": "This browser",
   "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
@@ -347,6 +357,9 @@ export const en = {
   "mics.switchedOff": "Off",
   "mics.switch": "{name} switched on",
   "mics.meter": "{name} level",
+  "mics.threshold": "{name} threshold",
+  "mics.threshold.byCalibration": "set by Calibration",
+  "mics.threshold.byHand": "set by hand",
   "mics.localMic.left": "{label} · Left",
   "mics.localMic.right": "{label} · Right",
   "mics.localMic.mono": "{label}",
@@ -374,7 +387,15 @@ export const en = {
     "Enter adds or takes off a singer, up to {seats, number}",
   "stage.songs.added": "Added {song}",
   "stage.people.count": "{count, number} of 12 colours taken",
-  "stage.people.joinCode": "Join with {code}",
+  "stage.people.colours": "Party colours",
+  "stage.people.free": "{colour} is free",
+  "stage.people.profile": "Profile",
+  "stage.people.guest": "Guest",
+  "stage.people.phone": "Phone",
+  "stage.people.localMic": "Local mic",
+  "stage.people.singing": "singing",
+  "stage.people.holdToRemove": "hold to remove",
+  "stage.people.remove": "Hold to remove {name}",
   "stage.newParty": "New party",
 
   // The Stage's scenes (#120 placeholders; #124, #164, #182 fill them).
@@ -460,6 +481,25 @@ export const en = {
   "stage.moved.body":
     "Someone opened OpenStar's Stage on another browser, so the party carries on there. Phones stay in the Party and follow it.",
   "bridge.title": "Mic bridge",
+  // Getting the Mic bridge: the `/bridge` page and Add a Mic bridge.
+  "bridge.intro":
+    "The Mic bridge reads every input of an audio interface and sends it to the Stage. Install it on the Linux computer the interface is wired to.",
+  "bridge.install.run":
+    "On that computer, open a terminal and run this. Run it again to repair the bridge.",
+  "bridge.install.command": "Install command",
+  "bridge.install.notHttps":
+    "This address is not HTTPS, so the download is not protected on its way. The command still works.",
+  "bridge.install.localhost":
+    "This address is localhost: the command works only on the Stage's own computer. Set OPENSTAR_PUBLIC_URL to an address other computers can reach.",
+  "bridge.install.approve":
+    "When the bridge opens, approve it on the Stage's Mics screen with the code it shows.",
+  "bridge.download.title": "Without the command",
+  "bridge.download.binary": "Download the Mic bridge",
+  "bridge.download.checksum": "Its SHA-256 checksum",
+  "bridge.download.run":
+    "Make the file executable, write {address} into ~/.config/openstar-mic-bridge/server, then start it.",
+  "bridge.uninstall": "To remove it again: openstar-mic-bridge --uninstall",
+  "mics.addBridge": "Add a Mic bridge",
   "admin.title": "Admin",
   "admin.downloads": "Downloads",
   "admin.songs": "Songs",
@@ -563,6 +603,9 @@ export const en = {
   "admin.songs.failed": "The Songs could not be loaded",
   "admin.songs.restoreOriginal": "Restore Original",
   "admin.songs.restoreOriginal.failed": "The Original could not be restored",
+  "admin.songs.delete": "Delete {title}",
+  "admin.songs.deleteShort": "Delete",
+  "admin.songs.deleteFailed": "The Song could not be deleted",
   "admin.songs.timing": "Timing",
   "admin.songs.timingOf": "Timing of {title}",
   "admin.songs.fit.title": "Auto-fit",
@@ -694,6 +737,10 @@ export const en = {
     "This Song's file changed on disk since it was opened. Open it again and redo the edit",
   "userMessage.songPlaying": "This Song is playing on the Stage now",
   "userMessage.noOriginal": "This Song has no Original to restore",
+  "userMessage.songFolderShared":
+    "Its folder also holds {otherTxt}, which deleting the folder would take with it. Move one of them to a folder of its own first",
+  "userMessage.songInLibraryRoot":
+    "This Song's .txt sits directly in the Library folder, so it has no folder of its own to delete. Move it into a folder first",
   "userMessage.notWhileSongPlays": "Not while a Song is playing",
   "userMessage.avSyncNotRunning": "Check A/V sync is not running",
   "userMessage.avSyncRunning": "Check A/V sync is running",
@@ -874,9 +921,24 @@ export const en = {
   "timing.view.shareWhat":
     "The share of Note time where the pitch heard in the Song is within a semitone of the Note. A rough guide: it is low on Songs with loud backing.",
   "timing.view.playhead": "Playhead {time}",
+  // Checking by ear (#220): playback, speeds, clicks, hum, loop, A/V sync.
+  "timing.play.section": "Playback",
+  "timing.play.play": "Play",
+  "timing.play.pause": "Pause",
+  "timing.play.loop": "Loop a Line",
+  "timing.play.speed": "Speed",
+  "timing.play.speedPercent": "{percent, number} %",
+  "timing.play.clicks": "Clicks",
+  "timing.play.hum": "Hum the Notes",
+  "timing.play.avSync": "Check A/V sync",
+  "timing.play.avSyncHint":
+    "Press − or + until the click and the landing match. Every change is saved at once, for this computer and its sound output.",
+  "timing.play.keys":
+    "Space or P: play and pause · F: follow the playhead · 1, 2, 3: 100, 75, 50 % speed · L: loop a Line",
   // The side panel: typed values, the edit list, the save preview and Save.
   "timing.panel.gap": "#GAP (ms)",
   "timing.panel.bpm": "#BPM",
+  "timing.panel.videoGap": "#VIDEOGAP (s)",
   "timing.panel.fileValue": "file: {value, number}",
   "timing.panel.fileShare": "file: {percent, number} %",
   "timing.panel.edits": "Edits",

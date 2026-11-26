@@ -15,6 +15,7 @@ import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
 import { OPENSTAR_VOLUME } from "../playback/gain";
 import { useStageOutput } from "../stage/output/StageOutput";
+import { atReferenceVolume, type ThresholdSource } from "./micSettings";
 import {
   seatMicSettings,
   stageMicSettings,
@@ -64,19 +65,71 @@ export function StageMicSettingsLoader({
 
 const selectVolume = (live: LiveState) => live.volume;
 
+/** The meters' range, in dBFS: a threshold line set by hand stays inside it. */
+export const METER_RANGE_DBFS = { floor: -60, top: 0 } as const;
+
+export interface MicThresholds {
+  /**
+   * The effective Mic threshold a meter draws for a Mic: what Start would
+   * hand the scorer now, at the current OpenStar volume.
+   */
+  effectiveDbfs: (mic: MicKey | null) => number;
+  /** What set that threshold: Calibration, a hand, or nothing (the default). */
+  source: (mic: MicKey | null) => ThresholdSource;
+  /**
+   * Sets a Local mic's Mic threshold by hand to `effectiveDbfs` at the
+   * current volume (kept inside the meter's range): saved at once, at the
+   * reference volume, for the current Stage output. Does nothing while no
+   * Stage output's values are loaded.
+   */
+  setByHand: (localMicId: string, effectiveDbfs: number) => void;
+  /** Moves a Local mic's line by `stepDb` (±1 for the arrow keys). */
+  nudge: (localMicId: string, stepDb: number) => void;
+}
+
 /**
- * The effective Mic threshold a meter draws for a Mic: what Start would hand
- * the scorer now, at the current OpenStar volume (the default volume until
- * the server tells it). Re-renders on a volume step and on newly loaded
- * values.
+ * A Stage's Mic thresholds for its meters, re-rendering on a volume step and
+ * on newly loaded or hand-set values. The Mics screen and the Line-up seat
+ * edit the one stored value through it, so a change in one shows in the
+ * other. Hand settings go to the server as `setMicThreshold`.
  */
 export function useMicThresholds(
   store: LiveStore,
   settings: StageMicSettings = stageMicSettings(),
-): (mic: MicKey | null) => number {
+): MicThresholds {
+  // The default volume until the server tells it.
   const volume = useLive(selectVolume, store) ?? OPENSTAR_VOLUME.default;
   useSyncExternalStore(settings.subscribe, settings.values);
-  return (mic) =>
-    seatMicSettings(mic, mic ? settings.storedFor(mic) : undefined, volume)
-      .effectiveThresholdDbfs;
+  const resolved = (mic: MicKey | null) =>
+    seatMicSettings(mic, mic ? settings.storedFor(mic) : undefined, volume);
+  const effectiveDbfs = (mic: MicKey | null) =>
+    resolved(mic).effectiveThresholdDbfs;
+  const setByHand = (localMicId: string, effective: number) => {
+    const shown = Math.max(
+      METER_RANGE_DBFS.floor,
+      Math.min(METER_RANGE_DBFS.top, effective),
+    );
+    // Hundredths of a dB: no float noise in what is kept.
+    const referenceDbfs =
+      Math.round(atReferenceVolume(shown, volume) * 100) / 100;
+    const stageOutput = settings.setByHand(localMicId, referenceDbfs);
+    if (stageOutput === null) return;
+    store.send({
+      type: "setMicThreshold",
+      stageOutput,
+      localMicId,
+      referenceDbfs,
+    });
+  };
+  return {
+    effectiveDbfs,
+    source: (mic) => resolved(mic).thresholdSource,
+    setByHand,
+    nudge: (localMicId, stepDb) => {
+      setByHand(
+        localMicId,
+        effectiveDbfs({ kind: "localMic", localMicId }) + stepDb,
+      );
+    },
+  };
 }

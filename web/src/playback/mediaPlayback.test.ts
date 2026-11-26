@@ -11,6 +11,8 @@ import type { PlaybackPlan } from "./playbackPlan";
 /** A media element whose position and events the test sets by hand. */
 class FakeMedia extends EventTarget implements PlaybackElement {
   currentTime = 0;
+  playbackRate = 1;
+  preservesPitch = false;
   paused = true;
   playCalls = 0;
   frameCallback: VideoFrameRequestCallback | null = null;
@@ -422,6 +424,106 @@ describe("Restart", () => {
   });
 });
 
+describe("seeking and speed, for the Timing editor (ticket 220)", () => {
+  it("starts from a given position", async () => {
+    const media = new FakeMedia();
+    const { playback } = setUp(media, plan({ startSeconds: 3 }));
+    await playback.start(42);
+    expect(media.currentTime).toBe(42);
+    expect(playback.clock.songTime()).toBe(42);
+  });
+
+  it("seeks the element and the clock while playing, and runs on once the seek lands", async () => {
+    const media = new FakeMedia();
+    const s = setUp(media, plan());
+    await s.playback.start();
+    media.fire("playing");
+    s.advance(2000);
+    s.playback.seek(30);
+    expect(media.currentTime).toBe(30);
+    expect(s.playback.clock.songTime()).toBe(30);
+    s.advance(200);
+    expect(s.playback.clock.songTime()).toBe(30);
+    media.fire("seeked");
+    s.advance(500);
+    expect(s.playback.clock.songTime()).toBeCloseTo(30.5, 9);
+  });
+
+  it("seeks while paused and stays paused until played again", async () => {
+    const media = new FakeMedia();
+    const s = setUp(media, plan());
+    await s.playback.start();
+    media.fire("playing");
+    s.playback.pause();
+    s.playback.seek(12);
+    media.fire("seeked");
+    s.advance(1000);
+    expect(media.paused).toBe(true);
+    expect(s.playback.clock.songTime()).toBe(12);
+    await s.playback.resume();
+    media.fire("playing");
+    s.advance(1000);
+    expect(s.playback.clock.songTime()).toBeCloseTo(13, 9);
+  });
+
+  it("sets the speed on the element, keeping its pitch, and on the clock", async () => {
+    const media = new FakeMedia();
+    const s = setUp(media, plan());
+    await s.playback.start();
+    media.fire("playing");
+    s.playback.setRate(0.5);
+    expect(media.playbackRate).toBe(0.5);
+    expect(media.preservesPitch).toBe(true);
+    expect(s.playback.clock.rate).toBe(0.5);
+    s.advance(1000);
+    expect(s.playback.clock.songTime()).toBeCloseTo(0.5, 9);
+  });
+
+  it("moves a following video to a newly typed #VIDEOGAP", async () => {
+    const audio = new FakeMedia();
+    const video = new FakeFollowingVideo();
+    const clock = steppedClock();
+    const s = setUp(
+      audio,
+      plan({ follow: { url: "/video.webm", gapSeconds: 0 } }),
+      { video, clock: clock as unknown as SongClock },
+    );
+    await s.playback.start();
+    audio.fire("playing");
+    clock.at = 10;
+    video.place(10);
+    s.animationFrame();
+    expect(video.seeks).toEqual([]);
+    s.playback.setVideoGap(1.25);
+    s.animationFrame();
+    expect(video.seeks).toEqual([11.25]);
+  });
+
+  it("keeps a following video at the audio's speed", async () => {
+    const audio = new FakeMedia();
+    const video = new FakeFollowingVideo();
+    const clock = steppedClock();
+    const s = setUp(
+      audio,
+      plan({ follow: { url: "/video.webm", gapSeconds: 0 } }),
+      { video, clock: clock as unknown as SongClock },
+    );
+    await s.playback.start();
+    s.playback.setRate(0.75);
+    audio.fire("playing");
+    s.animationFrame();
+    expect(video.playbackRate).toBeCloseTo(0.75, 9);
+    // 20 ms ahead: slowed a little below the audio's speed.
+    video.place(0.02);
+    s.animationFrame();
+    expect(video.playbackRate).toBeCloseTo(0.98 * 0.75, 6);
+    // A large drift: a seek, back at the audio's speed.
+    video.place(1);
+    s.animationFrame();
+    expect(video.playbackRate).toBeCloseTo(0.75, 9);
+  });
+});
+
 describe("position reports", () => {
   /** A playback whose reports are recorded as `position@rate`. */
   async function reporting(playbackPlan: PlaybackPlan) {
@@ -551,6 +653,9 @@ function steppedClock() {
     },
     seek: (position: number) => {
       clock.at = position;
+    },
+    setRate: (rate: number) => {
+      clock.rate = rate;
     },
     observeCurrentTime: () => undefined,
     observeFrame: () => undefined,

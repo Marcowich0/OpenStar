@@ -21,6 +21,11 @@
  * background shows), and pauses it whenever the audio does not really play
  * (pause, stall, a Restart's seek, the end).
  *
+ * The Timing editor (#220) also starts it from any position, seeks it
+ * (`seek`) and changes its speed (`setRate`: the element's `playbackRate`
+ * with `preservesPitch` on, the clock's rate, and the following video's
+ * speed with them).
+ *
  * It also reports where the Song stands (`onReport`, #159), only on events:
  * when the Song really starts, pauses, really resumes, lands a Restart's
  * seek and ends. Never per frame, and not on a stall or its recovery: the
@@ -39,6 +44,9 @@ export interface PlaybackElement extends Pick<
 > {
   currentTime: number;
   readonly paused: boolean;
+  /** Set by `setRate` only (the Timing editor's speeds). */
+  playbackRate?: number;
+  preservesPitch?: boolean;
   play(): Promise<void>;
   pause(): void;
   requestVideoFrameCallback?(callback: VideoFrameRequestCallback): number;
@@ -111,10 +119,11 @@ export interface MediaPlayback {
   /** The Song clock this playback feeds. */
   readonly clock: SongClock;
   /**
-   * Connects the element to the chain, moves it to `#START` and plays it.
-   * Rejects when the browser refuses to play (no user gesture yet).
+   * Connects the element to the chain, moves it to `#START` (or to
+   * `fromSeconds`, the Timing editor's playhead) and plays it. Rejects when
+   * the browser refuses to play (no user gesture yet).
    */
-  start(): Promise<void>;
+  start(fromSeconds?: number): Promise<void>;
   /** Pauses the element; the clock freezes on its `pause` event. */
   pause(): void;
   /**
@@ -131,6 +140,22 @@ export interface MediaPlayback {
    * Rejects like `start()` when the browser refuses to play.
    */
   restart(): Promise<void>;
+  /**
+   * The Timing editor's seek (#220): moves the element and the clock to
+   * `seconds`, like Restart, but plays only if it was playing. Song time
+   * holds there until the element's seek lands.
+   */
+  seek(seconds: number): void;
+  /**
+   * The Timing editor's speed (#220): the element plays at `rate` with its
+   * pitch kept, the clock runs at `rate`, and a following video keeps up.
+   */
+  setRate(rate: number): void;
+  /**
+   * The Timing editor's typed `#VIDEOGAP` (#220): a following video follows
+   * at audio position + `seconds` from now on.
+   */
+  setVideoGap(seconds: number): void;
   /** End: stops the Song early and signals `ended`. */
   end(): void;
   /** Stops and lets go of the element, with no signal (Skip, leaving the screen). */
@@ -165,7 +190,7 @@ export function createMediaPlayback(
   /** The audio really plays (the clock runs): the following video may play. */
   let audioPlays = false;
   const video = plan.follow ? (options.video ?? null) : null;
-  const gapSeconds = plan.follow?.gapSeconds ?? 0;
+  let gapSeconds = plan.follow?.gapSeconds ?? 0;
   let videoShown = false;
 
   function showVideo(shown: boolean) {
@@ -198,11 +223,11 @@ export function createMediaPlayback(
       case "after":
         return;
       case "seek":
-        video.playbackRate = 1;
+        video.playbackRate = clock.rate;
         video.currentTime = step.toSeconds;
         break;
       case "rate":
-        video.playbackRate = step.rate;
+        video.playbackRate = step.rate * clock.rate;
         break;
     }
     showVideo(true);
@@ -333,9 +358,19 @@ export function createMediaPlayback(
     options.onEnded(how);
   }
 
+  /** Moves the element and the clock; Song time holds until the seek lands. */
+  function seekTo(seconds: number) {
+    clock.pause();
+    audioStops();
+    seeking = true;
+    pausing = false;
+    element.currentTime = seconds;
+    clock.seek(seconds);
+  }
+
   return {
     clock,
-    async start() {
+    async start(fromSeconds = plan.startSeconds) {
       disconnect = chain.connectMedia(element as unknown as HTMLMediaElement);
       // The audio carries the sound; the video never plays its own.
       if (video) video.muted = true;
@@ -343,8 +378,8 @@ export function createMediaPlayback(
       for (const [type, listener] of Object.entries(listeners)) {
         element.addEventListener(type, listener);
       }
-      element.currentTime = plan.startSeconds;
-      clock.seek(plan.startSeconds);
+      element.currentTime = fromSeconds;
+      clock.seek(fromSeconds);
       running = true;
       reportWhenPlaying = true;
       animationFrame = requestFrame(onAnimationFrame);
@@ -364,14 +399,23 @@ export function createMediaPlayback(
     async restart() {
       if (finished || !running) return;
       // Freeze first, so Song time jumps back to `#START` and waits there.
-      clock.pause();
-      audioStops();
-      seeking = true;
-      pausing = false;
+      seekTo(plan.startSeconds);
       reportWhenPlaying = true;
-      element.currentTime = plan.startSeconds;
-      clock.seek(plan.startSeconds);
       if (element.paused) await element.play();
+    },
+    seek(seconds) {
+      if (finished || !running) return;
+      seekTo(seconds);
+    },
+    setRate(rate) {
+      element.preservesPitch = true;
+      element.playbackRate = rate;
+      clock.setRate(rate);
+      follow();
+    },
+    setVideoGap(seconds) {
+      gapSeconds = seconds;
+      follow();
     },
     end() {
       finish("ended");

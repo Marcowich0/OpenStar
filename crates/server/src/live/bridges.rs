@@ -4,14 +4,16 @@
 //! [`crate::mic_bridges`]; this is the part that lives only while the
 //! server runs (a waiting bridge asks again after a restart).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use openstar_protocol::bridge::{
-    BridgeChannel, BridgeChannelSettings, BridgeId, BridgeInterface, BridgeLevel, BridgeRequest,
-    BridgeRequestId, LocalMicLevel, MicBridge, MicBridges, bridge_local_mic_id,
+    BridgeChannel, BridgeChannelSettings, BridgeId, BridgeInputDelay, BridgeInterface, BridgeLevel,
+    BridgeRequest, BridgeRequestId, LocalMicLevel, MicBridge, MicBridges, bridge_local_mic_id,
 };
-use openstar_protocol::mics::LocalMicSource;
-use openstar_protocol::{BridgeInput, ChangeTopic, MicId, ServerMessage, UserMessage};
+use openstar_protocol::mics::{LocalMicSource, MicKey};
+use openstar_protocol::{
+    BridgeInput, ChangeTopic, MicId, PartySnapshot, ServerMessage, UserMessage,
+};
 
 use super::LiveState;
 use super::hub::ConnectionId;
@@ -50,6 +52,10 @@ pub(super) struct Waiting {
 pub(super) struct Open {
     pub bridge_id: BridgeId,
     pub interfaces: Vec<BridgeInterface>,
+    /// The channels it was last told detect ([`ServerMessage::BridgeDetecting`]).
+    pub told_detecting: Vec<BridgeInput>,
+    /// The input delays it reported, by channel.
+    pub input_delays: HashMap<BridgeInput, f64>,
 }
 
 impl Bridges {
@@ -109,10 +115,7 @@ impl Bridges {
 impl Open {
     /// The Mic of the hardware channel `input`, if this bridge offers it.
     fn mic(&self, input: &BridgeInput) -> Option<MicId> {
-        let offered = self.interfaces.iter().any(|interface| {
-            interface.device_name == input.device_name && input.channel < interface.channels
-        });
-        offered.then(|| MicId::Bridge {
+        self.offers(input).then(|| MicId::Bridge {
             bridge_id: self.bridge_id.clone(),
             local_mic_id: bridge_local_mic_id(&self.bridge_id, &input.device_name, input.channel),
         })
@@ -122,6 +125,13 @@ impl Open {
     fn input_of(&self, local_mic_id: &str) -> Option<BridgeInput> {
         self.inputs().find(|input| {
             bridge_local_mic_id(&self.bridge_id, &input.device_name, input.channel) == local_mic_id
+        })
+    }
+
+    /// Whether it offers hardware channel `input`.
+    fn offers(&self, input: &BridgeInput) -> bool {
+        self.interfaces.iter().any(|interface| {
+            interface.device_name == input.device_name && input.channel < interface.channels
         })
     }
 
@@ -149,7 +159,45 @@ fn channels_of(open: &Open) -> Vec<BridgeChannel> {
                     label: interface.label.clone(),
                     channel,
                 },
+                reported_input_delay_ms: open
+                    .input_delays
+                    .get(&BridgeInput {
+                        device_name: interface.device_name.clone(),
+                        channel,
+                    })
+                    .copied(),
             })
+        })
+        .collect()
+}
+
+/// The Local mic ids whose detectors run: every switched-on Local mic
+/// seated in the Line-up while a Song plays (paused included, or the
+/// lost-Mic rule would take a pause for a lost Mic). The same rule as the
+/// Stage browser's (`detectingLocalMics` in `web/src/mics/localMicPitch.ts`).
+/// #210 adds the Local mics of a Calibration run.
+fn detecting_local_mics(party: Option<&PartySnapshot>) -> HashSet<String> {
+    let Some(party) = party.filter(|party| party.playing.is_some()) else {
+        return HashSet::new();
+    };
+    let Some(line_up) = &party.line_up else {
+        return HashSet::new();
+    };
+    let switched_on: HashSet<&str> = party
+        .local_mics
+        .iter()
+        .map(|mic| mic.local_mic_id.as_str())
+        .collect();
+    line_up
+        .seats
+        .iter()
+        .filter_map(|seat| match &seat.mic {
+            Some(MicKey::LocalMic { local_mic_id })
+                if switched_on.contains(local_mic_id.as_str()) =>
+            {
+                Some(local_mic_id.clone())
+            }
+            _ => None,
         })
         .collect()
 }
@@ -308,12 +356,15 @@ impl LiveState {
             Open {
                 bridge_id,
                 interfaces,
+                told_detecting: Vec::new(),
+                input_delays: HashMap::new(),
             },
         );
         self.send_bridge_channels(Some(id)).await;
         let open = self.mics_screen_open();
         self.hub
             .send_to(id, &ServerMessage::BridgeMicsScreen { open });
+        self.tell_bridges_detecting();
         self.bridges_changed();
         // Its switched-on Local mics are present again.
         self.local_mics_changed();
@@ -376,6 +427,59 @@ impl LiveState {
             .collect();
         if !levels.is_empty() {
             self.send_to_stage(&ServerMessage::LocalMicLevels { levels });
+        }
+    }
+
+    /// Tells every open bridge whose detecting channels changed since it was
+    /// last told which of its channels detect now. Called after every Party
+    /// change and when a bridge connects.
+    pub(super) fn tell_bridges_detecting(&mut self) {
+        let detecting = detecting_local_mics(self.stage().party.as_ref());
+        let mut tell = Vec::new();
+        for (&id, open) in &mut self.bridges.open {
+            let channels: Vec<BridgeInput> = open
+                .inputs()
+                .filter(|input| {
+                    detecting.contains(&bridge_local_mic_id(
+                        &open.bridge_id,
+                        &input.device_name,
+                        input.channel,
+                    ))
+                })
+                .collect();
+            if channels != open.told_detecting {
+                open.told_detecting = channels.clone();
+                tell.push((id, channels));
+            }
+        }
+        for (id, channels) in tell {
+            self.hub
+                .send_to(id, &ServerMessage::BridgeDetecting { channels });
+        }
+    }
+
+    /// Input delays an open bridge reported: kept for the channels it
+    /// offers until it closes, and listed. Dropped from any other socket.
+    pub(super) fn bridge_input_delays(&mut self, id: ConnectionId, delays: Vec<BridgeInputDelay>) {
+        let Some(open) = self.bridges.open.get_mut(&id) else {
+            return;
+        };
+        let mut changed = false;
+        for delay in delays {
+            let input = BridgeInput {
+                device_name: delay.device_name,
+                channel: delay.channel,
+            };
+            if !open.offers(&input) || !delay.delay_ms.is_finite() {
+                continue;
+            }
+            let delay_ms = delay.delay_ms.max(0.0);
+            if open.input_delays.insert(input, delay_ms) != Some(delay_ms) {
+                changed = true;
+            }
+        }
+        if changed {
+            self.bridges_changed();
         }
     }
 

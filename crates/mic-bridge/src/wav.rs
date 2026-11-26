@@ -163,10 +163,15 @@ impl WavLoop {
 }
 
 /// A WAV file as an interface: its file name is the device name and the
-/// label, each of its channels one hardware channel.
+/// label, each of its channels one hardware channel. It plays in real time
+/// on the bridge's monotonic clock while open, in a loop, so a Song longer
+/// than the file still gets readings. It reports no input delay.
 pub struct WavInput {
     interface: openstar_protocol::bridge::BridgeInterface,
     wav: WavLoop,
+    /// While open: when the stream started (ms) and how many frames it has
+    /// given since.
+    playing: Option<(f64, u64)>,
 }
 
 impl WavInput {
@@ -178,6 +183,7 @@ impl WavInput {
                 channels: u32::from(audio.format.channels),
             },
             wav: WavLoop::new(audio),
+            playing: None,
         }
     }
 }
@@ -187,12 +193,21 @@ impl crate::client::Input for WavInput {
         &self.interface
     }
 
-    fn read_levels(&mut self) -> Vec<f64> {
-        let format = self.wav.format();
-        let frames = (u128::from(format.sample_rate) * crate::levels::LEVEL_INTERVAL.as_millis()
-            / 1000) as usize;
-        let block = self.wav.next_block(frames);
-        crate::levels::channel_levels_dbfs(&block, usize::from(format.channels))
+    fn sample_rate(&self) -> f64 {
+        f64::from(self.wav.format().sample_rate)
+    }
+
+    fn read(&mut self, now_ms: f64) -> Vec<f32> {
+        let rate = self.sample_rate();
+        let (started, given) = self.playing.get_or_insert((now_ms, 0));
+        let due = ((now_ms - *started).max(0.0) * rate / 1000.0).floor() as u64;
+        let frames = due.saturating_sub(*given);
+        *given += frames;
+        self.wav.next_block(frames as usize)
+    }
+
+    fn close(&mut self) {
+        self.playing = None;
     }
 }
 
@@ -271,6 +286,32 @@ mod tests {
         let mut wav = WavLoop::new(audio);
         assert_eq!(wav.next_block(3), vec![0.5, 0.0, 0.25, 0.0, 0.5, 0.0]);
         assert_eq!(wav.next_block(1), vec![0.25, 0.0]);
+    }
+
+    #[test]
+    fn a_wav_input_gives_the_frames_due_since_it_opened_in_real_time() {
+        use crate::client::Input as _;
+        let samples: Vec<i16> = (0..48_000 * 2).map(|n| (n % 100) as i16).collect();
+        let mut input = WavInput::new(
+            "x.wav".into(),
+            read_audio(pcm16(2, &samples).as_slice()).unwrap(),
+        );
+        assert_eq!(input.sample_rate(), 48_000.0);
+        assert_eq!(input.input_delay_ms(0), None);
+        // The first read opens the stream.
+        assert!(input.read(1_000.0).is_empty());
+        assert_eq!(input.read(1_100.0).len(), 4_800 * 2);
+        assert!(input.read(1_100.0).is_empty());
+        // A fraction of a frame waits for the next read.
+        assert_eq!(input.read(1_110.51).len(), 504 * 2);
+        assert_eq!(input.read(1_110.53).len(), 2);
+        // Past the file's one second it starts again from the top.
+        let block = input.read(2_500.0);
+        assert_eq!(block.len(), (72_000 - 5_305) * 2);
+        // Closed and opened again: paced from the new start.
+        input.close();
+        assert!(input.read(9_000.0).is_empty());
+        assert_eq!(input.read(9_010.0).len(), 480 * 2);
     }
 
     #[test]

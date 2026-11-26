@@ -39,6 +39,11 @@ export interface JoinCardProps {
   /** False on the People overlay, which always shows the code. */
   hideable?: boolean;
   storage?: () => HideStorage;
+  /**
+   * `tall` (the song browser's corner): QR code over the code. `wide` (the
+   * People overlay's bottom row): QR code beside it, so the card is short.
+   */
+  layout?: "tall" | "wide";
   /** Placement from the caller, on a wrapper (card and chip alike). */
   className?: string;
 }
@@ -48,6 +53,7 @@ export function JoinCard({
   join,
   hideable = true,
   storage = browserStorage,
+  layout = "tall",
   className = "",
 }: JoinCardProps) {
   const [hidden, setHidden] = useState(() => hideable && readHidden(storage));
@@ -88,23 +94,28 @@ export function JoinCard({
 
   return (
     <div className={className}>
-      <aside className="relative flex w-[420px] flex-col items-center gap-4 rounded-card bg-white p-7 text-ink shadow-ledge-lg">
+      <aside
+        data-layout={layout}
+        className={`relative flex items-center gap-4 rounded-card bg-white p-7 text-ink shadow-ledge-lg ${layout === "wide" ? "max-w-[760px] flex-row gap-7" : "w-[420px] flex-col"}`}
+      >
         {join.warning === "none" ? (
           <QrCode
             text={joinLink(join, joinCode)}
             label={t("stage.joinCard.qr")}
-            className="size-[230px]"
+            className={`${layout === "wide" ? "size-[200px]" : "size-[230px]"} shrink-0`}
           />
         ) : (
-          <JoinWarning warning={join.warning} />
+          <JoinWarning warning={join.warning} short={layout === "wide"} />
         )}
-        <p className="max-w-full truncate text-[26px] font-semibold text-ink-2">
-          {t("stage.joinCard.goTo", { address: typedAddress(join) })}
-        </p>
-        <CodeBoxes joinCode={joinCode} />
-        <p className="text-[28px] font-bold">
-          {t("stage.browser.pickFromPhone")}
-        </p>
+        <div className="flex min-w-0 flex-col items-center gap-4">
+          <p className="max-w-full truncate text-[26px] font-semibold text-ink-2">
+            {t("stage.joinCard.goTo", { address: typedAddress(join) })}
+          </p>
+          <CodeBoxes joinCode={joinCode} />
+          <p className="text-[28px] font-bold">
+            {t("stage.browser.pickFromPhone")}
+          </p>
+        </div>
         {hideable && (
           <AriaButton
             onPress={() => {
@@ -138,9 +149,18 @@ function CodeBoxes({ joinCode }: { joinCode: string }) {
 }
 
 /** In place of the QR code: a white card, dashed red border, lock, why and how. */
-function JoinWarning({ warning }: { warning: "notHttps" | "localhost" }) {
+function JoinWarning({
+  warning,
+  short,
+}: {
+  warning: "notHttps" | "localhost";
+  /** Beside the code (the wide card) it need not match the QR code's height. */
+  short: boolean;
+}) {
   return (
-    <div className="flex min-h-[266px] w-[310px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-white p-5 text-center leading-tight font-semibold text-warn-fg">
+    <div
+      className={`flex ${short ? "min-h-[200px]" : "min-h-[266px]"} w-[310px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-white p-5 text-center leading-tight font-semibold text-warn-fg`}
+    >
       <Icon name="lock" className="size-14" />
       <p className="text-[24px]">{t("stage.joinCard.cantSing")}</p>
       <p className="text-[17px] font-medium text-ink-2">
