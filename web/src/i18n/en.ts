@@ -495,6 +495,8 @@ export const en = {
   "admin.downloads.picker.unavailable": "Unavailable",
   "admin.downloads.picker.durationUnknown": "Length unknown",
   "admin.downloads.picker.download": "Download",
+  "admin.downloads.picker.downloadFailed": "The Download could not start",
+  "admin.downloads.started": "Download started",
   "admin.songs.search": "Search by artist or title",
   "admin.songs.list": "Songs in the Library",
   "admin.songs.none": "No Songs match",
@@ -623,6 +625,11 @@ export const en = {
     "USDB is busy (HTTP {status, number}): OpenStar gave up after waiting",
   "userMessage.usdbUnexpectedStatus":
     "USDB answered with HTTP {status, number}",
+  "userMessage.usdbSongInLibrary": "This song is already in the Library",
+  "userMessage.usdbNoSongText": "USDB sent no text for this song",
+  "userMessage.usdbTextRejected":
+    "USDB's text for this song can't be played: {reason}",
+  "userMessage.videoDownloadFailed": "The video couldn't be downloaded",
   "userMessage.pitchTrackFailed": "Couldn't listen to this Song",
   "userMessage.songFileChanged":
     "This Song's file changed on disk since it was opened. Open it again and redo the edit",

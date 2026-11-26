@@ -32,6 +32,17 @@
 //! The picker's yt-dlp lookups (the search and every candidate's details)
 //! run one at a time in their own queue, outside the Download cap.
 //!
+//! - `POST /api/downloads` with a [`StartDownload`]: starts a Download of a
+//!   USDB song from the chosen video (**guarded**, and refused on a
+//!   read-only Library with `409 libraryReadOnly`). Answers
+//!   [`DownloadStarted`] with the job's id; `409` with
+//!   [`UserMessage::UsdbSongInLibrary`] when the USDB id is already in the
+//!   Library, or [`UserMessage::UsdbCredentialsMissing`] without the USDB
+//!   login; `400` with [`UserMessage::InvalidMessage`] for a video link that
+//!   is not `http(s)://`. The Download runs as a job of kind `download`.
+//! - `GET /api/usdb/songs/{id}/version`: which USDB version of the text the
+//!   Library holds for the id, [`UsdbTextVersion`] (not guarded).
+//!
 //! Progress and completion of a mirror run reach browsers as
 //! [`ServerMessage::JobChanged`](crate::ServerMessage::JobChanged) (kinds
 //! `usdbMirrorRefetch` and `usdbMirrorUpdate`) and as
@@ -41,6 +52,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::UserMessage;
+use crate::jobs::JobId;
+use crate::party::PhoneId;
 use crate::profile::PaletteKey;
 
 /// The most results `GET /api/usdb/songs` answers; `total` says how many
@@ -260,6 +273,56 @@ pub struct VideoDetails {
 pub struct VideoDetailsQuery {
     /// An `http://` or `https://` link.
     pub url: String,
+}
+
+/// Body of `POST /api/downloads`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct StartDownload {
+    pub usdb_id: u32,
+    /// The video picked in the video picker: an `http://` or `https://` link
+    /// on any host yt-dlp supports.
+    pub video_url: String,
+    /// The browser that starts the Download: its Phone id (every browser
+    /// keeps one, the Stage computer's too), so that browser alone can offer
+    /// "Add to Queue" once it is done.
+    pub browser: PhoneId,
+}
+
+/// Answer of `POST /api/downloads`: the Download's job, whose progress and
+/// end reach every browser as `JobChanged`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct DownloadStarted {
+    pub job_id: JobId,
+}
+
+/// Which USDB version of the text the Library holds for a USDB id
+/// (`GET /api/usdb/songs/{id}/version`). v1 only records it, so offering a
+/// newer USDB text can be built later.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "state",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum UsdbTextVersion {
+    /// No Library Song has this USDB id.
+    NotInLibrary,
+    /// A Library Song has it, but OpenStar did not download it (it came
+    /// from before OpenStar), so the version is not known.
+    Unknown,
+    /// OpenStar downloaded it: USDB's `lastchange` of the song then (Unix
+    /// seconds; `None` when the mirror did not hold the song yet) and the
+    /// SHA-256 of `song.txt` exactly as written, in lower-case hex.
+    Known {
+        #[ts(type = "number | null")]
+        last_change: Option<i64>,
+        txt_sha256: String,
+    },
 }
 
 #[cfg(test)]

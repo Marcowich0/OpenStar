@@ -3,8 +3,12 @@
 // request and response types, so a wrong body or a misread response field
 // fails `tsc` at the call site.
 
+import type { DownloadStarted } from "../generated/DownloadStarted";
+import type { StartDownload } from "../generated/StartDownload";
 import type { ApiError } from "../generated/ApiError";
 import type { ApiErrorCode } from "../generated/ApiErrorCode";
+import type { AvOffset } from "../generated/AvOffset";
+import type { AvOffsetQuery } from "../generated/AvOffsetQuery";
 import type { JobList } from "../generated/JobList";
 import type { LibraryProblem } from "../generated/LibraryProblem";
 import type { LocalMic } from "../generated/LocalMic";
@@ -31,6 +35,7 @@ import type { TxtVersion } from "../generated/TxtVersion";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
 import type { UsdbMirrorStatus } from "../generated/UsdbMirrorStatus";
+import type { UsdbTextVersion } from "../generated/UsdbTextVersion";
 import type { UsdbSearchQuery } from "../generated/UsdbSearchQuery";
 import type { UsdbSearchResults } from "../generated/UsdbSearchResults";
 import type { UsdbStatus } from "../generated/UsdbStatus";
@@ -50,6 +55,8 @@ export interface Endpoints {
   "GET /api/server-info": { response: ServerInfo };
   "GET /api/local-mics": { response: LocalMic[] };
   "GET /api/mic-bridges": { response: MicBridges };
+  "GET /api/av-offset": { query: AvOffsetQuery; response: AvOffset };
+  "PUT /api/av-offset": { body: AvOffset; response: AvOffset };
   "GET /api/unlock": { response: UnlockStatus };
   "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
   "POST /api/unlock/heartbeat": { response: UnlockStatus };
@@ -95,6 +102,9 @@ export interface Endpoints {
     query: VideoDetailsQuery;
     response: VideoDetails;
   };
+  /** Guarded, and refused on a read-only Library. */
+  "POST /api/downloads": { body: StartDownload; response: DownloadStarted };
+  "GET /api/usdb/songs/{id}/version": { response: UsdbTextVersion };
 }
 
 export type Route = keyof Endpoints;
@@ -221,6 +231,10 @@ const REFUSAL_CODES = {
   usdbUnreachable: true,
   usdbGaveUp: true,
   usdbUnexpectedStatus: true,
+  usdbSongInLibrary: true,
+  usdbNoSongText: true,
+  usdbTextRejected: true,
+  videoDownloadFailed: true,
   pitchTrackFailed: true,
   songFileChanged: true,
   songPlaying: true,

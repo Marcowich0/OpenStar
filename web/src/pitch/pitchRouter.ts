@@ -12,6 +12,13 @@ import type { MicEvent } from "../scoring/micLost";
 import { PitchBuffer } from "./pitchBuffer";
 
 /**
+ * A Mic whose readings the router takes: a relayed one (`MicId`, a Phone),
+ * or a Stage-browser Local mic, whose readings the Stage page makes itself
+ * (`mics/localMicPitch.ts`) and never sends over the wire.
+ */
+export type PitchMic = MicId | { kind: "localMic"; localMicId: string };
+
+/**
  * What a Mic's connection or page reports, besides its readings: the lost-Mic
  * rule's other signals (`scoring/micLost.ts`).
  */
@@ -31,7 +38,7 @@ export interface PitchSession {
   /** How many Players sing: one buffer each, in Line-up order. */
   players: number;
   /** Which Player (index into the buffers) each Mic sings for. */
-  mics: readonly (readonly [MicId, number])[];
+  mics: readonly (readonly [PitchMic, number])[];
   /** Readings per buffer (`pitchBufferCapacity`). */
   capacity: number;
   place: Placement;
@@ -58,14 +65,17 @@ export interface PitchRouter {
   stop: () => void;
   /** The current Song's buffers; empty while no Song runs. */
   buffers: () => readonly PitchBuffer[];
-  /** Takes one relayed reading; dropped unless its Mic sings in this Song. */
-  receive: (mic: MicId, reading: PitchReading) => void;
+  /**
+   * Takes one reading, relayed or from a Stage-browser Local mic; dropped
+   * unless its Mic sings in this Song.
+   */
+  receive: (mic: PitchMic, reading: PitchReading) => void;
   /**
    * Takes a Mic's signal: the server's `micClosed`, or a Phone reporting its
    * page hidden or visible (the server's `micPage`). Dropped
    * unless the Mic sings in this Song.
    */
-  signal: (mic: MicId, kind: MicSignal) => void;
+  signal: (mic: PitchMic, kind: MicSignal) => void;
 }
 
 /**
@@ -81,12 +91,17 @@ export function clockPlacement(
 }
 
 /**
- * A Map key for a Mic: a Phone's is its Phone id, the one its Line-up seat
- * names. A new `MicId` kind (#151's Mic bridge) fails to compile here until
- * it gets its own key.
+ * A Map key for a Mic: a Phone's is its Phone id, a Local mic's its Local
+ * mic id, the ones its Line-up seat names. A new `MicId` kind (#151's Mic
+ * bridge) fails to compile here until it gets its own key.
  */
-function micKey(mic: MicId): string {
-  return `${mic.kind}:${mic.phoneId}`;
+function micKey(mic: PitchMic): string {
+  switch (mic.kind) {
+    case "phone":
+      return `phone:${mic.phoneId}`;
+    case "localMic":
+      return `localMic:${mic.localMicId}`;
+  }
 }
 
 const noBuffers: readonly PitchBuffer[] = [];

@@ -31,6 +31,8 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 
 Deleting a Profile is `DELETE /api/profiles/{id}`, classified `Guarded(Library::Untouched)`: it deletes kept data (the Profile and its Score records) and writes no Library file. The press and hold is the Admin area's; the server needs only the Unlock.
 
+Starting a Download is `POST /api/downloads`, classified `Guarded(Library::Writes)`: a read-only Library refuses it (`409 libraryReadOnly`) before the Unlock is checked.
+
 A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classified `Guarded(Library::Writes)`: it is the Pitch track request behind the guard, refused at once while the Library is read-only because its Accept writes the Library. Accept is the guarded save `POST /api/songs/{id}/timing` with `autoFitFrom` (the Phone's id): it may change only `#GAP` and `#BPM`, and the Stage shows one `autoFitAccepted` toast for it. The desktop editor's own `POST /api/songs/{id}/pitch-track` stays not guarded.
 
 `POST /api/unlock/heartbeat` is also classified guarded (`Library::Untouched`). It does nothing but needs a live Unlock, and it resets the idle time like a guarded action.
@@ -41,6 +43,7 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - Rescan and the Library problems list;
 - browsing and searching USDB (`GET /api/usdb/songs`, on the mirror alone), its covers (`GET /api/usdb/songs/{id}/cover`: a cover is fetched once into `/appdata/cache`, which is neither the Library nor kept data), and seeing the video candidates (`GET /api/usdb/songs/{id}/videos`, `GET /api/usdb/video-details`: they read USDB and run yt-dlp lookups, writing nothing);
 - the USDB login status (`GET /api/usdb/status`);
+- which USDB version of a text the Library holds (`GET /api/usdb/songs/{id}/version`), which reads only;
 - the USDB mirror's status, the update the Downloads section asks for when it opens, and a full USDB refetch started by hand (`GET /api/usdb/mirror`, `POST /api/usdb/mirror/refresh`, `POST /api/usdb/mirror/refetch`): the mirror is a copy of USDB's list, not kept data, so dropping songs USDB no longer has deletes nothing kept;
 - cancelling a Download;
 - opening the desktop Timing editor on a Song, computing its Pitch track (`POST /api/songs/{id}/pitch-track`, from a Phone too) and downloading it (`GET /api/songs/{id}/pitch-track`), and working in the editor up to saving;
@@ -53,7 +56,7 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - New party (press and hold only);
 - every Queue, Line-up and playback action, including Restart, Skip and End (press and hold);
 - Calibrate mics and "Calibrate this mic now";
-- Check A/V sync;
+- Check A/V sync, and reading and setting a browser's own A/V offset at its output (`GET /api/av-offset`, `PUT /api/av-offset`);
 - setting the OpenStar volume, from the Stage or a Remote;
 - hiding the join card;
 - on the Mics screen: switching Local mics on and off, renaming a Local mic, Find it, and setting a Mic threshold;

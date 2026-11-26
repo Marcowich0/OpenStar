@@ -6,7 +6,11 @@ interface FakeNode {
   context: unknown;
   name: string;
   options: AudioWorkletNodeOptions;
-  port: { onmessage: ((event: MessageEvent) => void) | null };
+  port: {
+    onmessage: ((event: MessageEvent) => void) | null;
+    postMessage: (message: unknown) => void;
+  };
+  sent: unknown[];
 }
 
 let nodes: FakeNode[];
@@ -19,7 +23,11 @@ beforeEach(() => {
   vi.stubGlobal(
     "AudioWorkletNode",
     class {
-      readonly port: FakeNode["port"] = { onmessage: null };
+      readonly sent: unknown[] = [];
+      readonly port: FakeNode["port"] = {
+        onmessage: null,
+        postMessage: (message) => this.sent.push(message),
+      };
       constructor(
         readonly context: unknown,
         readonly name: string,
@@ -105,6 +113,39 @@ describe("createPitchNode", () => {
     };
     nodes[0]?.port.onmessage?.(new MessageEvent("message", { data: reading }));
     expect(heard).toEqual([reading]);
+  });
+
+  it("can start with the detector off, handing its levels to `onLevel` and no readings", async () => {
+    const { createPitchNode } = await import("./pitchWorklet");
+    const { context } = fakeContext();
+    const readings: unknown[] = [];
+    const levels: number[] = [];
+    await createPitchNode(context, (r) => readings.push(r), {
+      detect: false,
+      onLevel: (level) => levels.push(level.loudness),
+    });
+    expect(nodes[0]?.options.processorOptions).toMatchObject({
+      detect: false,
+    });
+    nodes[0]?.port.onmessage?.(
+      new MessageEvent("message", {
+        data: { type: "level", loudness: -40, endFrame: 2048 },
+      }),
+    );
+    expect(levels).toEqual([-40]);
+    expect(readings).toEqual([]);
+  });
+
+  it("switches a node's detector on and off", async () => {
+    const { createPitchNode, setDetecting } = await import("./pitchWorklet");
+    const { context } = fakeContext();
+    const node = await createPitchNode(context, () => {}, { detect: false });
+    setDetecting(node, true);
+    setDetecting(node, false);
+    expect(nodes[0]?.sent).toEqual([
+      { type: "detect", on: true },
+      { type: "detect", on: false },
+    ]);
   });
 
   it("fetches the detector again after a failed fetch", async () => {

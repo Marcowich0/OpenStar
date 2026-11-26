@@ -106,6 +106,7 @@ pub enum JobParams {
     PitchTrack(crate::library::PitchTrackJob),
     UsdbMirrorRefetch,
     UsdbMirrorUpdate,
+    Download(crate::usdb::DownloadJob),
 }
 
 impl JobParams {
@@ -117,6 +118,7 @@ impl JobParams {
             Self::PitchTrack(_) => JobKind::PitchTrack,
             Self::UsdbMirrorRefetch => JobKind::UsdbMirrorRefetch,
             Self::UsdbMirrorUpdate => JobKind::UsdbMirrorUpdate,
+            Self::Download(_) => JobKind::Download,
         }
     }
 
@@ -126,6 +128,7 @@ impl JobParams {
             Self::Conversion(_) | Self::Loudness(_) => Lane::Ffmpeg,
             Self::PitchTrack(_) => Lane::PitchTrack,
             Self::UsdbMirrorRefetch | Self::UsdbMirrorUpdate => Lane::UsdbMirror,
+            Self::Download(_) => Lane::Downloads,
         }
     }
 
@@ -143,6 +146,9 @@ impl JobParams {
             // Rows are stored page by page and a run only ever adds or
             // updates them until its end, so starting again is safe.
             Self::UsdbMirrorRefetch | Self::UsdbMirrorUpdate => AfterRestart::StartAgain,
+            // Every start empties the temporary Song folders before any job
+            // runs (`library::clear_staging`), so it starts from scratch.
+            Self::Download(_) => AfterRestart::StartAgain,
         }
     }
 
@@ -154,6 +160,7 @@ impl JobParams {
             Self::PitchTrack(job) => job.run(ctx).await,
             Self::UsdbMirrorRefetch => crate::usdb::mirror::refetch(ctx).await,
             Self::UsdbMirrorUpdate => crate::usdb::mirror::update(ctx).await,
+            Self::Download(job) => job.run(ctx).await,
         }
     }
 }
@@ -177,12 +184,34 @@ pub(crate) struct JobEnv {
     pub(crate) appdata_dir: PathBuf,
 }
 
-/// What the USDB mirror's jobs use besides the [`JobEnv`]: the server's one
-/// USDB client and its clock.
+/// What the USDB jobs (the mirror's runs and Downloads) use besides the
+/// [`JobEnv`]: the server's one USDB client, its clock, the yt-dlp resolver
+/// and the Library's scanner, which a Download publishes its Song through.
 #[derive(Clone)]
 pub(crate) struct UsdbEnv {
     pub(crate) usdb: crate::usdb::UsdbClient,
     pub(crate) clock: crate::clock::Clock,
+    pub(crate) ytdlp: crate::ytdlp::YtDlp,
+    /// The scanner is made after the runner starts (it queues conversions
+    /// with it), so it arrives here once the server has made it.
+    pub(crate) scanner: watch::Receiver<Option<crate::library::Scanner>>,
+}
+
+impl UsdbEnv {
+    /// The Library's scanner, once the server has made it.
+    pub(crate) async fn scanner(&self) -> crate::library::Scanner {
+        let mut scanner = self.scanner.clone();
+        let found = scanner
+            .wait_for(Option::is_some)
+            .await
+            .ok()
+            .and_then(|scanner| scanner.clone());
+        match found {
+            Some(scanner) => scanner,
+            // The server stopped before it made one: the job is cancelled.
+            None => std::future::pending().await,
+        }
+    }
 }
 
 /// Reports a running job's progress to every browser.
@@ -443,6 +472,9 @@ impl Runner {
                 }
                 Command::Progress { id, percent } => {
                     if self.running.contains_key(&id) {
+                        if let Err(error) = store::set_percent(&self.db, id, Some(percent)).await {
+                            tracing::error!(?error, job = id.0, "storing a job's progress");
+                        }
                         self.set_state(
                             id,
                             JobState::Running {
@@ -499,6 +531,9 @@ impl Runner {
                 continue;
             };
             if let Err(error) = store::set_state(&self.db, id, StoredState::Running, None).await {
+                tracing::error!(?error, job = id.0, "storing a job's start");
+            }
+            if let Err(error) = store::set_percent(&self.db, id, None).await {
                 tracing::error!(?error, job = id.0, "storing a job's start");
             }
             self.set_state(id, JobState::Running { percent: None })
