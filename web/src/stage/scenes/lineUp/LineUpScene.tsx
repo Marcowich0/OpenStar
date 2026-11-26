@@ -23,6 +23,7 @@ import { t } from "../../../i18n/t";
 import type { LiveState } from "../../../live/liveState";
 import { useLive } from "../../../live/useLive";
 import { useLocalMics } from "../../../mics/LocalMics";
+import { useMicThresholds } from "../../../mics/StageMicSettings";
 import { request } from "../../../phone/joinRequests";
 import { memberLook } from "../../../phone/memberLook";
 import { Button } from "../../../ui/Button";
@@ -87,6 +88,7 @@ function LineUpBody({
   const songs = useQuery(songsQuery()).data?.songs;
   const localMics = localMicOptions(party);
   const levels = useMicLevels();
+  const thresholdOf = useMicThresholds(store);
   const [picking, setPicking] = useState<Picking | null>(null);
   const startRef = useRef<HTMLDivElement>(null);
 
@@ -208,6 +210,7 @@ function LineUpBody({
                 readLevel={() =>
                   seatLevelDbfs(seat.mic, party.localMics, levels)
                 }
+                micThresholdDbfs={thresholdOf(seat.mic)}
                 duet={lineUp.duet}
                 name={look?.name ?? ""}
                 avatar={look?.avatar ?? null}
