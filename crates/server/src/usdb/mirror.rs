@@ -374,12 +374,12 @@ pub(crate) async fn update(ctx: &mut JobContext) -> Result<(), UserMessage> {
     run.finish(false).await
 }
 
-/// The mirror's tables (migration 22).
+/// The mirror's tables (`usdb_songs`, `usdb_mirror`; see `db.rs`).
 mod store {
     use super::{Facts, OptionalExtension, SongListRow, params};
 
     pub(super) fn facts(conn: &mut rusqlite::Connection) -> rusqlite::Result<Facts> {
-        Ok(conn.query_row(
+        conn.query_row(
             "SELECT last_refreshed_ms, last_full_ms FROM usdb_mirror WHERE id = 1",
             [],
             |row| {
@@ -388,19 +388,17 @@ mod store {
                     last_full_ms: row.get(1)?,
                 })
             },
-        )?)
-    }
-
-    pub(super) fn facts_refetch(conn: &mut rusqlite::Connection) -> rusqlite::Result<i64> {
-        Ok(
-            conn.query_row("SELECT refetch FROM usdb_mirror WHERE id = 1", [], |row| {
-                row.get(0)
-            })?,
         )
     }
 
+    pub(super) fn facts_refetch(conn: &mut rusqlite::Connection) -> rusqlite::Result<i64> {
+        conn.query_row("SELECT refetch FROM usdb_mirror WHERE id = 1", [], |row| {
+            row.get(0)
+        })
+    }
+
     pub(super) fn count(conn: &mut rusqlite::Connection) -> rusqlite::Result<u32> {
-        Ok(conn.query_row("SELECT COUNT(*) FROM usdb_songs", [], |row| row.get(0))?)
+        conn.query_row("SELECT COUNT(*) FROM usdb_songs", [], |row| row.get(0))
     }
 
     pub(super) fn newest(conn: &mut rusqlite::Connection) -> rusqlite::Result<Option<i64>> {
@@ -414,11 +412,11 @@ mod store {
 
     /// Numbers a new full refetch.
     pub(super) fn begin_refetch(conn: &mut rusqlite::Connection) -> rusqlite::Result<i64> {
-        Ok(conn.query_row(
+        conn.query_row(
             "UPDATE usdb_mirror SET refetch = refetch + 1 WHERE id = 1 RETURNING refetch",
             [],
             |row| row.get(0),
-        )?)
+        )
     }
 
     /// Adds or updates rows, in one transaction.
@@ -468,10 +466,10 @@ mod store {
         conn: &mut rusqlite::Connection,
         refetch: i64,
     ) -> rusqlite::Result<usize> {
-        Ok(conn.execute(
+        conn.execute(
             "DELETE FROM usdb_songs WHERE refetch <> ?1",
             params![refetch],
-        )?)
+        )
     }
 
     /// Every mirrored song, by id.
