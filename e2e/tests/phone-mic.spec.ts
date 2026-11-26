@@ -72,7 +72,8 @@ test("a Phone's mic sends readings the Stage scores: the seated Player's Score e
   const profile = await createProfile(request);
   const wav = await writeSungWav(testInfo.outputPath("sung-440.wav"), 440, 6);
   const phone = await openPhone({ wav });
-  await phone.goto(`/?join=${code}`);
+  // `?perf`: the takeover's readout, to see readings leave.
+  await phone.goto(`/?join=${code}&perf`);
   await phone.getByRole("button", { name: profile.name, exact: true }).click();
   await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();
   const party = (await sendFromPhone(phone, {

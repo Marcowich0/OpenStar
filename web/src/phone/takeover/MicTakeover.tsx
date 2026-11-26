@@ -83,6 +83,8 @@ export interface MicTakeoverProps {
   onOpenRemote: () => void;
   /** Done on the After the Song screen, for the Request sung. */
   onDone: (requestId: RequestId) => void;
+  /** `?perf` on the Phone page: readings per second and the detector's cost. */
+  diagnostics?: boolean;
 }
 
 export function MicTakeover({ takeover, ...props }: MicTakeoverProps) {
@@ -112,6 +114,7 @@ function SeatScreen({
   mic,
   myMemberId,
   onOpenRemote,
+  diagnostics = false,
 }: Omit<MicTakeoverProps, "takeover" | "onDone"> & { takeover: Takeover }) {
   const profiles = useQuery(profilesQuery).data;
   const song = useQuery(songQuery(takeover.songId)).data;
@@ -169,7 +172,9 @@ function SeatScreen({
       <Button fill="white" className="w-full" onPress={onOpenRemote}>
         {t("phoneTakeover.queueAndControls")}
       </Button>
-      {(step === "micOn" || step === "singing") && <Diagnostics mic={mic} />}
+      {diagnostics && (step === "micOn" || step === "singing") && (
+        <Diagnostics mic={mic} />
+      )}
     </main>
   );
 }

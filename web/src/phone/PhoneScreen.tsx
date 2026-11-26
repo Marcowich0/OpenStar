@@ -29,16 +29,21 @@ const selectOutside = (state: LiveState) =>
 
 /** `/`: the Phone screens. `?join=<code>` comes from the Stage's QR code. */
 export function PhoneScreen() {
-  const { join } = useSearch({ from: "/" });
+  const { join, perf } = useSearch({ from: "/" });
   const navigate = useNavigate();
   // Once in the Party the QR link's code has done its job: a reload after
   // a new Party must not check the old one.
   const dropJoinCode = useCallback(() => {
-    void navigate({ to: "/", search: {}, replace: true });
+    void navigate({
+      to: "/",
+      search: (prev) => ({ ...prev, join: undefined }),
+      replace: true,
+    });
   }, [navigate]);
   return (
     <PhonePageView
       joinCode={join}
+      diagnostics={perf === true}
       {...(join !== undefined ? { onInParty: dropJoinCode } : {})}
     />
   );
@@ -55,6 +60,8 @@ export interface PhonePageViewProps {
   mic?: PhoneMic;
   /** Runs once this Phone is in the Party (the QR link's code is dropped). */
   onInParty?: () => void;
+  /** `?perf`: the mic takeover shows its diagnostics readout. */
+  diagnostics?: boolean;
 }
 
 /** The Phone page: one of its states, picked from the store by `phonePage`. */
@@ -65,6 +72,7 @@ export function PhonePageView({
   random,
   mic: givenMic,
   onInParty,
+  diagnostics = false,
 }: PhonePageViewProps) {
   const myPhoneId = phoneId(storage);
   // The Request whose After the Song screen was closed with Done.
@@ -189,6 +197,7 @@ export function PhonePageView({
             takeover={takeover}
             mic={mic}
             myMemberId={member?.memberId ?? null}
+            diagnostics={diagnostics}
             onOpenRemote={() => {
               setRemoteOnTop(true);
             }}

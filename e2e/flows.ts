@@ -43,9 +43,17 @@ export async function createProfile(
   return name;
 }
 
-/** Joins on `/` by typing the Join code on the pad, as the Profile `name`. */
-export async function joinByPad(phone: Page, code: string, name: string) {
-  await phone.goto("/");
+/**
+ * Joins on `/` by typing the Join code on the pad, as the Profile `name`.
+ * `search` is added to the address (`"?perf"`: the mic takeover's readout).
+ */
+export async function joinByPad(
+  phone: Page,
+  code: string,
+  name: string,
+  search = "",
+) {
+  await phone.goto(`/${search}`);
   await expect(
     phone.getByRole("heading", { name: "Join the Party" }),
   ).toBeVisible();

@@ -71,6 +71,7 @@ function fakeMic(state: PhoneMicSnapshot["state"] = "off") {
 function renderPage(
   party: PartySnapshot,
   mic: ReturnType<typeof fakeMic> = fakeMic(),
+  diagnostics = false,
 ) {
   const rendered = renderWithParty(party, (store) => (
     <PhonePageView
@@ -78,6 +79,7 @@ function renderPage(
       store={store}
       storage={memoryStorage()}
       mic={mic}
+      diagnostics={diagnostics}
     />
   ));
   return { ...rendered, mic };
@@ -274,6 +276,20 @@ describe("the mic takeover", () => {
     await screen.findByRole("heading", { name: "Sing it!" });
     expect(screen.queryByRole("button", { name: /Medium/ })).toBeNull();
     expect(within(takeover()).getByText("Medium")).toBeTruthy();
+  });
+
+  it("shows the Player no diagnostics", async () => {
+    renderPage(PARTY, fakeMic("on"));
+    await screen.findByText("Sing a note to check");
+    expect(screen.queryByTestId("phone-mic-diagnostics")).toBeNull();
+    expect(screen.queryByText(/readings\/s/)).toBeNull();
+  });
+
+  it("shows readings per second and the detector's cost with ?perf", async () => {
+    renderPage(PARTY, fakeMic("on"), true);
+    expect(
+      await screen.findByTestId("phone-mic-diagnostics"),
+    ).toHaveTextContent("0 readings/s");
   });
 
   it("opens the Remote on top with Queue & controls, and Back to my mic returns", async () => {

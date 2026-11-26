@@ -5,6 +5,8 @@ export interface PhoneSearch {
    * Join code, so that the Phone can say "That code is not on the Stage".
    */
   join?: string | undefined;
+  /** `?perf`: the mic takeover shows readings per second and the detector's cost. */
+  perf?: true | undefined;
 }
 
 /** A Join code is 4 digits. */
@@ -28,7 +30,13 @@ export function validatePhoneSearch(
   // The router JSON-parses search values, so `?join=4271` arrives as a number.
   const join =
     typeof raw === "number" && Number.isInteger(raw) ? String(raw) : raw;
-  return typeof join === "string" && join !== ""
-    ? { join }
-    : { join: undefined };
+  const perfRaw = search["perf"];
+  const perf =
+    perfRaw !== undefined && perfRaw !== false && perfRaw !== "false"
+      ? true
+      : undefined;
+  return {
+    join: typeof join === "string" && join !== "" ? join : undefined,
+    perf,
+  };
 }

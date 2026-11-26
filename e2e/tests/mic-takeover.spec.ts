@@ -69,7 +69,8 @@ async function joinAndRequest(
   code: string,
   name: string,
 ): Promise<number> {
-  await phone.goto(`/?join=${code}`);
+  // `?perf`: the takeover's readout, to see readings leave.
+  await phone.goto(`/?join=${code}&perf`);
   await phone.getByRole("button", { name, exact: true }).click();
   await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();
   const party = (await sendFromPhone(phone, {
