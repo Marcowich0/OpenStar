@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { songQuery, songsQuery } from "../../../api/queries";
+import { serverInfoQuery, songQuery, songsQuery } from "../../../api/queries";
 import { createQueryClient } from "../../../api/queryClient";
 import type { ClientMessage } from "../../../generated/ClientMessage";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
@@ -148,6 +148,12 @@ function setup(
     });
   };
   for (const d of details) queries.setQueryData(songQuery(d.id).queryKey, d);
+  queries.setQueryData(serverInfoQuery.queryKey, {
+    version: "dev",
+    schemaVersion: 1,
+    libraryReadOnly: null,
+    publicUrl: "https://openstar.example.org",
+  });
   const live = (fn: (h: NonNullable<typeof handlers>) => void) => {
     act(() => {
       if (handlers) fn(handlers);
@@ -222,6 +228,29 @@ describe("the song browser", () => {
     expect(screen.queryByText(/up next/i)).toBeNull();
     // The join card (#178) keeps the Join code.
     expect(screen.getByTestId("party-join-code")).toHaveTextContent("4821");
+  });
+
+  it("shows the join card with the QR code for the public address", () => {
+    setup();
+    expect(
+      screen.getByRole("img", { name: "QR code to join the Party" }),
+    ).toHaveAttribute(
+      "data-qr-text",
+      "https://openstar.example.org/?join=4821",
+    );
+    expect(screen.getByText("Pick a song from your phone")).toBeVisible();
+  });
+
+  it("shows a new Join code on the card at once", () => {
+    const { changeParty } = setup();
+    changeParty(party({ joinCode: "0427" }));
+    expect(screen.getByTestId("party-join-code")).toHaveTextContent("0427");
+    expect(
+      screen.getByRole("img", { name: "QR code to join the Party" }),
+    ).toHaveAttribute(
+      "data-qr-text",
+      "https://openstar.example.org/?join=0427",
+    );
   });
 
   it("starts with the focus on the selected cover", () => {
