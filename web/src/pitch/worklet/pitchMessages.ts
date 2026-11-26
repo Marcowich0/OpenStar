@@ -6,9 +6,23 @@
 /** The name the processor registers under. */
 export const PITCH_PROCESSOR_NAME = "openstar-pitch";
 
-/** `processorOptions` of a pitch node: the `detector-wasm` module's bytes. */
+/**
+ * `processorOptions` of a pitch node: the `detector-wasm` module's bytes, and
+ * whether its detector runs from the start (default: it does).
+ */
 export interface PitchProcessorOptions {
   wasm: ArrayBuffer;
+  detect?: boolean;
+}
+
+/**
+ * The main thread's command to a pitch node: run its detector or not. A node
+ * whose detector is off still meters its input (`PitchWorkletLevel`); one
+ * switched on starts a fresh detector, with an empty window.
+ */
+export interface PitchNodeCommand {
+  type: "detect";
+  on: boolean;
 }
 
 /** One Pitch reading, posted as soon as the worklet made it. */
@@ -30,4 +44,17 @@ export interface PitchWorkletReading {
   sampleRate: number;
 }
 
-export type PitchWorkletMessage = PitchWorkletReading;
+/**
+ * What a node whose detector is off posts instead of a reading, on the same
+ * schedule: the loudness of the same 2048-frame window, as the detector would
+ * report it. A meter reads it; nothing scores it.
+ */
+export interface PitchWorkletLevel {
+  type: "level";
+  /** RMS of the 2048-frame window in dBFS; digital silence is −120. */
+  loudness: number;
+  /** As a reading's `endFrame`. */
+  endFrame: number;
+}
+
+export type PitchWorkletMessage = PitchWorkletReading | PitchWorkletLevel;

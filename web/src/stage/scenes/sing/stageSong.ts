@@ -47,10 +47,9 @@ import {
   playbackPlan,
   type PlaybackPlan,
 } from "../../../playback/playbackPlan";
-import type { MicId } from "../../../generated/MicId";
 import type { MicKey } from "../../../generated/MicKey";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
-import type { PitchRouter } from "../../../pitch/pitchRouter";
+import type { PitchMic, PitchRouter } from "../../../pitch/pitchRouter";
 import {
   createLiveScoring,
   type LiveScoring,
@@ -155,10 +154,10 @@ export interface StageSongOptions {
   requestFrame?: (callback: () => void) => number;
   cancelFrame?: (handle: number) => void;
   /**
-   * The relayed Mic id each seated Mic's readings arrive with
-   * (`SingSetupInput.micIdFor`); by default a Phone's Phone id.
+   * The Mic each seated Mic's readings reach the Pitch router as
+   * (`SingSetupInput.micIdFor`); by default `pitchMicFor`.
    */
-  micIdFor?: (mic: MicKey) => MicId | null;
+  micIdFor?: (mic: MicKey) => PitchMic | null;
 }
 
 export interface StageSong {
