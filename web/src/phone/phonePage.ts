@@ -4,11 +4,7 @@ import type { LiveState } from "../live/liveState";
 
 /** What the Phone page shows (v1 spec #49, "States of the Phone page"). */
 export type PhonePage =
-  | "joinFlow"
-  | "calibrating"
-  | "avSync"
-  | "micTakeover"
-  | "remote";
+  "joinFlow" | "calibrating" | "avSync" | "micTakeover" | "remote";
 
 /**
  * The conditions later tickets fill in, each a pure function of the store:

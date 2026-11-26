@@ -309,7 +309,11 @@ async fn the_stage_reports_its_value_and_every_remote_shows_it() {
     );
     for av_offset_ms in [505, 510, -310] {
         assert_eq!(
-            refused(&mut stage, ClientMessage::ReportAvSyncOffset { av_offset_ms }).await,
+            refused(
+                &mut stage,
+                ClientMessage::ReportAvSyncOffset { av_offset_ms }
+            )
+            .await,
             UserMessage::InvalidMessage
         );
     }

@@ -82,7 +82,11 @@ describe("the Phone page's state", () => {
 
   it("is the Check A/V sync controls over the mic takeover", () => {
     expect(
-      phonePage(live(1), { ...none, avSync: () => true, micTakeover: () => true }),
+      phonePage(live(1), {
+        ...none,
+        avSync: () => true,
+        micTakeover: () => true,
+      }),
     ).toBe("avSync");
   });
 
@@ -110,7 +114,12 @@ describe("whether this Phone shows Check A/V sync as its page", () => {
 
   it("is so for the Phone that started it, while it runs", () => {
     expect(startedAvSync(running("phone-a"), "phone-a")).toBe(true);
-    expect(phonePage(running("phone-a"), { ...none, avSync: (s) => startedAvSync(s, "phone-a") })).toBe("avSync");
+    expect(
+      phonePage(running("phone-a"), {
+        ...none,
+        avSync: (s) => startedAvSync(s, "phone-a"),
+      }),
+    ).toBe("avSync");
   });
 
   it("is not so for any other Phone, nor when the Stage started it", () => {
