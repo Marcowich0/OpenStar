@@ -271,9 +271,17 @@ test("End stops the Song: the Stage stores the ended round and the Stage and the
     // The Stage shows the results; the Phone shows its own Player's.
     await expect(frame).toHaveAttribute("data-scene", "results");
     expect(await media(stage)).toEqual([]);
-    await expect(stage.getByTestId("results-players")).toHaveText(
-      `1. ${profile.name}: 0`,
-    );
+    // One bar: place 1, the total 0, the lowest Rank title; the Player did
+    // not finish, so the banner replaces the artist.
+    const bar = stage.getByTestId("results-players").getByRole("listitem");
+    await expect(bar).toHaveCount(1);
+    await expect(bar).toContainText(profile.name);
+    await expect(bar).toContainText("Place 1");
+    await expect(bar).toContainText("Shower Singer");
+    await expect(bar).toContainText("unfinished");
+    await expect(
+      stage.getByText("Ended early, so no high scores this time"),
+    ).toBeVisible();
     await phone.getByRole("tab", { name: "Stage" }).click();
     const mine = phone.getByTestId("my-result");
     await expect(mine).toContainText("Your Score: 0");
@@ -284,6 +292,14 @@ test("End stops the Song: the Stage stores the ended round and the Stage and the
       await request.get(`/api/profiles/${String(profile.id)}`)
     ).json()) as { lastSungAt: number | null };
     expect(after.lastSungAt).not.toBeNull();
+
+    // The Queue is empty, so the results lead on with Done, focused: Enter
+    // goes back to the song browser.
+    const done = stage.getByRole("button", { name: "Done" });
+    await expect(done).toBeFocused();
+    await stage.keyboard.press("Enter");
+    await expect(frame).toHaveAttribute("data-scene", "songBrowser");
+    ended = false;
   } finally {
     if (ended) await sendFromPhone(phone, { type: "closeResults" });
     else

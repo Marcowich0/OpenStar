@@ -1,21 +1,38 @@
 name: CI
 
+# The pipeline (docs/docker-image.md, "Publishing"): `just ci`, then build the
+# image, smoke-test it and scan it with Trivy, then push it to GHCR. Each job
+# needs the one before it, so a failing step stops the rest.
+#
+# Publishing happens only for a push to `main` (:edge, :sha-<short>), a pushed
+# `vX.Y.Z` tag (:X.Y.Z, :X.Y, :X, :latest and a GitHub release) and the weekly
+# schedule on `main` (:edge only). scripts/ci-image-meta.sh decides that, and
+# the `if:` of the `publish` and `release` jobs checks the event and ref again.
+# Pull requests (from forks or not) run every step except the push. CI never
+# deploys anywhere.
 on:
   pull_request:
   push:
     branches: [main]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  # Weekly: rebuilds the runtime stage without its layer cache, so Debian
+  # security fixes land even when no pin changed. Schedules run on `main` only.
+  schedule:
+    - cron: "17 4 * * 1"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:
     # GitHub-hosted runners only: pull requests from forks must never run on the owner's network.
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -64,3 +81,187 @@ jobs:
             e2e/playwright-report/
             e2e/test-results/
           if-no-files-found: ignore
+
+  # Build, smoke test and Trivy scan. Runs for every event, pull requests
+  # included, and can push nothing: it has no write permission and never logs
+  # in to a registry.
+  image:
+    needs: ci
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      build_id: ${{ steps.meta.outputs.build_id }}
+      publish: ${{ steps.meta.outputs.publish }}
+      release: ${{ steps.meta.outputs.release }}
+      no_cache_runtime: ${{ steps.meta.outputs.no_cache_runtime }}
+      tags: ${{ steps.meta.outputs.tags }}
+      layers: ${{ steps.layers.outputs.layers }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: What this run builds and publishes
+        id: meta
+        run: |
+          scripts/ci-image-meta.sh "$GITHUB_EVENT_NAME" "$GITHUB_REF" "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The server derives its build identifier from GITHUB_REF and GITHUB_SHA
+      # (crates/server/src/build_id.rs); the smoke test checks that it equals
+      # the one ci-image-meta.sh worked out. The layer cache lives in the
+      # Actions cache, so the `publish` job rebuilds the same layers.
+      - name: Build the image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          tags: openstar:ci
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          build-args: |
+            GITHUB_REF=${{ github.ref }}
+            GITHUB_SHA=${{ github.sha }}
+          no-cache-filters: ${{ steps.meta.outputs.no_cache_runtime == 'true' && 'runtime' || '' }}
+          cache-from: type=gha,scope=openstar-image
+          cache-to: type=gha,scope=openstar-image,mode=max
+
+      # scripts/image-smoke.sh (/healthz, ffmpeg, ffprobe, yt-dlp, deno, the
+      # build identifier, users 1000:1000 and 99:100) and
+      # scripts/image-checksum.test.sh (a wrong yt-dlp or Deno checksum fails).
+      - name: Smoke test
+        env:
+          BUILD_ID: ${{ steps.meta.outputs.build_id }}
+        run: just image-smoke openstar:ci "$BUILD_ID"
+
+      - name: Install Trivy
+        env:
+          # renovate: datasource=github-releases depName=aquasecurity/trivy
+          TRIVY_VERSION: 0.76.2
+          # The Linux-64bit.tar.gz line of the release's checksums.txt.
+          TRIVY_SHA256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
+        run: |
+          archive="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/$archive"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/trivy"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/trivy" trivy
+          echo "$RUNNER_TEMP/trivy" >> "$GITHUB_PATH"
+
+      # Fails on any HIGH or CRITICAL vulnerability that has a fixed version.
+      - name: Trivy scan
+        run: |
+          trivy image --image-src docker --scanners vuln --severity HIGH,CRITICAL \
+            --ignore-unfixed --exit-code 1 --no-progress openstar:ci
+
+      # The `publish` job pushes only an image with exactly these layers.
+      - name: Layers of the tested image
+        id: layers
+        run: echo "layers=$(docker image inspect -f '{{json .RootFS.Layers}}' openstar:ci)" >> "$GITHUB_OUTPUT"
+
+  # Push to GHCR, with build provenance and an SBOM. Only for a push to `main`,
+  # a pushed vX.Y.Z tag and the weekly schedule on `main`; never for a pull
+  # request or any other branch.
+  publish:
+    needs: image
+    if: >-
+      needs.image.outputs.publish == 'true' &&
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # The same build as in `image`, from its layer cache. If a layer is not
+      # in the cache, the rebuild differs from what was tested, and the job
+      # stops here before it pushes anything.
+      - name: Rebuild the tested image from the cache
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          tags: openstar:publish
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          build-args: |
+            GITHUB_REF=${{ github.ref }}
+            GITHUB_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=openstar-image
+
+      - name: Check it is the tested image
+        env:
+          TESTED: ${{ needs.image.outputs.layers }}
+        run: |
+          built="$(docker image inspect -f '{{json .RootFS.Layers}}' openstar:publish)"
+          if [ "$built" != "$TESTED" ]; then
+            echo "The rebuilt image's layers differ from the tested image's (a layer was not in the cache); not pushing. Re-run the workflow." >&2
+            echo "tested: $TESTED" >&2
+            echo "built:  $built" >&2
+            exit 1
+          fi
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to GHCR
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: ${{ needs.image.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          build-args: |
+            GITHUB_REF=${{ github.ref }}
+            GITHUB_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=openstar-image
+
+  # A GitHub release with generated notes, for a pushed vX.Y.Z tag only, after
+  # its image is on GHCR. (The Mic bridge tarball and its .sha256 are added
+  # here by the ticket that builds the bridge stage.)
+  release:
+    needs: [image, publish]
+    if: >-
+      needs.image.outputs.release == 'true' &&
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          BUILD_ID: ${{ needs.image.outputs.build_id }}
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --generate-notes --title "OpenStar $BUILD_ID"

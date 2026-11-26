@@ -202,6 +202,8 @@ describe("the Stage tab while the results show", () => {
     expect(within(card).getByText("Results on the Stage")).toBeInTheDocument();
     expect(within(card).getByText("Your Score: 6,115")).toBeInTheDocument();
     expect(within(card).getByText("New high score!")).toBeInTheDocument();
+    // The Rank title, from the same strings as the Stage's results.
+    expect(within(card).getByText("Crowd Pleaser")).toBeInTheDocument();
     expect(within(card).queryByText("Ended early")).toBeNull();
   });
 
