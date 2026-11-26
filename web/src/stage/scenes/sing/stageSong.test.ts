@@ -16,6 +16,7 @@ import type {
 import { createPitchRouter } from "../../../pitch/pitchRouter";
 import { frame, type SingState } from "../../sing/frame";
 import { laneLayout } from "../../sing/laneLayout";
+import { createSyntheticLanes } from "../../perf/syntheticLanes";
 import { createStageSong, type StageSongOptions } from "./stageSong";
 import { PROFILES, testDetail, testParty } from "./testSong";
 
@@ -234,6 +235,8 @@ function setup(over: Partial<StageSongOptions> = {}) {
       }
     },
     framesRunning: () => nextFrame !== null,
+    /** The Stage clock, ms. */
+    stageNow: () => stageMs,
   };
 }
 
@@ -847,5 +850,58 @@ describe("Line ratings on the sing screen (ticket 216)", () => {
     t.control("restart");
     expect(shown(view.state)).toEqual([]);
     expect(view.state.effects?.live).toBe(0);
+  });
+});
+
+describe("synthetic lanes on the sing screen (ticket 227)", () => {
+  it("scores and stores nothing from them, only the seated Players", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    // Eight lanes singing the test Song's Notes loudly and in tune.
+    const synthetic = createSyntheticLanes({
+      base: view.state,
+      count: 8,
+      runs: [
+        {
+          kind: "singing",
+          micDelayMs: 100,
+          readings: Array.from({ length: 600 }, (_, i) => [
+            i * 10,
+            60,
+            0.95,
+            -10,
+          ]),
+        },
+      ],
+      clock: view.clock,
+      now: t.stageNow,
+    });
+    for (let ms = 20; ms <= 6000; ms += 20) {
+      t.frames(ms);
+      synthetic.tick();
+    }
+    t.control("end");
+    await flush();
+
+    expect(
+      synthetic.state.lanes.every(
+        (lane) => (lane.trace?.readings.size ?? 0) > 0,
+      ),
+    ).toBe(true);
+    // Mia, the one seat, sang nothing: her Line ends report 0 and nothing
+    // reports a synthetic lane; the round holds her alone, at 0.
+    const lineScores = t.sent.filter((m) => m.type === "reportLineScore");
+    expect(lineScores.length).toBeGreaterThan(0);
+    for (const message of lineScores) {
+      expect(message).toMatchObject({ seat: 0, total: 0 });
+    }
+    expect(t.reportedRounds()).toHaveLength(1);
+    expect(t.reportedRounds()[0]?.scores).toEqual([
+      expect.objectContaining({ total: 0 }),
+    ]);
+    expect(view.state.lanes).toHaveLength(1);
   });
 });

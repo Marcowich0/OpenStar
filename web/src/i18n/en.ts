@@ -454,6 +454,11 @@ export const en = {
   "stage.pause.skip": "Skip to the next Song",
   "stage.pause.end": "End and show results",
   "stage.pause.hint": "Restart, Skip and End: hold Enter or press and hold",
+  "stage.perf.measuring": "Measuring frame times",
+  "stage.perf.current": "Frame {ms} ms",
+  "stage.perf.mean": "Mean {ms} ms",
+  "stage.perf.worst": "Worst {ms} ms",
+  "stage.perf.budget": "Budget {ms} ms ({hz} Hz)",
   // The results screen (#182).
   "stage.results.endedEarly": "Ended early, so no high scores this time",
   "stage.results.legend": "What the bars are made of",

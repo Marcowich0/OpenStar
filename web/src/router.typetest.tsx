@@ -11,6 +11,11 @@ export function RouteTypeChecks() {
   void navigate({ to: "/admin/library-problems" });
   void navigate({ to: "/", search: { join: "1234" } });
 
+  void navigate({ to: "/stage", search: { perf: true, lanes: 8 } });
+
+  // @ts-expect-error: `lanes` is a number of lanes.
+  void navigate({ to: "/stage", search: { perf: true, lanes: "8" } });
+
   // @ts-expect-error: there is no `/stages` route.
   void navigate({ to: "/stages" });
 
