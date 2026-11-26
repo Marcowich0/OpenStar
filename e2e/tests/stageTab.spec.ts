@@ -156,3 +156,133 @@ test("a Phone seats itself on its own Mic from the Stage tab and presses Start",
       await sendFromPhone(theirs, { type: "removeRequest", requestId });
   }
 });
+
+test("every Phone's Stage tab follows the playing Song, its results and the empty Queue, and steps the volume", async ({
+  stage,
+  openPhone,
+  request,
+}) => {
+  test.setTimeout(90_000);
+  const code = await newParty(stage);
+  const singer = await createProfile(request, "Singer", "cocoa");
+  const friend = await createProfile(request, "Friend", "forest");
+  const { songs } = (await (await request.get("/api/songs")).json()) as {
+    songs: { id: number; path: string; title: string }[];
+  };
+  const song = songs.find((s) => s.path === FIXTURE_SONGS.steadyTone);
+  if (!song) throw new Error("the fixture Library has no Steady Tone");
+
+  const mine = await openPhone();
+  await joinAs(mine, code, singer);
+  const theirs = await openPhone();
+  await joinAs(theirs, code, friend);
+  const phones = [mine, theirs];
+
+  // This Phone asks to sing it, so its member is prefilled on its own Mic.
+  const { queue } = await sendFromPhone(mine, {
+    type: "addRequest",
+    songId: song.id,
+    requestedPlayers: null,
+  });
+  const requestId = queue.at(-1)?.requestId;
+  if (requestId === undefined) throw new Error("the Request was not added");
+  const frame = stage.locator("[data-stage-frame]");
+  let state: "playing" | "results" | "done" = "playing";
+  try {
+    await expect(frame).toHaveAttribute("data-scene", "lineUp");
+    await expect(
+      stage.getByRole("button", { name: "Start" }),
+    ).not.toHaveAttribute("aria-disabled", "true");
+    await stage.keyboard.press(" ");
+    await expect(frame).toHaveAttribute("data-scene", "sing");
+
+    // Both Stage tabs show the playing Song, its Player and its progress.
+    for (const phone of phones) {
+      await phone.getByRole("tab", { name: "Stage" }).click();
+      const card = phone.getByTestId("playing-card");
+      await expect(card).toContainText("Playing now");
+      await expect(card).toContainText(song.title);
+      await expect(card).toContainText(singer);
+      await expect(
+        phone.getByText("Hold Restart, Skip or End for a moment"),
+      ).toBeVisible();
+      await expect
+        .poll(async () =>
+          Number(
+            await card.getByRole("progressbar").getAttribute("aria-valuenow"),
+          ),
+        )
+        .toBeGreaterThan(0);
+    }
+
+    // The strip on another tab pauses the Stage; both Stage tabs say so.
+    await theirs.getByRole("tab", { name: "Songs" }).click();
+    await theirs.getByRole("button", { name: "Pause" }).click();
+    await expect(theirs.getByRole("button", { name: "Resume" })).toBeVisible();
+    await expect(mine.getByTestId("playing-card")).toContainText("Paused");
+    await theirs.getByRole("button", { name: "Resume" }).click();
+    await expect(mine.getByTestId("playing-card")).toContainText("Playing now");
+
+    // The volume: one Phone steps it, the other Phone and the Stage follow.
+    await theirs.getByRole("tab", { name: "Stage" }).click();
+    const volumeOf = async (phone: Page) =>
+      Number(
+        await phone
+          .getByRole("group", { name: "Volume" })
+          .getByText(/^\d+$/)
+          .textContent(),
+      );
+    await expect.poll(() => volumeOf(mine)).toBeGreaterThanOrEqual(0);
+    const before = await volumeOf(mine);
+    const direction = before >= 100 ? "Volume down" : "Volume up";
+    const after = before >= 100 ? before - 5 : before + 5;
+    await theirs
+      .getByRole("group", { name: "Volume" })
+      .getByRole("button", { name: direction })
+      .click();
+    for (const phone of phones)
+      await expect.poll(() => volumeOf(phone)).toBe(after);
+    await expect(stage.getByTestId("volume-pill")).toHaveText(
+      `Volume ${String(after)}`,
+    );
+
+    // End is a hold: a tap alone leaves the Song playing.
+    const end = mine.getByRole("button", { name: "End" });
+    await end.click();
+    await expect(mine.getByText("Hold for a moment")).toBeVisible();
+    await expect(frame).toHaveAttribute("data-scene", "sing");
+    await end.hover();
+    await mine.mouse.down();
+    await mine.waitForTimeout(1000);
+    await mine.mouse.up();
+    state = "results";
+
+    // Both Stage tabs show the results; the Queue is empty, so Done.
+    await expect(frame).toHaveAttribute("data-scene", "results");
+    for (const phone of phones) {
+      const card = phone.getByTestId("results-card");
+      await expect(card).toContainText("Results on the Stage");
+      await expect(card).toContainText(song.title);
+      await expect(card.getByRole("button", { name: "Done" })).toBeVisible();
+    }
+    await theirs.getByRole("button", { name: "Done" }).click();
+    state = "done";
+    await expect(frame).toHaveAttribute("data-scene", "songBrowser");
+    for (const phone of phones) {
+      await expect(phone.getByText("The Stage is waiting")).toBeVisible();
+      await expect(
+        phone.getByText("The Queue is empty. Pick a song."),
+      ).toBeVisible();
+      await expect(phone.getByRole("group", { name: "Volume" })).toBeVisible();
+    }
+  } finally {
+    if (state === "playing")
+      await sendFromPhone(theirs, {
+        type: "controlSong",
+        requestId,
+        control: "skip",
+      }).catch(() => null);
+    if (state === "results")
+      await sendFromPhone(theirs, { type: "closeResults" }).catch(() => null);
+  }
+});
