@@ -10,32 +10,38 @@ import type { SongMedia } from "./SongMedia";
  * One playable Song in full: the parsed `.txt` with units in seconds and
  * real beats, and its warnings.
  */
-export type SongDetail = { id: SongId, 
-/**
- * The `.txt`, relative to the Library, with `/` between folders.
- */
-path: string, song: ParsedSong, 
-/**
- * The fingerprint of the Song's note content as loaded; the Stage
- * returns it with the round's outcome.
- */
-noteFingerprint: NoteFingerprint, identity: SongIdentity, lengthSeconds: number | null, 
-/**
- * See [`SongSummary::preparing`].
- */
-preparing: boolean, media: SongMedia, 
-/**
- * The EBU R128 integrated loudness of the Song's audio file in LUFS;
- * `null` while it is not measured (the Song plays at unity gain).
- */
-loudnessLufs: number | null, 
-/**
- * The Song's warnings; it plays anyway.
- */
-warnings: Array<ProblemReason>, 
-/**
- * When the server answered this detail (server time, ms since the
- * Unix epoch). The Timing editor returns it with a save
- * ([`crate::song::TimingSave::opened_at_ms`]).
- */
-loadedAtMs?: number, };
+export type SongDetail = {
+  id: SongId;
+  /**
+   * The `.txt`, relative to the Library, with `/` between folders.
+   */
+  path: string;
+  song: ParsedSong;
+  /**
+   * The fingerprint of the Song's note content as loaded; the Stage
+   * returns it with the round's outcome.
+   */
+  noteFingerprint: NoteFingerprint;
+  identity: SongIdentity;
+  lengthSeconds: number | null;
+  /**
+   * See [`SongSummary::preparing`].
+   */
+  preparing: boolean;
+  media: SongMedia;
+  /**
+   * The EBU R128 integrated loudness of the Song's audio file in LUFS;
+   * `null` while it is not measured (the Song plays at unity gain).
+   */
+  loudnessLufs: number | null;
+  /**
+   * The Song's warnings; it plays anyway.
+   */
+  warnings: Array<ProblemReason>;
+  /**
+   * When the server answered this detail (server time, ms since the
+   * Unix epoch). The Timing editor returns it with a save
+   * ([`crate::song::TimingSave::opened_at_ms`]).
+   */
+  loadedAtMs?: number;
+};

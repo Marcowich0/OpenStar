@@ -4,7 +4,6 @@
 // object must name every code of the union, so a code added on the Rust side
 // fails `tsc` here until it has a catalogue string.
 
-import type { ApiError } from "../generated/ApiError";
 import type { FileProblem } from "../generated/FileProblem";
 import type { LibraryReadOnly } from "../generated/LibraryReadOnly";
 import type { LineUpWarning } from "../generated/LineUpWarning";
@@ -41,6 +40,10 @@ export function byCode<U extends { code: string }>(
 
 /** A rejection, error or event the server sent over the WebSocket. */
 export const userMessageText = byCode<UserMessage>({
+  wrongPin: () => t("userMessage.wrongPin"),
+  unlockRequired: () => t("userMessage.unlockRequired"),
+  libraryReadOnly: () => t("userMessage.libraryReadOnly"),
+  stagePinRequired: () => t("userMessage.stagePinRequired"),
   invalidMessage: () => t("userMessage.invalidMessage"),
   notTheStage: () => t("userMessage.notTheStage"),
   serverError: () => t("userMessage.serverError"),
@@ -239,28 +242,6 @@ export function lineUpWarningText(
       }),
     notCalibrated: () => t("lineUpWarning.notCalibrated"),
   })(warning);
-}
-
-/** Why an HTTP request was refused. */
-export const apiErrorText = byCode<ApiError>({
-  wrongPin: () => t("apiError.wrongPin"),
-  unlockRequired: () => t("apiError.unlockRequired"),
-  libraryReadOnly: () => t("apiError.libraryReadOnly"),
-  stagePinRequired: () => t("apiError.stagePinRequired"),
-});
-
-const API_ERROR_CODES = {
-  wrongPin: true,
-  unlockRequired: true,
-  libraryReadOnly: true,
-  stagePinRequired: true,
-} as const satisfies Record<ApiError["code"], true>;
-
-/** Why an HTTP request was refused, whichever kind of code it carries. */
-export function refusalText(refusal: ApiError | UserMessage): string {
-  return Object.hasOwn(API_ERROR_CODES, refusal.code)
-    ? apiErrorText(refusal as ApiError)
-    : userMessageText(refusal as UserMessage);
 }
 
 /** Why the Library is read-only. */

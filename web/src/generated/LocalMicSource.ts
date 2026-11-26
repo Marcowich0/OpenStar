@@ -4,45 +4,52 @@ import type { BridgeId } from "./BridgeId";
 /**
  * Where a Local mic is read.
  */
-export type LocalMicSource = { "kind": "browser", 
-/**
- * The Stage browser: a random id it keeps in its own storage.
- */
-stageBrowser: string, 
-/**
- * Chromium's `deviceId` of the input device.
- */
-deviceId: string, 
-/**
- * The device's label when it was last seen, for the default name
- * and the label + channel fallback of id matching.
- */
-label: string, 
-/**
- * 0 (Left, or a mono device's only channel) or 1 (Right).
- */
-channel: number, 
-/**
- * Whether the device gave two channels.
- */
-stereo: boolean, } | { "kind": "bridge", bridgeId: BridgeId, 
-/**
- * The card's `device.name` (for `--wav`, the file name).
- */
-deviceName: string, 
-/**
- * The interface's name for people when it was last seen, for the
- * default name "<label> · Input n".
- */
-label: string, 
-/**
- * The hardware channel, from 0 (`AUXn` of the Pro Audio source).
- */
-channel: number, 
-/**
- * For a loopback channel of the known-models table
- * ([`crate::bridge::loopback_number`]): which one, from 1. Its
- * default name is "<label> · Loopback n" and it is listed last in
- * its bridge's group.
- */
-loopback?: number, };
+export type LocalMicSource =
+  | {
+      kind: "browser";
+      /**
+       * The Stage browser: a random id it keeps in its own storage.
+       */
+      stageBrowser: string;
+      /**
+       * Chromium's `deviceId` of the input device.
+       */
+      deviceId: string;
+      /**
+       * The device's label when it was last seen, for the default name
+       * and the label + channel fallback of id matching.
+       */
+      label: string;
+      /**
+       * 0 (Left, or a mono device's only channel) or 1 (Right).
+       */
+      channel: number;
+      /**
+       * Whether the device gave two channels.
+       */
+      stereo: boolean;
+    }
+  | {
+      kind: "bridge";
+      bridgeId: BridgeId;
+      /**
+       * The card's `device.name` (for `--wav`, the file name).
+       */
+      deviceName: string;
+      /**
+       * The interface's name for people when it was last seen, for the
+       * default name "<label> · Input n".
+       */
+      label: string;
+      /**
+       * The hardware channel, from 0 (`AUXn` of the Pro Audio source).
+       */
+      channel: number;
+      /**
+       * For a loopback channel of the known-models table
+       * ([`crate::bridge::loopback_number`]): which one, from 1. Its
+       * default name is "<label> · Loopback n" and it is listed last in
+       * its bridge's group.
+       */
+      loopback?: number;
+    };

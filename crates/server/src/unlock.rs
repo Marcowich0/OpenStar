@@ -20,7 +20,7 @@ use axum::http::header::{COOKIE, RETRY_AFTER, SET_COOKIE};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use openstar_protocol::UserMessage;
-use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest, UnlockStatus};
+use openstar_protocol::admin::{UnlockRequest, UnlockStatus};
 use rusqlite::OptionalExtension;
 use sha2::{Digest, Sha256};
 
@@ -134,8 +134,8 @@ fn internal_error(error: anyhow::Error) -> Response {
     StatusCode::INTERNAL_SERVER_ERROR.into_response()
 }
 
-pub(crate) fn refusal(status: StatusCode, code: ApiErrorCode) -> Response {
-    (status, Json(ApiError { code })).into_response()
+pub(crate) fn refusal(status: StatusCode, message: UserMessage) -> Response {
+    (status, Json(message)).into_response()
 }
 
 /// `429` with [`UserMessage::AdminPinWait`] and a matching `Retry-After`:
@@ -150,7 +150,7 @@ pub(crate) fn wait_refusal(seconds_left: u32) -> Response {
 }
 
 fn unlock_required() -> Response {
-    refusal(StatusCode::UNAUTHORIZED, ApiErrorCode::UnlockRequired)
+    refusal(StatusCode::UNAUTHORIZED, UserMessage::UnlockRequired)
 }
 
 fn status(unlocked: bool) -> Json<UnlockStatus> {
@@ -170,7 +170,7 @@ fn cookie(value: &str, max_age: Option<u32>) -> HeaderValue {
 /// The Unlock check of every guarded endpoint, run by the guard in
 /// [`endpoints`](crate::endpoints) from the endpoint's classification. A
 /// request without a live Unlock is refused with `401` and
-/// [`ApiErrorCode::UnlockRequired`]; a request with one resets its idle time
+/// [`UserMessage::UnlockRequired`]; a request with one resets its idle time
 /// and gets `None`.
 pub(crate) async fn refusal_without_unlock(
     state: &AppState,
@@ -193,7 +193,7 @@ pub async fn attempt(
 ) -> Response {
     match state.admin_pin.check(&request.pin, &state.clock, &client) {
         PinCheck::Correct => {}
-        PinCheck::Wrong => return refusal(StatusCode::FORBIDDEN, ApiErrorCode::WrongPin),
+        PinCheck::Wrong => return refusal(StatusCode::FORBIDDEN, UserMessage::WrongPin),
         PinCheck::Wait { seconds_left } => return wait_refusal(seconds_left),
     }
     let token = match new_token() {

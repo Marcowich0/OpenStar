@@ -5,12 +5,13 @@
  * hardware channel of one interface it offered in its hello. Only a bridge
  * sends it; a Phone, which is one Mic, never does.
  */
-export type BridgeInput = { 
-/**
- * The interface's `device.name`, as in its `BridgeInterface`.
- */
-deviceName: string, 
-/**
- * The hardware channel, from 0.
- */
-channel: number, };
+export type BridgeInput = {
+  /**
+   * The interface's `device.name`, as in its `BridgeInterface`.
+   */
+  deviceName: string;
+  /**
+   * The hardware channel, from 0.
+   */
+  channel: number;
+};

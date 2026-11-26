@@ -7,33 +7,19 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { api, ApiFailure, type Refusal } from "../api/api";
+import { api, ApiFailure } from "../api/api";
 import { localMicsQuery, micBridgesQuery } from "../api/queries";
-import type { ApiError } from "../generated/ApiError";
-import type { ApiErrorCode } from "../generated/ApiErrorCode";
 import type { MicBridge } from "../generated/MicBridge";
 import { useGuardedAction } from "../guarded/useGuardedAction";
-import { apiErrorText, userMessageText } from "../i18n/serverText";
+import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import { HoldButton } from "../ui/HoldButton";
-
-// The guard's and the PIN's codes; any other refusal is a `UserMessage`.
-const API_ERROR_CODES = {
-  wrongPin: true,
-  unlockRequired: true,
-  libraryReadOnly: true,
-  stagePinRequired: true,
-} as const satisfies Record<ApiErrorCode, true>;
-
-function isApiError(refusal: Refusal): refusal is ApiError {
-  return Object.hasOwn(API_ERROR_CODES, refusal.code);
-}
 
 function problemText(error: unknown): string {
   if (!(error instanceof ApiFailure) || error.failure.kind !== "refused")
     return t("mics.bridge.forgetFailed");
   const refusal = error.failure.error;
-  return isApiError(refusal) ? apiErrorText(refusal) : userMessageText(refusal);
+  return userMessageText(refusal);
 }
 
 export function ForgetBridge({ bridge }: { bridge: MicBridge }) {

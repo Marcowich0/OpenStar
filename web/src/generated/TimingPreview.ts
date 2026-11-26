@@ -6,14 +6,15 @@ import type { TxtVersion } from "./TxtVersion";
  * What a Timing edit changes in the `.txt`, computed by the patcher that
  * writes. The answer of the preview, and of a save (what was written).
  */
-export type TimingPreview = { 
-/**
- * The file the lines are counted in: the file previewed, or after a
- * save the file written (the base of the next edit).
- */
-base: TxtVersion, 
-/**
- * The lines whose text changes, in file order; every other line stays
- * byte for byte. Empty: the file would stay as it is.
- */
-changed: Array<ChangedLine>, };
+export type TimingPreview = {
+  /**
+   * The file the lines are counted in: the file previewed, or after a
+   * save the file written (the base of the next edit).
+   */
+  base: TxtVersion;
+  /**
+   * The lines whose text changes, in file order; every other line stays
+   * byte for byte. Empty: the file would stay as it is.
+   */
+  changed: Array<ChangedLine>;
+};

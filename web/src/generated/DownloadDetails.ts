@@ -7,28 +7,31 @@ import type { SongId } from "./SongId";
  * A Download job's details, for the Downloads list and the browser that
  * started it.
  */
-export type DownloadDetails = { usdbId: number, 
-/**
- * The song's artist and title as the USDB mirror held them when the
- * Download started; `None` when the mirror did not hold the song.
- */
-artist: string | null, title: string | null, 
-/**
- * The chosen video.
- */
-videoUrl: string, 
-/**
- * The browser that started it.
- */
-browser: PhoneId, 
-/**
- * How fast yt-dlp is fetching the video, while it runs; `None` before
- * and after.
- */
-rate: DownloadRate | null, 
-/**
- * The new Song, once the Download is done and the Song is in the
- * Library index; the browser that started it offers "Add to Queue" for
- * it. `None` before, and for a failed or cancelled Download.
- */
-song: SongId | null, };
+export type DownloadDetails = {
+  usdbId: number;
+  /**
+   * The song's artist and title as the USDB mirror held them when the
+   * Download started; `None` when the mirror did not hold the song.
+   */
+  artist: string | null;
+  title: string | null;
+  /**
+   * The chosen video.
+   */
+  videoUrl: string;
+  /**
+   * The browser that started it.
+   */
+  browser: PhoneId;
+  /**
+   * How fast yt-dlp is fetching the video, while it runs; `None` before
+   * and after.
+   */
+  rate: DownloadRate | null;
+  /**
+   * The new Song, once the Download is done and the Song is in the
+   * Library index; the browser that started it offers "Add to Queue" for
+   * it. `None` before, and for a failed or cancelled Download.
+   */
+  song: SongId | null;
+};

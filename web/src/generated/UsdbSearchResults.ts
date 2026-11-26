@@ -4,12 +4,13 @@ import type { UsdbSong } from "./UsdbSong";
 /**
  * Body of `GET /api/usdb/songs`.
  */
-export type UsdbSearchResults = { 
-/**
- * The first [`USDB_SEARCH_LIMIT`] matches, in the asked order.
- */
-songs: Array<UsdbSong>, 
-/**
- * How many mirrored songs match in all.
- */
-total: number, };
+export type UsdbSearchResults = {
+  /**
+   * The first [`USDB_SEARCH_LIMIT`] matches, in the asked order.
+   */
+  songs: Array<UsdbSong>;
+  /**
+   * How many mirrored songs match in all.
+   */
+  total: number;
+};

@@ -8,7 +8,6 @@
 
 use std::path::Path;
 
-use openstar_protocol::admin::{ApiError, ApiErrorCode};
 use openstar_protocol::library::{SongId, SongList, SongSummary};
 use openstar_protocol::profile::{Avatar, AvatarKey, NewProfile, PaletteKey, Profile, ProfileId};
 use openstar_protocol::{
@@ -464,8 +463,8 @@ async fn deleting_a_profile_is_refused_without_an_unlock_and_the_profile_stays()
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    let refusal: ApiError = response.json().await.unwrap();
-    assert_eq!(refusal.code, ApiErrorCode::UnlockRequired);
+    let refusal: UserMessage = response.json().await.unwrap();
+    assert_eq!(refusal, UserMessage::UnlockRequired);
     let profiles: Vec<Profile> = app.get_json("/api/profiles").await;
     assert!(profiles.iter().any(|p| p.id == bo.id));
 

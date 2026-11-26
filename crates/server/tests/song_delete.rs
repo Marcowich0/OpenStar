@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
 use openstar::clock::ManualClock;
-use openstar_protocol::admin::{ApiError, ApiErrorCode};
+
 use openstar_protocol::library::{SongId, SongList};
 use openstar_protocol::profile::{Avatar, AvatarKey, NewProfile, PaletteKey, Profile};
 use openstar_protocol::{
@@ -117,8 +117,8 @@ async fn the_delete_needs_an_unlock() {
     let (status, body) = delete(&app, None, id(&ids, "Solo")).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
-    let error: ApiError = serde_json::from_str(&body.unwrap()).unwrap();
-    assert_eq!(error.code, ApiErrorCode::UnlockRequired);
+    let error: UserMessage = serde_json::from_str(&body.unwrap()).unwrap();
+    assert_eq!(error, UserMessage::UnlockRequired);
     assert_eq!(files(app.songs_dir()), before);
 }
 

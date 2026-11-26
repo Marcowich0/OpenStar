@@ -5,8 +5,6 @@
 
 import type { DownloadStarted } from "../generated/DownloadStarted";
 import type { StartDownload } from "../generated/StartDownload";
-import type { ApiError } from "../generated/ApiError";
-import type { ApiErrorCode } from "../generated/ApiErrorCode";
 import type { AvOffset } from "../generated/AvOffset";
 import type { AvOffsetQuery } from "../generated/AvOffsetQuery";
 import type { JobList } from "../generated/JobList";
@@ -159,16 +157,16 @@ type RequestArgs<R extends Route> =
     : [options: RequestOptions<R>];
 
 /**
- * A refusal's body: an `ApiError` (the guard, the Admin PIN) or a
- * `UserMessage` (an area's own refusals, such as `profileNameTaken`). Their
- * codes do not overlap, so `switch (refusal.code)` tells them apart.
+ * A refusal's body: a `UserMessage`, from the guard and the Admin PIN
+ * (`unlockRequired`, `wrongPin`, …) as from an area's own refusals (such as
+ * `profileNameTaken`).
  */
-export type Refusal = ApiError | UserMessage;
+export type Refusal = UserMessage;
 
 /**
  * Why a call failed, without any English from the server:
  * - `refused`: the server answered with a `Refusal`, a code plus its
- *   parameters; render it with `apiErrorText` or `userMessageText` from
+ *   parameters; render it with `userMessageText` from
  *   `i18n/serverText`.
  * - `unexpected`: an error answer that is not a `Refusal` (a 500 with no
  *   body, a body the server's JSON extractor refused, a code this build does
@@ -270,7 +268,7 @@ const REFUSAL_CODES = {
   noMicsChosen: true,
   noMicReady: true,
   notInCalibration: true,
-} as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
+} as const satisfies Record<UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */
 function isRefusal(body: unknown): body is Refusal {

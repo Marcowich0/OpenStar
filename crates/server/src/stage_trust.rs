@@ -23,7 +23,8 @@ use axum::extract::State;
 use axum::http::header::SET_COOKIE;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use openstar_protocol::admin::{ApiErrorCode, StageTrustRequest, StageTrustStatus};
+use openstar_protocol::UserMessage;
+use openstar_protocol::admin::{StageTrustRequest, StageTrustStatus};
 use rusqlite::OptionalExtension;
 
 use crate::AppState;
@@ -42,9 +43,9 @@ fn internal_error(error: anyhow::Error) -> Response {
     StatusCode::INTERNAL_SERVER_ERROR.into_response()
 }
 
-/// `403` with [`ApiErrorCode::StagePinRequired`].
+/// `403` with [`UserMessage::StagePinRequired`].
 pub(crate) fn stage_pin_required() -> Response {
-    refusal(StatusCode::FORBIDDEN, ApiErrorCode::StagePinRequired)
+    refusal(StatusCode::FORBIDDEN, UserMessage::StagePinRequired)
 }
 
 /// Whether the request comes from a remembered Stage browser: it carries a
@@ -113,7 +114,7 @@ pub async fn trust(
     };
     match state.admin_pin.check(&pin, &state.clock, &client) {
         PinCheck::Correct => {}
-        PinCheck::Wrong => return refusal(StatusCode::FORBIDDEN, ApiErrorCode::WrongPin),
+        PinCheck::Wrong => return refusal(StatusCode::FORBIDDEN, UserMessage::WrongPin),
         PinCheck::Wait { seconds_left } => return wait_refusal(seconds_left),
     }
     let token = match new_token() {

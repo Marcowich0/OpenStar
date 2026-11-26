@@ -3,8 +3,11 @@
 /**
  * A Local mic's meter level, as the server relays it to the Stage.
  */
-export type LocalMicLevel = { localMicId: string, levelDbfs: number, 
-/**
- * As [`BridgeLevel::digital_silence`].
- */
-digitalSilence: boolean, };
+export type LocalMicLevel = {
+  localMicId: string;
+  levelDbfs: number;
+  /**
+   * As [`BridgeLevel::digital_silence`].
+   */
+  digitalSilence: boolean;
+};

@@ -4,4 +4,5 @@ import type { JobId } from "./JobId";
 /**
  * Answer of `POST /api/songs/{id}/pitch-track`.
  */
-export type PitchTrackStart = { "state": "ready" } | { "state": "computing", job: JobId, };
+export type PitchTrackStart =
+  { state: "ready" } | { state: "computing"; job: JobId };

@@ -5,4 +5,5 @@
  * The server passes each accepted one to the Stage
  * ([`crate::ServerMessage::ControlSong`]), which acts on the Song clock.
  */
-export type SongControl = "start" | "pause" | "resume" | "restart" | "end" | "skip";
+export type SongControl =
+  "start" | "pause" | "resume" | "restart" | "end" | "skip";

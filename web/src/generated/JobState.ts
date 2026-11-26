@@ -4,4 +4,8 @@ import type { UserMessage } from "./UserMessage";
 /**
  * Where a job stands.
  */
-export type JobState = { "type": "queued" } | { "type": "running", percent: number | null, } | { "type": "done" } | { "type": "failed", reason: UserMessage, };
+export type JobState =
+  | { type: "queued" }
+  | { type: "running"; percent: number | null }
+  | { type: "done" }
+  | { type: "failed"; reason: UserMessage };

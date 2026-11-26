@@ -13,6 +13,10 @@ import {
 import { t } from "./t";
 
 const handlers: CodeHandlers<UserMessage> = {
+  wrongPin: () => t("userMessage.wrongPin"),
+  unlockRequired: () => t("userMessage.unlockRequired"),
+  libraryReadOnly: () => t("userMessage.libraryReadOnly"),
+  stagePinRequired: () => t("userMessage.stagePinRequired"),
   invalidMessage: () => t("userMessage.invalidMessage"),
   notTheStage: () => t("userMessage.notTheStage"),
   serverError: () => t("userMessage.serverError"),

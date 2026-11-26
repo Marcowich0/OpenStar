@@ -7,9 +7,13 @@ import type { JobState } from "./JobState";
 /**
  * One background job.
  */
-export type Job = { id: JobId, kind: JobKind, state: JobState, 
-/**
- * What a Download fetches, and how fast while yt-dlp runs. Only on
- * Download jobs.
- */
-download?: DownloadDetails, };
+export type Job = {
+  id: JobId;
+  kind: JobKind;
+  state: JobState;
+  /**
+   * What a Download fetches, and how fast while yt-dlp runs. Only on
+   * Download jobs.
+   */
+  download?: DownloadDetails;
+};

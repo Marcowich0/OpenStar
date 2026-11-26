@@ -6,4 +6,4 @@ import type { PhoneId } from "./PhoneId";
  * A Phone that has joined the current Party, and the Party member it uses
  * now. It stays joined while it sleeps or is disconnected.
  */
-export type JoinedPhone = { phoneId: PhoneId, memberId: PartyMemberId, };
+export type JoinedPhone = { phoneId: PhoneId; memberId: PartyMemberId };

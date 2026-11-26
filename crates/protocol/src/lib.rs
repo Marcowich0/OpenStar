@@ -674,6 +674,16 @@ pub enum ChangeTopic {
 )]
 #[ts(export)]
 pub enum UserMessage {
+    /// The Admin PIN attempt was wrong.
+    WrongPin,
+    /// The action is guarded and this browser holds no live Unlock.
+    UnlockRequired,
+    /// The action writes the Library and the Library is read-only, whatever
+    /// the Unlock.
+    LibraryReadOnly,
+    /// Becoming the Stage needs the Admin PIN: this browser is not a
+    /// remembered Stage browser.
+    StagePinRequired,
     /// The text was not a valid [`ClientMessage`].
     InvalidMessage,
     /// Only the active Stage may do this.
@@ -873,6 +883,25 @@ mod tests {
             serde_json::to_string(&ServerMessage::Pong { nonce: 7 }).unwrap(),
             r#"{"type":"pong","nonce":7}"#
         );
+    }
+
+    #[test]
+    fn the_guard_and_pin_refusals_keep_their_json() {
+        // What `ApiError` sent before it was folded into `UserMessage`.
+        for (message, json) in [
+            (UserMessage::WrongPin, r#"{"code":"wrongPin"}"#),
+            (UserMessage::UnlockRequired, r#"{"code":"unlockRequired"}"#),
+            (
+                UserMessage::LibraryReadOnly,
+                r#"{"code":"libraryReadOnly"}"#,
+            ),
+            (
+                UserMessage::StagePinRequired,
+                r#"{"code":"stagePinRequired"}"#,
+            ),
+        ] {
+            assert_eq!(serde_json::to_string(&message).unwrap(), json);
+        }
     }
 
     #[test]

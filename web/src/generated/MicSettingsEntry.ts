@@ -5,4 +5,4 @@ import type { StoredMicSettings } from "./StoredMicSettings";
 /**
  * One Mic's values at a Stage output.
  */
-export type MicSettingsEntry = { mic: MicKey, settings: StoredMicSettings, };
+export type MicSettingsEntry = { mic: MicKey; settings: StoredMicSettings };

@@ -6,24 +6,26 @@ import type { UserMessage } from "./UserMessage";
  * Body of `GET /api/usdb/mirror` and of the mirror's `POST` endpoints:
  * where OpenStar's copy of USDB's song list stands.
  */
-export type UsdbMirrorStatus = { state: UsdbMirrorState, 
-/**
- * How many USDB songs the mirror holds now (searchable at once, also
- * while it fills).
- */
-songs: number, 
-/**
- * When the last mirror run (update or full refetch) ended well, in Unix
- * milliseconds; `null` before the first one.
- */
-lastRefreshedMs: number | null, 
-/**
- * When the last full refetch ended well, in Unix milliseconds; `null`
- * while the first fill has not finished.
- */
-lastFullMs: number | null, 
-/**
- * Why the latest mirror run failed, when it did and no run has started
- * since.
- */
-lastFailure: UserMessage | null, };
+export type UsdbMirrorStatus = {
+  state: UsdbMirrorState;
+  /**
+   * How many USDB songs the mirror holds now (searchable at once, also
+   * while it fills).
+   */
+  songs: number;
+  /**
+   * When the last mirror run (update or full refetch) ended well, in Unix
+   * milliseconds; `null` before the first one.
+   */
+  lastRefreshedMs: number | null;
+  /**
+   * When the last full refetch ended well, in Unix milliseconds; `null`
+   * while the first fill has not finished.
+   */
+  lastFullMs: number | null;
+  /**
+   * Why the latest mirror run failed, when it did and no run has started
+   * since.
+   */
+  lastFailure: UserMessage | null;
+};

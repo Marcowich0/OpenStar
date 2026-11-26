@@ -5,12 +5,13 @@ import type { MicBridge } from "./MicBridge";
 /**
  * Body of `GET /api/mic-bridges`.
  */
-export type MicBridges = { 
-/**
- * Approved bridges, in order of approval.
- */
-bridges: Array<MicBridge>, 
-/**
- * Bridges waiting for approval ("New bridges"), oldest first.
- */
-requests: Array<BridgeRequest>, };
+export type MicBridges = {
+  /**
+   * Approved bridges, in order of approval.
+   */
+  bridges: Array<MicBridge>;
+  /**
+   * Bridges waiting for approval ("New bridges"), oldest first.
+   */
+  requests: Array<BridgeRequest>;
+};

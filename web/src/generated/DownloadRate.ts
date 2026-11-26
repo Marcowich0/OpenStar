@@ -3,12 +3,13 @@
 /**
  * yt-dlp's last progress report for a running Download.
  */
-export type DownloadRate = { 
-/**
- * `None` while yt-dlp does not know it yet.
- */
-bytesPerSecond: number | null, 
-/**
- * Seconds until the file being fetched is complete, when known.
- */
-etaSeconds: number | null, };
+export type DownloadRate = {
+  /**
+   * `None` while yt-dlp does not know it yet.
+   */
+  bytesPerSecond: number | null;
+  /**
+   * Seconds until the file being fetched is complete, when known.
+   */
+  etaSeconds: number | null;
+};

@@ -10,7 +10,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use openstar::clock::ManualClock;
-use openstar_protocol::admin::{ApiError, ApiErrorCode};
+
 use openstar_protocol::library::{SongDetail, SongId, SongList, TrashId, TrashList, TrashedSong};
 use openstar_protocol::party::{PartyId, RequestId};
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
@@ -252,8 +252,8 @@ async fn a_restore_needs_an_unlock_and_moves_nothing_without_one() {
     let (status, body) = restore(&app, None, trashed).await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
-    let error: ApiError = serde_json::from_str(&body).unwrap();
-    assert_eq!(error.code, ApiErrorCode::UnlockRequired);
+    let error: UserMessage = serde_json::from_str(&body).unwrap();
+    assert_eq!(error, UserMessage::UnlockRequired);
     assert!(!app.songs_dir().join("Older/Solo").exists());
     assert_eq!(ledger(&app), ["Older/Solo"]);
 }

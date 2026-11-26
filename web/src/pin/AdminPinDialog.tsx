@@ -21,7 +21,7 @@ import {
 } from "react-aria-components";
 
 import { ApiFailure, api } from "../api/api";
-import { apiErrorText } from "../i18n/serverText";
+import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import { Button } from "../ui/Button";
 import { NumberPad, type PadAnswer } from "../ui/NumberPad";
@@ -132,7 +132,7 @@ function AdminPinPad({
         return "refused";
       }
       if (failure.kind === "refused" && failure.error.code === "wrongPin") {
-        setMessage({ kind: "wrong", text: apiErrorText(failure.error) });
+        setMessage({ kind: "wrong", text: userMessageText(failure.error) });
         return "refused";
       }
       setMessage({ kind: "failed" });

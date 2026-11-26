@@ -4,14 +4,16 @@ import type { LocalMicSource } from "./LocalMicSource";
 /**
  * One hardware channel of an open bridge, as the Mics screen lists it.
  */
-export type BridgeChannel = { localMicId: string, 
-/**
- * Always the `bridge` kind.
- */
-source: LocalMicSource, 
-/**
- * The input delay the bridge's capture backend reported for it, in
- * ms: the default Mic delay of an uncalibrated Local mic. Left out
- * when none was reported (always, in `--wav` mode).
- */
-reportedInputDelayMs?: number, };
+export type BridgeChannel = {
+  localMicId: string;
+  /**
+   * Always the `bridge` kind.
+   */
+  source: LocalMicSource;
+  /**
+   * The input delay the bridge's capture backend reported for it, in
+   * ms: the default Mic delay of an uncalibrated Local mic. Left out
+   * when none was reported (always, in `--wav` mode).
+   */
+  reportedInputDelayMs?: number;
+};

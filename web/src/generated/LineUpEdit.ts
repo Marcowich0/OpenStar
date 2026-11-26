@@ -8,4 +8,10 @@ import type { SeatWho } from "./SeatWho";
  * One edit of the waiting Line-up, tagged by `kind`. Seats are numbered
  * from 0 in seat order.
  */
-export type LineUpEdit = { "kind": "setWho", seat: number, who: SeatWho, } | { "kind": "addSeat", who: SeatWho, } | { "kind": "setMic", seat: number, mic: MicKey, } | { "kind": "setVoice", seat: number, voice: SeatVoice, } | { "kind": "setDifficulty", seat: number, difficulty: Difficulty, } | { "kind": "removeSeat", seat: number, };
+export type LineUpEdit =
+  | { kind: "setWho"; seat: number; who: SeatWho }
+  | { kind: "addSeat"; who: SeatWho }
+  | { kind: "setMic"; seat: number; mic: MicKey }
+  | { kind: "setVoice"; seat: number; voice: SeatVoice }
+  | { kind: "setDifficulty"; seat: number; difficulty: Difficulty }
+  | { kind: "removeSeat"; seat: number };

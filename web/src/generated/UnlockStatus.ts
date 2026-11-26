@@ -3,4 +3,4 @@
 /**
  * Whether this browser holds an Unlock.
  */
-export type UnlockStatus = { unlocked: boolean, };
+export type UnlockStatus = { unlocked: boolean };

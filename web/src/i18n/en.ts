@@ -806,10 +806,10 @@ export const en = {
   "userMessage.noMicReady": "No Mic is ready yet",
   "userMessage.notInCalibration": "This Phone is not in Calibrate mics",
 
-  "apiError.wrongPin": "That is not the Admin PIN",
-  "apiError.unlockRequired": "Enter the Admin PIN first",
-  "apiError.libraryReadOnly": "The Library is read-only",
-  "apiError.stagePinRequired": "Enter the Admin PIN to make this the Stage",
+  "userMessage.wrongPin": "That is not the Admin PIN",
+  "userMessage.unlockRequired": "Enter the Admin PIN first",
+  "userMessage.libraryReadOnly": "The Library is read-only",
+  "userMessage.stagePinRequired": "Enter the Admin PIN to make this the Stage",
 
   "libraryReadOnly.songsFolderNotWritable":
     "OpenStar cannot write to the songs folder {songsDir}, so the Library is read-only",

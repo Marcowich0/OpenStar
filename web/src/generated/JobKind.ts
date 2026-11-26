@@ -4,4 +4,11 @@
  * What a job does. Each area adds its own kinds (Downloads, media
  * conversions, Song loudness measurements, the Pitch track).
  */
-export type JobKind = "test" | "conversion" | "loudness" | "pitchTrack" | "usdbMirrorRefetch" | "usdbMirrorUpdate" | "download";
+export type JobKind =
+  | "test"
+  | "conversion"
+  | "loudness"
+  | "pitchTrack"
+  | "usdbMirrorRefetch"
+  | "usdbMirrorUpdate"
+  | "download";

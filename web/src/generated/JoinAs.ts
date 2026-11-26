@@ -6,4 +6,7 @@ import type { ProfileId } from "./ProfileId";
 /**
  * Who a Phone joins (or switches) as, tagged by `kind`.
  */
-export type JoinAs = { "kind": "profile", profileId: ProfileId, } | { "kind": "guest" } & NewGuest | { "kind": "newProfile" } & NewProfile;
+export type JoinAs =
+  | { kind: "profile"; profileId: ProfileId }
+  | ({ kind: "guest" } & NewGuest)
+  | ({ kind: "newProfile" } & NewProfile);

@@ -3,8 +3,9 @@
 /**
  * Query of `GET /api/mic-settings`.
  */
-export type MicSettingsQuery = { 
-/**
- * The Stage output key: the default output's label without "Default - ".
- */
-stageOutput: string, };
+export type MicSettingsQuery = {
+  /**
+   * The Stage output key: the default output's label without "Default - ".
+   */
+  stageOutput: string;
+};

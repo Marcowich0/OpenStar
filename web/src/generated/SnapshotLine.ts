@@ -5,4 +5,4 @@ import type { SnapshotNote } from "./SnapshotNote";
  * One Line of a [`NoteSnapshot`]: its Notes in file order and the beat of
  * the Line end marker that closed it, if one did.
  */
-export type SnapshotLine = { notes: Array<SnapshotNote>, end: number | null, };
+export type SnapshotLine = { notes: Array<SnapshotNote>; end: number | null };

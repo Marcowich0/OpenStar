@@ -5,16 +5,18 @@ import type { MicKey } from "./MicKey";
 /**
  * One Mic in a Calibration run.
  */
-export type CalibrationMic = { mic: MicKey, 
-/**
- * Ticked on the checklist (always true after `choosing`).
- */
-chosen: boolean, 
-/**
- * The Mic is listening: a Phone after its "I'm listening" tap.
- */
-ready: boolean, 
-/**
- * Its result, in `results`.
- */
-outcome?: CalibrationOutcome, };
+export type CalibrationMic = {
+  mic: MicKey;
+  /**
+   * Ticked on the checklist (always true after `choosing`).
+   */
+  chosen: boolean;
+  /**
+   * The Mic is listening: a Phone after its "I'm listening" tap.
+   */
+  ready: boolean;
+  /**
+   * Its result, in `results`.
+   */
+  outcome?: CalibrationOutcome;
+};

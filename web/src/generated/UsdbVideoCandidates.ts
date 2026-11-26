@@ -7,20 +7,22 @@ import type { VideoCandidate } from "./VideoCandidate";
  * USDB song, in the order the picker shows them (the first is
  * preselected).
  */
-export type UsdbVideoCandidates = { usdbId: number, 
-/**
- * The Song's length from USDB's text (`#END`, else the end of its last
- * Note), to set beside each candidate's duration; `null` when the text
- * gives none.
- */
-songLengthSeconds: number | null, 
-/**
- * `#VIDEO` tags first, then comment links (newest comment first), then
- * yt-dlp search hits; a link already offered is not offered again.
- */
-candidates: Array<VideoCandidate>, 
-/**
- * Why the yt-dlp search found nothing, when it failed (the other
- * candidates are still offered).
- */
-searchFailure: UserMessage | null, };
+export type UsdbVideoCandidates = {
+  usdbId: number;
+  /**
+   * The Song's length from USDB's text (`#END`, else the end of its last
+   * Note), to set beside each candidate's duration; `null` when the text
+   * gives none.
+   */
+  songLengthSeconds: number | null;
+  /**
+   * `#VIDEO` tags first, then comment links (newest comment first), then
+   * yt-dlp search hits; a link already offered is not offered again.
+   */
+  candidates: Array<VideoCandidate>;
+  /**
+   * Why the yt-dlp search found nothing, when it failed (the other
+   * candidates are still offered).
+   */
+  searchFailure: UserMessage | null;
+};

@@ -3,16 +3,17 @@
 /**
  * One media file the Stage plays.
  */
-export type MediaFile = { 
-/**
- * Served with HTTP `Range` requests.
- */
-url: string, 
-/**
- * Whether the Stage plays the file served at `url`, decided by its
- * container and codecs (from ffprobe). A file converted into the cache
- * is served in its place at the same URL, and is native. `false` means
- * it needs conversion (not converted yet), and also for a file not
- * probed yet.
- */
-native: boolean, };
+export type MediaFile = {
+  /**
+   * Served with HTTP `Range` requests.
+   */
+  url: string;
+  /**
+   * Whether the Stage plays the file served at `url`, decided by its
+   * container and codecs (from ffprobe). A file converted into the cache
+   * is served in its place at the same URL, and is native. `false` means
+   * it needs conversion (not converted yet), and also for a file not
+   * probed yet.
+   */
+  native: boolean;
+};

@@ -8,7 +8,7 @@ use std::time::Duration;
 use openstar::clock::ManualClock;
 use openstar::{Config, Server};
 use openstar_protocol::UserMessage;
-use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest};
+use openstar_protocol::admin::UnlockRequest;
 use reqwest::StatusCode;
 
 const PIN: &str = "1234";
@@ -107,8 +107,8 @@ impl App {
         match response.status() {
             StatusCode::OK => Answer::Unlocked,
             StatusCode::FORBIDDEN => {
-                let body: ApiError = response.json().await.unwrap();
-                assert_eq!(body.code, ApiErrorCode::WrongPin);
+                let body: UserMessage = response.json().await.unwrap();
+                assert_eq!(body, UserMessage::WrongPin);
                 Answer::WrongPin
             }
             StatusCode::TOO_MANY_REQUESTS => {

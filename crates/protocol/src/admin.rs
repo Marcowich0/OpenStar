@@ -3,7 +3,7 @@
 //!
 //! - `POST /api/unlock` with an [`UnlockRequest`]: a correct Admin PIN answers
 //!   with an [`UnlockStatus`] and sets the Unlock cookie; a wrong one answers
-//!   `403` with an [`ApiError`] whose code is [`ApiErrorCode::WrongPin`].
+//!   `403` with [`UserMessage::WrongPin`](crate::UserMessage::WrongPin).
 //!   After 5 wrong guesses in a row (from any browser) each further wrong
 //!   guess starts a wait; while it runs every attempt, even the correct PIN,
 //!   answers `429` with a `Retry-After` header and
@@ -12,7 +12,8 @@
 //!   the idle time.
 //! - `POST /api/unlock/heartbeat`: resets the idle time of a live Unlock and
 //!   answers with an [`UnlockStatus`]; without one it answers `401` with
-//!   [`ApiErrorCode::UnlockRequired`] and creates nothing.
+//!   [`UserMessage::UnlockRequired`](crate::UserMessage::UnlockRequired) and
+//!   creates nothing.
 //! - `POST /api/lock`: ends this browser's Unlock, if any. Needs no Unlock.
 //!
 //! - `POST /api/stage/trust` with a [`StageTrustRequest`]: Stage trust, the
@@ -20,16 +21,19 @@
 //!   browser already remembered as a Stage browser (by its Stage cookie)
 //!   answers [`StageTrustStatus`] with no PIN; otherwise a correct PIN answers
 //!   it and sets the long-lived Stage cookie, no PIN answers `403`
-//!   [`ApiErrorCode::StagePinRequired`], and a wrong one `403`
-//!   [`ApiErrorCode::WrongPin`]. The PIN shares the wrong-guess wait above.
+//!   [`UserMessage::StagePinRequired`](crate::UserMessage::StagePinRequired),
+//!   and a wrong one `403` [`UserMessage::WrongPin`](crate::UserMessage::WrongPin).
+//!   The PIN shares the wrong-guess wait above.
 //!   Stage trust is not an Unlock, and an Unlock is not Stage trust.
 //! - `GET /ws/stage`, the Stage's WebSocket, refuses the upgrade of a browser
-//!   without Stage trust with `403` [`ApiErrorCode::StagePinRequired`].
+//!   without Stage trust with `403`
+//!   [`UserMessage::StagePinRequired`](crate::UserMessage::StagePinRequired).
 //!
 //! A guarded endpoint refuses a request without a live Unlock with `401` and
-//! [`ApiErrorCode::UnlockRequired`]. A guarded endpoint that writes the
-//! Library refuses every request with `409` and
-//! [`ApiErrorCode::LibraryReadOnly`] while the Library is read-only.
+//! [`UserMessage::UnlockRequired`](crate::UserMessage::UnlockRequired). A
+//! guarded endpoint that writes the Library refuses every request with `409`
+//! and [`UserMessage::LibraryReadOnly`](crate::UserMessage::LibraryReadOnly)
+//! while the Library is read-only.
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -69,49 +73,4 @@ pub struct StageTrustRequest {
 #[ts(export)]
 pub struct StageTrustStatus {
     pub trusted: bool,
-}
-
-/// The body of an HTTP error answer: a code the frontend turns into text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct ApiError {
-    pub code: ApiErrorCode,
-}
-
-/// Why an HTTP request was refused.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub enum ApiErrorCode {
-    /// The Admin PIN attempt was wrong.
-    WrongPin,
-    /// The action is guarded and this browser holds no live Unlock.
-    UnlockRequired,
-    /// The action writes the Library and the Library is read-only, whatever
-    /// the Unlock.
-    LibraryReadOnly,
-    /// Becoming the Stage needs the Admin PIN: this browser is not a
-    /// remembered Stage browser.
-    StagePinRequired,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn error_codes_are_camel_case() {
-        assert_eq!(
-            serde_json::to_string(&ApiError {
-                code: ApiErrorCode::UnlockRequired
-            })
-            .unwrap(),
-            r#"{"code":"unlockRequired"}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&ApiErrorCode::WrongPin).unwrap(),
-            r#""wrongPin""#
-        );
-    }
 }

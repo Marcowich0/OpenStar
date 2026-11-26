@@ -5,13 +5,15 @@ import type { PaletteKey } from "./PaletteKey";
 /**
  * A new Guest: what the Phone's form (or the Stage's) sends.
  */
-export type NewGuest = { 
-/**
- * Surrounding spaces are trimmed before the name is checked and stored.
- */
-name: string, 
-/**
- * Must be free in the Party; the form preselects the first free one in
- * palette order.
- */
-colour: PaletteKey, avatar: Avatar, };
+export type NewGuest = {
+  /**
+   * Surrounding spaces are trimmed before the name is checked and stored.
+   */
+  name: string;
+  /**
+   * Must be free in the Party; the form preselects the first free one in
+   * palette order.
+   */
+  colour: PaletteKey;
+  avatar: Avatar;
+};

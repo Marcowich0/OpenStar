@@ -6,13 +6,14 @@ import type { UsdbSort } from "./UsdbSort";
  * `GET /api/usdb/songs` (`?search=queen&sort=rating`). Both fields are
  * optional.
  */
-export type UsdbSearchQuery = { 
-/**
- * Words that must each appear in the song's artist or title, compared
- * as the Library's search compares them (Unicode case folding).
- */
-search?: string, 
-/**
- * The order of the results; `views` when absent.
- */
-sort?: UsdbSort, };
+export type UsdbSearchQuery = {
+  /**
+   * Words that must each appear in the song's artist or title, compared
+   * as the Library's search compares them (Unicode case folding).
+   */
+  search?: string;
+  /**
+   * The order of the results; `views` when absent.
+   */
+  sort?: UsdbSort;
+};

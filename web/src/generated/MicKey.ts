@@ -4,4 +4,5 @@
  * Names a Mic for its stored values: a Phone by its Phone id, a Local mic
  * by its Local mic id. Both are kept as the browser sends them.
  */
-export type MicKey = { "kind": "phone", phoneId: string, } | { "kind": "localMic", localMicId: string, };
+export type MicKey =
+  { kind: "phone"; phoneId: string } | { kind: "localMic"; localMicId: string };

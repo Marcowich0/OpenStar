@@ -7,29 +7,30 @@
  * naming the profile ("Scarlett 4i4 is in Analog Surround 2.1: only some
  * inputs reach OpenStar"), with **Switch to Pro Audio**.
  */
-export type NotProAudio = { 
-/**
- * The card's `device.name`: what Switch to Pro Audio names.
- */
-deviceName: string, 
-/**
- * The card's name on the sound server, as `pactl set-card-profile`
- * takes it (usually the same as `device_name`).
- */
-cardName: string, 
-/**
- * The interface's name for people.
- */
-label: string, 
-/**
- * The active profile's name for people ("Analog Surround 2.1"), or its
- * name when it has no description; empty when the card has none
- * active ("Off").
- */
-profile: string, 
-/**
- * The last Switch to Pro Audio was refused (in a sandbox, for
- * example): the message says to set the profile in the sound settings
- * instead, with the [`pactl_line`] to copy.
- */
-switchRefused: boolean, };
+export type NotProAudio = {
+  /**
+   * The card's `device.name`: what Switch to Pro Audio names.
+   */
+  deviceName: string;
+  /**
+   * The card's name on the sound server, as `pactl set-card-profile`
+   * takes it (usually the same as `device_name`).
+   */
+  cardName: string;
+  /**
+   * The interface's name for people.
+   */
+  label: string;
+  /**
+   * The active profile's name for people ("Analog Surround 2.1"), or its
+   * name when it has no description; empty when the card has none
+   * active ("Off").
+   */
+  profile: string;
+  /**
+   * The last Switch to Pro Audio was refused (in a sandbox, for
+   * example): the message says to set the profile in the sound settings
+   * instead, with the [`pactl_line`] to copy.
+   */
+  switchRefused: boolean;
+};

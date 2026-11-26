@@ -5,13 +5,15 @@ import type { SongId } from "./SongId";
 /**
  * The head's Song while it plays: the Party's 'playing' state.
  */
-export type PlayingSong = { 
-/**
- * The head, whose Line-up is fixed until the Song ends.
- */
-requestId: RequestId, songId: SongId, 
-/**
- * Someone pressed Pause, and nobody has pressed Resume or Restart
- * since.
- */
-paused: boolean, };
+export type PlayingSong = {
+  /**
+   * The head, whose Line-up is fixed until the Song ends.
+   */
+  requestId: RequestId;
+  songId: SongId;
+  /**
+   * Someone pressed Pause, and nobody has pressed Resume or Restart
+   * since.
+   */
+  paused: boolean;
+};

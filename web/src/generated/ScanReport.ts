@@ -3,22 +3,23 @@
 /**
  * What a scan did.
  */
-export type ScanReport = { 
-/**
- * `.txt` files read and parsed: new, changed, or indexed by another
- * parser version.
- */
-read: number, 
-/**
- * `.txt` files left as indexed, because their size and mtime are unchanged.
- */
-unchanged: number, 
-/**
- * Index entries removed because their file has gone.
- */
-removed: number, 
-/**
- * Audio and video files probed with ffprobe: new, or changed in size or
- * mtime since they were last probed.
- */
-probed: number, };
+export type ScanReport = {
+  /**
+   * `.txt` files read and parsed: new, changed, or indexed by another
+   * parser version.
+   */
+  read: number;
+  /**
+   * `.txt` files left as indexed, because their size and mtime are unchanged.
+   */
+  unchanged: number;
+  /**
+   * Index entries removed because their file has gone.
+   */
+  removed: number;
+  /**
+   * Audio and video files probed with ffprobe: new, or changed in size or
+   * mtime since they were last probed.
+   */
+  probed: number;
+};

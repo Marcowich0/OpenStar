@@ -3,4 +3,4 @@
 /**
  * The Beats a Score covers, both ends included. The whole Voice in v1.
  */
-export type BeatRange = { firstBeat: number, lastBeat: number, };
+export type BeatRange = { firstBeat: number; lastBeat: number };

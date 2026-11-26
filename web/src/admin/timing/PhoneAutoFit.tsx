@@ -21,7 +21,7 @@ import type { PhoneId } from "../../generated/PhoneId";
 import type { SongSummary } from "../../generated/SongSummary";
 import type { UserMessage } from "../../generated/UserMessage";
 import { useGuardedAction } from "../../guarded/useGuardedAction";
-import { refusalText, userMessageText } from "../../i18n/serverText";
+import { userMessageText } from "../../i18n/serverText";
 import { t } from "../../i18n/t";
 import { browserStorage } from "../../live/browserLive";
 import type { LiveStore } from "../../live/liveStore";
@@ -163,7 +163,7 @@ export function PhoneAutoFit({
       (error: unknown) => {
         setSaveFailure(
           error instanceof ApiFailure && error.failure.kind === "refused"
-            ? refusalText(error.failure.error)
+            ? userMessageText(error.failure.error)
             : t("admin.songs.fit.saveFailed"),
         );
       },

@@ -6,7 +6,8 @@ use std::path::Path;
 
 use openstar::endpoints::{Access, Endpoint, Library, ws_access};
 use openstar::{Config, Server};
-use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest};
+use openstar_protocol::UserMessage;
+use openstar_protocol::admin::UnlockRequest;
 use openstar_protocol::library::SongId;
 use openstar_protocol::profile::ProfileId;
 use openstar_protocol::{
@@ -56,7 +57,7 @@ impl App {
         &self,
         endpoint: &Endpoint,
         cookie: Option<&str>,
-    ) -> (StatusCode, Option<ApiErrorCode>) {
+    ) -> (StatusCode, Option<UserMessage>) {
         let path = example_path(endpoint.path);
         let mut request = self
             .http
@@ -67,9 +68,7 @@ impl App {
         let response = request.send().await.unwrap();
         let status = response.status();
         let body = response.bytes().await.unwrap();
-        let code = serde_json::from_slice::<ApiError>(&body)
-            .ok()
-            .map(|e| e.code);
+        let code = serde_json::from_slice::<UserMessage>(&body).ok();
         (status, code)
     }
 
@@ -165,7 +164,7 @@ async fn every_guarded_endpoint_refuses_without_an_unlock_and_passes_with_one() 
         assert_eq!(status, StatusCode::UNAUTHORIZED, "{}", describe(endpoint));
         assert_eq!(
             code,
-            Some(ApiErrorCode::UnlockRequired),
+            Some(UserMessage::UnlockRequired),
             "{}",
             describe(endpoint)
         );
@@ -173,7 +172,7 @@ async fn every_guarded_endpoint_refuses_without_an_unlock_and_passes_with_one() 
         let (status, code) = app.call(endpoint, Some(&cookie)).await;
         assert_ne!(
             code,
-            Some(ApiErrorCode::UnlockRequired),
+            Some(UserMessage::UnlockRequired),
             "{}",
             describe(endpoint)
         );
@@ -197,7 +196,7 @@ async fn every_not_guarded_endpoint_answers_without_an_unlock() {
         let (status, code) = app.call(endpoint, None).await;
         assert_ne!(
             code,
-            Some(ApiErrorCode::UnlockRequired),
+            Some(UserMessage::UnlockRequired),
             "{}",
             describe(endpoint)
         );
@@ -227,14 +226,14 @@ async fn a_read_only_library_refuses_every_library_write_even_with_an_unlock() {
                 assert_eq!(status, StatusCode::CONFLICT, "{}", describe(endpoint));
                 assert_eq!(
                     code,
-                    Some(ApiErrorCode::LibraryReadOnly),
+                    Some(UserMessage::LibraryReadOnly),
                     "{}",
                     describe(endpoint)
                 );
                 let (_, code) = app.call(endpoint, None).await;
                 assert_eq!(
                     code,
-                    Some(ApiErrorCode::LibraryReadOnly),
+                    Some(UserMessage::LibraryReadOnly),
                     "{}",
                     describe(endpoint)
                 );
@@ -242,13 +241,13 @@ async fn a_read_only_library_refuses_every_library_write_even_with_an_unlock() {
             _ => {
                 assert_ne!(
                     code,
-                    Some(ApiErrorCode::LibraryReadOnly),
+                    Some(UserMessage::LibraryReadOnly),
                     "{}",
                     describe(endpoint)
                 );
                 assert_ne!(
                     code,
-                    Some(ApiErrorCode::UnlockRequired),
+                    Some(UserMessage::UnlockRequired),
                     "{}",
                     describe(endpoint)
                 );

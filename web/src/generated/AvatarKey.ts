@@ -3,4 +3,28 @@
 /**
  * One of the 24 built-in avatar icons, by key.
  */
-export type AvatarKey = "star" | "heart" | "moon" | "bolt" | "note" | "crown" | "drop" | "leaf" | "diamond" | "cloud" | "flame" | "ghost" | "sun" | "planet" | "rocket" | "cat" | "fish" | "flower" | "mushroom" | "apple" | "guitar" | "headphones" | "rainbow" | "butterfly";
+export type AvatarKey =
+  | "star"
+  | "heart"
+  | "moon"
+  | "bolt"
+  | "note"
+  | "crown"
+  | "drop"
+  | "leaf"
+  | "diamond"
+  | "cloud"
+  | "flame"
+  | "ghost"
+  | "sun"
+  | "planet"
+  | "rocket"
+  | "cat"
+  | "fish"
+  | "flower"
+  | "mushroom"
+  | "apple"
+  | "guitar"
+  | "headphones"
+  | "rainbow"
+  | "butterfly";

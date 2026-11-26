@@ -6,28 +6,29 @@ import type { Seat } from "./Seat";
 /**
  * The Players set for the head's Song, as the server holds and checks it.
  */
-export type LineUp = { 
-/**
- * The Request this Line-up is for: always the head.
- */
-requestId: RequestId, 
-/**
- * The Song has two Voices, so seats choose between `p1` and `p2`.
- */
-duet: boolean, 
-/**
- * In seat order; at most [`SEATS`]. A member at most once is a rule
- * checked by the server (see `canStart`), never a shape of this list.
- */
-seats: Array<Seat>, 
-/**
- * Whether Start may be pressed: at least one seat, every seat has a
- * Mic, no Mic serves two seats, no member sits in two seats, and a
- * duet has someone on each Voice. Computed by the server.
- */
-canStart: boolean, 
-/**
- * What the Stage and the Remotes show under the Line-up, in seat
- * order, then the Song's own warnings. Computed by the server.
- */
-warnings: Array<LineUpWarning>, };
+export type LineUp = {
+  /**
+   * The Request this Line-up is for: always the head.
+   */
+  requestId: RequestId;
+  /**
+   * The Song has two Voices, so seats choose between `p1` and `p2`.
+   */
+  duet: boolean;
+  /**
+   * In seat order; at most [`SEATS`]. A member at most once is a rule
+   * checked by the server (see `canStart`), never a shape of this list.
+   */
+  seats: Array<Seat>;
+  /**
+   * Whether Start may be pressed: at least one seat, every seat has a
+   * Mic, no Mic serves two seats, no member sits in two seats, and a
+   * duet has someone on each Voice. Computed by the server.
+   */
+  canStart: boolean;
+  /**
+   * What the Stage and the Remotes show under the Line-up, in seat
+   * order, then the Song's own warnings. Computed by the server.
+   */
+  warnings: Array<LineUpWarning>;
+};

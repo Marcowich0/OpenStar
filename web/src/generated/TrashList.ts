@@ -4,4 +4,4 @@ import type { TrashedSong } from "./TrashedSong";
 /**
  * Every Song folder in the trash, the most recently deleted first.
  */
-export type TrashList = { songs: Array<TrashedSong>, };
+export type TrashList = { songs: Array<TrashedSong> };

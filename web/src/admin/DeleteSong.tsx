@@ -10,7 +10,7 @@ import { useState } from "react";
 import { ApiFailure, api } from "../api/api";
 import type { SongSummary } from "../generated/SongSummary";
 import { useGuardedAction } from "../guarded/useGuardedAction";
-import { refusalText } from "../i18n/serverText";
+import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import { HoldButton } from "../ui/HoldButton";
 
@@ -52,6 +52,6 @@ export function DeleteSong({ song }: { song: SongSummary }) {
 
 function failureText(error: unknown): string {
   if (error instanceof ApiFailure && error.failure.kind === "refused")
-    return refusalText(error.failure.error);
+    return userMessageText(error.failure.error);
   return t("admin.songs.deleteFailed");
 }

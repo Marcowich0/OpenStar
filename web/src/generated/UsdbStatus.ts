@@ -4,4 +4,4 @@ import type { UsdbState } from "./UsdbState";
 /**
  * Body of `GET /api/usdb/status`.
  */
-export type UsdbStatus = { state: UsdbState, };
+export type UsdbStatus = { state: UsdbState };

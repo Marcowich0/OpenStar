@@ -24,7 +24,7 @@ use std::time::Duration;
 use openstar::clock::ManualClock;
 use openstar::db::DATABASE_FILE;
 use openstar::usdb::{UsdbTimer, VirtualTimer};
-use openstar_protocol::admin::{ApiError, ApiErrorCode};
+
 use openstar_protocol::jobs::{DownloadRate, Job, JobId, JobKind, JobList, JobState};
 use openstar_protocol::library::{SongIdentity, SongList};
 use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
@@ -272,8 +272,8 @@ async fn starting_a_download_needs_an_unlock_but_the_picker_does_not() {
 
     let refused = start_download(&app, None, 1).await;
     assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
-    let error: ApiError = refused.json().await.unwrap();
-    assert_eq!(error.code, ApiErrorCode::UnlockRequired);
+    let error: UserMessage = refused.json().await.unwrap();
+    assert_eq!(error, UserMessage::UnlockRequired);
     let list: JobList = app.get_json("/api/jobs").await;
     assert!(
         list.jobs.iter().all(|job| job.kind != JobKind::Download),
@@ -557,8 +557,8 @@ async fn a_read_only_library_refuses_a_download_even_with_an_unlock() {
 
     let refused = start_download(&app, Some(&cookie), 1).await;
     assert_eq!(refused.status(), StatusCode::CONFLICT);
-    let error: ApiError = refused.json().await.unwrap();
-    assert_eq!(error.code, ApiErrorCode::LibraryReadOnly);
+    let error: UserMessage = refused.json().await.unwrap();
+    assert_eq!(error, UserMessage::LibraryReadOnly);
     assert!(downloads_run(&stub).is_empty());
 }
 

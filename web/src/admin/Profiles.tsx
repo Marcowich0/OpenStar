@@ -9,11 +9,9 @@ import { useState } from "react";
 
 import { api, ApiFailure, type Refusal } from "../api/api";
 import { profilesQuery } from "../api/queries";
-import type { ApiError } from "../generated/ApiError";
-import type { ApiErrorCode } from "../generated/ApiErrorCode";
 import type { Profile } from "../generated/Profile";
 import { useGuardedAction } from "../guarded/useGuardedAction";
-import { apiErrorText, userMessageText } from "../i18n/serverText";
+import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import { Avatar } from "../ui/Avatar";
 import { HoldButton } from "../ui/HoldButton";
@@ -64,23 +62,9 @@ function problemOf(error: unknown): Problem {
     : { kind: "failed" };
 }
 
-// The guard's and the PIN's codes; any other refusal is a `UserMessage`.
-const API_ERROR_CODES = {
-  wrongPin: true,
-  unlockRequired: true,
-  libraryReadOnly: true,
-  stagePinRequired: true,
-} as const satisfies Record<ApiErrorCode, true>;
-
-function isApiError(refusal: Refusal): refusal is ApiError {
-  return Object.hasOwn(API_ERROR_CODES, refusal.code);
-}
-
 function problemText(problem: Problem): string {
   if (problem.kind === "failed") return t("admin.profiles.deleteFailed");
-  return isApiError(problem.refusal)
-    ? apiErrorText(problem.refusal)
-    : userMessageText(problem.refusal);
+  return userMessageText(problem.refusal);
 }
 
 /** One Profile: its avatar, name and last sung, and Delete (press and hold). */

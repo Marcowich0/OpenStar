@@ -7,14 +7,17 @@ import type { SongId } from "./SongId";
 /**
  * The Song whose results the Stage shows: the Party's 'results' state.
  */
-export type SongResults = { 
-/**
- * The Request that was sung; it has left the Queue.
- */
-requestId: RequestId, songId: SongId, ended: SongEnd, 
-/**
- * Every seated Player's result, ranked by total (best first; equal
- * totals keep their seat order). Each Phone that was a Player's Mic
- * finds its own result by `mic`.
- */
-players: Array<PlayerResult>, };
+export type SongResults = {
+  /**
+   * The Request that was sung; it has left the Queue.
+   */
+  requestId: RequestId;
+  songId: SongId;
+  ended: SongEnd;
+  /**
+   * Every seated Player's result, ranked by total (best first; equal
+   * totals keep their seat order). Each Phone that was a Player's Mic
+   * finds its own result by `mic`.
+   */
+  players: Array<PlayerResult>;
+};

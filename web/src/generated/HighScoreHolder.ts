@@ -7,4 +7,9 @@ import type { ProfileId } from "./ProfileId";
  * The Profile holding a High score, as tables and Song rows show it:
  * outside any Party, so with its favourite colour.
  */
-export type HighScoreHolder = { profileId: ProfileId, name: string, avatar: Avatar, favouriteColour: PaletteKey, };
+export type HighScoreHolder = {
+  profileId: ProfileId;
+  name: string;
+  avatar: Avatar;
+  favouriteColour: PaletteKey;
+};
