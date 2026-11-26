@@ -2,7 +2,8 @@
 // in one card per state. The waiting Line-up's card: "Up next: who
 // sings?" with the Song's cover and title, one row per seat, "Add a singer",
 // the server's warnings, and a big Start. While the results show, this
-// Phone's own Player's result (#175: the data; its look is #49's). The
+// Phone's own Player's result with its Rank title (#175: the data, #182: the
+// Rank title; its look is #49's). The
 // playing Song and the empty Queue are later tickets' cards. No level meters and no Mic
 // threshold here: those are on the Stage.
 
@@ -12,6 +13,7 @@ import type { PartyMemberId } from "../../generated/PartyMemberId";
 import type { PhoneId } from "../../generated/PhoneId";
 import type { Seat } from "../../generated/Seat";
 import { difficultyName, voiceNumber } from "../../i18n/seatNames";
+import { rankTitle } from "../../i18n/rankTitles";
 import { lineUpWarningText } from "../../i18n/serverText";
 import { t } from "../../i18n/t";
 import type { LiveStore } from "../../live/liveStore";
@@ -95,6 +97,7 @@ export function StageTab({
           <p className="text-2xl font-bold tabular-nums">
             {t("stageTab.yourScore", { total: mine.total })}
           </p>
+          <p className="font-semibold">{rankTitle(mine.rankTitleBand)}</p>
           {mine.newHighScore && (
             <p className="font-semibold text-yellow">
               {t("stageTab.newHighScore")}
