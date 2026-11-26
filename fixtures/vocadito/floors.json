@@ -1,0 +1,11 @@
+{
+  "comment": "Floors for the Vocadito accuracy test (README.md): the percentage of voiced reference frames where the detector's reading, folded to the reference's octave, is within 50 cents. Set on 2026-11-26 from the first measured run (vocadito_2 100.00, vocadito_4 98.09, vocadito_6 99.39, vocadito_26 94.44, vocadito_35 98.74, overall 98.27 %), rounded down to 0.1; they only ever rise.",
+  "overallMinPct": 98.2,
+  "excerptMinPct": {
+    "vocadito_2": 100,
+    "vocadito_4": 98.0,
+    "vocadito_6": 99.3,
+    "vocadito_26": 94.4,
+    "vocadito_35": 98.7
+  }
+}
