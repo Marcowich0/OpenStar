@@ -237,8 +237,9 @@ test("End stops the Song: the Stage stores the ended round and the Stage and the
     await expect.poll(() => mediaTime(stage)).toBeGreaterThan(0.5);
 
     // End: the Stage sends the round's outcome once and the server answers
-    // with the stored round and its results. No Pitch reading reaches the
-    // scorer yet (the Mic-to-Player map is empty), so the Score is 0.
+    // with the stored round and its results. This Phone never turned its
+    // mic on, so no Pitch reading reaches the scorer and the Score is 0
+    // (phone-mic.spec.ts sings).
     const round = stage.waitForResponse(
       (r) => r.url().endsWith("/api/rounds") && r.request().method() === "POST",
     );

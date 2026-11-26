@@ -81,11 +81,12 @@ export function clockPlacement(
 }
 
 /**
- * A Map key for a Mic. Only Phones relay readings so far; a new `MicId` kind
- * (#151's Mic bridge) fails to compile here until it gets its own key.
+ * A Map key for a Mic: a Phone's is its Phone id, the one its Line-up seat
+ * names. A new `MicId` kind (#151's Mic bridge) fails to compile here until
+ * it gets its own key.
  */
 function micKey(mic: MicId): string {
-  return `${mic.kind}:${String(mic.connection)}`;
+  return `${mic.kind}:${mic.phoneId}`;
 }
 
 const noBuffers: readonly PitchBuffer[] = [];

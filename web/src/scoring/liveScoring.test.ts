@@ -61,8 +61,8 @@ function player(over: Partial<LiveScoringPlayer> = {}): LiveScoringPlayer {
   };
 }
 
-const FIRST_MIC: MicId = { kind: "phone", connection: 1 };
-const MICS: MicId[] = [FIRST_MIC, { kind: "phone", connection: 2 }];
+const FIRST_MIC: MicId = { kind: "phone", phoneId: "phone-1" };
+const MICS: MicId[] = [FIRST_MIC, { kind: "phone", phoneId: "phone-2" }];
 
 /** Start of Beat `b` in Stage ms (Song time × 1000 while playing from 0). */
 const beatMs = (b: number) => 500 + 250 * b;
