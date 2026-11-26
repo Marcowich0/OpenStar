@@ -26,6 +26,18 @@ export interface PlaybackPlan {
   endSeconds: number | null;
   /** The Song's measured loudness (`null`: unmeasured, unity gain). */
   loudnessLufs: number | null;
+  /**
+   * Separate audio and video files (#212): the muted video that follows the
+   * audio at *audio position + `#VIDEOGAP`*. `null` without one, for one file
+   * that plays as both, and while the video still converts (backdrop only).
+   */
+  follow: FollowingVideo | null;
+}
+
+export interface FollowingVideo {
+  url: string;
+  /** `#VIDEOGAP`, seconds. */
+  gapSeconds: number;
 }
 
 export function playbackPlan({
@@ -36,7 +48,7 @@ export function playbackPlan({
   // One file named as audio and video plays as both, `#VIDEOGAP` ignored.
   // A converting one (not native) plays as sound only, like the backdrop
   // (`SingBackdrop`) shows no video for it. Separate files: the audio plays
-  // and is the clock; the video following it is #212's.
+  // and is the clock; the video follows it (when it can play as it is).
   const video = media.video?.kind === "inAudio" && media.audio.native;
   const startSeconds = Math.max(song.headers.startSeconds ?? 0, 0);
   const end = song.headers.endSeconds;
@@ -47,5 +59,9 @@ export function playbackPlan({
     startSeconds,
     endSeconds: end !== null && end > startSeconds ? end : null,
     loudnessLufs,
+    follow:
+      media.video?.kind === "file" && media.video.file.native
+        ? { url: media.video.file.url, gapSeconds: media.video.gapSeconds }
+        : null,
   };
 }

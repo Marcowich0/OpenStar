@@ -1,9 +1,11 @@
 // The sing screen's bottom layer (#55, "Video"): the music video full screen
 // with `object-fit: cover`, over the backdrop that shows without a video or
 // while it converts: the Song's background, then its cover, then its
-// generated tile, placed like the video. When the video itself shows (it has
-// reached position 0) is #212's; it passes `showVideo`. The media owner (#53)
-// plays the element through `videoRef`; nothing here reads its position.
+// generated tile, placed like the video. The caller says when the video
+// itself shows (`showVideo`: a separate video file shows once its position
+// reached 0, #212). The media owner (#53) plays the element through
+// `videoRef`; nothing here reads its position. A separate video file is
+// muted: the Song's audio file carries the sound.
 
 import { useState, type Ref } from "react";
 
@@ -41,6 +43,7 @@ export function SingBackdrop({
           src={video}
           preload="auto"
           playsInline
+          muted={media.video?.kind === "file"}
           className={`absolute inset-0 block size-full object-cover ${showVideo ? "" : "invisible"}`}
         />
       )}

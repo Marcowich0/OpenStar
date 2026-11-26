@@ -92,7 +92,16 @@ function Singing({
     },
     [song],
   );
+  const attachVideo = useCallback(
+    (element: HTMLVideoElement | null) => {
+      song.attachVideo(element);
+    },
+    [song],
+  );
   const video = view.plan.element === "video";
+  // Separate audio and video files (#212): the audio plays, the muted video
+  // follows it and shows once its position reached 0.
+  const videoRef = video ? attach : view.plan.follow ? attachVideo : undefined;
   return (
     <div
       ref={root}
@@ -107,8 +116,8 @@ function Singing({
         backdrop={
           <SingBackdrop
             media={view.detail.media}
-            showVideo={video}
-            {...(video ? { videoRef: attach } : {})}
+            showVideo={view.videoShown}
+            {...(videoRef ? { videoRef } : {})}
           />
         }
       >
