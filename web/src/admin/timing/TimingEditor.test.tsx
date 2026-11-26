@@ -22,6 +22,7 @@ import {
   sungTrack,
   type FitCase,
 } from "../../fit/fitFixtures";
+import { playingFeed } from "../../live/playingSongTestKit";
 import { song as testSong } from "../../timing/testSong";
 import { TimingEditor } from "./TimingEditor";
 
@@ -210,9 +211,11 @@ function fakeServer(start: unknown, options: ServerOptions = {}): Server {
   return server;
 }
 
+/** Job updates, and the Song playing now (`play`, #225). */
 function jobFeed() {
   const listeners = new Set<(job: Job) => void>();
   return {
+    ...playingFeed(),
     onJobChanged(listener: (job: Job) => void) {
       listeners.add(listener);
       return () => {
@@ -1301,5 +1304,45 @@ describe("a cancelled drag", () => {
     await settle();
     expect(entries()).toEqual([]);
     expect(gapField()).toHaveValue("0");
+  });
+});
+
+describe("while the Song plays on the Stage", () => {
+  const REASON =
+    "Not while this Song plays on the Stage, so nobody's Notes move mid-Song";
+
+  it("disables Fit to the singing and Save with the reason, live, and enables them when it stops", async () => {
+    const { feed } = await open({ state: "ready" }, { unlocked: true });
+    await type(gapField(), "753");
+    expect(fitButton()).toBeEnabled();
+    expect(saveButton()).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText(REASON)).toBeNull();
+
+    feed.play(7);
+    expect(fitButton()).toBeDisabled();
+    expect(offsetOnlyButton()).toBeDisabled();
+    expect(saveButton()).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getAllByText(REASON)).toHaveLength(2);
+
+    // Another Song playing does not matter.
+    feed.play(8);
+    expect(fitButton()).toBeEnabled();
+    expect(saveButton()).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText(REASON)).toBeNull();
+  });
+
+  it("sends when it opened the Song with the save", async () => {
+    const { server } = await open(
+      { state: "ready" },
+      { unlocked: true, detail: { ...detail(), loadedAtMs: 1_234 } },
+    );
+    await type(gapField(), "753");
+    press("Save");
+    await settle();
+    expect(server.bodies["POST /api/songs/7/timing"]?.at(-1)).toEqual({
+      base: FILE_VERSION,
+      operations: [{ op: "setGap", seconds: 0.753 }],
+      openedAtMs: 1_234,
+    });
   });
 });

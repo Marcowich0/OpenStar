@@ -21,6 +21,8 @@ export interface GuardedButtonProps<T> {
   children: ReactNode;
   fill?: ButtonFill;
   className?: string;
+  /** Disabled for a reason of the caller's (besides an Unlock in progress). */
+  isDisabled?: boolean;
 }
 
 export function GuardedButton<T>({
@@ -31,6 +33,7 @@ export function GuardedButton<T>({
   children,
   fill = "white",
   className = "",
+  isDisabled = false,
 }: GuardedButtonProps<T>) {
   const guarded = useGuardedAction(action, { writesLibrary });
   return (
@@ -38,7 +41,7 @@ export function GuardedButton<T>({
       <Button
         fill={fill}
         className={className}
-        isDisabled={guarded.isDisabled}
+        isDisabled={guarded.isDisabled || isDisabled}
         onPress={() => {
           guarded.run().then((outcome) => {
             if (outcome.kind === "done") onDone?.(outcome.value);

@@ -26,6 +26,7 @@ import { t } from "../../i18n/t";
 import { browserStorage } from "../../live/browserLive";
 import type { LiveStore } from "../../live/liveStore";
 import { phoneId as thisPhoneId } from "../../live/phoneId";
+import { useSongPlaying } from "../../live/playingSong";
 import { liveStore } from "../../live/useLive";
 import { autoFit, type AutoFit } from "../../timing/fitEdits";
 import { openTimingModel } from "../../timing/timingModel";
@@ -42,8 +43,11 @@ const IDLE: Phase = { kind: "idle", outcome: null };
 
 export interface PhoneAutoFitProps {
   song: SongSummary;
-  /** Where job updates come from (the browser's live store by default). */
-  store?: Pick<LiveStore, "onJobChanged">;
+  /**
+   * Where job updates and the Song playing now come from (the browser's
+   * live store by default).
+   */
+  store?: Pick<LiveStore, "onJobChanged" | "subscribe" | "getSnapshot">;
   /** This browser's Phone id (from local storage by default). */
   phoneId?: PhoneId;
   /** Lays out the button or pill (`control`) and what shows below it. */
@@ -61,6 +65,10 @@ export function PhoneAutoFit({
   const [saveFailure, setSaveFailure] = useState<string | null>(null);
   const running = useRef<AbortController | null>(null);
   const id = { id: String(song.id) };
+  // While the Song plays on the Stage it can't be fixed (#225).
+  const playing = useSongPlaying(song.id, store);
+  // When the fit read the Song, sent with the Accept (#225).
+  const openedAtMs = useRef<number | undefined>(undefined);
 
   const start = useGuardedAction(
     () => api("POST /api/songs/{id}/auto-fit", { params: id }),
@@ -85,6 +93,9 @@ export function PhoneAutoFit({
           base: preview.base,
           operations,
           autoFitFrom: phoneId ?? thisPhoneId(browserStorage()),
+          ...(openedAtMs.current === undefined
+            ? {}
+            : { openedAtMs: openedAtMs.current }),
         },
       });
     },
@@ -94,6 +105,7 @@ export function PhoneAutoFit({
   async function propose(track: PitchTrack, signal: AbortSignal) {
     try {
       const detail = await queryClient.query(songQuery(song.id));
+      openedAtMs.current = detail.loadedAtMs;
       const fit = autoFit(openTimingModel(detail.song), createMatcher(track), {
         tempo: true,
       });
@@ -171,7 +183,11 @@ export function PhoneAutoFit({
             })}
       </span>
     ) : phase.kind === "proposal" && phase.fit.kind === "fitted" ? null : (
-      <Button fill="green" isDisabled={start.isDisabled} onPress={run}>
+      <Button
+        fill="green"
+        isDisabled={start.isDisabled || playing}
+        onPress={run}
+      >
         {t("admin.songs.fit.run")}
       </Button>
     );
@@ -182,6 +198,7 @@ export function PhoneAutoFit({
         control,
         <Details
           phase={phase}
+          playing={playing}
           saveFailure={saveFailure}
           onAccept={save}
           onUndo={undo}
@@ -195,15 +212,20 @@ export function PhoneAutoFit({
 
 function Details({
   phase,
+  playing,
   saveFailure,
   onAccept,
   onUndo,
 }: {
   phase: Phase;
+  playing: boolean;
   saveFailure: string | null;
   onAccept: (fit: AutoFit) => void;
   onUndo: () => void;
 }) {
+  const reason = playing ? (
+    <p className="text-sm text-ink-2">{t("song.playingNow.reason")}</p>
+  ) : null;
   switch (phase.kind) {
     case "listening":
       return null;
@@ -212,7 +234,9 @@ function Details({
         <p role="status" className="text-ink-2">
           {t("admin.songs.fit.saved")}
         </p>
-      ) : null;
+      ) : (
+        reason
+      );
     case "failed":
       return (
         <p role="alert" className="font-semibold text-warn-fg">
@@ -242,6 +266,7 @@ function Details({
           <div className="flex flex-wrap gap-2">
             <Button
               fill="green"
+              isDisabled={playing}
               onPress={() => {
                 onAccept(fit);
               }}
@@ -250,6 +275,7 @@ function Details({
             </Button>
             <Button onPress={onUndo}>{t("admin.songs.fit.undo")}</Button>
           </div>
+          {reason}
           {saveFailure === null ? null : (
             <p role="alert" className="text-sm text-ink-2">
               {saveFailure}

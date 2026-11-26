@@ -131,6 +131,12 @@ enum Command {
         song_id: SongId,
         reply: oneshot::Sender<bool>,
     },
+    /// When Song `song_id` last started on the Stage (server time, ms), if
+    /// it has since the server started.
+    SongLastStarted {
+        song_id: SongId,
+        reply: oneshot::Sender<Option<i64>>,
+    },
     /// The Admin area deletes a Profile: a Party member leaves the Party
     /// first, in the same transaction. Refused while it sings in the
     /// playing Song.
@@ -287,6 +293,18 @@ impl LiveHandle {
         answer.await.unwrap_or(false)
     }
 
+    /// When Song `song_id` last started on the Stage (server time, ms);
+    /// `None` if it has not since the server started, or once the task has
+    /// stopped. A Timing edit's save asks.
+    pub async fn song_last_started(&self, song_id: SongId) -> Option<i64> {
+        let (reply, answer) = oneshot::channel();
+        self.commands
+            .send(Command::SongLastStarted { song_id, reply })
+            .await
+            .ok()?;
+        answer.await.ok().flatten()
+    }
+
     /// Deletes Profile `id` and its Score records (see
     /// [`Command::DeleteProfile`]). `Refused::NotFound` when there is no
     /// such Profile, `Refused::Party(ProfileSinging)` while it sings.
@@ -388,6 +406,9 @@ struct LiveState {
     blocked_phones: HashSet<PhoneId>,
     /// Mic bridges: approved (open or closed) and waiting for approval.
     bridges: bridges::Bridges,
+    /// When each Song last started on the Stage (server time, ms), while
+    /// the server runs: a Timing edit opened before that is not saved.
+    last_started_ms: HashMap<SongId, i64>,
 }
 
 impl LiveState {
@@ -435,6 +456,7 @@ impl LiveState {
             present_browser_mics: HashSet::new(),
             blocked_phones: HashSet::new(),
             bridges,
+            last_started_ms: HashMap::new(),
         }
         .with_local_mics())
     }
@@ -568,6 +590,9 @@ impl LiveState {
                 } => self.auto_fit_accepted(&phone_id, song_id, title),
                 Command::SongPlaying { song_id, reply } => {
                     let _ = reply.send(self.song_playing(song_id));
+                }
+                Command::SongLastStarted { song_id, reply } => {
+                    let _ = reply.send(self.last_started_ms.get(&song_id).copied());
                 }
                 Command::DeleteProfile { id, reply } => {
                     let _ = reply.send(self.delete_profile(id).await);
@@ -963,6 +988,7 @@ impl LiveState {
                 let controlled = self.control_song(id, request_id, control).await;
                 // A Song that starts ends Check A/V sync and Calibrate mics.
                 if control == SongControl::Start && controlled.is_ok() {
+                    self.song_started(now_ms);
                     self.av_sync_ended();
                     self.calibration_ended();
                 }
@@ -2404,6 +2430,14 @@ impl LiveState {
                 // Logged by `commit_queue`; the Request stays queued.
                 return;
             }
+        }
+    }
+
+    /// Remembers when the Song that just started on the Stage started.
+    fn song_started(&mut self, now_ms: i64) {
+        let playing = self.stage().party.as_ref().and_then(|p| p.playing.as_ref());
+        if let Some(song_id) = playing.map(|playing| playing.song_id) {
+            self.last_started_ms.insert(song_id, now_ms);
         }
     }
 

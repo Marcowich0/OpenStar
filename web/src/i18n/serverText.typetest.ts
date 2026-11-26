@@ -80,6 +80,7 @@ const handlers: CodeHandlers<UserMessage> = {
   pitchTrackFailed: () => t("userMessage.pitchTrackFailed"),
   songFileChanged: () => t("userMessage.songFileChanged"),
   songPlaying: () => t("userMessage.songPlaying"),
+  songStartedSinceOpened: () => t("userMessage.songStartedSinceOpened"),
   noOriginal: () => t("userMessage.noOriginal"),
   songFolderShared: ({ params }) =>
     t("userMessage.songFolderShared", { otherTxt: params.otherTxt }),

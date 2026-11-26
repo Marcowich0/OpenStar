@@ -69,6 +69,7 @@ import { userMessageText } from "../../i18n/serverText";
 import { t } from "../../i18n/t";
 import { liveStore } from "../../live/useLive";
 import type { LiveStore } from "../../live/liveStore";
+import { useSongPlaying } from "../../live/playingSong";
 import { stageBrowserId } from "../../mics/localMics";
 import { playbackPlan } from "../../playback/playbackPlan";
 import {
@@ -129,13 +130,17 @@ import { PlaybackPanel } from "./PlaybackPanel";
 
 export interface TimingEditorProps {
   song: SongId;
-  /** Where job updates come from (the browser's live store by default). */
-  store?: Pick<LiveStore, "onJobChanged">;
+  /**
+   * Where job updates and the Song playing now come from (the browser's
+   * live store by default).
+   */
+  store?: Pick<LiveStore, "onJobChanged" | "subscribe" | "getSnapshot">;
 }
 
 export function TimingEditor({ song, store }: TimingEditorProps) {
   const detail = useQuery(songQuery(song));
   const pitchTrack = usePitchTrack(song, store);
+  const playing = useSongPlaying(song, store);
   return (
     <section className="flex min-w-0 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -156,7 +161,7 @@ export function TimingEditor({ song, store }: TimingEditorProps) {
         <PitchTrackStatus load={pitchTrack} />
       </div>
       {detail.data ? (
-        <Editor detail={detail.data} load={pitchTrack} />
+        <Editor detail={detail.data} load={pitchTrack} playing={playing} />
       ) : (
         <p role={detail.isError ? "alert" : undefined} className="py-4 text-lg">
           {t(detail.isError ? "timing.view.loadFailed" : "timing.view.loading")}
@@ -249,9 +254,12 @@ const inSelection = (s: LineSelection, at: LineIndex) =>
 function Editor({
   detail,
   load,
+  playing,
 }: {
   detail: SongDetail;
   load: PitchTrackLoad;
+  /** The Song plays on the Stage now: no fit and no save (#225). */
+  playing: boolean;
 }) {
   // Opening applies nothing: the model starts as the file is.
   const [model, setModel] = useState(() => openTimingModel(detail.song));
@@ -262,6 +270,8 @@ function Editor({
     [model, dragPreview],
   );
   const timing = useMemo(() => currentTiming(shown), [shown]);
+  // When the editor opened the Song, sent with every save (#225).
+  const [openedAtMs] = useState(detail.loadedAtMs);
   const fileTiming = useMemo(
     () => currentTiming(openTimingModel(model.song)),
     [model.song],
@@ -760,6 +770,7 @@ function Editor({
         />
         <AutoFitPanel
           ready={matcher !== null}
+          playing={playing}
           outcome={fitOutcome}
           song={timing.song}
           onFit={runFit}
@@ -783,6 +794,8 @@ function Editor({
         <SaveSection
           song={detail.id}
           operations={operations}
+          playing={playing}
+          openedAtMs={openedAtMs}
           onSaved={() => {
             // The saved file is the new base, and the undo history starts
             // again. Timing operations change lines in place, so the saved

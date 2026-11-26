@@ -241,6 +241,12 @@ pub struct SongDetail {
     pub loudness_lufs: Option<f64>,
     /// The Song's warnings; it plays anyway.
     pub warnings: Vec<ProblemReason>,
+    /// When the server answered this detail (server time, ms since the
+    /// Unix epoch). The Timing editor returns it with a save
+    /// ([`crate::song::TimingSave::opened_at_ms`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub loaded_at_ms: Option<i64>,
 }
 
 /// One Library problem: a rejected file or a warning, with its reason.

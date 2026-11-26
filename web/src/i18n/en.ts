@@ -747,6 +747,10 @@ export const en = {
   "userMessage.songFileChanged":
     "This Song's file changed on disk since it was opened. Open it again and redo the edit",
   "userMessage.songPlaying": "This Song is playing on the Stage now",
+  "userMessage.songStartedSinceOpened":
+    "This Song was played on the Stage after you opened it. Open it again and redo the edit",
+  "song.playingNow.reason":
+    "Not while this Song plays on the Stage, so nobody's Notes move mid-Song",
   "userMessage.noOriginal": "This Song has no Original to restore",
   "userMessage.songFolderShared":
     "Its folder also holds {otherTxt}, which deleting the folder would take with it. Move one of them to a folder of its own first",

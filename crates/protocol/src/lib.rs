@@ -742,6 +742,10 @@ pub enum UserMessage {
     /// The Song plays on the Stage now, so its timing cannot be saved or
     /// restored. Sent with `409`.
     SongPlaying,
+    /// The Song started playing on the Stage after the Timing editor opened
+    /// it (it may have stopped since), so the edit is not saved: the Notes
+    /// may have moved under Players. Sent with `409`; open the Song again.
+    SongStartedSinceOpened,
     /// The Song has no Original (`<name>.txt.orig`) to restore. Sent with
     /// `404`.
     NoOriginal,

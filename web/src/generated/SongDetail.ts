@@ -32,4 +32,10 @@ loudnessLufs: number | null,
 /**
  * The Song's warnings; it plays anyway.
  */
-warnings: Array<ProblemReason>, };
+warnings: Array<ProblemReason>, 
+/**
+ * When the server answered this detail (server time, ms since the
+ * Unix epoch). The Timing editor returns it with a save
+ * ([`crate::song::TimingSave::opened_at_ms`]).
+ */
+loadedAtMs?: number, };

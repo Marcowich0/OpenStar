@@ -28,6 +28,7 @@ const SMALL_BUTTON =
 
 export function AutoFitPanel({
   ready,
+  playing = false,
   outcome,
   song,
   onFit,
@@ -36,6 +37,8 @@ export function AutoFitPanel({
 }: {
   /** Whether the Pitch track is ready: until then both actions are disabled. */
   ready: boolean;
+  /** The Song plays on the Stage now: both actions are disabled (#225). */
+  playing?: boolean;
   outcome: FitOutcome | null;
   /** The Song as edited, for the Lines' lyrics. */
   song: Pick<ParsedSong, "voices">;
@@ -49,7 +52,7 @@ export function AutoFitPanel({
       <div className="flex flex-wrap items-center gap-2">
         <AriaButton
           className={BIG_BUTTON}
-          isDisabled={!ready}
+          isDisabled={!ready || playing}
           onPress={() => {
             onFit({ tempo: true });
           }}
@@ -58,7 +61,7 @@ export function AutoFitPanel({
         </AriaButton>
         <AriaButton
           className={SMALL_BUTTON}
-          isDisabled={!ready}
+          isDisabled={!ready || playing}
           onPress={() => {
             onFit({ tempo: false });
           }}
@@ -66,7 +69,9 @@ export function AutoFitPanel({
           {t("timing.fit.offsetOnly")}
         </AriaButton>
       </div>
-      {ready ? null : (
+      {playing ? (
+        <p className="text-sm text-ink-2">{t("song.playingNow.reason")}</p>
+      ) : ready ? null : (
         <p className="text-sm text-ink-2">{t("timing.fit.pending")}</p>
       )}
       {outcome ? (
