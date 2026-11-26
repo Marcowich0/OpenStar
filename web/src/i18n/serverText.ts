@@ -196,6 +196,7 @@ export const apiErrorText = byCode<ApiError>({
   wrongPin: () => t("apiError.wrongPin"),
   unlockRequired: () => t("apiError.unlockRequired"),
   libraryReadOnly: () => t("apiError.libraryReadOnly"),
+  stagePinRequired: () => t("apiError.stagePinRequired"),
 });
 
 /** Why the Library is read-only. */

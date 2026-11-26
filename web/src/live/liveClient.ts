@@ -20,6 +20,12 @@ export interface LiveClientOptions {
   createSocket?: (url: string) => LiveSocket;
   /** Defaults to `Math.random`; spreads the reconnect delays. */
   random?: () => number;
+  /**
+   * Awaited before every connection, the first and each reconnect: the
+   * Stage's page waits here for Stage trust (`stageTrust.ts`), since
+   * `/ws/stage` refuses a browser without it.
+   */
+  beforeConnect?: () => Promise<void>;
 }
 
 export interface LiveClient {
@@ -65,6 +71,17 @@ export function createLiveClient(options: LiveClientOptions): LiveClient {
   let closed = false;
 
   function connect() {
+    const before = options.beforeConnect;
+    if (before === undefined) {
+      open();
+      return;
+    }
+    void before().then(() => {
+      if (!closed) open();
+    });
+  }
+
+  function open() {
     const current = createSocket(options.url);
     socket = current;
     current.onopen = () => {
@@ -109,6 +126,11 @@ export function liveUrl(
   location: Pick<Location, "protocol" | "host" | "pathname">,
 ): string {
   const scheme = location.protocol === "https:" ? "wss" : "ws";
-  const isStagePage = /^\/stage(\/|$)/.test(location.pathname);
-  return `${scheme}://${location.host}${isStagePage ? "/ws/stage" : "/ws"}`;
+  const stage = isStagePage(location.pathname);
+  return `${scheme}://${location.host}${stage ? "/ws/stage" : "/ws"}`;
+}
+
+/** Whether `pathname` is the Stage's page (`/stage` or below it). */
+export function isStagePage(pathname: string): boolean {
+  return /^\/stage(\/|$)/.test(pathname);
 }

@@ -45,11 +45,11 @@ pub fn pin_fingerprint(pin: &str) -> Vec<u8> {
     hasher.finalize().to_vec()
 }
 
-fn token_hash(token: &str) -> Vec<u8> {
+pub(crate) fn token_hash(token: &str) -> Vec<u8> {
     Sha256::digest(token.as_bytes()).to_vec()
 }
 
-fn new_token() -> anyhow::Result<String> {
+pub(crate) fn new_token() -> anyhow::Result<String> {
     let mut bytes = [0_u8; TOKEN_BYTES];
     getrandom::fill(&mut bytes).map_err(|error| anyhow::anyhow!("no OS randomness: {error}"))?;
     Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
@@ -57,13 +57,18 @@ fn new_token() -> anyhow::Result<String> {
 
 /// The Unlock token this request carries, if any.
 fn token_from(headers: &HeaderMap) -> Option<String> {
+    cookie_value(headers, COOKIE_NAME)
+}
+
+/// The value of the cookie `name` this request carries, if any and not empty.
+pub(crate) fn cookie_value(headers: &HeaderMap, name: &str) -> Option<String> {
     headers
         .get_all(COOKIE)
         .iter()
         .filter_map(|value| value.to_str().ok())
         .flat_map(|value| value.split(';'))
         .filter_map(|pair| pair.trim().split_once('='))
-        .find(|(name, _)| *name == COOKIE_NAME)
+        .find(|(found, _)| *found == name)
         .map(|(_, value)| value.to_owned())
         .filter(|value| !value.is_empty())
 }

@@ -170,6 +170,55 @@ describe("live client", () => {
     vi.advanceTimersByTime(60_000);
     expect(FakeSocket.all).toHaveLength(1);
   });
+
+  it("waits for beforeConnect before every connection", async () => {
+    let allow: () => void = () => undefined;
+    const beforeConnect = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          allow = resolve;
+        }),
+    );
+    createLiveClient({
+      url: "ws://openstar.test/ws/stage",
+      createSocket: (url) => new FakeSocket(url),
+      random: () => 1,
+      beforeConnect,
+      onMessage: () => undefined,
+      onConnection: () => undefined,
+    });
+    expect(beforeConnect).toHaveBeenCalledTimes(1);
+    expect(FakeSocket.all).toHaveLength(0);
+    allow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(FakeSocket.all).toHaveLength(1);
+
+    latest().drop();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(beforeConnect).toHaveBeenCalledTimes(2);
+    expect(FakeSocket.all).toHaveLength(1);
+    allow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(FakeSocket.all).toHaveLength(2);
+  });
+
+  it("opens no socket once closed while beforeConnect waits", async () => {
+    let allow: () => void = () => undefined;
+    const client = createLiveClient({
+      url: "ws://openstar.test/ws/stage",
+      createSocket: (url) => new FakeSocket(url),
+      beforeConnect: () =>
+        new Promise<void>((resolve) => {
+          allow = resolve;
+        }),
+      onMessage: () => undefined,
+      onConnection: () => undefined,
+    });
+    client.close();
+    allow();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(FakeSocket.all).toHaveLength(0);
+  });
 });
 
 describe("liveUrl", () => {

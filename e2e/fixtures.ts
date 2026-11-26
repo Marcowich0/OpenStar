@@ -4,6 +4,7 @@ import {
   expect,
   devices,
   type Browser,
+  type BrowserContext,
   type Page,
 } from "@playwright/test";
 import { join } from "node:path";
@@ -38,8 +39,54 @@ export const PHONE_DEVICE = devices["Pixel 7"];
 
 const JOIN_CODE = /^\d{4}$/;
 
+/** The Admin PIN `scripts/e2e.sh` gives the server under test. */
+export const ADMIN_PIN = adminPin();
+
+function adminPin(): string {
+  const pin = process.env.OPENSTAR_E2E_ADMIN_PIN;
+  if (pin === undefined || pin === "")
+    throw new Error(
+      "OPENSTAR_E2E_ADMIN_PIN is not set: run the suite with `just e2e`",
+    );
+  return pin;
+}
+
 /**
- * Opens `/stage` on `stage` (so it is the active Stage), starts a New party
+ * Makes every page of `context` a remembered Stage browser: gives the Admin
+ * PIN at `POST /api/stage/trust`, as the pad on `/stage` does, and the Stage
+ * cookie lands in the context's cookie jar. The `stage` and `micStage`
+ * fixtures already do this, so specs just open `/stage`. A correct PIN
+ * resets the shared wrong-guess count.
+ */
+export async function trustStageBrowser(
+  context: BrowserContext,
+): Promise<void> {
+  const response = await context.request.post("/api/stage/trust", {
+    data: { pin: ADMIN_PIN },
+  });
+  expect(response.status()).toBe(200);
+}
+
+/**
+ * The Admin PIN step on `/stage`, through the pad, for a browser that is not
+ * remembered yet: opens `/stage`, enters the PIN and waits for the Stage frame.
+ */
+export async function becomeStageWithPin(page: Page): Promise<void> {
+  await page.goto("/stage");
+  const pad = page.getByRole("dialog", { name: "Admin PIN" });
+  await expect(pad).toBeVisible();
+  for (const digit of ADMIN_PIN)
+    await pad.getByRole("button", { name: digit, exact: true }).click();
+  await pad.getByRole("button", { name: "OK" }).click();
+  await expect(pad).toHaveCount(0);
+  await expect(page.locator("[data-stage-frame]")).toHaveAttribute(
+    "data-scene",
+    /.+/,
+  );
+}
+
+/**
+ * Opens `/stage` on `stage`, a remembered Stage browser (so it is the active Stage), starts a New party
  * from its People overlay and returns the new Party's Join code, with the
  * Stage back on the song browser.
  *
@@ -83,7 +130,11 @@ export interface PhoneOptions {
 }
 
 interface Fixtures {
-  /** A Stage page: desktop viewport, sharing the test's browser. */
+  /**
+   * A Stage page: desktop viewport, sharing the test's browser, in a
+   * remembered Stage browser ({@link trustStageBrowser}), so `/stage` shows
+   * no Admin PIN pad.
+   */
   stage: Page;
   /**
    * Opens a Phone page: Chromium's mobile emulation with the microphone granted.
@@ -107,6 +158,7 @@ export const test = base.extend<Fixtures>({
       viewport: STAGE_VIEWPORT,
       ...(baseURL === undefined ? {} : { baseURL }),
     });
+    await trustStageBrowser(context);
     await use(await context.newPage());
     await context.close();
   },
@@ -126,6 +178,7 @@ export const test = base.extend<Fixtures>({
         ? {}
         : { baseURL: baseURL.replace("//127.0.0.1:", "//localhost:") }),
     });
+    await trustStageBrowser(context);
     await use(await context.newPage());
     await browser.close();
   },

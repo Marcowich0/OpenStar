@@ -19,6 +19,7 @@ mod pin_wait;
 mod profiles;
 pub mod scores;
 pub mod stage_outputs;
+mod stage_trust;
 mod startup;
 pub mod txt;
 mod unlock;
@@ -337,10 +338,16 @@ pub(crate) async fn websocket(
 }
 
 /// The Stage's WebSocket: the browser that opens it becomes the active Stage.
+/// Only a remembered Stage browser may ([`stage_trust`]); any other is
+/// refused with `403 stagePinRequired` before the upgrade.
 pub(crate) async fn stage_websocket(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     upgrade: WebSocketUpgrade,
 ) -> Response {
+    if let Some(refused) = stage_trust::refusal_without_trust(&state, &headers).await {
+        return refused;
+    }
     upgrade.on_upgrade(move |socket| {
         live::connection::run(socket, state.live, live::Role::Stage, state.clock)
     })
