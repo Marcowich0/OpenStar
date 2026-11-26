@@ -971,6 +971,9 @@ impl LiveState {
             Ok(ClientMessage::BridgeLevels { levels }) => {
                 self.bridge_levels(id, levels);
             }
+            Ok(ClientMessage::BridgeInputDelays { delays }) => {
+                self.bridge_input_delays(id, delays);
+            }
             Ok(ClientMessage::ApproveBridge { request_id }) => {
                 self.approve_bridge(id, request_id, now_ms).await;
             }
@@ -2573,6 +2576,7 @@ impl LiveState {
         let party = party.clone();
         self.hub
             .send_all(&ServerMessage::PartyChanged { party, change });
+        self.tell_bridges_detecting();
     }
 
     /// Sends a Stage-only message to the active Stage alone, if one is open.

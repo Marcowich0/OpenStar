@@ -373,6 +373,15 @@ pub enum ClientMessage {
     /// [`ServerMessage::LocalMicLevels`]; dropped from any other socket and
     /// for channels the bridge does not offer.
     BridgeLevels { levels: Vec<bridge::BridgeLevel> },
+    /// From an open Mic bridge, whenever its capture backend reports them
+    /// (never in `--wav` mode): the input delay of each listed hardware
+    /// channel. Replaces what it reported before for those channels; listed
+    /// in `GET /api/mic-bridges` as each channel's reported input delay.
+    /// Dropped from any other socket and for channels the bridge does not
+    /// offer.
+    BridgeInputDelays {
+        delays: Vec<bridge::BridgeInputDelay>,
+    },
 }
 
 /// A message the server sends over a WebSocket.
@@ -498,6 +507,11 @@ pub enum ServerMessage {
     /// it changes. While it is open the bridge opens every interface and
     /// meters every channel; otherwise only those with a switched-on channel.
     BridgeMicsScreen { open: bool },
+    /// To a connected Mic bridge: its channels whose detectors run now,
+    /// each a switched-on Local mic seated in the Song that plays (paused
+    /// included). Sent whenever that set changes (not on connect while it
+    /// is empty). The bridge sends Pitch readings for exactly these.
+    BridgeDetecting { channels: Vec<BridgeInput> },
     /// Stage only: meter levels of a Mic bridge's Local mics, ten times a
     /// second each.
     LocalMicLevels { levels: Vec<bridge::LocalMicLevel> },

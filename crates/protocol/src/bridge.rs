@@ -76,6 +76,17 @@ pub struct BridgeLevel {
     pub level_dbfs: f64,
 }
 
+/// A channel's input delay, as a bridge's capture backend reported it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BridgeInputDelay {
+    pub device_name: String,
+    pub channel: u32,
+    /// In ms, at least 0.
+    pub delay_ms: f64,
+}
+
 /// A Local mic's meter level, as the server relays it to the Stage.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -86,17 +97,23 @@ pub struct LocalMicLevel {
 }
 
 /// One hardware channel of an open bridge, as the Mics screen lists it.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct BridgeChannel {
     pub local_mic_id: String,
     /// Always the `bridge` kind.
     pub source: LocalMicSource,
+    /// The input delay the bridge's capture backend reported for it, in
+    /// ms: the default Mic delay of an uncalibrated Local mic. Left out
+    /// when none was reported (always, in `--wav` mode).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub reported_input_delay_ms: Option<f64>,
 }
 
 /// An approved Mic bridge.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct MicBridge {
@@ -123,7 +140,7 @@ pub struct BridgeRequest {
 }
 
 /// Body of `GET /api/mic-bridges`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct MicBridges {

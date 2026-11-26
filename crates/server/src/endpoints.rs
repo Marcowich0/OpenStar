@@ -133,7 +133,10 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // Which Local mics are plugged in only says what the Line-up may
         // offer; nothing is kept.
         | ClientMessage::ReportPresentLocalMics { .. }
-        | ClientMessage::BridgeLevels { .. } => Access::NotGuarded,
+        | ClientMessage::BridgeLevels { .. }
+        // A bridge's reported input delays are only a default Mic delay,
+        // kept while it is open.
+        | ClientMessage::BridgeInputDelays { .. } => Access::NotGuarded,
     }
 }
 
