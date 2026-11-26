@@ -31,6 +31,8 @@ import {
 export type OutputChangedListener = (key: string, previous: string) => void;
 
 export interface StageOutputApi {
+  /** This Stage browser's id, or `null` while this is not the Stage. */
+  stageBrowser: string | null;
   /** The output key, or `null` while it is unknown or this is not the Stage. */
   outputKey: string | null;
   /** Subscribes to the output-changed event (once per label change). */
@@ -38,6 +40,7 @@ export interface StageOutputApi {
 }
 
 const noOutput: StageOutputApi = {
+  stageBrowser: null,
   outputKey: null,
   onOutputChanged: () => () => {},
 };
@@ -118,8 +121,12 @@ export function StageOutputProvider({
   }, []);
 
   const api = useMemo<StageOutputApi>(
-    () => ({ outputKey, onOutputChanged }),
-    [outputKey, onOutputChanged],
+    () => ({
+      stageBrowser: isStage ? stageBrowser : null,
+      outputKey,
+      onOutputChanged,
+    }),
+    [isStage, stageBrowser, outputKey, onOutputChanged],
   );
   return <StageOutputContext value={api}>{children}</StageOutputContext>;
 }

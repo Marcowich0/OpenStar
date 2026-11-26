@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { UsdbSong } from "../generated/UsdbSong";
@@ -58,13 +64,49 @@ const TAG_DETAILS: VideoDetails = {
   thumbnail: "https://i.ytimg.com/vi/AAAAAAAAAAA/hqdefault.jpg",
 };
 
+const PIN = "1234";
+
+const answer = (code: number, body?: unknown) =>
+  new Response(body === undefined ? null : JSON.stringify(body), {
+    status: code,
+    headers: { "Content-Type": "application/json" },
+  });
+
 function server(
   answers: {
     candidates?: UsdbVideoCandidates | Response;
     details?: (url: string) => VideoDetails | Response;
+    /** Whether the browser has an Unlock to start with. */
+    unlocked?: boolean;
+    libraryReadOnly?: boolean;
+    /** The answer to `POST /api/downloads` once unlocked. */
+    download?: () => unknown;
   } = {},
 ) {
+  let hasUnlock = answers.unlocked ?? false;
+  downloadsSent = [];
   return fakeLibraryServer({
+    "GET /api/server-info": {
+      version: "dev",
+      schemaVersion: 1,
+      libraryReadOnly: answers.libraryReadOnly
+        ? { code: "songsFolderNotWritable", songsDir: "/songs" }
+        : null,
+      publicUrl: null,
+    },
+    "POST /api/unlock": (_url: URL, init: RequestInit) => {
+      const { pin } = JSON.parse(init.body as string) as { pin: string };
+      if (pin !== PIN) return answer(403, { code: "wrongPin" });
+      hasUnlock = true;
+      return { unlocked: true };
+    },
+    "POST /api/downloads": (_url: URL, init: RequestInit) => {
+      downloadsSent.push(JSON.parse(init.body as string) as unknown);
+      if (answers.libraryReadOnly)
+        return answer(409, { code: "libraryReadOnly" });
+      if (!hasUnlock) return answer(401, { code: "unlockRequired" });
+      return (answers.download ?? (() => ({ jobId: 7 })))();
+    },
     "GET /api/usdb/status": { state: "loggedIn" },
     "GET /api/usdb/mirror": {
       state: { type: "fresh" },
@@ -221,5 +263,101 @@ describe("the video picker", () => {
     const dialog = await openPicker();
 
     expect(within(dialog).getByRole("alert")).toHaveTextContent(/USDB/);
+  });
+});
+
+const pad = () => screen.queryByRole("dialog", { name: "Admin PIN" });
+
+async function enterPin(pin: string) {
+  for (const digit of pin)
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: digit }));
+    });
+  act(() => {
+    fireEvent.click(screen.getByRole("button", { name: "OK" }));
+  });
+  await settle();
+}
+
+function downloadButton(dialog: HTMLElement) {
+  return within(dialog).getByRole("button", { name: "Download" });
+}
+
+async function pressDownload(dialog: HTMLElement) {
+  act(() => {
+    fireEvent.click(downloadButton(dialog));
+  });
+  await settle();
+}
+
+/** The body of every `POST /api/downloads` sent, in order. */
+let downloadsSent: unknown[] = [];
+
+describe("starting a Download", () => {
+  it("asks for the Admin PIN without an Unlock, then starts the chosen video's Download", async () => {
+    const calls = server();
+    const dialog = await openPicker();
+    act(() => {
+      fireEvent.click(options(dialog)[1] as HTMLElement);
+    });
+
+    await pressDownload(dialog);
+    expect(pad()).not.toBeNull();
+    expect(calls.count("POST /api/downloads")).toBe(1);
+
+    await enterPin(PIN);
+    expect(pad()).toBeNull();
+    expect(calls.count("POST /api/downloads")).toBe(2);
+    expect(downloadsSent.at(-1)).toEqual({
+      usdbId: 11,
+      videoUrl: COMMENT,
+      browser: expect.any(String) as string,
+    });
+    // The picker closes (once its slide-in is over) and the row says the
+    // Download started.
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Choose the video for First Tune",
+        }),
+      ).toBeNull();
+    });
+    expect(screen.getByText("Download started")).toBeVisible();
+  });
+
+  it("starts at once with an Unlock, from this browser's Phone id", async () => {
+    window.localStorage.setItem("openstar.phoneId", "this-browser");
+    const calls = server({ unlocked: true });
+    const dialog = await openPicker();
+
+    await pressDownload(dialog);
+    expect(pad()).toBeNull();
+    expect(calls.count("POST /api/downloads")).toBe(1);
+    expect(downloadsSent).toEqual([
+      { usdbId: 11, videoUrl: TAG, browser: "this-browser" },
+    ]);
+  });
+
+  it("says why when the server refuses, and keeps the picker open", async () => {
+    server({
+      unlocked: true,
+      download: () => answer(409, { code: "usdbSongInLibrary" }),
+    });
+    const dialog = await openPicker();
+
+    await pressDownload(dialog);
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "This song is already in the Library",
+    );
+  });
+
+  it("is disabled on a read-only Library, with a notice that says why", async () => {
+    const calls = server({ unlocked: true, libraryReadOnly: true });
+    const dialog = await openPicker();
+
+    expect(downloadButton(dialog)).toHaveAttribute("aria-disabled", "true");
+    expect(within(dialog).getByText(/\/songs/)).toBeVisible();
+    await pressDownload(dialog);
+    expect(calls.count("POST /api/downloads")).toBe(0);
   });
 });

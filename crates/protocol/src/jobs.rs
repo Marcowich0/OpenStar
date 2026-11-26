@@ -35,6 +35,10 @@ pub enum JobKind {
     /// Reads USDB's song list newest change first into the mirror, until the
     /// first song older than the newest one already mirrored.
     UsdbMirrorUpdate,
+    /// A Download: a USDB song's text and cover, and the chosen video with
+    /// yt-dlp, written into a temporary folder and moved into the Library
+    /// as a new Song.
+    Download,
 }
 
 /// Where a job stands.

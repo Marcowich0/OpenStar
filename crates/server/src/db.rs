@@ -330,8 +330,7 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT;",
     // 21: what is kept per (Stage browser, Stage output) (see
     // `stage_outputs`): the OpenStar volume, 0 to 100. Not linked to
-    // `parties`, so New party keeps it. The A/V offset (#161) belongs here
-    // too.
+    // `parties`, so New party keeps it. Migration 27 adds the A/V offset.
     "CREATE TABLE stage_outputs (
         stage_browser TEXT NOT NULL,
         stage_output  TEXT NOT NULL,
@@ -392,6 +391,23 @@ const MIGRATIONS: &[&str] = &[
     // folds rows stored before this migration first.
     "ALTER TABLE usdb_songs ADD COLUMN artist_key TEXT;
     ALTER TABLE usdb_songs ADD COLUMN title_key TEXT;",
+    // 27: the A/V offset per (browser, output key) (#161), next to the
+    // OpenStar volume in `stage_outputs`: -300 to 500 ms in 10 ms steps,
+    // 0 for an output nothing was stored for.
+    "ALTER TABLE stage_outputs ADD COLUMN av_offset_ms INTEGER NOT NULL DEFAULT 0
+        CHECK (av_offset_ms BETWEEN -300 AND 500 AND av_offset_ms % 10 = 0);",
+    // 28: Downloads (#195). A job's progress (percent while it runs; NULL
+    // before it reports one), and, per USDB id, the USDB version a
+    // Download wrote: USDB's `lastchange` then (NULL when the mirror did
+    // not hold the song) and the SHA-256 of `song.txt` as written, in hex.
+    // A Library Song with a USDB id and no row here is "unknown version".
+    "ALTER TABLE jobs ADD COLUMN percent INTEGER;
+    CREATE TABLE usdb_downloads (
+        usdb_id       INTEGER PRIMARY KEY NOT NULL,
+        last_change   INTEGER,
+        txt_sha256    TEXT NOT NULL,
+        downloaded_ms INTEGER NOT NULL
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

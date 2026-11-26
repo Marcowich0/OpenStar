@@ -7,7 +7,9 @@
 // Opening the section asks for a fresh mirror (the server updates it only
 // when it is more than a day old); a button starts a full refetch. Nothing
 // here needs the Admin PIN. Tapping a result opens the video picker
-// (`VideoPicker`); starting a Download (guarded) is a later ticket.
+// (`VideoPicker`); pressing Download there starts a Download (#195), which
+// is guarded: without an Unlock the PIN pad opens then, and on a read-only
+// Library the button is disabled with the notice that says why.
 
 import {
   keepPreviousData,
@@ -30,6 +32,9 @@ import {
   usdbStatusQuery,
 } from "../api/queries";
 import type { UsdbMirrorStatus } from "../generated/UsdbMirrorStatus";
+import { useGuardedAction } from "../guarded/useGuardedAction";
+import { browserStorage } from "../live/browserLive";
+import { phoneId } from "../live/phoneId";
 import type { UsdbSearchQuery } from "../generated/UsdbSearchQuery";
 import type { UsdbSong } from "../generated/UsdbSong";
 import type { UsdbSort } from "../generated/UsdbSort";
@@ -319,6 +324,20 @@ function Search() {
  */
 function UsdbSongRow({ song }: { song: UsdbSong }) {
   const [picking, setPicking] = useState(false);
+  const [started, setStarted] = useState(false);
+  // The video the guarded action sends: set just before it runs.
+  const chosen = useRef("");
+  const start = useGuardedAction(
+    () =>
+      api("POST /api/downloads", {
+        body: {
+          usdbId: song.usdbId,
+          videoUrl: chosen.current,
+          browser: phoneId(browserStorage()),
+        },
+      }),
+    { writesLibrary: true },
+  );
   return (
     <li className="min-w-0">
       <AriaButton
@@ -348,9 +367,27 @@ function UsdbSongRow({ song }: { song: UsdbSong }) {
           <span className="shrink-0 rounded-full bg-green px-2.5 py-0.5 text-sm font-semibold text-white">
             {t("admin.downloads.inLibrary")}
           </span>
+        ) : started ? (
+          <span role="status" className="shrink-0 text-sm font-semibold">
+            {t("admin.downloads.started")}
+          </span>
         ) : null}
       </AriaButton>
-      <VideoPicker song={song} isOpen={picking} onOpenChange={setPicking} />
+      <VideoPicker
+        song={song}
+        isOpen={picking}
+        onOpenChange={setPicking}
+        isDownloadDisabled={start.isDisabled}
+        onDownload={async (url) => {
+          chosen.current = url;
+          const outcome = await start.run();
+          if (outcome.kind === "done") {
+            setPicking(false);
+            setStarted(true);
+          }
+        }}
+      />
+      {start.dialog}
     </li>
   );
 }

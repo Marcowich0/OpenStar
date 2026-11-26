@@ -150,15 +150,19 @@ impl Server {
             songs_dir: config.songs_dir.clone(),
             appdata_dir: config.appdata_dir.clone(),
         };
+        let ytdlp = ytdlp::YtDlp::new(&config.appdata_dir, config.tool_path.clone());
+        let (give_scanner, scanner_given) = tokio::sync::watch::channel(None);
         let usdb_env = jobs::UsdbEnv {
             usdb: usdb.clone(),
             clock: options.clock.clone(),
+            ytdlp: ytdlp.clone(),
+            scanner: scanner_given,
         };
         let jobs =
             Jobs::start_with_usdb(env.clone(), Some(usdb_env), config.tool_path.clone()).await?;
         tracing::info!("job runner started");
         let scanner = Scanner::new(env, jobs.clone(), config.tool_path.clone());
-        let ytdlp = ytdlp::YtDlp::new(&config.appdata_dir, config.tool_path.clone());
+        give_scanner.send_replace(Some(scanner.clone()));
         Ok(Self {
             state: AppState {
                 scanner,

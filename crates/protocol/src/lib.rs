@@ -5,6 +5,7 @@
 //! committed. `just check` fails when the committed files drift.
 
 pub mod admin;
+pub mod av_offset;
 pub mod bridge;
 pub mod jobs;
 pub mod library;
@@ -592,6 +593,18 @@ pub enum UserMessage {
     UsdbGaveUp { status: u16 },
     /// USDB answered with an HTTP `status` OpenStar did not expect.
     UsdbUnexpectedStatus { status: u16 },
+    /// The USDB song is already in the Library (a Song carries its USDB
+    /// id), so it is not downloaded again. Checked when a Download starts
+    /// and again just before it moves into the Library.
+    UsdbSongInLibrary,
+    /// USDB's text page for the song held no text (no such song, or a page
+    /// OpenStar does not know).
+    UsdbNoSongText,
+    /// The Library's parser would reject the Download's `song.txt`, for
+    /// `rejection`, so the Download stopped before fetching the video.
+    UsdbTextRejected { rejection: song::TxtRejection },
+    /// yt-dlp did not leave a `video.mp4` behind.
+    VideoDownloadFailed,
     /// The Pitch track job could not listen to the Song: its audio could not
     /// be decoded, the job failed, or it ran past its 2-minute timeout
     /// ("Couldn't listen to this Song"). The drag tools still work.

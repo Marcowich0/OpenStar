@@ -30,7 +30,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::{
     AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles,
-    scores, stage_trust, unlock, usdb,
+    scores, stage_outputs, stage_trust, unlock, usdb,
 };
 
 /// Whether an endpoint needs an Unlock.
@@ -290,6 +290,20 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             mic_settings::read,
         )
+        // Any browser reads and sets its own A/V offset at its output: Check
+        // A/V sync is harmless and reversible (docs/agents/guard-rule.md).
+        .add(
+            Method::GET,
+            "/api/av-offset",
+            NotGuarded,
+            stage_outputs::read_av_offset,
+        )
+        .add(
+            Method::PUT,
+            "/api/av-offset",
+            NotGuarded,
+            stage_outputs::write_av_offset,
+        )
         // Anyone reads the kept Local mics; the Stage switches them over its
         // WebSocket.
         .add(Method::GET, "/api/local-mics", NotGuarded, local_mics::read)
@@ -357,6 +371,21 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/usdb/video-details",
             NotGuarded,
             usdb::videos::details,
+        )
+        // Starting a Download writes a new Song into the Library: guarded,
+        // and refused on a read-only Library.
+        .add(
+            Method::POST,
+            "/api/downloads",
+            Guarded(Writes),
+            usdb::download::start,
+        )
+        // Which USDB version of a text the Library holds; reads only.
+        .add(
+            Method::GET,
+            "/api/usdb/songs/{id}/version",
+            NotGuarded,
+            usdb::download::text_version,
         )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage: the handler refuses a browser without Stage trust
