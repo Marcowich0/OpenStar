@@ -1,6 +1,6 @@
 [package]
 name = "openstar-detector"
-description = "The one live pitch detector (McLeod Pitch Method) and the step that turns audio blocks into Pitch readings. Pure safe Rust, no audio API."
+description = "The one live pitch detector (McLeod Pitch Method), the step that turns audio blocks into Pitch readings, and the YIN detector of a Song's Pitch track. Pure safe Rust, no audio API."
 version = "0.0.0"
 edition.workspace = true
 rust-version.workspace = true

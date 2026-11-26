@@ -92,6 +92,7 @@ impl Server {
             "the database is ready"
         );
         let library_read_only = startup::check_songs(&config.songs_dir);
+        library::clear_staging(&config.appdata_dir);
         // Step 5: reload the live state (the Party) before anything is served.
         let live = LiveHandle::start(opened.database.clone()).await?;
         tracing::info!("live state reloaded");
@@ -145,7 +146,9 @@ impl Server {
     /// and `POST /api/test/library-write`, guarded endpoints that do nothing
     /// (the second is classified as writing the Library), and
     /// `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel`, which
-    /// queue and cancel test jobs ([`jobs::TestJob`]). Never called by `main`.
+    /// queue and cancel test jobs ([`jobs::TestJob`]), and
+    /// `POST /api/test/library/new-song`, which publishes a new Song folder
+    /// the way a Download does. Never called by `main`.
     #[doc(hidden)]
     #[must_use]
     pub fn with_test_routes(mut self) -> Self {

@@ -57,6 +57,6 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 - the job list (`GET /api/jobs`) and the job updates on the WebSocket;
 - storing a round's outcome and its Score records (`POST /api/rounds`), which adds kept data and deletes none.
 
-The test-only routes `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel` (mounted only by `Server::with_test_routes`) are not guarded: a test job runs a harmless child process and touches nothing kept.
+The test-only routes `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel` (mounted only by `Server::with_test_routes`) are not guarded: a test job runs a harmless child process and touches nothing kept. The test-only route `POST /api/test/library/new-song` publishes a new Song folder the way a Download does, so it is `Guarded(Library::Writes)`.
 
 Source: the "What the Admin PIN guards" section of the area spec #45, decided in #34 and #37.
