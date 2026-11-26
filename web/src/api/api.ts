@@ -253,6 +253,12 @@ const REFUSAL_CODES = {
   songInLibraryRoot: true,
   notWhileSongPlays: true,
   avSyncNotRunning: true,
+  avSyncRunning: true,
+  calibrationRunning: true,
+  calibrationNotRunning: true,
+  noMicsChosen: true,
+  noMicReady: true,
+  notInCalibration: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

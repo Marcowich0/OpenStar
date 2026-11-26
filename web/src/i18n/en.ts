@@ -295,7 +295,6 @@ export const en = {
   "stage.overlay.calibrateMics": "Calibrate mics",
   "stage.overlay.avSync": "Check A/V sync",
   "stage.overlay.close": "Close",
-  "stage.overlay.comingSoon": "This screen is still being built.",
   // Check A/V sync (#163), on the Stage and on a Remote's Stage tab.
   "avSync.later": "+{ms, number} ms",
   "avSync.earlier": "−{ms, number} ms",
@@ -312,6 +311,23 @@ export const en = {
   "avSync.start": "Check A/V sync",
   "avSync.remoteHint":
     "Watch the ball on the Stage. Press − or + until the click and the landing match.",
+  // Calibrate mics (#170), on the Stage.
+  "calibration.checklistHint":
+    "Every ticked Phone is asked to listen. Ask its Player to hold it still and stay quiet.",
+  "calibration.noPhones": "No Phone has joined the Party yet.",
+  "calibration.continue": "Continue",
+  "calibration.cancel": "Cancel",
+  "calibration.go": "Go",
+  "calibration.done": "Done",
+  "calibration.waitingHint":
+    "Each chosen Phone taps “I'm listening”. The tones start when every Mic is ready, or on Go.",
+  "calibration.waiting": "waiting",
+  "calibration.ready": "ready",
+  "calibration.tones": "Listening to the tones. Please stay quiet.",
+  "calibration.success": "{name} · {ms, number} ms ✓",
+  "calibration.failed":
+    "{name} couldn't hear the Stage: move closer or turn the sound up",
+  "calibration.aPhone": "A Phone",
   // The Mics screen (Setup › Mics) and Local mic names.
   "mics.group.thisBrowser": "This browser",
   "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
@@ -673,6 +689,12 @@ export const en = {
     "This Song's .txt sits directly in the Library folder, so it has no folder of its own to delete. Move it into a folder first",
   "userMessage.notWhileSongPlays": "Not while a Song is playing",
   "userMessage.avSyncNotRunning": "Check A/V sync is not running",
+  "userMessage.avSyncRunning": "Check A/V sync is running",
+  "userMessage.calibrationRunning": "Calibrate mics is running",
+  "userMessage.calibrationNotRunning": "Calibrate mics is not at that step",
+  "userMessage.noMicsChosen": "Tick at least one Mic",
+  "userMessage.noMicReady": "No Mic is ready yet",
+  "userMessage.notInCalibration": "This Phone is not in Calibrate mics",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",

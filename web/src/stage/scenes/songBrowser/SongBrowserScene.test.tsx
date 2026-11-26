@@ -203,7 +203,23 @@ function setup(
       h.onMessage({ type: "avSync", running });
     });
   };
-  return { sent, changeParty, reject, songsArrive, avSync, ...view };
+  const calibration = (open: boolean) => {
+    live((h) => {
+      h.onMessage({
+        type: "calibration",
+        run: open ? { phase: "choosing", mics: [] } : null,
+      });
+    });
+  };
+  return {
+    sent,
+    changeParty,
+    reject,
+    songsArrive,
+    avSync,
+    calibration,
+    ...view,
+  };
 }
 
 function press(key: string) {
@@ -462,6 +478,16 @@ describe("the preview", () => {
     avSync(true);
     expect(preview.play).toHaveBeenLastCalledWith(null);
     avSync(false);
+    expect(preview.play).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 1 }),
+    );
+  });
+
+  it("stops from the Calibrate mics checklist until the run ends or is cancelled", () => {
+    const { calibration } = setup();
+    calibration(true);
+    expect(preview.play).toHaveBeenLastCalledWith(null);
+    calibration(false);
     expect(preview.play).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 1 }),
     );

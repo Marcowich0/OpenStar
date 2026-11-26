@@ -85,6 +85,12 @@ const handlers: CodeHandlers<UserMessage> = {
   songInLibraryRoot: () => t("userMessage.songInLibraryRoot"),
   notWhileSongPlays: () => t("userMessage.notWhileSongPlays"),
   avSyncNotRunning: () => t("userMessage.avSyncNotRunning"),
+  avSyncRunning: () => t("userMessage.avSyncRunning"),
+  calibrationRunning: () => t("userMessage.calibrationRunning"),
+  calibrationNotRunning: () => t("userMessage.calibrationNotRunning"),
+  noMicsChosen: () => t("userMessage.noMicsChosen"),
+  noMicReady: () => t("userMessage.noMicReady"),
+  notInCalibration: () => t("userMessage.notInCalibration"),
 };
 
 // A code the Rust side adds (here `queueFull`) fails until it is mapped.

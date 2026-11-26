@@ -1,8 +1,8 @@
 // What each overlay shows, and the overlay itself: a veil over the whole
 // screen and a cream modal (44 px radius) in the reference frame. Songs and
-// Queue are `../overlays/`; People is a placeholder until its ticket fills it;
-// so is Calibrate mics (#52). Mics is `mics/MicsScreen.tsx`, Check A/V sync
-// `avSync/StageAvSync.tsx`.
+// Queue are `../overlays/`; People is a placeholder until its ticket fills it.
+// Mics is `mics/MicsScreen.tsx`, Calibrate mics
+// `calibration/StageCalibration.tsx`, Check A/V sync `avSync/StageAvSync.tsx`.
 
 import { useId, type ComponentType } from "react";
 
@@ -10,6 +10,7 @@ import { t, type MessageKey } from "../../i18n/t";
 import type { LiveState } from "../../live/liveState";
 import { useLive } from "../../live/useLive";
 import { StageAvSync } from "../../avSync/StageAvSync";
+import { StageCalibration } from "../../calibration/StageCalibration";
 import { MicsScreen } from "../../mics/MicsScreen";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
@@ -25,10 +26,6 @@ export interface OverlayDefinition {
 }
 
 const selectParty = (live: LiveState) => live.stage?.party ?? null;
-
-function ComingSoon() {
-  return <p className="text-3xl text-ink-2">{t("stage.overlay.comingSoon")}</p>;
-}
 
 function PeopleOverlay() {
   const { store } = useStageFrame();
@@ -62,7 +59,7 @@ export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
   mics: { title: "stage.overlay.mics", component: MicsScreen },
   calibrateMics: {
     title: "stage.overlay.calibrateMics",
-    component: ComingSoon,
+    component: StageCalibration,
   },
   avSync: { title: "stage.overlay.avSync", component: StageAvSync },
 };

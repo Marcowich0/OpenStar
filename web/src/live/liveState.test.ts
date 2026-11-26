@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { CalibrationRun } from "../generated/CalibrationRun";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { ServerMessage } from "../generated/ServerMessage";
 import { connectionChanged, initialLiveState, receive } from "./liveState";
@@ -222,6 +223,45 @@ describe("Check A/V sync", () => {
       isStage: true,
     });
     expect(again.avSync).toBe(false);
+  });
+});
+
+describe("Calibrate mics", () => {
+  const checklist: CalibrationRun = {
+    phase: "choosing",
+    mics: [
+      { mic: { kind: "phone", phoneId: "p1" }, chosen: true, ready: false },
+    ],
+  };
+
+  it("holds no run until the server tells one, then follows every change and the end", () => {
+    expect(initialLiveState.calibration).toBeNull();
+    const opened = receive(synced(true), {
+      type: "calibration",
+      run: checklist,
+    });
+    expect(opened.calibration).toEqual(checklist);
+    const waiting: CalibrationRun = { ...checklist, phase: "waiting" };
+    expect(
+      receive(opened, { type: "calibration", run: waiting }).calibration,
+    ).toEqual(waiting);
+    expect(
+      receive(opened, { type: "calibration", run: null }).calibration,
+    ).toBeNull();
+  });
+
+  it("is forgotten when the live state comes again, until the server repeats it", () => {
+    const opened = receive(synced(true), {
+      type: "calibration",
+      run: checklist,
+    });
+    const again = receive(opened, {
+      type: "liveState",
+      stageId: "main",
+      party,
+      isStage: true,
+    });
+    expect(again.calibration).toBeNull();
   });
 });
 
