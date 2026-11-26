@@ -110,6 +110,20 @@ describe("Pitch readings in the live store", () => {
     expect(receive).not.toHaveBeenCalled();
   });
 
+  it("hand a Phone's hidden and visible page to the Pitch router as lost-Mic signals", () => {
+    const { server, router } = start();
+    const signal = vi.spyOn(router, "signal");
+    vi.mocked(receive).mockClear();
+    const mic = { kind: "phone", phoneId: "phone-1" } as const;
+    server({ type: "micPage", mic, visible: false });
+    server({ type: "micPage", mic, visible: true });
+    expect(signal.mock.calls).toEqual([
+      [mic, "pageHidden"],
+      [mic, "pageVisible"],
+    ]);
+    expect(receive).not.toHaveBeenCalled();
+  });
+
   it("leave every other message to the reducer", () => {
     const { server } = start();
     vi.mocked(receive).mockClear();

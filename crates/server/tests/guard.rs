@@ -299,6 +299,7 @@ fn every_client_message() -> Vec<ClientMessage> {
             ts: 0.0,
             epoch: 0.0,
         },
+        ClientMessage::MicPage { visible: false },
         ClientMessage::StoreCalibration {
             stage_output: String::new(),
             results: Vec::new(),

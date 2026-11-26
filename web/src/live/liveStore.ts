@@ -139,6 +139,14 @@ export function createLiveStore(
         pitch?.signal(message.mic, "connectionClosed");
         return;
       }
+      // A Phone's page hidden or visible again is a lost-Mic signal too (#166).
+      if (message.type === "micPage") {
+        pitch?.signal(
+          message.mic,
+          message.visible ? "pageVisible" : "pageHidden",
+        );
+        return;
+      }
       // Mic bridge levels go to the meters, not the reducer.
       if (message.type === "localMicLevels") {
         for (const listener of levelListeners) listener(message.levels);

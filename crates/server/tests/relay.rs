@@ -512,3 +512,43 @@ async fn a_phone_on_this_path_hears_only_its_pongs() {
     );
     heard_nothing(&mut phone).await;
 }
+
+#[tokio::test]
+async fn a_phones_page_hidden_and_visible_notices_reach_the_stage_for_its_mic() {
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let phone_id = PhoneId("hiding-phone".into());
+    let mut phone = open_phone_as(&app, &phone_id).await;
+    let mut bystander = open_phone(&app).await;
+    let mic = MicId::Phone { phone_id };
+
+    phone.send(&ClientMessage::MicPage { visible: false }).await;
+    assert_eq!(
+        stage.recv().await,
+        ServerMessage::MicPage {
+            mic: mic.clone(),
+            visible: false
+        }
+    );
+    phone.send(&ClientMessage::MicPage { visible: true }).await;
+    assert_eq!(
+        stage.recv().await,
+        ServerMessage::MicPage { mic, visible: true }
+    );
+    heard_nothing(&mut stage).await;
+    heard_nothing(&mut bystander).await;
+    heard_nothing(&mut phone).await;
+}
+
+#[tokio::test]
+async fn a_page_notice_from_a_browser_with_no_phone_id_is_dropped() {
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let mut anonymous = app.connect_ws().await;
+    skip_greeting(&mut anonymous).await;
+    anonymous
+        .send(&ClientMessage::MicPage { visible: false })
+        .await;
+    heard_nothing(&mut anonymous).await;
+    heard_nothing(&mut stage).await;
+}

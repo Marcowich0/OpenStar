@@ -71,6 +71,7 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::PitchReading { .. }
         | ClientMessage::ClockPing { .. }
         | ClientMessage::ClockPong { .. }
+        | ClientMessage::MicPage { .. }
         // Calibrate mics and setting a Mic threshold need no Admin PIN.
         | ClientMessage::StoreCalibration { .. }
         | ClientMessage::SetMicThreshold { .. }

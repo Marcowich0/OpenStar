@@ -26,6 +26,7 @@ function fakeMic(): PhoneMic & { set: (s: Partial<PhoneMicSnapshot>) => void } {
     },
     turnOn: vi.fn(),
     turnOff: vi.fn(),
+    singAgain: vi.fn(),
     set(next) {
       snapshot = { ...snapshot, ...next };
       act(() => {
@@ -77,5 +78,20 @@ describe("the Phone's mic card", () => {
     mic.set({ state: "failed" });
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(mic.turnOn).toHaveBeenCalledTimes(1);
+  });
+
+  it("says the mic stopped and offers Sing again once the mic is lost", () => {
+    const mic = fakeMic();
+    renderWithParty(PARTY, (store) => (
+      <PhoneMicCard store={store} myPhoneId={MY_PHONE} mic={mic} />
+    ));
+    mic.set({ state: "lost" });
+    expect(screen.getByText("Your mic stopped")).toBeInTheDocument();
+    expect(
+      screen.getByText("The song kept going. Tap to carry on in your seat."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Sing again" }));
+    expect(mic.singAgain).toHaveBeenCalledTimes(1);
+    expect(mic.turnOn).not.toHaveBeenCalled();
   });
 });
