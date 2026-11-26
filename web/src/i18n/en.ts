@@ -271,11 +271,8 @@ export const en = {
   "live.stageMoved": "Another browser is the Stage now",
 
   // The Stage, the Mic bridge page and the Admin area.
-  "stage.title": "Stage",
   "stage.sing": "Sing!",
   "stage.start": "Start",
-  "stage.end": "End",
-  "stage.back": "Back",
   "stage.volume": "Volume {volume, number}",
   "stage.takeBack": "Make this the Stage again",
   "chip.duet": "Duet",
@@ -948,7 +945,6 @@ export const en = {
   // Toasts whose sender is not built yet: the server ticket that adds the
   // `PartyEvent` code maps it to one of these in `toasts/toastContent.ts`.
   "toast.backOnMic": "{actor} is back on the mic",
-  "toast.localMicBack": "{mic} is back on {actor}'s seat",
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",
   "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",
   "toast.youAutoFitAccepted": "You accepted the Auto-fit of {song}",
