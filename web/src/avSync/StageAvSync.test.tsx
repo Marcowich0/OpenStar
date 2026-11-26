@@ -15,7 +15,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AvOffset } from "../generated/AvOffset";
 import type { ClientMessage } from "../generated/ClientMessage";
+import type { MicBridge } from "../generated/MicBridge";
 import type { MicBridges } from "../generated/MicBridges";
+import type { NotProAudio } from "../generated/NotProAudio";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { LiveClientOptions } from "../live/liveClient";
@@ -166,15 +168,14 @@ function press(key: string) {
 describe("Check A/V sync and Pro Audio", () => {
   const SWITCH_FIRST =
     "A Mic bridge interface is not in Pro Audio: switch profiles before calibrating (Setup › Mics)";
-  const bridge = (
-    notProAudio: MicBridges["bridges"][number]["notProAudio"],
-  ) => ({
+  /** An open bridge; `notProAudio` left out when everything is in Pro Audio. */
+  const bridge = (notProAudio?: NotProAudio[]): MicBridge => ({
     bridgeId: "zeus",
     hostName: "zeus",
     open: true,
     channels: [],
     interfaces: [],
-    notProAudio,
+    ...(notProAudio === undefined ? {} : { notProAudio }),
   });
 
   it("says to switch profiles first while a connected bridge's interface is not in Pro Audio", async () => {
@@ -198,7 +199,7 @@ describe("Check A/V sync and Pro Audio", () => {
   });
 
   it("says nothing of profiles while every connected interface is in Pro Audio", async () => {
-    micBridges = { bridges: [bridge(undefined)], requests: [] };
+    micBridges = { bridges: [bridge()], requests: [] };
     const { server } = renderStage();
     server({ type: "avSync", running: true });
     await waitFor(() => {

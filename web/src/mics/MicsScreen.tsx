@@ -277,6 +277,10 @@ function ChannelRow({
   );
 }
 
+/** The command that sets a card to Pro Audio by hand (not for translation). */
+const pactlLine = (cardName: string) =>
+  `pactl set-card-profile ${cardName} pro-audio`;
+
 /**
  * An interface of an open bridge not in Pro Audio: the profile message and
  * Switch to Pro Audio, or after a refused switch the sound settings and
@@ -309,7 +313,7 @@ function ProfileMessage({
             aria-label={t("mics.bridge.pactlLine", { label })}
             className="block select-all overflow-x-auto rounded-card-sm bg-ink px-5 py-4 font-mono text-2xl whitespace-nowrap text-cream"
           >
-            {`pactl set-card-profile ${card.cardName} pro-audio`}
+            {pactlLine(card.cardName)}
           </code>
         </>
       ) : (
