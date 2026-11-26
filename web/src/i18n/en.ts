@@ -936,6 +936,43 @@ export const en = {
   "timing.view.shareWhat":
     "The share of Note time where the pitch heard in the Song is within a semitone of the Note. A rough guide: it is low on Songs with loud backing.",
   "timing.view.playhead": "Playhead {time}",
+  // The hint over the detail view while dragging (#221): the change in
+  // Beats and seconds, or the values before and after.
+  "timing.drag.songLater":
+    "Whole Song {seconds, number} s later · GAP {from, number} → {to, number} ms",
+  "timing.drag.songEarlier":
+    "Whole Song {seconds, number} s earlier · GAP {from, number} → {to, number} ms",
+  "timing.drag.stretchAroundPin":
+    "Stretch around the pin · BPM {fromBpm, number} → {toBpm, number} · GAP {fromGap, number} → {toGap, number} ms",
+  "timing.drag.beatsLater": {
+    one: "+{count, number} beat ({seconds, number} s) · whole beats only",
+    other: "+{count, number} beats ({seconds, number} s) · whole beats only",
+  },
+  "timing.drag.beatsEarlier": {
+    one: "−{count, number} beat (−{seconds, number} s) · whole beats only",
+    other: "−{count, number} beats (−{seconds, number} s) · whole beats only",
+  },
+  "timing.drag.stretchLines":
+    "Stretch ×{factor, number} · notes snap to whole beats",
+  "timing.drag.noteLater": {
+    one: "Note +{count, number} beat ({seconds, number} s) · whole beats only",
+    other:
+      "Note +{count, number} beats ({seconds, number} s) · whole beats only",
+  },
+  "timing.drag.noteEarlier": {
+    one: "Note −{count, number} beat (−{seconds, number} s) · whole beats only",
+    other:
+      "Note −{count, number} beats (−{seconds, number} s) · whole beats only",
+  },
+  "timing.drag.noteLength": {
+    one: "Length {count, number} beat ({seconds, number} s)",
+    other: "Length {count, number} beats ({seconds, number} s)",
+  },
+  "timing.drag.pinned": "Pinned: Line {line, number}",
+  "timing.drag.help":
+    "Drag empty space: move the whole Song · double-click a Line: pin it, then drag far from it to stretch the tempo · click a Line to select it (Shift: a range), drag it to shift, drag ◀▶ to stretch · Alt-drag a Note: move it, or its right end: length",
+  "timing.drag.keys":
+    ", and .: nudge the Song by 10 ms (Shift 100 ms), or the selection by 1 beat (Shift 4) · [ and ]: tempo around the playhead · Esc: clear the selection",
   // Checking by ear (#220): playback, speeds, clicks, hum, loop, A/V sync.
   "timing.play.section": "Playback",
   "timing.play.play": "Play",

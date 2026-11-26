@@ -17,6 +17,15 @@
 // `songTime() − A/V offset`, with the offset kept for this browser and its
 // default output; Check A/V sync sets it here. Keys: Space or P play and
 // pause, F follows the playhead again, 1/2/3 set the speed, L loops.
+//
+// Fine-tuning by hand (#221, the prototype's variant A): drag empty space to
+// move the whole Song, double-click a Line to pin it and drag far from it to
+// stretch the tempo, click (Shift-click) Lines to select them, drag them to
+// shift and their ◀▶ handle to stretch, Alt-drag a Note or its right end.
+// While dragging, the view, the values and the share show the edit live with
+// a hint (`dragGestures.ts`); releasing commits it as one edit. Keys: `,`/`.`
+// nudge the Song or the selection, `[`/`]` change the tempo around the
+// playhead, Esc clears the selection.
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -69,9 +78,21 @@ import {
 import { stageAudio } from "../../stage/playback/stageAudio";
 import { readToken } from "../../theme/tokens";
 import { autoFit } from "../../timing/fitEdits";
-import { shiftLines } from "../../timing/lineEdits";
-import { selectLine, type LineSelection } from "../../timing/selection";
-import { typeBpm, typeGap, typeVideoGap } from "../../timing/songEdits";
+import { nudgeLines, shiftLines } from "../../timing/lineEdits";
+import {
+  clearSelection,
+  extendSelection,
+  selectLine,
+  type LineSelection,
+} from "../../timing/selection";
+import {
+  nudgeSong,
+  tempoAroundPlayhead,
+  typeBpm,
+  typeGap,
+  typeVideoGap,
+  type LineIndex,
+} from "../../timing/songEdits";
 import {
   applyOperations,
   backToTheFile,
@@ -86,7 +107,13 @@ import {
   type TimingEdit,
   type TimingModel,
 } from "../../timing/timingModel";
-import { clockText, DETAIL, detailFrame } from "./detailFrame";
+import {
+  clockText,
+  detailFrame,
+  hitDetail,
+  type DetailHit,
+} from "./detailFrame";
+import { dragTo, type Drag, type DragResult } from "./dragGestures";
 import { createEditorPainter } from "./editorPainter";
 import {
   openView,
@@ -203,6 +230,21 @@ const FOLLOW_RIGHT = 0.85;
 /** …and puts it this share in from the left. */
 const FOLLOW_LEFT = 0.15;
 const OVERVIEW_HEIGHT = 64;
+/** A drag starts once the pointer moved this many px (a click stays a click). */
+const DRAG_THRESHOLD_PX = 3;
+
+/** A drag in progress: what it started on, the model then, and its result. */
+interface DragState {
+  drag: Drag;
+  base: TimingModel;
+  x: number;
+  pixelsPerSecond: number;
+  moved: boolean;
+  result: DragResult | null;
+}
+
+const inSelection = (s: LineSelection, at: LineIndex) =>
+  s.voice === at.voice && at.line >= s.first && at.line <= s.last;
 
 function Editor({
   detail,
@@ -213,7 +255,13 @@ function Editor({
 }) {
   // Opening applies nothing: the model starts as the file is.
   const [model, setModel] = useState(() => openTimingModel(detail.song));
-  const timing = useMemo(() => currentTiming(model), [model]);
+  // While dragging, everything shown is the model with the drag's edit.
+  const [dragPreview, setDragPreview] = useState<DragResult | null>(null);
+  const shown = useMemo(
+    () => (dragPreview?.edit ? commit(model, dragPreview.edit, 0) : model),
+    [model, dragPreview],
+  );
+  const timing = useMemo(() => currentTiming(shown), [shown]);
   const fileTiming = useMemo(
     () => currentTiming(openTimingModel(model.song)),
     [model.song],
@@ -248,8 +296,9 @@ function Editor({
     () => (playback ? playback.clock.songTime() : 0) - offsetSeconds(),
     [playback, offsetSeconds],
   );
-  // The Line selection; Go selects a Line. #221 draws it and adds the clicks.
+  // The Line selection (Go selects a Line too) and the pinned Line.
   const [selection, setSelection] = useState<LineSelection | null>(null);
+  const [pin, setPin] = useState<LineIndex | null>(null);
   const [fitOutcome, setFitOutcome] = useState<FitOutcome | null>(null);
 
   const track = load.state === "ready" ? load.track : null;
@@ -315,6 +364,24 @@ function Editor({
     speed: (rate) => playback?.setRate(rate),
     loop: toggleLoop,
   });
+  useGestureKeys({
+    nudge: (direction, shift) => {
+      apply((m) =>
+        selection
+          ? nudgeLines(m, selection, { direction, shift })
+          : nudgeSong(m, { direction, shift }),
+      );
+    },
+    tempo: (direction, shift) => {
+      const playheadSeconds = drawnTime();
+      apply((m) =>
+        tempoAroundPlayhead(m, { direction, shift, playheadSeconds }),
+      );
+    },
+    clear: () => {
+      setSelection(clearSelection());
+    },
+  });
   const openAvSync = () => {
     playback?.pause();
     avOffset.start();
@@ -371,23 +438,103 @@ function Editor({
     };
   }, []);
 
-  // Dragging on the ruler seeks.
+  // Dragging on the ruler seeks; below it, the drag gestures.
   const seeking = useRef(false);
-  const pointerX = (event: ReactPointerEvent<HTMLCanvasElement>) =>
-    event.clientX - event.currentTarget.getBoundingClientRect().left;
+  const dragging = useRef<DragState | null>(null);
+  const pointerAt = (event: { clientX: number; clientY: number }) => {
+    const rect = detailRef.current?.getBoundingClientRect();
+    return {
+      x: event.clientX - (rect?.left ?? 0),
+      y: event.clientY - (rect?.top ?? 0),
+    };
+  };
+  const hitAt = (x: number, y: number): DetailHit =>
+    hitDetail(
+      {
+        song: timing.song,
+        grid: timing.grid,
+        track: null,
+        matcher: null,
+        playhead: 0,
+        view,
+        width: detailWidth,
+        height: DETAIL_HEIGHT,
+        selection,
+        pin,
+      },
+      x,
+      y,
+    );
   const onDetailDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const y = event.clientY - event.currentTarget.getBoundingClientRect().top;
-    if (y >= DETAIL.ruler) return;
-    seeking.current = true;
+    const { x, y } = pointerAt(event);
+    const hit = hitAt(x, y);
     event.currentTarget.setPointerCapture(event.pointerId);
-    seekTo(timeAtX(view, pointerX(event)));
+    if (hit.kind === "ruler") {
+      seeking.current = true;
+      seekTo(timeAtX(view, x));
+      return;
+    }
+    let drag: Drag;
+    if (hit.kind === "handle" && selection) {
+      drag = { kind: "stretch", selection };
+    } else if (hit.kind === "note" && event.altKey) {
+      const note = { voice: hit.voice, line: hit.line, note: hit.note };
+      drag = { kind: hit.edge ? "noteEnd" : "note", note };
+    } else if (hit.kind === "note" || hit.kind === "line") {
+      const at = { voice: hit.voice, line: hit.line };
+      const next = event.shiftKey
+        ? extendSelection(selection, at)
+        : selection && inSelection(selection, at)
+          ? selection
+          : selectLine(at);
+      setSelection(next);
+      drag = { kind: "lines", selection: next };
+    } else {
+      setSelection(clearSelection());
+      drag = { kind: "song", grabSeconds: timeAtX(view, x), pin };
+    }
+    dragging.current = {
+      drag,
+      base: model,
+      x,
+      pixelsPerSecond: view.pixelsPerSecond,
+      moved: false,
+      result: null,
+    };
   };
   const onDetailMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!seeking.current) return;
-    seekTo(timeAtX(view, pointerX(event)));
+    const { x, y } = pointerAt(event);
+    if (seeking.current) {
+      seekTo(timeAtX(view, x));
+      return;
+    }
+    const d = dragging.current;
+    if (!d) {
+      event.currentTarget.style.cursor = cursorFor(hitAt(x, y), event.altKey);
+      return;
+    }
+    const dx = x - d.x;
+    if (!d.moved && Math.abs(dx) < DRAG_THRESHOLD_PX) return;
+    if (!d.moved) setFollowing(false);
+    d.moved = true;
+    d.result = dragTo(d.base, d.drag, dx / d.pixelsPerSecond);
+    setDragPreview(d.result);
   };
-  const onDetailUp = () => {
+  /** Releasing commits the drag's edit; a cancelled pointer drops it. */
+  const endDrag = (commitIt: boolean) => {
     seeking.current = false;
+    const edit = dragging.current?.result?.edit;
+    dragging.current = null;
+    setDragPreview(null);
+    if (edit && commitIt) apply(() => edit);
+  };
+  const onDetailDoubleClick = (event: { clientX: number; clientY: number }) => {
+    const { x, y } = pointerAt(event);
+    const hit = hitAt(x, y);
+    if (hit.kind !== "note" && hit.kind !== "line") return;
+    const at = { voice: hit.voice, line: hit.line };
+    setPin((p) => (p?.voice === at.voice && p.line === at.line ? null : at));
+    setSelection(clearSelection());
   };
 
   const onOverviewDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -418,6 +565,8 @@ function Editor({
           view,
           width: detailWidth,
           height: DETAIL_HEIGHT,
+          selection,
+          pin,
         }),
         { width: detailWidth, height: DETAIL_HEIGHT, pixelRatio: ratio },
       );
@@ -468,6 +617,8 @@ function Editor({
     overviewWidth,
     drawnTime,
     avOffset.ms,
+    selection,
+    pin,
   ]);
   // While it plays: repaint as the playhead moves, keeping it in sight.
   const followState = useRef({ following, playing: playState.playing });
@@ -499,34 +650,60 @@ function Editor({
           className={`${canvasClass} cursor-pointer`}
           style={{ height: OVERVIEW_HEIGHT }}
         />
-        <canvas
-          ref={detailRef}
-          role="img"
-          aria-label={t("timing.view.detail")}
-          data-pitch-track={load.state === "listening" ? "pending" : load.state}
-          data-view-start={String(round6(view.start))}
-          data-pixels-per-second={String(round6(view.pixelsPerSecond))}
-          data-playing={String(playState.playing)}
-          data-rate={String(playState.rate)}
-          data-following={String(following)}
-          data-loop={
-            playState.loop
-              ? `${String(round6(playState.loop.start))}-${String(round6(playState.loop.end))}`
-              : undefined
-          }
-          data-selection={
-            selection
-              ? `${String(selection.voice)}:${String(selection.first)}-${String(selection.last)}`
-              : undefined
-          }
-          onPointerDown={onDetailDown}
-          onPointerMove={onDetailMove}
-          onPointerUp={onDetailUp}
-          onPointerCancel={onDetailUp}
-          className={canvasClass}
-          style={{ height: DETAIL_HEIGHT }}
-        />
-        <p className="text-sm text-ink-2">{t("timing.view.help")}</p>
+        <div className="relative">
+          <canvas
+            ref={detailRef}
+            role="img"
+            aria-label={t("timing.view.detail")}
+            data-pitch-track={
+              load.state === "listening" ? "pending" : load.state
+            }
+            data-view-start={String(round6(view.start))}
+            data-pixels-per-second={String(round6(view.pixelsPerSecond))}
+            data-playing={String(playState.playing)}
+            data-rate={String(playState.rate)}
+            data-following={String(following)}
+            data-loop={
+              playState.loop
+                ? `${String(round6(playState.loop.start))}-${String(round6(playState.loop.end))}`
+                : undefined
+            }
+            data-selection={
+              selection
+                ? `${String(selection.voice)}:${String(selection.first)}-${String(selection.last)}`
+                : undefined
+            }
+            data-pin={
+              pin ? `${String(pin.voice)}:${String(pin.line)}` : undefined
+            }
+            onPointerDown={onDetailDown}
+            onPointerMove={onDetailMove}
+            onPointerUp={() => {
+              endDrag(true);
+            }}
+            onPointerCancel={() => {
+              endDrag(false);
+            }}
+            onDoubleClick={onDetailDoubleClick}
+            className={`${canvasClass} cursor-grab`}
+            style={{ height: DETAIL_HEIGHT }}
+          />
+          {dragPreview?.hint && (
+            <p className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 rounded-full bg-ink px-4 py-1 text-base font-semibold whitespace-nowrap text-white tabular-nums">
+              {dragPreview.hint}
+            </p>
+          )}
+        </div>
+        <p className="text-sm text-ink-2">
+          {t("timing.view.help")}
+          {pin && (
+            <strong className="ml-2 text-purple">
+              {t("timing.drag.pinned", { line: pin.line + 1 })}
+            </strong>
+          )}
+        </p>
+        <p className="text-sm text-ink-2">{t("timing.drag.help")}</p>
+        <p className="text-sm text-ink-2">{t("timing.drag.keys")}</p>
         <SongMedia
           plan={plan}
           setElement={setElement}
@@ -733,6 +910,71 @@ function usePlaybackKeys(actions: {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, []);
+}
+
+/**
+ * `,`/`.` nudge (with Shift, or as `<`/`>`, the big step), `[`/`]` change the
+ * tempo around the playhead (Shift or `{`/`}`: the big step), Esc clears the
+ * selection. Inside a text field the keys stay the field's own.
+ */
+function useGestureKeys(actions: {
+  nudge: (direction: -1 | 1, shift: boolean) => void;
+  tempo: (direction: -1 | 1, shift: boolean) => void;
+  clear: () => void;
+}) {
+  const latest = useRef(actions);
+  useEffect(() => {
+    latest.current = actions;
+  });
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement
+      )
+        return;
+      const act = latest.current;
+      const big = event.shiftKey;
+      switch (event.key) {
+        case ",":
+        case "<":
+          act.nudge(-1, big || event.key === "<");
+          break;
+        case ".":
+        case ">":
+          act.nudge(1, big || event.key === ">");
+          break;
+        case "[":
+        case "{":
+          act.tempo(-1, big || event.key === "{");
+          break;
+        case "]":
+        case "}":
+          act.tempo(1, big || event.key === "}");
+          break;
+        case "Escape":
+          act.clear();
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+}
+
+/** The detail view's cursor over what the pointer is on (Alt: the Note tools). */
+function cursorFor(hit: DetailHit, alt: boolean): string {
+  if (hit.kind === "ruler") return "pointer";
+  if (hit.kind === "handle") return "ew-resize";
+  if (hit.kind === "note" && alt) return hit.edge ? "ew-resize" : "move";
+  return "grab";
 }
 
 /**
