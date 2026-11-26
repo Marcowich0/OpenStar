@@ -40,6 +40,8 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 - the USDB mirror's status, the update the Downloads section asks for when it opens, and a full USDB refetch started by hand (`GET /api/usdb/mirror`, `POST /api/usdb/mirror/refresh`, `POST /api/usdb/mirror/refetch`): the mirror is a copy of USDB's list, not kept data, so dropping songs USDB no longer has deletes nothing kept;
 - cancelling a Download;
 - opening the desktop Timing editor on a Song, computing its Pitch track (`POST /api/songs/{id}/pitch-track`, from a Phone too) and downloading it (`GET /api/songs/{id}/pitch-track`), and working in the editor up to saving;
+- the Timing edit preview (`POST /api/songs/{id}/timing/preview`), which writes nothing; saving it (`POST /api/songs/{id}/timing`) and Restore Original (`POST /api/songs/{id}/restore-original`) are guarded and write the Library;
+- which Songs have an Original to restore (`GET /api/library/originals`);
 - Undo of a Phone's fit proposal, which writes nothing;
 - creating and editing Profiles;
 - checking a Join code and joining the Party (Join code plus identity), and a Phone's silent rejoin with its Phone id;

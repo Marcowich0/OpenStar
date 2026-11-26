@@ -381,6 +381,11 @@ const MIGRATIONS: &[&str] = &[
     "ALTER TABLE rounds ADD COLUMN request_id INTEGER;
     CREATE UNIQUE INDEX rounds_request ON rounds (party_id, request_id);
     ALTER TABLE party_results ADD COLUMN players TEXT NOT NULL DEFAULT '[]';",
+    // 25: the SHA-256 of each `.txt` as the index read it (#188), so a
+    // Timing edit is refused when the file changed since. Every row is
+    // read again at the next scan to fill it.
+    "ALTER TABLE library_files ADD COLUMN txt_sha256 TEXT;
+    UPDATE library_files SET parser_version = 0;",
 ];
 
 /// The schema version this build migrates to.

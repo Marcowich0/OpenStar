@@ -203,6 +203,26 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             library::pitch_track::download,
         )
+        // A Timing edit's preview writes nothing; saving it and Restore
+        // Original change the Song's `.txt` (docs/agents/guard-rule.md).
+        .add(
+            Method::POST,
+            "/api/songs/{id}/timing/preview",
+            NotGuarded,
+            library::timing::preview,
+        )
+        .add(
+            Method::POST,
+            "/api/songs/{id}/timing",
+            Guarded(Writes),
+            library::timing::save,
+        )
+        .add(
+            Method::POST,
+            "/api/songs/{id}/restore-original",
+            Guarded(Writes),
+            library::timing::restore_original,
+        )
         .add(
             Method::GET,
             "/api/songs/{id}/high-scores",
@@ -226,6 +246,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/library/scan",
             NotGuarded,
             library::scan_status,
+        )
+        // Which Songs have an Original, for Restore Original's button.
+        .add(
+            Method::GET,
+            "/api/library/originals",
+            NotGuarded,
+            library::timing::originals,
         )
         // Rescan and the Library problems need no PIN (docs/agents/guard-rule.md).
         .add(

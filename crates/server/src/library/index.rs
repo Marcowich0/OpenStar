@@ -101,6 +101,9 @@ pub(crate) struct ReadFile {
     pub path: String,
     pub size: i64,
     pub mtime_ns: i64,
+    /// The SHA-256 of the bytes read (lower-case hex); `None` when the file
+    /// could not be read.
+    pub sha256: Option<String>,
     /// The detected encoding's name; `None` when the file could not be read.
     pub encoding: Option<&'static str>,
     /// `None` when the `.txt` is rejected.
@@ -143,6 +146,43 @@ pub(crate) fn load(conn: &Connection) -> rusqlite::Result<Vec<(String, Stored)>>
     rows.collect()
 }
 
+/// A parsed `.txt` as the index last read it: what a Timing edit checks
+/// the file on disk against.
+pub(crate) struct Loaded {
+    /// Relative to the Library, `/` between segments.
+    pub path: String,
+    pub mtime_ns: i64,
+    /// `None` for a row read before the index kept hashes (it is read again
+    /// at the next scan).
+    pub sha256: Option<String>,
+}
+
+/// The row of Song `id` if its `.txt` parsed (playable or not).
+pub(crate) fn loaded(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Loaded>> {
+    conn.query_row(
+        "SELECT path, mtime_ns, txt_sha256 FROM library_files
+         WHERE id = ?1 AND song IS NOT NULL",
+        [id.0],
+        |row| {
+            Ok(Loaded {
+                path: row.get(0)?,
+                mtime_ns: row.get(1)?,
+                sha256: row.get(2)?,
+            })
+        },
+    )
+    .optional()
+}
+
+/// Every parsed row: its Song and `.txt` path.
+pub(crate) fn parsed_paths(conn: &Connection) -> rusqlite::Result<Vec<(SongId, String)>> {
+    let mut statement =
+        conn.prepare("SELECT id, path FROM library_files WHERE song IS NOT NULL ORDER BY id")?;
+    statement
+        .query_map([], |row| Ok((song_id(row.get(0)?), row.get(1)?)))?
+        .collect()
+}
+
 /// Stores files just read, replacing their earlier rows (keeping their ids).
 pub(crate) fn store_read(
     tx: &Transaction<'_>,
@@ -152,8 +192,8 @@ pub(crate) fn store_read(
     let mut statement = tx.prepare_cached(
         "INSERT INTO library_files (path, size, mtime_ns, parser_version, encoding, song,
              artist, title, duet, txt_problems, file_references,
-             year, languages, genres, editions, creators)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)
+             year, languages, genres, editions, creators, txt_sha256)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
          ON CONFLICT (path) DO UPDATE SET
              size = excluded.size, mtime_ns = excluded.mtime_ns,
              parser_version = excluded.parser_version, encoding = excluded.encoding,
@@ -161,7 +201,8 @@ pub(crate) fn store_read(
              duet = excluded.duet, txt_problems = excluded.txt_problems,
              file_references = excluded.file_references, year = excluded.year,
              languages = excluded.languages, genres = excluded.genres,
-             editions = excluded.editions, creators = excluded.creators",
+             editions = excluded.editions, creators = excluded.creators,
+             txt_sha256 = excluded.txt_sha256",
     )?;
     for file in files {
         let song = file
@@ -185,6 +226,7 @@ pub(crate) fn store_read(
             encode_values(file.song.as_ref().map(|s| &s.headers.genres)),
             encode_values(file.song.as_ref().map(|s| &s.headers.editions)),
             encode_values(file.song.as_ref().map(|s| &s.headers.creators)),
+            file.sha256,
         ])?;
         store_media(tx, &file.path, file.song.is_some(), &file.media)?;
     }

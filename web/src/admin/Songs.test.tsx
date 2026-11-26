@@ -121,4 +121,95 @@ describe("the Songs section", () => {
     expect(rows()).toHaveLength(3);
     expect(server.count("GET /api/songs")).toBe(2);
   });
+
+  describe("Restore Original", () => {
+    const restore = () =>
+      screen.queryAllByRole("button", { name: "Restore Original" });
+    const press = (button: HTMLElement | undefined) => {
+      if (button === undefined) throw new Error("no Restore Original button");
+      act(() => {
+        fireEvent.click(button);
+      });
+    };
+    const row = (n: number) => {
+      const found = rows()[n];
+      if (found === undefined) throw new Error(`no row ${String(n)}`);
+      return found;
+    };
+
+    it("is offered only on a Song that has an Original", async () => {
+      fakeLibraryServer({
+        "GET /api/songs": songList(SONGS),
+        "GET /api/library/originals": [2],
+      });
+      await renderLive(<Songs />);
+
+      expect(
+        within(row(0)).queryByRole("button", { name: "Restore Original" }),
+      ).toBeNull();
+      expect(
+        within(row(1)).getByRole("button", { name: "Restore Original" }),
+      ).toBeVisible();
+    });
+
+    it("restores the Original, and the button goes with the Library notice", async () => {
+      let originals = [1];
+      const server = fakeLibraryServer({
+        "GET /api/songs": songList(SONGS),
+        "GET /api/library/originals": () => originals,
+        "GET /api/unlock": { unlocked: true },
+        "POST /api/songs/1/restore-original": () => {
+          originals = [];
+          return "06c1e2f7";
+        },
+      });
+      const live = await renderLive(<Songs />);
+
+      press(restore()[0]);
+      await settle();
+      expect(server.count("POST /api/songs/1/restore-original")).toBe(1);
+
+      await live.changed("library");
+      expect(restore()).toHaveLength(0);
+    });
+
+    it("says why the server refused it", async () => {
+      const answers: Record<string, unknown> = {
+        "GET /api/server-info": {
+          version: "dev",
+          schemaVersion: 1,
+          libraryReadOnly: null,
+          publicUrl: null,
+        },
+        "GET /api/unlock": { unlocked: true },
+        "GET /api/songs": songList(SONGS),
+        "GET /api/library/originals": [1],
+      };
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((input: string, init: RequestInit) => {
+          const route = `${init.method ?? "GET"} ${new URL(input, "http://test").pathname}`;
+          const refused = route === "POST /api/songs/1/restore-original";
+          return Promise.resolve(
+            new Response(
+              JSON.stringify(
+                refused ? { code: "songPlaying" } : answers[route],
+              ),
+              {
+                status: refused ? 409 : 200,
+                headers: { "Content-Type": "application/json" },
+              },
+            ),
+          );
+        }),
+      );
+      await renderLive(<Songs />);
+
+      press(restore()[0]);
+      await settle();
+      expect(within(row(0)).getByRole("alert")).toHaveTextContent(
+        "This Song is playing on the Stage now",
+      );
+    });
+  });
 });

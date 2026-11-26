@@ -230,6 +230,29 @@ pub(crate) fn read_folder(root: &Path, folder: &str) -> anyhow::Result<Vec<ReadF
         .collect())
 }
 
+/// Reads one `.txt` (relative to the Library) as a scan would: for an own
+/// write applied straight to the index.
+pub(crate) fn read_file(root: &Path, path: &str) -> anyhow::Result<ReadFile> {
+    let relative = PathBuf::from(path);
+    let metadata = std::fs::metadata(root.join(&relative))?;
+    let candidate = Candidate {
+        path: path.to_owned(),
+        folder: relative.parent().map(Path::to_owned).unwrap_or_default(),
+        size: i64::try_from(metadata.len()).unwrap_or(i64::MAX),
+        mtime_ns: mtime_ns(&metadata),
+    };
+    Ok(read(root, &mut Resolver::new(root), candidate))
+}
+
+/// The SHA-256 of `bytes` in lower-case hex: a `.txt`'s version.
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
 fn slash_path(path: &Path) -> String {
     path.components()
         .map(|c| c.as_os_str().to_string_lossy())
@@ -253,6 +276,7 @@ fn read(root: &Path, resolver: &mut Resolver, candidate: Candidate) -> ReadFile 
         path: candidate.path,
         size: candidate.size,
         mtime_ns: candidate.mtime_ns,
+        sha256: None,
         encoding: None,
         song: None,
         txt_problems: Vec::new(),
@@ -269,6 +293,7 @@ fn read(root: &Path, resolver: &mut Resolver, candidate: Candidate) -> ReadFile 
             return file;
         }
     };
+    file.sha256 = Some(sha256_hex(&bytes));
     let folder_name = candidate
         .folder
         .file_name()
