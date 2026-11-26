@@ -213,7 +213,7 @@ describe("the Downloads section", () => {
     expect(text).toContain("_FILE");
     expect(
       screen.getByRole("button", { name: "Fetch the whole list again" }),
-    ).toHaveAttribute("aria-disabled", "true");
+    ).toBeDisabled();
   });
 
   it("shows “USDB login failed” after a failed login", async () => {

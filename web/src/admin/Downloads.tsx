@@ -15,6 +15,7 @@ import {
 } from "@tanstack/react-query";
 import { useDeferredValue, useEffect, useRef, useState } from "react";
 import {
+  Button as AriaButton,
   Input,
   SearchField,
   ToggleButton,
@@ -34,7 +35,6 @@ import type { UsdbSort } from "../generated/UsdbSort";
 import type { UsdbState } from "../generated/UsdbState";
 import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
-import { Button } from "../ui/Button";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
@@ -198,14 +198,15 @@ function MirrorLine({ status, mirror }: UsdbProps) {
       <p role="status" className="min-w-0 grow font-semibold text-ink">
         {text}
       </p>
-      <Button
+      <AriaButton
         isDisabled={disabled}
         onPress={() => {
           void refetch();
         }}
+        className="inline-flex min-h-12 shrink-0 cursor-pointer items-center rounded-full bg-white px-5 text-lg font-semibold text-ink shadow-ledge outline-none transition-transform duration-200 data-disabled:cursor-default data-disabled:opacity-50 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
       >
         {t("admin.downloads.refetch")}
-      </Button>
+      </AriaButton>
     </div>
   );
 }
