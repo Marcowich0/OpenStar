@@ -1,0 +1,5 @@
+{
+  "comment": "Limits for the Beat-value regression runs (format and rules in README.md). bleedHitBeatsMaxPct is the spec's limit. singingVoicedBeatsMinPct is the floor, set on 2026-11-26 from the first passing run (lowest singing run: run-1795538002867-singing.json, 29.86 %); it only ever rises.",
+  "bleedHitBeatsMaxPct": 4,
+  "singingVoicedBeatsMinPct": 29.8
+}
