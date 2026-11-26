@@ -227,6 +227,16 @@ function PlaybackView({ detail }: { detail: SongDetail }) {
           </>
         )}
       </div>
+      {controlsState.phase === "paused" && (
+        <div
+          role="status"
+          className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        >
+          <span className="rounded-card bg-white/90 px-16 py-8 text-8xl text-ink">
+            {t("stage.playback.paused")}
+          </span>
+        </div>
+      )}
       <ResumeCountdown state={controlsState} />
     </SingScreen>
   );

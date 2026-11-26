@@ -442,6 +442,13 @@ export const en = {
   "stage.sing.notPlaying": "This Song is not playing here",
   "stage.sing.playFailed": "The browser did not start the Song",
   "stage.sing.play": "Play",
+  // The pause menu over the frozen sing screen (#217).
+  "stage.pause.title": "Paused",
+  "stage.pause.resume": "Resume",
+  "stage.pause.restart": "Restart",
+  "stage.pause.skip": "Skip to the next Song",
+  "stage.pause.end": "End and show results",
+  "stage.pause.hint": "Restart, Skip and End: hold Enter or press and hold",
   // The results screen (#182).
   "stage.results.endedEarly": "Ended early, so no high scores this time",
   "stage.results.legend": "What the bars are made of",
