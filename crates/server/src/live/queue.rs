@@ -198,6 +198,7 @@ mod tests {
             request_id: RequestId(6),
             song_id: SongId(6),
             ended: openstar_protocol::SongEnd::Played,
+            players: Vec::new(),
         });
         add(&mut party, request(7));
         assert_eq!(order(&party), vec![7]);

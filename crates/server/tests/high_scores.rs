@@ -6,13 +6,20 @@
 use std::time::Duration;
 
 use openstar_protocol::library::{ScanStatus, SongDetail, SongList, SongSummary};
-use openstar_protocol::party::PartyId;
+use openstar_protocol::party::{PartyId, RequestId};
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
 use openstar_protocol::scoring::{
     BeatRange, BeatValue, HighScoreHolder, HighScoreTable, MicKind, PlayerScore, RoundEnd,
     RoundMode, RoundOutcome, ScorePlayer, SongHighScores, StoredRound, TopHighScore,
 };
 use openstar_test_harness::TestApp;
+
+/// A Request id no other round of these tests has: a round is stored once
+/// per (Party, Request).
+fn next_request() -> RequestId {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+    RequestId(NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+}
 use reqwest::StatusCode;
 
 /// A solo Song of two Notes: Beats 0 to 7.
@@ -173,6 +180,7 @@ async fn store(app: &TestApp, song: &SongDetail, scores: Vec<PlayerScore>) -> St
     let outcome = RoundOutcome {
         song_id: song.id,
         note_fingerprint: song.note_fingerprint.clone(),
+        request_id: next_request(),
         party_id: PartyId("party-1".into()),
         mode: RoundMode::Normal,
         started_at_ms: 1_700_000_000_000,
@@ -181,7 +189,7 @@ async fn store(app: &TestApp, song: &SongDetail, scores: Vec<PlayerScore>) -> St
     };
     let response = app
         .http()
-        .post(app.url("/api/rounds"))
+        .post(app.url("/api/test/rounds"))
         .json(&outcome)
         .send()
         .await
@@ -221,7 +229,7 @@ fn flags(round: &StoredRound) -> Vec<bool> {
 
 #[tokio::test]
 async fn a_solo_song_has_one_table_per_difficulty_and_a_duet_two_voices_each() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let solo = add_song(&app, "Solo", "Solo", SOLO).await;
     let duet = add_song(&app, "Duet", "Duet", DUET).await;
     let ada = create_profile(&app, "Ada", PaletteKey::Cherry).await;
@@ -256,7 +264,7 @@ async fn a_solo_song_has_one_table_per_difficulty_and_a_duet_two_voices_each() {
 
 #[tokio::test]
 async fn an_unknown_song_has_no_high_scores() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let response = app
         .http()
         .get(app.url("/api/songs/999999/high-scores"))
@@ -268,7 +276,7 @@ async fn an_unknown_song_has_no_high_scores() {
 
 #[tokio::test]
 async fn the_table_shows_the_top_ten_profiles_once_each_with_their_best_counted_record() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let song = add_song(&app, "Solo", "Solo", SOLO).await;
     let people = profiles(&app, 12).await;
     // P01's best is 9000 (its 9500 is unfinished and its later 8000 lower).
@@ -334,7 +342,7 @@ async fn the_table_shows_the_top_ten_profiles_once_each_with_their_best_counted_
 
 #[tokio::test]
 async fn equal_totals_share_a_place_and_the_next_place_skips() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let song = add_song(&app, "Solo", "Solo", SOLO).await;
     let people = profiles(&app, 4).await;
     store(&app, &song, vec![score(of(&people[0]), 7000)]).await;
@@ -355,7 +363,7 @@ async fn equal_totals_share_a_place_and_the_next_place_skips() {
 
 #[tokio::test]
 async fn the_new_high_score_flag_is_set_only_for_a_counted_record_above_the_previous_best() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let song = add_song(&app, "Solo", "Solo", SOLO).await;
     let ada = create_profile(&app, "Ada", PaletteKey::Cherry).await;
     let bo = create_profile(&app, "Bo", PaletteKey::Sky).await;
@@ -422,7 +430,7 @@ fn openstar_rounds(app: &TestApp) -> Vec<StoredRound> {
 
 #[tokio::test]
 async fn each_song_row_carries_its_top_high_score_at_any_difficulty_and_voice() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let solo = add_song(&app, "Solo", "Solo", SOLO).await;
     let duet = add_song(&app, "Duet", "Duet", DUET).await;
     add_song(&app, "Unsung", "Unsung", SOLO).await;
@@ -471,7 +479,7 @@ async fn each_song_row_carries_its_top_high_score_at_any_difficulty_and_voice() 
 
 #[tokio::test]
 async fn a_timing_edit_keeps_the_table_and_marks_entries_sung_to_the_older_timing() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let old = add_song(&app, "Solo", "Solo", SOLO).await;
     let ada = create_profile(&app, "Ada", PaletteKey::Cherry).await;
     let bo = create_profile(&app, "Bo", PaletteKey::Sky).await;
@@ -522,7 +530,7 @@ async fn a_timing_edit_keeps_the_table_and_marks_entries_sung_to_the_older_timin
 
 #[tokio::test]
 async fn records_hide_while_their_song_is_not_in_the_library_and_show_when_it_returns() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let song = add_song(&app, "Solo", "Solo", SOLO).await;
     let other = add_song(&app, "Other", "Other", SOLO).await;
     let ada = create_profile(&app, "Ada", PaletteKey::Cherry).await;
@@ -559,7 +567,7 @@ async fn records_hide_while_their_song_is_not_in_the_library_and_show_when_it_re
 
 #[tokio::test]
 async fn deleting_a_profile_removes_its_entries_from_every_table() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let song = add_song(&app, "Solo", "Solo", SOLO).await;
     let ada = create_profile(&app, "Ada", PaletteKey::Cherry).await;
     let bo = create_profile(&app, "Bo", PaletteKey::Sky).await;
@@ -591,7 +599,7 @@ async fn deleting_a_profile_removes_its_entries_from_every_table() {
 #[tokio::test]
 async fn a_stored_round_sends_a_library_change_notice() {
     use openstar_protocol::{ChangeTopic, ServerMessage};
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     let song = add_song(&app, "Solo", "Solo", SOLO).await;
     let ada = create_profile(&app, "Ada", PaletteKey::Cherry).await;
     let mut ws = app.connect_ws().await;

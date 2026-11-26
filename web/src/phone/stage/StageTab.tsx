@@ -1,8 +1,9 @@
 // The Remote's Stage tab (v1 spec #49, "Stage tab"): what the Stage is doing,
-// in one card per state. This is the waiting Line-up's card: "Up next: who
+// in one card per state. The waiting Line-up's card: "Up next: who
 // sings?" with the Song's cover and title, one row per seat, "Add a singer",
-// the server's warnings, and a big Start. The playing Song, the results and
-// the empty Queue are later tickets' cards. No level meters and no Mic
+// the server's warnings, and a big Start. While the results show, this
+// Phone's own Player's result (#175: the data; its look is #49's). The
+// playing Song and the empty Queue are later tickets' cards. No level meters and no Mic
 // threshold here: those are on the Stage.
 
 import { useState } from "react";
@@ -21,6 +22,7 @@ import { Cover } from "../../ui/Cover";
 import { Icon } from "../../ui/Icon";
 import { editLineUp, startSong } from "./lineUpCommands";
 import { SeatSheet, Tag } from "./SeatSheet";
+import { myResult } from "./myResult";
 import { micName } from "./seatMics";
 import { useLineUp } from "./useLineUp";
 
@@ -77,9 +79,32 @@ export function StageTab({
     return parts.filter((part) => part !== "").join(" · ");
   }
 
+  const mine = myResult(party?.results ?? null, myPhoneId);
+
   return (
     <div className="flex flex-col gap-3 pt-1">
       <h1 className="text-3xl font-bold">{t("stageTab.title")}</h1>
+      {mine && (
+        <section
+          data-testid="my-result"
+          className="flex flex-col gap-1 rounded-card bg-ink p-4.5 text-white shadow-ledge"
+        >
+          <p className="text-sm font-semibold text-yellow">
+            {t("stageTab.results")}
+          </p>
+          <p className="text-2xl font-bold tabular-nums">
+            {t("stageTab.yourScore", { total: mine.total })}
+          </p>
+          {mine.newHighScore && (
+            <p className="font-semibold text-yellow">
+              {t("stageTab.newHighScore")}
+            </p>
+          )}
+          {mine.unfinished && (
+            <p className="text-white/70">{t("stageTab.endedEarly")}</p>
+          )}
+        </section>
+      )}
       {lineUp && (
         <section className="flex flex-col gap-2 rounded-card bg-ink p-4.5 text-white shadow-ledge">
           <div className="mb-2 flex items-center gap-3">

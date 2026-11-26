@@ -15,6 +15,7 @@ use crate::StageId;
 use crate::library::SongId;
 use crate::mics::MicKey;
 use crate::profile::{Avatar, Difficulty, NewProfile, PaletteKey, ProfileId};
+use crate::scoring::PlayerResult;
 
 /// How many seats a Line-up has, and so how many requested Players a
 /// Request may name. 4 in v1. Nothing else hard-codes it: no database CHECK,
@@ -240,6 +241,10 @@ pub struct SongResults {
     pub request_id: RequestId,
     pub song_id: SongId,
     pub ended: SongEnd,
+    /// Every seated Player's result, ranked by total (best first; equal
+    /// totals keep their seat order). Each Phone that was a Player's Mic
+    /// finds its own result by `mic`.
+    pub players: Vec<PlayerResult>,
 }
 
 /// How a Song reached its results screen.

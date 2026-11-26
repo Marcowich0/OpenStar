@@ -9,7 +9,7 @@ use openstar_protocol::UserMessage;
 use openstar_protocol::library::{
     ScanStatus, SongDetail, SongId, SongIdentity, SongList, SongSummary,
 };
-use openstar_protocol::party::PartyId;
+use openstar_protocol::party::{PartyId, RequestId};
 use openstar_protocol::profile::{
     Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile, ProfileEdit, ProfileId,
 };
@@ -18,6 +18,13 @@ use openstar_protocol::scoring::{
     ScorePlayer, StoredRound,
 };
 use openstar_test_harness::TestApp;
+
+/// A Request id no other round of these tests has: a round is stored once
+/// per (Party, Request).
+fn next_request() -> RequestId {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+    RequestId(NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
+}
 use reqwest::StatusCode;
 
 /// A solo Song of two Notes: Beats 0 to 7.
@@ -67,7 +74,7 @@ async fn detail(app: &TestApp, title: &str) -> SongDetail {
 
 /// An app with one solo Song in its Library, and that Song's detail.
 async fn app_with_song() -> (TestApp, SongDetail) {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     write_song(&app, "Solo", "Solo", SOLO);
     rescan(&app).await;
     let song = detail(&app, "Solo").await;
@@ -144,6 +151,7 @@ fn outcome(song: &SongDetail, ended: RoundEnd, scores: Vec<PlayerScore>) -> Roun
     RoundOutcome {
         song_id: song.id,
         note_fingerprint: song.note_fingerprint.clone(),
+        request_id: next_request(),
         party_id: PartyId("party-1".into()),
         mode: RoundMode::Normal,
         started_at_ms: 1_700_000_000_000,
@@ -155,7 +163,7 @@ fn outcome(song: &SongDetail, ended: RoundEnd, scores: Vec<PlayerScore>) -> Roun
 async fn post(app: &TestApp, body: &RoundOutcome) -> (StatusCode, serde_json::Value) {
     let response = app
         .http()
-        .post(app.url("/api/rounds"))
+        .post(app.url("/api/test/rounds"))
         .json(body)
         .send()
         .await
@@ -488,7 +496,7 @@ async fn deleting_a_profile_deletes_its_records_and_renaming_keeps_them() {
 
 #[tokio::test]
 async fn the_identity_move_moves_every_record_of_one_key_inside_the_callers_transaction() {
-    let app = TestApp::start().await;
+    let app = TestApp::builder().test_routes().start().await;
     write_song(&app, "Old", "Old Title", SOLO);
     write_song(&app, "Other", "Other Title", SOLO);
     rescan(&app).await;

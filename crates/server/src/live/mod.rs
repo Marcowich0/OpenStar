@@ -35,16 +35,20 @@ use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, P
 use openstar_protocol::volume::VolumeStep;
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
-    LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMemberId, PartySnapshot, PhoneId,
-    PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SeatWho, ServerMessage,
-    SongControl, SongEnd, SongResults, StageId, UserMessage,
+    LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMember, PartyMemberId, PartySnapshot,
+    PhoneId, PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SeatVoice,
+    SeatWho, ServerMessage, SongControl, SongEnd, SongResults, StageId, UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
 use crate::db::Database;
 use crate::profiles::{self, Refused};
+use crate::scores;
 use crate::stage_outputs::{self, StageOutput};
 use hub::{Connection, ConnectionId, Hub};
+use openstar_protocol::scoring::{
+    PlayerResult, RoundEnd, RoundOutcome, RoundStored, ScorePlayer, StoredRound,
+};
 use party::Joined;
 use songs::{LibraryIndex, SongLookup, Songs};
 
@@ -122,6 +126,13 @@ enum Command {
     /// `GET /api/mic-bridges`: approved bridges and those waiting.
     MicBridges {
         reply: oneshot::Sender<openstar_protocol::bridge::MicBridges>,
+    },
+    /// `POST /api/rounds`: the Stage's outcome of the Song that just ended
+    /// (see [`LiveState::finish_round`]).
+    FinishRound {
+        outcome: RoundOutcome,
+        now_ms: i64,
+        reply: oneshot::Sender<anyhow::Result<Result<RoundStored, scores::Refused>>>,
     },
     /// Stop: drop every connection (their sockets close) and end the task.
     Shutdown { done: oneshot::Sender<()> },
@@ -266,6 +277,25 @@ impl LiveHandle {
         answer.await.ok()
     }
 
+    /// Stores the outcome of the Song that just ended and, unless it was a
+    /// skip, shows its results (see [`Command::FinishRound`]).
+    pub async fn finish_round(
+        &self,
+        outcome: RoundOutcome,
+        now_ms: i64,
+    ) -> anyhow::Result<Result<RoundStored, scores::Refused>> {
+        let (reply, answer) = oneshot::channel();
+        self.commands
+            .send(Command::FinishRound {
+                outcome,
+                now_ms,
+                reply,
+            })
+            .await
+            .map_err(|_| anyhow::anyhow!("the live-state task has stopped"))?;
+        answer.await?
+    }
+
     /// Stops the task and closes every WebSocket. Returns once it has stopped.
     pub async fn shutdown(&self) {
         let (done, stopped) = oneshot::channel();
@@ -394,6 +424,13 @@ impl LiveState {
                 }
                 Command::MicBridges { reply } => {
                     let _ = reply.send(self.bridges.listing());
+                }
+                Command::FinishRound {
+                    outcome,
+                    now_ms,
+                    reply,
+                } => {
+                    let _ = reply.send(self.finish_round(outcome, now_ms).await);
                 }
                 Command::Shutdown { done } => {
                     drop(self);
@@ -687,10 +724,6 @@ impl LiveState {
             }) => {
                 let controlled = self.control_song(id, request_id, control).await;
                 self.refuse_on_error(id, controlled);
-            }
-            Ok(ClientMessage::ReachedResults { request_id, ended }) => {
-                let shown = self.reached_results(id, request_id, ended).await;
-                self.refuse_on_error(id, shown);
             }
             Ok(ClientMessage::CloseResults) => {
                 let closed = self.close_results(id).await;
@@ -1889,34 +1922,126 @@ impl LiveState {
         Ok(())
     }
 
-    /// The Stage reports that Request `request_id`'s Song reached its
-    /// results screen: the Request leaves the Queue and the Party shows its
-    /// results, with no head, until Next or Done.
-    async fn reached_results(
+    /// The Stage's outcome of the Song that just ended (`POST /api/rounds`).
+    ///
+    /// - The outcome must be the current Party's. An outcome already stored
+    ///   for its Request (the Stage retrying after a lost response) answers
+    ///   what was stored, and changes nothing.
+    /// - A skip is stored as it comes: Skip already moved the Party on.
+    /// - A played or ended Song must still be playing (a Stage that dropped
+    ///   or a server restart aborted it: nothing is stored), and its Scores
+    ///   must be the seats of the Line-up fixed at Start, in seat order.
+    ///   Then the round, its records, the results and the Queue without the
+    ///   Request are stored in one transaction, and the Party shows the
+    ///   results.
+    async fn finish_round(
         &mut self,
-        id: ConnectionId,
-        request_id: RequestId,
-        ended: SongEnd,
-    ) -> Result<(), UserMessage> {
-        if self.stage().connection != Some(id) {
-            return Err(UserMessage::NotTheStage);
+        outcome: RoundOutcome,
+        now_ms: i64,
+    ) -> anyhow::Result<Result<RoundStored, scores::Refused>> {
+        let Some(mut party) = self
+            .stage()
+            .party
+            .clone()
+            .filter(|party| party.party_id == outcome.party_id)
+        else {
+            return Ok(Err(scores::Refused::NotPlaying));
+        };
+        let request_id = outcome.request_id;
+        let party_id = party.party_id.clone();
+        if let Some(round) = self
+            .db
+            .call(move |conn| scores::round_for_request(conn, &party_id, request_id))
+            .await?
+        {
+            let results = party
+                .results
+                .clone()
+                .filter(|results| results.request_id == request_id);
+            return Ok(Ok(RoundStored { round, results }));
         }
-        let mut party = self.party()?;
-        let playing = party
+        let ended = match outcome.ended {
+            RoundEnd::Skipped => {
+                let stored = self
+                    .db
+                    .call(move |conn| {
+                        let tx = conn.transaction()?;
+                        let stored = scores::store_in(&tx, &outcome, now_ms)?;
+                        if stored.is_ok() {
+                            tx.commit()?;
+                        }
+                        Ok(stored)
+                    })
+                    .await?;
+                return Ok(stored.map(|round| RoundStored {
+                    round,
+                    results: None,
+                }));
+            }
+            RoundEnd::Played => SongEnd::Played,
+            RoundEnd::Ended => SongEnd::Ended,
+        };
+        let Some(playing) = party
             .playing
-            .take()
+            .clone()
             .filter(|playing| playing.request_id == request_id)
-            .ok_or(UserMessage::NoSongPlaying)?;
-        let removed = queue::remove(&mut party, request_id)?;
-        let change = self.request_change(&removed).await;
+        else {
+            return Ok(Err(scores::Refused::NotPlaying));
+        };
+        let Some(line_up) = party
+            .line_up
+            .clone()
+            .filter(|line_up| line_up.request_id == request_id)
+        else {
+            return Ok(Err(scores::Refused::NotPlaying));
+        };
+        let Some(seated) = seated_players(&party, &line_up, &outcome) else {
+            return Ok(Err(scores::Refused::Invalid));
+        };
+        if playing.song_id != outcome.song_id {
+            return Ok(Err(scores::Refused::Invalid));
+        }
+        // `queue::remove` keeps the playing Request: it stops playing first.
+        party.playing = None;
+        let Ok(request) = queue::remove(&mut party, request_id) else {
+            return Ok(Err(scores::Refused::NotPlaying));
+        };
+        let change = self.request_change(&request).await;
         party.head = None;
-        party.results = Some(SongResults {
-            request_id,
-            song_id: playing.song_id,
-            ended,
+        party.line_up = None;
+        let duet = line_up.duet;
+        let song_id = playing.song_id;
+        let stored = self
+            .db
+            .call(move |conn| {
+                let tx = conn.transaction()?;
+                let round = match scores::store_in(&tx, &outcome, now_ms)? {
+                    Ok(round) => round,
+                    Err(refused) => return Ok(Err(refused)),
+                };
+                let players = player_results(&tx, &round, &seated, duet)?;
+                party.results = Some(SongResults {
+                    request_id,
+                    song_id,
+                    ended,
+                    players,
+                });
+                store::save_queue_in(&tx, &party)?;
+                tx.commit()?;
+                Ok(Ok((round, party)))
+            })
+            .await?;
+        let (round, party) = match stored {
+            Ok(stored) => stored,
+            Err(refused) => return Ok(Err(refused)),
+        };
+        let results = party.results.clone();
+        self.stage_mut().party = Some(party);
+        self.party_changed(ChangeEvent {
+            actor: Actor::Stage,
+            event: PartyEvent::ResultsShown(change),
         });
-        self.commit_queue(party, Actor::Stage, PartyEvent::ResultsShown(change))
-            .await
+        Ok(Ok(RoundStored { round, results }))
     }
 
     /// Next, or Done with an empty Queue, on the results, from connection
@@ -2092,6 +2217,101 @@ impl LiveState {
     fn reject(&mut self, id: ConnectionId, reason: UserMessage) {
         self.hub.send_to(id, &ServerMessage::Rejected { reason });
     }
+}
+
+/// One seat of the Song that ended, with its member, as the results show it.
+struct SeatedPlayer {
+    member: PartyMember,
+    mic: Option<MicKey>,
+}
+
+/// The seated Players of `line_up`, when the outcome's Scores are exactly
+/// its seats in seat order: the same Profile or Guest, Voice and
+/// Difficulty. `None` otherwise.
+fn seated_players(
+    party: &PartySnapshot,
+    line_up: &LineUp,
+    outcome: &RoundOutcome,
+) -> Option<Vec<SeatedPlayer>> {
+    if outcome.scores.len() != line_up.seats.len() {
+        return None;
+    }
+    line_up
+        .seats
+        .iter()
+        .zip(&outcome.scores)
+        .map(|(seat, score)| {
+            let member = party
+                .members
+                .iter()
+                .find(|member| member.member_id == seat.member_id)?;
+            let same_player = match (&member.identity, &score.player) {
+                (Identity::Profile { profile_id }, ScorePlayer::Profile { profile_id: scored }) => {
+                    profile_id == scored
+                }
+                (Identity::Guest { name, .. }, ScorePlayer::Guest { name: scored }) => {
+                    name.trim() == scored.trim()
+                }
+                _ => false,
+            };
+            let voice = match seat.voice {
+                SeatVoice::P1 => 0,
+                SeatVoice::P2 => 1,
+            };
+            (same_player && score.voice == voice && score.difficulty == seat.difficulty).then(
+                || SeatedPlayer {
+                    member: member.clone(),
+                    mic: seat.mic.clone(),
+                },
+            )
+        })
+        .collect()
+}
+
+/// Each seated Player's result from the stored round's records (in seat
+/// order), ranked by total: place, Rank title band and the "new high
+/// score" flag as stored. A Profile's name and avatar are read in `conn`.
+fn player_results(
+    conn: &rusqlite::Connection,
+    round: &StoredRound,
+    seated: &[SeatedPlayer],
+    duet: bool,
+) -> rusqlite::Result<Vec<PlayerResult>> {
+    let totals: Vec<u32> = round.records.iter().map(|record| record.total).collect();
+    let places = scores::places(&totals);
+    let mut results = Vec::with_capacity(seated.len());
+    for ((record, seat), place) in round.records.iter().zip(seated).zip(places) {
+        let (name, avatar) = match &seat.member.identity {
+            Identity::Guest { name, avatar, .. } => (name.clone(), *avatar),
+            &Identity::Profile { profile_id } => {
+                let profile = profiles::get_in(conn, profile_id)?
+                    .ok_or(rusqlite::Error::QueryReturnedNoRows)?;
+                (profile.name, profile.avatar)
+            }
+        };
+        results.push(PlayerResult {
+            member_id: seat.member.member_id,
+            player: record.player.clone(),
+            name,
+            avatar,
+            colour: seat.member.colour,
+            mic: seat.mic.clone(),
+            voice: duet.then_some(record.voice),
+            difficulty: record.difficulty,
+            total: record.total,
+            notes: record.notes,
+            golden: record.golden,
+            line_bonus: record.line_bonus,
+            place,
+            rank_title_band: scores::rank_title_band(record.total),
+            new_high_score: record.new_high_score,
+            mic_lost: record.mic_lost,
+            unfinished: record.unfinished,
+        });
+    }
+    // Ranked; equal totals keep their seat order.
+    results.sort_by_key(|result| result.place);
+    Ok(results)
 }
 
 /// Recomputes what the server derives in a snapshot: the Line-up's Start

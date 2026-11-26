@@ -1,9 +1,39 @@
 ---
 source: crates/protocol/tests/wire_format.rs
-expression: "SongResults\n{ request_id: RequestId(3), song_id: SongId(12), ended: SongEnd::Played, }"
+expression: "SongResults\n{\n    request_id: RequestId(3), song_id: SongId(12), ended: SongEnd::Played,\n    players:\n    vec![PlayerResult\n    {\n        member_id: PartyMemberId(4), player: ScorePlayer::Guest\n        { name: \"Cy\".into() }, name: \"Cy\".into(), avatar: Avatar::BuiltIn\n        { key: AvatarKey::Star, }, colour: PaletteKey::Grape, mic:\n        Some(MicKey::Phone { phone_id: \"phone-1\".into(), }), voice: Some(1),\n        difficulty: Difficulty::Hard, total: 6250, notes: 5000, golden: 250,\n        line_bonus: 1000, place: 1, rank_title_band: 5, new_high_score: false,\n        mic_lost: true, unfinished: false,\n    }],\n}"
 ---
 {
   "requestId": 3,
   "songId": 12,
-  "ended": "played"
+  "ended": "played",
+  "players": [
+    {
+      "memberId": 4,
+      "player": {
+        "kind": "guest",
+        "name": "Cy"
+      },
+      "name": "Cy",
+      "avatar": {
+        "kind": "builtIn",
+        "key": "star"
+      },
+      "colour": "grape",
+      "mic": {
+        "kind": "phone",
+        "phoneId": "phone-1"
+      },
+      "voice": 1,
+      "difficulty": "hard",
+      "total": 6250,
+      "notes": 5000,
+      "golden": 250,
+      "lineBonus": 1000,
+      "place": 1,
+      "rankTitleBand": 5,
+      "newHighScore": false,
+      "micLost": true,
+      "unfinished": false
+    }
+  ]
 }

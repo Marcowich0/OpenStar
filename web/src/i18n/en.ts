@@ -72,6 +72,10 @@ export const en = {
   "stageTab.noMic": "no mic",
   "stageTab.addSinger": "Add a singer",
   "stageTab.start": "Start",
+  "stageTab.results": "Results on the Stage",
+  "stageTab.yourScore": "Your Score: {total, number}",
+  "stageTab.newHighScore": "New high score!",
+  "stageTab.endedEarly": "Ended early",
   "stageTab.seat": "Seat",
   "stageTab.seatFor": "Seat {number, number} for {song}",
   "stageTab.who": "Who",
@@ -315,6 +319,7 @@ export const en = {
   "stage.sing.playFailed": "The browser did not start the Song",
   "stage.sing.play": "Play",
   "stage.results.title": "Results",
+  "stage.results.player": "{place, number}. {name}: {total, number}",
   // The playback check page (#155), kept as a debug page beside the sing scene (#164).
   "stage.playback.play": "Play",
   "stage.playback.loading": "Loading the Song",
