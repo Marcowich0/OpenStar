@@ -1,0 +1,10 @@
+# The image build needs only the Cargo workspace and the frontend sources
+# (Dockerfile). Everything else stays out of the build context.
+*
+!Cargo.toml
+!Cargo.lock
+!crates/
+!web/
+web/node_modules/
+web/dist/
+**/target/
