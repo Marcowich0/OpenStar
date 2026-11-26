@@ -6,7 +6,7 @@ default: check
 
 # Every fast check: Rust, dependency licences and advisories, TypeScript,
 # Prettier, the generated-types drift check and the fixture rules.
-check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check
+check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check
 
 # What CI runs: every fast check, then the browser end-to-end tests.
 ci: check e2e
@@ -128,3 +128,9 @@ image-smoke tag="openstar:local" build_id="dev":
 run: web-build
     mkdir -p .appdata .songs
     OPENSTAR_APPDATA_DIR="${OPENSTAR_APPDATA_DIR:-$PWD/.appdata}" OPENSTAR_SONGS_DIR="${OPENSTAR_SONGS_DIR:-$PWD/.songs}" cargo run -p openstar
+
+# Test what each CI event builds and publishes (scripts/ci-image-meta.sh,
+# used by .github/workflows/ci.yml): only main, vX.Y.Z tags and the weekly
+# schedule publish; pull requests never do.
+ci-meta-check:
+    scripts/ci-image-meta.test.sh >/dev/null

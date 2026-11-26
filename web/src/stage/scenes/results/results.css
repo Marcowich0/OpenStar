@@ -1,0 +1,38 @@
+/* The results screen's motion and hatching (#182, v1 spec #55). Colours come
+   from the tokens only. */
+
+/* A bar grows up from the bottom with the spring easing. */
+@keyframes results-bar-grow {
+  from {
+    scale: 1 0;
+  }
+}
+
+.results-bar {
+  transform-origin: bottom;
+  animation: results-bar-grow 1.1s var(--ease-spring) both;
+}
+
+/* A Player who did not finish: 45° white stripes at 28 %, 14 px on, 14 px off. */
+.results-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--color-white) 28%, transparent) 0 14px,
+    transparent 14px 28px
+  );
+}
+
+/* The place number: white with a 4 px ink outline (the stroke is painted
+   under the fill, so half of it shows). */
+.results-place {
+  color: var(--color-white);
+  -webkit-text-stroke: 8px var(--color-ink);
+  paint-order: stroke fill;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .results-bar,
+  .results-sticker {
+    animation: none;
+  }
+}
