@@ -49,6 +49,7 @@ const ARROWS: Readonly<Record<string, FocusDirection>> = {
 
 const selectStage = (live: LiveState) => live.stage;
 const selectAvSync = (live: LiveState) => live.avSync;
+const selectCalibrating = (live: LiveState) => live.calibration !== null;
 
 function reloadAsStage() {
   window.location.reload();
@@ -84,14 +85,27 @@ export function StageFrame({
     if (avSync && rules.overlays) setOverlay("avSync");
     else if (!avSync && overlay === "avSync") setOverlay(null);
   }
+  // Calibrate mics (#170) likewise shows while the server holds its run.
+  const calibrating = useLive(selectCalibrating, store);
+  const [shownCalibrating, setShownCalibrating] = useState(false);
+  if (calibrating !== shownCalibrating) {
+    setShownCalibrating(calibrating);
+    if (calibrating && rules.overlays) setOverlay("calibrateMics");
+    else if (!calibrating && overlay === "calibrateMics") setOverlay(null);
+  }
 
   const frameRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<FrameInternals["layersRef"]["current"]>([]);
   const keysRef = useRef<FrameInternals["keysRef"]["current"]>([]);
 
   const allowOverlays = rules.overlays;
-  const api = useMemo<StageFrameApi>(
-    () => ({
+  const api = useMemo<StageFrameApi>(() => {
+    // Leaving an overlay the server holds ends it for every browser.
+    const endShared = (open: OverlayId | null) => {
+      if (open === "avSync") store.send({ type: "endAvSync" });
+      if (open === "calibrateMics") store.send({ type: "endCalibration" });
+    };
+    return {
       scene,
       overlay,
       openOverlay: (id) => {
@@ -100,19 +114,23 @@ export function StageFrame({
           store.send({ type: "startAvSync" });
           return;
         }
-        if (overlay === "avSync") store.send({ type: "endAvSync" });
+        if (id === "calibrateMics") {
+          store.send({ type: "openCalibration" });
+          return;
+        }
+        endShared(overlay);
         setOverlay(id);
       },
       closeOverlay: () => {
-        // Done, Esc or the close button ends the check for every browser.
-        if (overlay === "avSync") store.send({ type: "endAvSync" });
+        // Done, Cancel, Esc or the close button ends the check or the run
+        // for every browser.
+        endShared(overlay);
         setOverlay(null);
       },
       store,
       takeStageBack,
-    }),
-    [scene, overlay, allowOverlays, store, takeStageBack],
-  );
+    };
+  }, [scene, overlay, allowOverlays, store, takeStageBack]);
   const internals = useMemo<FrameInternals>(
     () => ({ api, layersRef, keysRef }),
     [api],

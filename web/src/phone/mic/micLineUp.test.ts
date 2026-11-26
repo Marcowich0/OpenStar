@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { CalibrationPhase } from "../../generated/CalibrationPhase";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { PlayerResult } from "../../generated/PlayerResult";
 import { initialLiveState, type LiveState } from "../../live/liveState";
@@ -54,6 +55,32 @@ describe("micRole", () => {
     expect(
       micRole(live({ ...RESULTS, results: songResults([]) }), MY_PHONE),
     ).toBe("left");
+  });
+
+  it("is listening while this Phone is a Mic of a Calibration run, from Continue through the tones", () => {
+    const run = (phase: CalibrationPhase): LiveState => ({
+      ...live(SONG_BROWSER),
+      calibration: {
+        phase,
+        mics: [
+          {
+            mic: { kind: "phone", phoneId: MY_PHONE },
+            chosen: true,
+            ready: true,
+          },
+        ],
+      },
+    });
+    expect(micRole(run("waiting"), MY_PHONE)).toBe("listening");
+    expect(micRole(run("tones"), MY_PHONE)).toBe("listening");
+    // On the checklist the mic is not open yet; after the tones it is
+    // released unless the Phone is seated.
+    expect(micRole(run("choosing"), MY_PHONE)).toBe("left");
+    expect(micRole(run("results"), MY_PHONE)).toBe("left");
+    expect(micRole(run("tones"), "another-phone")).toBe("left");
+    expect(
+      micRole({ ...run("tones"), stage: live(PARTY).stage }, MY_PHONE),
+    ).toBe("seated");
   });
 
   it("holds while the state is not known (before the server told it)", () => {

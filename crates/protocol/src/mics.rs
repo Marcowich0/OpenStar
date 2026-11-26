@@ -189,6 +189,64 @@ pub struct PartyLocalMic {
     pub present: bool,
 }
 
+/// Calibrate mics (#170): the one run, held by the server and told to every
+/// connection ([`crate::ServerMessage::Calibration`]). It goes `choosing` (the
+/// checklist) → `waiting` (each chosen Mic waiting or ready) → `tones` (the
+/// Stage plays the tones; Mics not ready by then are left out) → `results`
+/// (one row per Mic in the run) and ends when closed.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct CalibrationRun {
+    pub phase: CalibrationPhase,
+    /// In `choosing`, every Mic on the checklist with whether it is ticked;
+    /// from `waiting` on, only the chosen Mics; from `tones` on, only those
+    /// that take part.
+    pub mics: Vec<CalibrationMic>,
+}
+
+/// Where a Calibration run is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum CalibrationPhase {
+    Choosing,
+    Waiting,
+    Tones,
+    Results,
+}
+
+/// One Mic in a Calibration run.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct CalibrationMic {
+    pub mic: MicKey,
+    /// Ticked on the checklist (always true after `choosing`).
+    pub chosen: bool,
+    /// The Mic is listening: a Phone after its "I'm listening" tap.
+    pub ready: bool,
+    /// Its result, in `results`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub outcome: Option<CalibrationOutcome>,
+}
+
+/// One Mic's result row.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "result",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum CalibrationOutcome {
+    /// Stored: its new Mic delay, in milliseconds.
+    Calibrated { mic_delay_ms: f64 },
+    /// It couldn't hear the Stage; it keeps its previous values.
+    Failed,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
