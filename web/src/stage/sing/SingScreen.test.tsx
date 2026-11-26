@@ -6,6 +6,7 @@ import type { Note } from "../../generated/Note";
 import type { ParsedSong } from "../../generated/ParsedSong";
 import { singVoices, type SingState } from "./frame";
 import { confettiBurst, ParticlePool } from "./effects";
+import { PitchBuffer } from "../../pitch/pitchBuffer";
 import { laneLayout } from "./laneLayout";
 import { LanePanels, SingScreen } from "./SingScreen";
 
@@ -497,5 +498,110 @@ describe("the lane panels", () => {
     );
     expect(renders([state.lanes, recoloured]).count).toBe(2);
     expect(renders([state.lanes, state.lanes.slice(0, 1)]).count).toBe(2);
+  });
+});
+
+describe("a lane whose Mic is lost", () => {
+  /** `state` with Mia's lane traced, her Mic lost at Song time `lostAt`. */
+  function lostState(lostAt: number | null): SingState {
+    return {
+      ...state,
+      lanes: state.lanes.map((lane, i) =>
+        i === 0
+          ? {
+              ...lane,
+              trace: {
+                readings: new PitchBuffer(16),
+                micThresholdDbfs: -40,
+                difficulty: "medium",
+                lostAt,
+              },
+            }
+          : lane,
+      ),
+    };
+  }
+
+  function renderAt(s: SingState, songTime: { now: number }) {
+    const result = render(
+      <SingScreen
+        state={s}
+        clock={{ songTime: () => songTime.now }}
+        avOffset={() => 0}
+      />,
+    );
+    const headers = [
+      ...result.container.querySelectorAll<HTMLElement>("[data-lane-header]"),
+    ];
+    return { ...result, headers };
+  }
+
+  it("dims the lane header to 55 % and shows an ink pill with the crossed-out mic and three pulsing dots", () => {
+    const s = lostState(2);
+    const { headers, container } = renderAt(s, { now: 3 });
+    runFrame();
+    expect(headers[0]).toHaveAttribute("data-lost");
+    expect(headers[0]).toHaveClass("data-lost:opacity-55");
+    expect(headers[1]).not.toHaveAttribute("data-lost");
+    const pill = screen
+      .getByText("Mia's mic lost")
+      .closest<HTMLElement>("[data-lane-lost]");
+    expect(pill).toBeVisible();
+    expect(pill).toHaveClass("bg-ink", "text-white", "rounded-full");
+    // Centred 150 px right of the lane's middle, on its vertical centre.
+    const rect = laneLayout(2)[0];
+    if (!rect || !pill) throw new Error("no lane");
+    expect(pill.style.left).toBe(`${String(rect.x + rect.width / 2 + 150)}px`);
+    expect(pill.style.top).toBe(`${String(rect.y + rect.height / 2)}px`);
+    expect(pill.querySelector('[data-icon="mic-off"]')).toBeInTheDocument();
+    const dots = [...pill.querySelectorAll<HTMLElement>("[data-dot]")];
+    expect(dots.map((d) => d.style.animationDelay)).toEqual([
+      "0s",
+      "0.2s",
+      "0.4s",
+    ]);
+    for (const dot of dots) expect(dot).toHaveClass("animate-mic-lost-dot");
+    // Only Mia's lane has a pill showing; the header stays a header.
+    const shown = [
+      ...container.querySelectorAll<HTMLElement>("[data-lane-lost]"),
+    ].filter((el) => !el.hidden);
+    expect(shown).toHaveLength(1);
+    expect(
+      within(headers[0] as HTMLElement).queryByText(/mic lost/),
+    ).toBeNull();
+  });
+
+  it("shows nothing before the loss reaches the drawing time, and clears once the Mic is back, without a React render", () => {
+    const s = lostState(5);
+    const songTime = { now: 3 };
+    const commits = vi.fn();
+    const { container } = render(
+      <Profiler id="sing" onRender={commits}>
+        <SingScreen
+          state={s}
+          clock={{ songTime: () => songTime.now }}
+          avOffset={() => 0}
+        />
+      </Profiler>,
+    );
+    const header = () =>
+      container.querySelector<HTMLElement>("[data-lane-header]");
+    const pill = () => container.querySelector<HTMLElement>("[data-lane-lost]");
+    runFrame();
+    expect(header()).not.toHaveAttribute("data-lost");
+    expect(pill()?.hidden).toBe(true);
+    songTime.now = 6;
+    runFrame();
+    expect(header()).toHaveAttribute("data-lost");
+    expect(pill()?.hidden).toBe(false);
+    // The Mic comes back: whoever detects it sets `lostAt` back in place.
+    const trace = s.lanes[0]?.trace;
+    if (trace) trace.lostAt = null;
+    runFrame();
+    expect(header()).not.toHaveAttribute("data-lost");
+    expect(pill()?.hidden).toBe(true);
+    const rendersAfterMount = commits.mock.calls.length;
+    runFrame();
+    expect(commits).toHaveBeenCalledTimes(rendersAfterMount);
   });
 });

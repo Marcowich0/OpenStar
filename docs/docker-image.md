@@ -5,12 +5,13 @@ repository root. Publishing it to GHCR is CI's job (`ghcr.io/marcowich0/openstar
 
 ## What is in it
 
-| Stage      | Base                                     | Produces                                                |
-| ---------- | ---------------------------------------- | ------------------------------------------------------- |
-| `frontend` | `node:<.node-version>-trixie-slim`, pnpm | the Vite build (`web/dist`)                             |
-| `server`   | `rust:<rust-toolchain.toml>-slim-trixie` | `openstar`, the release binary with `web/dist` embedded |
-| `tools`    | `debian:trixie-slim`                     | `yt-dlp` and `deno`, checksums checked                  |
-| `runtime`  | `debian:trixie-slim`, pinned by digest   | the image                                               |
+| Stage      | Base                                     | Produces                                                   |
+| ---------- | ---------------------------------------- | ---------------------------------------------------------- |
+| `wasm`     | `rust:<rust-toolchain.toml>-slim-trixie` | the pitch detector as WASM (`crates/detector-wasm`)        |
+| `frontend` | `node:<.node-version>-trixie-slim`, pnpm | the Vite build (`web/dist`), WASM bundled with the worklet |
+| `server`   | `rust:<rust-toolchain.toml>-slim-trixie` | `openstar`, the release binary with `web/dist` embedded    |
+| `tools`    | `debian:trixie-slim`                     | `yt-dlp` and `deno`, checksums checked                     |
+| `runtime`  | `debian:trixie-slim`, pinned by digest   | the image                                                  |
 
 The runtime image holds:
 
@@ -53,7 +54,8 @@ arguments, and the server derives the identifier from them. It appears in
 `just image-smoke` runs `scripts/image-smoke.sh` (the image's user, volumes, entrypoint
 and `HEALTHCHECK`; the binary, the tools and the certificates; a container as `1000:1000`
 and one as `99:100` reaching healthy, with the build identifier in their logs and
-server-info) and `scripts/image-checksum.test.sh` (a wrong yt-dlp or Deno checksum fails
+server-info, and the pitch worklet and its WASM served from the container itself) and
+`scripts/image-checksum.test.sh` (a wrong yt-dlp or Deno checksum fails
 the build).
 
 The image build needs a few GB of disk: the Rust and Node build images, and the release

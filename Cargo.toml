@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "crates/detector",
+    "crates/detector-wasm",
     "crates/mic-bridge",
     "crates/protocol",
     "crates/server",

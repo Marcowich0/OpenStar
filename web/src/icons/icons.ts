@@ -9,6 +9,7 @@ export const ICON_NAMES = [
   "close",
   "list",
   "lock",
+  "mic-off",
   "music",
   "people",
   "plus",

@@ -117,6 +117,42 @@ run_and_check() {
     [[ "$page" == *'<script type="module"'* ]] || fail "$label: / does not serve the frontend"
     pass "$label: serves the embedded frontend"
 
+    # The pitch-detection worklet and the detector's WASM (#105) are build
+    # assets the server itself serves: follow the JS chunks from the page.
+    local base="http://127.0.0.1:$port" queue seen js worklet="" wasm=""
+    queue="$(grep -oE '/assets/[A-Za-z0-9_.-]+\.js' <<<"$page" | sort -u)"
+    seen=""
+    while [ -n "$queue" ]; do
+        js="${queue%%$'\n'*}"
+        [ "$js" = "$queue" ] && queue="" || queue="${queue#*$'\n'}"
+        [[ " $seen " == *" $js "* ]] && continue
+        seen="$seen $js"
+        local code
+        code="$(curl -fsS "$base$js")" || fail "$label: $js does not load"
+        [[ "$js" == /assets/pitchProcessor-* ]] && worklet="$js"
+        local found
+        found="$(grep -oE '/?assets/[A-Za-z0-9_.-]+\.(js|wasm)' <<<"$code" | sed 's|^assets|/assets|' | sort -u || true)"
+        for f in $found; do
+            case "$f" in
+                *.wasm) wasm="$f" ;;
+                *) [[ " $seen " == *" $f "* ]] || queue="${queue:+$queue$'\n'}$f" ;;
+            esac
+        done
+    done
+    [ -n "$worklet" ] || fail "$label: the app references no pitchProcessor worklet"
+    [ -n "$wasm" ] || fail "$label: the app references no detector WASM"
+    local wasm_type
+    wasm_type="$(curl -fsS -o /dev/null -w '%{content_type}' "$base$wasm")" || fail "$label: $wasm does not load"
+    [ "$wasm_type" = application/wasm ] || fail "$label: $wasm is served as '$wasm_type'"
+    # Saved first: under pipefail, `head` closing the pipe would fail curl.
+    local body magic
+    body="$(mktemp)"
+    curl -fsS -o "$body" "$base$wasm" || fail "$label: $wasm does not load"
+    magic="$(od -An -tx1 -N4 "$body" | tr -d ' ')"
+    rm -f "$body"
+    [ "$magic" = 0061736d ] || fail "$label: $wasm is not a WASM module"
+    pass "$label: serves the pitch worklet $worklet and the detector $wasm"
+
     local logs
     logs="$(docker logs "$name" 2>&1)"
     [[ "$logs" == *"OpenStar is serving"*"version=\"$build_id\""* ]] || fail "$label: logs do not name $build_id"

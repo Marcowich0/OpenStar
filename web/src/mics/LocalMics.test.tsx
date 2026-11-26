@@ -34,6 +34,7 @@ function fakeCapture(
     refresh: vi.fn(() => Promise.resolve()),
     setOpen: vi.fn(() => Promise.resolve()),
     levelDbfs: () => null,
+    subscribeReadings: () => () => {},
     dispose: vi.fn(),
   };
   return capture;

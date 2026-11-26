@@ -95,6 +95,24 @@ describe("live store", () => {
     expect(sent).toEqual([hello, hello]);
   });
 
+  it("shows a toast the Stage raises itself, and tells subscribers", () => {
+    const { store } = start();
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.showStageToast({
+      code: "backOnMic",
+      params: { memberId: 4, name: "Mia" },
+    });
+    expect(store.getSnapshot().toasts).toEqual([
+      {
+        id: 0,
+        actor: { kind: "member", memberId: 4 },
+        event: { code: "backOnMic", params: { memberId: 4, name: "Mia" } },
+      },
+    ]);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
   it("sends through the client", () => {
     const { store, sent } = start();
     store.send({ type: "newParty" });
