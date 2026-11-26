@@ -105,7 +105,7 @@ export function JoinCard({
             className={`${layout === "wide" ? "size-[200px]" : "size-[230px]"} shrink-0`}
           />
         ) : (
-          <JoinWarning warning={join.warning} />
+          <JoinWarning warning={join.warning} short={layout === "wide"} />
         )}
         <div className="flex min-w-0 flex-col items-center gap-4">
           <p className="max-w-full truncate text-[26px] font-semibold text-ink-2">
@@ -149,9 +149,18 @@ function CodeBoxes({ joinCode }: { joinCode: string }) {
 }
 
 /** In place of the QR code: a white card, dashed red border, lock, why and how. */
-function JoinWarning({ warning }: { warning: "notHttps" | "localhost" }) {
+function JoinWarning({
+  warning,
+  short,
+}: {
+  warning: "notHttps" | "localhost";
+  /** Beside the code (the wide card) it need not match the QR code's height. */
+  short: boolean;
+}) {
   return (
-    <div className="flex min-h-[266px] w-[310px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-white p-5 text-center leading-tight font-semibold text-warn-fg">
+    <div
+      className={`flex ${short ? "min-h-[200px]" : "min-h-[266px]"} w-[310px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-white p-5 text-center leading-tight font-semibold text-warn-fg`}
+    >
       <Icon name="lock" className="size-14" />
       <p className="text-[24px]">{t("stage.joinCard.cantSing")}</p>
       <p className="text-[17px] font-medium text-ink-2">

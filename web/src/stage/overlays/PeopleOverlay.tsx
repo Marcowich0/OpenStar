@@ -82,7 +82,8 @@ export function PeopleOverlay() {
   );
 }
 
-const SPOT = "flex h-[196px] flex-col items-center gap-1.5 rounded-card-sm p-3";
+const SPOT =
+  "flex h-[212px] min-w-0 flex-col items-center gap-1 rounded-card-sm p-3 text-center *:shrink-0";
 
 function TakenSpot({
   row,
@@ -106,12 +107,12 @@ function TakenSpot({
           name={look.name}
           avatar={look.avatar}
           colour={member.colour}
-          size={64}
+          size={56}
         />
       ) : (
-        <span className="size-16" />
+        <span className="size-14" />
       )}
-      <span className="max-w-full truncate text-2xl leading-tight font-semibold">
+      <span className="w-full truncate text-2xl leading-tight font-semibold">
         {name}
       </span>
       <span className="flex gap-1.5 text-lg leading-tight text-ink-2">
