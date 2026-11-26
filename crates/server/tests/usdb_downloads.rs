@@ -1027,12 +1027,18 @@ async fn only_a_finished_download_names_a_song_also_after_a_restart() {
     let cookie = app.unlock().await;
 
     let rejected = download(&app, &cookie, 3).await;
-    assert!(matches!(ended(&app, rejected).await, JobState::Failed { .. }));
+    assert!(matches!(
+        ended(&app, rejected).await,
+        JobState::Failed { .. }
+    ));
     let cancelled = download(&app, &cookie, 1).await;
     let call = next_download_call(&stub, 0).await;
     ytdlp_running(&stub, call).await;
     assert_eq!(cancel(&app, cancelled).await, StatusCode::NO_CONTENT);
-    assert!(matches!(ended(&app, cancelled).await, JobState::Failed { .. }));
+    assert!(matches!(
+        ended(&app, cancelled).await,
+        JobState::Failed { .. }
+    ));
     let finished = download(&app, &cookie, 4).await;
     assert_eq!(ended(&app, finished).await, JobState::Done);
 
