@@ -31,6 +31,26 @@ function captures(buffer: PitchBuffer | undefined): number[] {
 }
 
 describe("Pitch router", () => {
+  it("routes a Local mic's readings, delivered on the Stage page, beside a Phone's", () => {
+    const router = createPitchRouter();
+    const red = { kind: "localMic", localMicId: "browser:s:dongle:0" } as const;
+    const buffers = router.start({
+      players: 2,
+      mics: [
+        [phone(1), 0],
+        [red, 1],
+      ],
+      capacity: 8,
+      place: asSeconds,
+    });
+    router.receive(red, reading(100));
+    router.receive(phone(1), reading(200));
+    // A Local mic of the same id string as a Phone is still another Mic.
+    router.receive({ kind: "localMic", localMicId: "phone-1" }, reading(300));
+    expect(captures(buffers[0])).toEqual([200]);
+    expect(captures(buffers[1])).toEqual([100]);
+  });
+
   it("puts each reading into the buffer of the Player its Mic is assigned to", () => {
     const router = createPitchRouter();
     const buffers = router.start({

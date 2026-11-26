@@ -8,7 +8,14 @@ import type { ClientMessage } from "../generated/ClientMessage";
 import type { LocalMic } from "../generated/LocalMic";
 import type { LiveClientOptions } from "../live/liveClient";
 import { createLiveStore } from "../live/liveStore";
-import type { CaptureSnapshot, LocalMicCapture } from "./localMicCapture";
+import type { PartySnapshot } from "../generated/PartySnapshot";
+import { createPitchRouter } from "../pitch/pitchRouter";
+import { LEO_SEAT, testLineUp, testParty } from "../stage/scenes/sing/testSong";
+import type {
+  CaptureSnapshot,
+  LocalMicCapture,
+  ReadingListener,
+} from "./localMicCapture";
 import {
   LocalMicsProvider,
   useLocalMics,
@@ -28,15 +35,24 @@ function fakeCapture(
   open: ReadonlyMap<string, number> = new Map(),
 ) {
   const snapshot: CaptureSnapshot = { status: "ready", devices, open };
-  const capture: LocalMicCapture = {
+  const readingListeners = new Set<ReadingListener>();
+  const capture = {
     subscribe: () => () => {},
     getSnapshot: () => snapshot,
     refresh: vi.fn(() => Promise.resolve()),
     setOpen: vi.fn(() => Promise.resolve()),
     levelDbfs: () => null,
-    subscribeReadings: () => () => {},
+    setDetecting: vi.fn(),
+    subscribeReadings: (listener: ReadingListener) => {
+      readingListeners.add(listener);
+      return () => readingListeners.delete(listener);
+    },
     dispose: vi.fn(),
-  };
+    /** Plays the capture handing on a stamped reading. */
+    read: (...args: Parameters<ReadingListener>) => {
+      for (const listener of readingListeners) listener(...args);
+    },
+  } satisfies LocalMicCapture & Record<string, unknown>;
   return capture;
 }
 
@@ -50,7 +66,12 @@ const keptRight: LocalMic = {
 function setup({
   kept = [keptRight],
   capture = fakeCapture(),
-}: { kept?: LocalMic[]; capture?: LocalMicCapture } = {}) {
+  pitch = createPitchRouter(),
+}: {
+  kept?: LocalMic[];
+  capture?: LocalMicCapture;
+  pitch?: ReturnType<typeof createPitchRouter>;
+} = {}) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
   const sent: ClientMessage[] = [];
@@ -81,20 +102,24 @@ function setup({
       <LocalMicsProvider
         store={store}
         makeCapture={makeCapture}
+        pitch={pitch}
         storage={() => ({ getItem: () => "stage", setItem: () => {} })}
       >
         <Probe />
       </LocalMicsProvider>
     </QueryClientProvider>,
   );
-  const becomeStage = (isStage: boolean) => {
+  const becomeStage = (
+    isStage: boolean,
+    party: PartySnapshot | null = null,
+  ) => {
     act(() => {
       handlers?.onConnection("open");
       handlers?.onMessage({
         type: "liveState",
         stageId: "main",
         isStage,
-        party: null,
+        party,
       });
     });
   };
@@ -119,6 +144,59 @@ function setup({
     api: () => api as unknown as LocalMicsApi,
   };
 }
+
+describe("the Stage browser's Local mic readings", () => {
+  const seated = (playing: boolean) =>
+    testParty({
+      lineUp: testLineUp([
+        {
+          ...LEO_SEAT,
+          mic: { kind: "localMic", localMicId: dongleRight.localMicId },
+        },
+      ]),
+      playing: playing ? { requestId: 5, songId: 7, paused: false } : null,
+      localMics: [
+        {
+          localMicId: dongleRight.localMicId,
+          source: dongleRight.source,
+          name: "",
+          present: true,
+        },
+      ],
+    });
+  const openDongle = () => fakeCapture([DONGLE], new Map([["dongle", 2]]));
+  const READING = { captureMs: 1234, pitch: 69, clarity: 0.9, loudness: -20 };
+
+  it("run the detector of a seated Local mic only while its Song plays", () => {
+    const capture = openDongle();
+    const { becomeStage } = setup({ capture });
+    becomeStage(true, seated(false));
+    expect(capture.setDetecting).toHaveBeenLastCalledWith([]);
+    becomeStage(true, seated(true));
+    expect(capture.setDetecting).toHaveBeenLastCalledWith([
+      { deviceId: "dongle", channel: 1 },
+    ]);
+    becomeStage(true, seated(false));
+    expect(capture.setDetecting).toHaveBeenLastCalledWith([]);
+  });
+
+  it("reach the Pitch router's buffer of the Player the Local mic sings for", () => {
+    const capture = openDongle();
+    const pitch = createPitchRouter();
+    const { becomeStage } = setup({ capture, pitch });
+    becomeStage(true, seated(true));
+    const [buffer] = pitch.start({
+      players: 1,
+      mics: [[{ kind: "localMic", localMicId: dongleRight.localMicId }, 0]],
+      capacity: 8,
+      place: (r) => r.captureMs / 1000,
+    });
+    capture.read("dongle", 1, READING);
+    capture.read("dongle", 0, READING);
+    expect(buffer?.size).toBe(1);
+    expect(buffer?.newestPitch()).toBe(69);
+  });
+});
 
 describe("the Stage browser's Local mics", () => {
   it("capture nothing while the browser is not the Stage", () => {
