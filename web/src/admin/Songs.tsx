@@ -130,7 +130,9 @@ export function AdminSongRow({ song, children, below }: AdminSongRowProps) {
         <span className="truncate text-sm text-ink-2">{song.artist}</span>
       </div>
       {children === undefined ? null : (
-        <div className="flex shrink-0 items-center gap-2">{children}</div>
+        <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+          {children}
+        </div>
       )}
       {below === undefined || below === null ? null : (
         <div className="basis-full">{below}</div>
