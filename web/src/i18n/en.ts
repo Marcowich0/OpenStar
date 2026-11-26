@@ -296,6 +296,22 @@ export const en = {
   "stage.overlay.avSync": "Check A/V sync",
   "stage.overlay.close": "Close",
   "stage.overlay.comingSoon": "This screen is still being built.",
+  // Check A/V sync (#163), on the Stage and on a Remote's Stage tab.
+  "avSync.later": "+{ms, number} ms",
+  "avSync.earlier": "−{ms, number} ms",
+  "avSync.zero": "0 ms",
+  "avSync.value": "A/V offset",
+  "avSync.pattern":
+    "A ball bouncing once a second, with a click each time it lands",
+  "avSync.stageHint":
+    "Press ← or → until the click and the landing match. Every change is saved at once.",
+  "avSync.down": "A/V offset down",
+  "avSync.up": "A/V offset up",
+  "avSync.reset": "Reset to 0",
+  "avSync.done": "Done",
+  "avSync.start": "Check A/V sync",
+  "avSync.remoteHint":
+    "Watch the ball on the Stage. Press − or + until the click and the landing match.",
   // The Mics screen (Setup › Mics) and Local mic names.
   "mics.group.thisBrowser": "This browser",
   "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
@@ -635,6 +651,8 @@ export const en = {
     "This Song's file changed on disk since it was opened. Open it again and redo the edit",
   "userMessage.songPlaying": "This Song is playing on the Stage now",
   "userMessage.noOriginal": "This Song has no Original to restore",
+  "userMessage.notWhileSongPlays": "Not while a Song is playing",
+  "userMessage.avSyncNotRunning": "Check A/V sync is not running",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",

@@ -84,6 +84,22 @@ describe("live store", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it("hands each Remote's Check A/V sync press to the Stage's listeners, and never to the reducer", () => {
+    const { store, server } = start();
+    const listener = vi.fn();
+    const unsubscribe = store.onAvSyncStep(listener);
+    const before = store.getSnapshot();
+
+    server({ type: "stepAvSync", step: "up" });
+    server({ type: "stepAvSync", step: "reset" });
+    expect(listener.mock.calls).toEqual([["up"], ["reset"]]);
+    expect(store.getSnapshot()).toBe(before);
+
+    unsubscribe();
+    server({ type: "stepAvSync", step: "down" });
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
   it("hands every job update to its listeners", () => {
     const { store, server } = start();
     const listener = vi.fn();

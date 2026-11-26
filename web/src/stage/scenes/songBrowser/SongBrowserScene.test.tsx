@@ -18,6 +18,10 @@ const preview = vi.hoisted(() => ({
   play: vi.fn<(song: PreviewSong | null) => void>(),
   stop: vi.fn<() => void>(),
 }));
+// Check A/V sync clicks on the Stage's AudioContext, which jsdom lacks too.
+vi.mock("../../playback/stageAudio", async () =>
+  (await import("../../../avSync/fakeStageAudio")).fakeStageAudioModule(),
+);
 vi.mock("../../playback/stagePreview", () => ({
   stagePreview: () => preview,
 }));
@@ -194,7 +198,12 @@ function setup(
       h.onMessage({ type: "rejected", reason: { code } });
     });
   };
-  return { sent, changeParty, reject, songsArrive, ...view };
+  const avSync = (running: boolean) => {
+    live((h) => {
+      h.onMessage({ type: "avSync", running });
+    });
+  };
+  return { sent, changeParty, reject, songsArrive, avSync, ...view };
 }
 
 function press(key: string) {
@@ -445,6 +454,16 @@ describe("the preview", () => {
     press("ArrowRight");
     expect(preview.play).toHaveBeenLastCalledWith(
       expect.objectContaining({ id: 2 }),
+    );
+  });
+
+  it("stops while Check A/V sync runs, and plays again once it ends", () => {
+    const { avSync } = setup();
+    avSync(true);
+    expect(preview.play).toHaveBeenLastCalledWith(null);
+    avSync(false);
+    expect(preview.play).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 1 }),
     );
   });
 
