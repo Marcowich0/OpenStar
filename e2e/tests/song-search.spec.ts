@@ -29,7 +29,9 @@ test("the host searches the Library with / and Esc clears it", async ({
   await stage.keyboard.type("two voi");
   await expect(box).toHaveValue("two voi");
   await expect(title(stage)).toHaveText("Two Voices");
-  await expect(stage.locator('[data-testid^="carousel-cover-"]')).toHaveCount(1);
+  await expect(stage.locator('[data-testid^="carousel-cover-"]')).toHaveCount(
+    1,
+  );
 
   await stage.keyboard.press("ArrowDown");
   await expect(filters.getByRole("button", { name: "All" })).toBeFocused();
@@ -72,9 +74,9 @@ test("the Duets chip narrows the Songs overlay's carousel too", async ({
   await expect(songs.getByTestId("songs-overlay-title")).toHaveText(
     "Two Voices",
   );
-  await expect(
-    songs.locator('[data-testid^="carousel-cover-"]'),
-  ).toHaveCount(1);
+  await expect(songs.locator('[data-testid^="carousel-cover-"]')).toHaveCount(
+    1,
+  );
   // The overlay's `/` opens the same search; Esc clears it there first,
   // and the Song found stays selected.
   await songs.getByTestId("carousel-selected").focus();
@@ -95,7 +97,11 @@ test("the Duets chip narrows the Songs overlay's carousel too", async ({
 test("Enter on the best-score chip opens the Song detail, Esc closes it", async ({
   stage,
 }) => {
-  const holder = (profileId: number, name: string, favouriteColour: string) => ({
+  const holder = (
+    profileId: number,
+    name: string,
+    favouriteColour: string,
+  ) => ({
     profileId,
     name,
     avatar: { kind: "builtIn", key: "star" },
@@ -108,7 +114,10 @@ test("Enter on the best-score chip opens the Song detail, Esc closes it", async 
     };
     for (const song of list.songs)
       if (song.title === "Two Voices")
-        song.topHighScore = { total: 9480, holder: holder(901, "Sofie", "sky") };
+        song.topHighScore = {
+          total: 9480,
+          holder: holder(901, "Sofie", "sky"),
+        };
     await route.fulfill({ response, json: list });
   });
   await stage.route(/\/api\/songs\/\d+\/high-scores$/, (route) =>
