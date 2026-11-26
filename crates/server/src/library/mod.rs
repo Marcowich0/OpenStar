@@ -16,6 +16,7 @@ mod index;
 mod loudness;
 mod probe;
 mod probing;
+mod publish;
 mod resolve;
 mod scan;
 mod search;
@@ -24,6 +25,7 @@ pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;
 pub(crate) use index::song as song_detail;
 pub use loudness::Measurement;
+pub(crate) use publish::{NewSongFolder, clear_staging};
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -62,6 +64,18 @@ struct Inner {
     cancel: watch::Sender<bool>,
     /// `PATH` for ffprobe, from the settings.
     tool_path: Option<String>,
+    /// Held by a scan from start to end, and by the media pass after a new
+    /// Song folder, so probing and conversions never run twice at once.
+    index_writes: tokio::sync::Mutex<()>,
+}
+
+/// A new Song folder in the Library (see [`Scanner::publish`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Published {
+    /// The folder's name in the Library.
+    pub folder: String,
+    /// The Song of each `.txt` in it, playable or not.
+    pub songs: Vec<SongId>,
 }
 
 impl Scanner {
@@ -90,8 +104,69 @@ impl Scanner {
                 cancelled: Arc::new(AtomicBool::new(false)),
                 cancel: watch::channel(false).0,
                 tool_path,
+                index_writes: tokio::sync::Mutex::new(()),
             }),
         }
+    }
+
+    /// A temporary folder under `/appdata` to write a new Song's files into,
+    /// for [`Scanner::publish`]. Blocks on the filesystem.
+    pub(crate) fn new_song_folder(&self) -> std::io::Result<NewSongFolder> {
+        NewSongFolder::create(&self.inner.appdata_dir)
+    }
+
+    /// Publishes the finished `folder` as a new Song folder in the Library:
+    /// moved in whole under `Artist - Title` (illegal characters replaced),
+    /// or `Artist - Title (2)`, `(3)` … when that name is taken, never into
+    /// an existing folder; across filesystems the files are copied, every
+    /// `.txt` last. The temporary folder is removed whatever happens, and a
+    /// failure removes nothing else. Then the folder's `.txt` files are
+    /// applied straight to the index, with no scan, and every browser gets a
+    /// [`ChangeTopic::Library`] notice; probing, conversion and loudness
+    /// follow in the background (after a running scan), with another notice.
+    ///
+    /// An error after the move (reading the index) leaves the Song folder in
+    /// the Library; the next scan indexes it.
+    pub(crate) async fn publish(
+        &self,
+        folder: NewSongFolder,
+        artist: &str,
+        title: &str,
+    ) -> anyhow::Result<Published> {
+        let base = publish::folder_name(artist, title);
+        let songs_dir = self.inner.songs_dir.clone();
+        let name = tokio::task::spawn_blocking(move || folder.move_in(&songs_dir, &base)).await??;
+        tracing::info!(folder = %name, "a new Song folder is in the Library");
+
+        let root = self.inner.songs_dir.clone();
+        let read_name = name.clone();
+        let files =
+            tokio::task::spawn_blocking(move || scan::read_folder(&root, &read_name)).await??;
+        let parser_version = self.inner.parser_version;
+        let songs = self
+            .inner
+            .db
+            .call(move |conn| {
+                let tx = conn.transaction()?;
+                index::store_read(&tx, &files, parser_version)?;
+                let mut ids = Vec::new();
+                for file in &files {
+                    ids.push(SongId(tx.query_row(
+                        "SELECT id FROM library_files WHERE path = ?1",
+                        [&file.path],
+                        |row| row.get(0),
+                    )?));
+                }
+                tx.commit()?;
+                Ok::<_, rusqlite::Error>(ids)
+            })
+            .await?;
+        self.inner.live.changed(vec![ChangeTopic::Library]).await;
+        tokio::spawn(Arc::clone(&self.inner).media_pass());
+        Ok(Published {
+            folder: name,
+            songs,
+        })
     }
 
     pub(crate) fn status(&self) -> ScanStatus {
@@ -129,7 +204,29 @@ impl Scanner {
 }
 
 impl Inner {
+    /// Probes, converts and measures what a new Song folder brought, the
+    /// way a scan's last steps do, then sends a change notice.
+    async fn media_pass(self: Arc<Self>) {
+        let _writes = self.index_writes.lock().await;
+        let slot = Slot::outside_lanes(self.tool_path.clone(), self.cancel.subscribe());
+        let outcome = async {
+            let Some(probed) =
+                probing::run(&self.db, &self.songs_dir, &slot, &self.cancelled).await?
+            else {
+                return Ok(());
+            };
+            conversion::sync(&self.db, &self.jobs, &self.appdata_dir, probed).await?;
+            loudness::sync(&self.db, &self.jobs, &self.songs_dir).await
+        }
+        .await;
+        match outcome {
+            Ok(()) => self.live.changed(vec![ChangeTopic::Library]).await,
+            Err(error) => tracing::error!(?error, "probing a new Song folder"),
+        }
+    }
+
     async fn run(self: Arc<Self>) {
+        let _writes = self.index_writes.lock().await;
         tracing::info!(songs_dir = %self.songs_dir.display(), "scanning the Library");
         let slot = Slot::outside_lanes(self.tool_path.clone(), self.cancel.subscribe());
         let before = match self.db.call(playable_titles).await {
@@ -309,6 +406,59 @@ pub(crate) async fn scan_status(State(state): State<AppState>) -> Response {
 /// `POST /api/library/rescan`: no PIN.
 pub(crate) async fn rescan(State(state): State<AppState>) -> Response {
     (StatusCode::ACCEPTED, axum::Json(state.scanner.request())).into_response()
+}
+
+/// The body of `POST /api/test/library/new-song` (test routes only).
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct TestNewSong {
+    artist: String,
+    title: String,
+    /// Written into the temporary folder in this order.
+    files: Vec<TestFile>,
+}
+
+#[derive(serde::Deserialize)]
+pub(crate) struct TestFile {
+    /// The file's name in the new Song folder.
+    name: String,
+    /// The file on this machine to copy it from.
+    from: PathBuf,
+}
+
+/// `POST /api/test/library/new-song` (test routes only): stages the files
+/// and publishes them as a new Song folder, the way a Download (#47) does.
+/// Answers `{ folder, songs }`, or `500` when a file cannot be staged or
+/// the publish fails.
+pub(crate) async fn new_song_test(
+    State(state): State<AppState>,
+    axum::Json(body): axum::Json<TestNewSong>,
+) -> Response {
+    let scanner = state.scanner.clone();
+    let staged = tokio::task::spawn_blocking(move || {
+        let folder = scanner.new_song_folder()?;
+        for file in &body.files {
+            std::fs::copy(&file.from, folder.path().join(&file.name))?;
+        }
+        Ok::<_, std::io::Error>((folder, body.artist, body.title))
+    })
+    .await;
+    let published = match staged {
+        Ok(Ok((folder, artist, title))) => state.scanner.publish(folder, &artist, &title).await,
+        Ok(Err(error)) => Err(error.into()),
+        Err(error) => Err(error.into()),
+    };
+    match published {
+        Ok(published) => axum::Json(serde_json::json!({
+            "folder": published.folder,
+            "songs": published.songs,
+        }))
+        .into_response(),
+        Err(error) => {
+            tracing::warn!(?error, "a test Song folder was not published");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
 
 #[cfg(test)]
