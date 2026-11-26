@@ -28,7 +28,7 @@ use futures_util::{SinkExt as _, StreamExt as _};
 use openstar_protocol::bridge::{
     BridgeChannelSettings, BridgeInputDelay, BridgeInterface, NotProAudio, pactl_line,
 };
-use openstar_protocol::{ClientMessage, ServerMessage};
+use openstar_protocol::{ClientMessage, ServerMessage, UserMessage};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::config::{ConfigDir, bridge_socket_url};
@@ -109,6 +109,19 @@ pub struct Joining {
     build: String,
 }
 
+/// What the bridge shows for a refusal from the server: a sentence, never
+/// the code's name. A bridge is refused only for what it sent itself.
+fn refusal_line(reason: &UserMessage) -> &'static str {
+    match reason {
+        UserMessage::NotABridge => "The server does not take this connection as a Mic bridge",
+        UserMessage::InvalidMessage => {
+            "The server did not understand a message from this Mic bridge"
+        }
+        UserMessage::ServerError => "Something went wrong on the server",
+        _ => "The server refused a message from this Mic bridge",
+    }
+}
+
 impl Joining {
     pub fn new(interfaces: Vec<BridgeInterface>) -> Self {
         Self {
@@ -164,9 +177,7 @@ impl Joining {
                     channels.len()
                 ))]
             }
-            ServerMessage::Rejected { reason } => {
-                vec![Effect::Show(format!("The server refused: {reason:?}"))]
-            }
+            ServerMessage::Rejected { reason } => vec![Effect::Show(refusal_line(&reason).into())],
             _ => vec![],
         }
     }
@@ -875,6 +886,33 @@ mod tests {
             }),
             vec![Effect::Show("Detecting 2 channel(s)".into())]
         );
+    }
+
+    #[test]
+    fn a_refusal_is_shown_as_a_sentence_not_a_code_name() {
+        let shown = |reason| match wav()
+            .received(ServerMessage::Rejected { reason })
+            .as_slice()
+        {
+            [Effect::Show(line)] => line.clone(),
+            other => panic!("expected one line, got {other:?}"),
+        };
+        assert_eq!(
+            shown(UserMessage::NotABridge),
+            "The server does not take this connection as a Mic bridge"
+        );
+        assert_eq!(
+            shown(UserMessage::InvalidMessage),
+            "The server did not understand a message from this Mic bridge"
+        );
+        assert_eq!(
+            shown(UserMessage::ServerError),
+            "Something went wrong on the server"
+        );
+        // Any other code: a sentence too, never the code's name.
+        let other = shown(UserMessage::NotTheStage);
+        assert_eq!(other, "The server refused a message from this Mic bridge");
+        assert!(!other.contains("NotTheStage"));
     }
 
     #[test]
