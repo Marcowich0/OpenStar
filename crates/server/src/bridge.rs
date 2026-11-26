@@ -48,7 +48,9 @@ pub async fn serve(
     };
     if file == INSTALL_SCRIPT {
         let Some(address) = install_address(state.config.public_url.as_deref(), &headers) else {
-            return (StatusCode::BAD_REQUEST, "not a plain host name\n").into_response();
+            // A bare 400: the server writes no English but its logs.
+            tracing::info!("an install script asked for with a host that is not a plain name");
+            return StatusCode::BAD_REQUEST.into_response();
         };
         let script = String::from_utf8_lossy(&bytes).replace(ADDRESS_SLOT, &address);
         return plain("text/x-shellscript; charset=utf-8", script);
