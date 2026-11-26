@@ -449,6 +449,25 @@ export const en = {
   "stage.moved.body":
     "Someone opened OpenStar's Stage on another browser, so the party carries on there. Phones stay in the Party and follow it.",
   "bridge.title": "Mic bridge",
+  // Getting the Mic bridge: the `/bridge` page and Add a Mic bridge.
+  "bridge.intro":
+    "The Mic bridge reads every input of an audio interface and sends it to the Stage. Install it on the Linux computer the interface is wired to.",
+  "bridge.install.run":
+    "On that computer, open a terminal and run this. Run it again to repair the bridge.",
+  "bridge.install.command": "Install command",
+  "bridge.install.notHttps":
+    "This address is not HTTPS, so the download is not protected on its way. The command still works.",
+  "bridge.install.localhost":
+    "This address is localhost: the command works only on the Stage's own computer. Set OPENSTAR_PUBLIC_URL to an address other computers can reach.",
+  "bridge.install.approve":
+    "When the bridge opens, approve it on the Stage's Mics screen with the code it shows.",
+  "bridge.download.title": "Without the command",
+  "bridge.download.binary": "Download the Mic bridge",
+  "bridge.download.checksum": "Its SHA-256 checksum",
+  "bridge.download.run":
+    "Make the file executable, write {address} into ~/.config/openstar-mic-bridge/server, then start it.",
+  "bridge.uninstall": "To remove it again: openstar-mic-bridge --uninstall",
+  "mics.addBridge": "Add a Mic bridge",
   "admin.title": "Admin",
   "admin.downloads": "Downloads",
   "admin.songs": "Songs",

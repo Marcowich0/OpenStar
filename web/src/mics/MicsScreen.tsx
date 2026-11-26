@@ -5,7 +5,8 @@
 // with Find it), then each approved Mic bridge in order of approval (open or
 // closed, with its channels and their editable names, and while open a live
 // meter per channel fed by the levels the bridge sends), then New bridges
-// waiting for approval with their code and Approve. Naming, switching, Find
+// waiting for approval with their code and Approve, then Add a Mic bridge
+// (its one-line install, `AddMicBridge.tsx`). Naming, switching, Find
 // it and approving need no Admin PIN and are saved at once. Every device,
 // and every interface of every open bridge, is open while the screen is
 // open. The Mic threshold line (#172) comes later.
@@ -16,6 +17,7 @@ import type { BridgeRequest } from "../generated/BridgeRequest";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridge } from "../generated/MicBridge";
 import { t } from "../i18n/t";
+import { AddMicBridge } from "./AddMicBridge";
 import { useLocalMics } from "./LocalMics";
 import { SILENCE_DBFS } from "./localMicCapture";
 import {
@@ -434,6 +436,7 @@ export function MicsScreen() {
       {bridges.requests.length > 0 && (
         <NewBridges requests={bridges.requests} onApprove={approveBridge} />
       )}
+      <AddMicBridge />
     </div>
   );
 }
