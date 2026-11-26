@@ -2,16 +2,30 @@
 // "Capture in the Stage browser"): lists them, opens each with every kind of
 // processing off and 2 channels asked for, splits it into its channels, and
 // meters each channel. Each channel runs its own pitch node (the shared
-// pitch-detection worklet, `pitch/worklet/`), and its meter shows the loudness
-// of the newest Pitch reading. Routing those readings to scoring is #130's;
-// `subscribeReadings` is where it takes them.
+// pitch-detection worklet, `pitch/worklet/`), metering only until it is told
+// to detect (`setDetecting`: while its Local mic is seated in a playing
+// Song); its meter shows the loudness of the newest reading or level. Each
+// channel's readings are stamped on the page's `performance.now()` with its
+// own Local sender session (offset 0, the lower envelope of arrival − frame
+// time, afresh for every new stream) and handed to `subscribeReadings`.
+// The capture keeps an `AudioContext` of its own, apart from the Song's: the
+// envelope maps any context's frames onto the page clock, and the meters run
+// without waiting for the Song chain.
 // Which devices to open is decided by `devicesToOpen` (`localMics.ts`); this
 // module only does what it is told. It never reads or changes an
 // interface's PipeWire profile: the browser cannot.
 
 import { browserInputDevices, type BrowserDevice } from "./localMics";
+import type { PitchReading } from "../generated/PitchReading";
+import {
+  loadCaptureClock,
+  type CaptureClock,
+  type SenderSession,
+} from "../pitch/clock/senderSession";
 import {
   createPitchNode as createWorkletPitchNode,
+  setDetecting as setNodeDetecting,
+  type PitchNodeOptions,
   type PitchWorkletReading,
 } from "../pitch/worklet/pitchWorklet";
 
@@ -67,7 +81,15 @@ export interface LocalMicCapture {
    * at {@link SILENCE_DBFS}; `null` if its device is not open.
    */
   levelDbfs: (deviceId: string, channel: number) => number | null;
-  /** Every Pitch reading of every open channel, as the worklet posts it. */
+  /**
+   * Runs the detector of exactly these channels (open now or later); every
+   * other channel only meters.
+   */
+  setDetecting: (channels: Iterable<CaptureChannel>) => void;
+  /**
+   * Every Pitch reading of every detecting channel, stamped on the page's
+   * clock (`now`), as the Pitch router takes it.
+   */
   subscribeReadings: (listener: ReadingListener) => () => void;
   /** Closes everything; a later call starts again (React may remount). */
   dispose: () => void;
@@ -81,22 +103,34 @@ type Devices = Pick<
   | "removeEventListener"
 >;
 
+/** One channel of a device. */
+export interface CaptureChannel {
+  deviceId: string;
+  channel: number;
+}
+
 export type ReadingListener = (
   deviceId: string,
   channel: number,
-  reading: PitchWorkletReading,
+  reading: PitchReading,
 ) => void;
 
 /** Makes a pitch node: `createPitchNode` of `pitch/worklet/pitchWorklet.ts`. */
 export type CreatePitchNode = (
   context: BaseAudioContext,
   onReading: (reading: PitchWorkletReading) => void,
+  options?: PitchNodeOptions,
 ) => Promise<AudioWorkletNode>;
+
+const channelKey = (deviceId: string, channel: number) =>
+  `${deviceId}\n${String(channel)}`;
 
 interface OpenDevice {
   stream: MediaStream;
   source: MediaStreamAudioSourceNode;
   nodes: AudioWorkletNode[];
+  /** Each channel's sender session; none when the capture clock failed. */
+  sessions: SenderSession[];
   /** Each channel's newest loudness, dBFS; `null` before its first reading. */
   levels: (number | null)[];
 }
@@ -110,10 +144,15 @@ export function createLocalMicCapture({
   mediaDevices = browserMediaDevices(),
   createContext = () => new AudioContext(),
   createPitchNode = createWorkletPitchNode,
+  captureClock = loadCaptureClock,
+  now = () => performance.now(),
 }: {
   mediaDevices?: Devices | undefined;
   createContext?: () => AudioContext;
   createPitchNode?: CreatePitchNode;
+  captureClock?: () => Promise<CaptureClock>;
+  /** The page clock readings are stamped on, ms. */
+  now?: () => number;
 } = {}): LocalMicCapture {
   let snapshot: CaptureSnapshot = {
     status: mediaDevices ? "idle" : "unavailable",
@@ -125,6 +164,8 @@ export function createLocalMicCapture({
   const opened = new Map<string, OpenDevice>();
   let context: AudioContext | null = null;
   let wanted: ReadonlySet<string> = new Set();
+  /** `channelKey`s whose detector runs. */
+  let detecting = new Set<string>();
   let listening = false;
   // Opens and closes run one after another.
   let queue: Promise<void> = Promise.resolve();
@@ -176,6 +217,7 @@ export function createLocalMicCapture({
       node.disconnect();
       node.port.close();
     }
+    for (const session of device.sessions) session.dispose();
     for (const track of device.stream.getTracks()) track.stop();
   }
 
@@ -198,31 +240,54 @@ export function createLocalMicCapture({
       { length: channels },
       () => null,
     );
+    // Without the capture clock the meters still run; readings are dropped.
+    const clock = await captureClock().catch(() => null);
+    const sessions = clock ? levels.map(() => clock.local()) : [];
     let nodes: AudioWorkletNode[];
     try {
       nodes = await Promise.all(
         levels.map((_, channel) =>
-          createPitchNode(audio, (reading) => {
-            levels[channel] = reading.loudness;
-            for (const listener of readingListeners)
-              listener(deviceId, channel, reading);
-          }),
+          createPitchNode(
+            audio,
+            (reading) => {
+              levels[channel] = reading.loudness;
+              const stamped = sessions[channel]?.stampReading(reading, now());
+              if (!stamped) return;
+              for (const listener of readingListeners)
+                listener(deviceId, channel, stamped);
+            },
+            {
+              detect: detecting.has(channelKey(deviceId, channel)),
+              onLevel: (level) => {
+                levels[channel] = level.loudness;
+              },
+            },
+          ),
         ),
       );
     } catch (error) {
+      for (const session of sessions) session.dispose();
       for (const track of stream.getTracks()) track.stop();
       throw error;
     }
     if (!wanted.has(deviceId)) {
       for (const node of nodes) node.port.close();
+      for (const session of sessions) session.dispose();
       for (const track of stream.getTracks()) track.stop();
       return;
     }
+    // A new stream: each channel's frame mapping starts afresh.
+    const startedAt = now();
+    for (const session of sessions) session.startCapture(startedAt);
     const source = audio.createMediaStreamSource(stream);
     const splitter = audio.createChannelSplitter(channels);
     source.connect(splitter);
     nodes.forEach((node, channel) => splitter.connect(node, channel));
-    opened.set(deviceId, { stream, source, nodes, levels });
+    opened.set(deviceId, { stream, source, nodes, sessions, levels });
+    // `setDetecting` may have changed while this device was opening.
+    nodes.forEach((node, channel) => {
+      setNodeDetecting(node, detecting.has(channelKey(deviceId, channel)));
+    });
   }
 
   async function sync() {
@@ -254,6 +319,19 @@ export function createLocalMicCapture({
       const device = opened.get(deviceId);
       if (!device || channel >= device.nodes.length) return null;
       return Math.max(SILENCE_DBFS, device.levels[channel] ?? SILENCE_DBFS);
+    },
+    setDetecting(channels) {
+      const next = new Set<string>();
+      for (const { deviceId, channel } of channels)
+        next.add(channelKey(deviceId, channel));
+      for (const [deviceId, device] of opened) {
+        device.nodes.forEach((node, channel) => {
+          const key = channelKey(deviceId, channel);
+          if (next.has(key) !== detecting.has(key))
+            setNodeDetecting(node, next.has(key));
+        });
+      }
+      detecting = next;
     },
     subscribeReadings(listener) {
       readingListeners.add(listener);

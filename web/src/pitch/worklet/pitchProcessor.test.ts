@@ -18,8 +18,10 @@ import {
 import nativeReadingsText from "../../../../fixtures/detector/native/readings.json?raw";
 import {
   PITCH_PROCESSOR_NAME,
+  type PitchNodeCommand,
   type PitchProcessorOptions,
   type PitchWorkletMessage,
+  type PitchWorkletReading,
 } from "./pitchMessages";
 
 /** `just wasm` builds it. */
@@ -50,7 +52,10 @@ const nativeRuns = (JSON.parse(nativeReadingsText) as { runs: NativeRun[] })
 
 type ProcessorClass = new (options: {
   processorOptions: PitchProcessorOptions;
-}) => { process: (inputs: Float32Array[][]) => boolean };
+}) => {
+  process: (inputs: Float32Array[][]) => boolean;
+  port: { onmessage: ((event: { data: PitchNodeCommand }) => void) | null };
+};
 
 let wasm: ArrayBuffer;
 let Processor: ProcessorClass;
@@ -79,6 +84,7 @@ beforeAll(async () => {
     "AudioWorkletProcessor",
     class {
       readonly port = {
+        onmessage: null,
         postMessage: (message: PitchWorkletMessage) => {
           posted.push(message);
         },
@@ -111,7 +117,7 @@ function run(
   samples: Float32Array,
   sampleRate: number,
   { blockLen = 128, firstFrame = 0, input = true } = {},
-): PitchWorkletMessage[] {
+): PitchWorkletReading[] {
   scope.sampleRate = sampleRate;
   scope.currentFrame = firstFrame;
   posted = [];
@@ -121,7 +127,7 @@ function run(
     expect(processor.process(input ? [[block]] : [[]])).toBe(true);
     scope.currentFrame += block.length;
   }
-  return posted;
+  return posted.filter((m): m is PitchWorkletReading => m.type === "reading");
 }
 
 describe("the pitch worklet", () => {
@@ -184,6 +190,77 @@ describe("the pitch worklet", () => {
       "sine",
       "sine-vibrato",
     ]);
+  });
+});
+
+describe("a pitch node with its detector off", () => {
+  /** A 440 Hz sine at amplitude 0.5: −9.03 dBFS RMS. */
+  const sine = (frames: number) =>
+    Float32Array.from(
+      { length: frames },
+      (_, i) => 0.5 * Math.sin((2 * Math.PI * 440 * i) / 48_000),
+    );
+
+  function feed(
+    processor: InstanceType<ProcessorClass>,
+    samples: Float32Array,
+  ) {
+    for (let at = 0; at < samples.length; at += 128) {
+      processor.process([[samples.subarray(at, at + 128)]]);
+      scope.currentFrame += 128;
+    }
+  }
+
+  function offProcessor() {
+    scope.sampleRate = 48_000;
+    scope.currentFrame = 0;
+    posted = [];
+    return new Processor({ processorOptions: { wasm, detect: false } });
+  }
+
+  it("posts only levels, on the readings' schedule, with the detector's loudness", () => {
+    const processor = offProcessor();
+    feed(processor, sine(4096));
+    expect(posted.map((m) => m.type)).toEqual(Array(5).fill("level"));
+    expect(posted.map((m) => m.endFrame)).toEqual([
+      2048, 2560, 3072, 3584, 4096,
+    ]);
+    // The same input through a detecting node gives the same loudness.
+    const detecting = run(sine(4096), 48_000);
+    posted.forEach((level, i) => {
+      expect(level.loudness).toBeCloseTo(detecting[i]?.loudness ?? NaN, 6);
+    });
+    expect(posted[0]?.loudness).toBeCloseTo(-9.03, 2);
+  });
+
+  it("gives digital silence the detector's floor", () => {
+    const processor = offProcessor();
+    feed(processor, new Float32Array(2048));
+    expect(posted).toEqual([{ type: "level", loudness: -120, endFrame: 2048 }]);
+  });
+
+  it("makes readings once switched on, from a fresh window, and only levels again once off", () => {
+    const processor = offProcessor();
+    feed(processor, sine(2048));
+    processor.port.onmessage?.({ data: { type: "detect", on: true } });
+    posted = [];
+    feed(processor, sine(2560));
+    // A fresh detector: its first reading once 2048 new frames are in.
+    expect(posted.map((m) => [m.type, m.endFrame])).toEqual([
+      ["reading", 4096],
+      ["reading", 4608],
+    ]);
+    const [first] = posted;
+    expect(first?.type === "reading" ? first.pitch : null).toBeCloseTo(69, 1);
+    processor.port.onmessage?.({ data: { type: "detect", on: false } });
+    posted = [];
+    feed(processor, sine(512));
+    expect(posted.map((m) => m.type)).toEqual(["level"]);
+  });
+
+  it("detects by default", () => {
+    const messages = run(sine(2048), 48_000);
+    expect(messages.map((m) => m.type)).toEqual(["reading"]);
   });
 });
 

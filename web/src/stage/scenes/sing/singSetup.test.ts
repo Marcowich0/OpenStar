@@ -100,15 +100,17 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     expect(setup.mics).toEqual([[{ kind: "phone", phoneId: "phone-9" }, 1]]);
   });
 
-  it("routes a seated Phone's readings, which arrive under its Phone id, to its Player", () => {
+  it("routes a seated Phone's readings by its Phone id and a seated Local mic's by its Local mic id", () => {
     const party = testParty({ lineUp: testLineUp([MIA_SEAT, LEO_SEAT], true) });
     const setup = singSetup({
       detail: testDetail({ duet: true }),
       party,
       profiles: PROFILES,
     });
-    // Leo's Local mic relays no readings yet (#130 / #151).
-    expect(setup.mics).toEqual([[{ kind: "phone", phoneId: "phone-mia" }, 0]]);
+    expect(setup.mics).toEqual([
+      [{ kind: "phone", phoneId: "phone-mia" }, 0],
+      [{ kind: "localMic", localMicId: "browser:s:dongle:0" }, 1],
+    ]);
   });
 
   it("gives each Player their Mic kind and the buffers' capacity", () => {
