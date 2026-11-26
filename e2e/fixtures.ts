@@ -33,6 +33,23 @@ export const FIXTURE_SONGS = {
   rejected: "Placeholder Artist - Rejected/rejected.txt",
 } as const;
 
+/**
+ * The path of a file in the server's songs folder (the temporary copy of the
+ * fixture Library that `scripts/e2e.sh` serves, mounted read-only into the
+ * Playwright container at `OPENSTAR_E2E_SONGS_DIR`), for checking what a save
+ * wrote. `relative` is relative to the Library, as in {@link FIXTURE_SONGS}.
+ * A spec that changes the Library puts it back before it ends: every spec
+ * shares it.
+ */
+export function fixtureLibraryFile(relative: string): string {
+  const dir = process.env.OPENSTAR_E2E_SONGS_DIR;
+  if (dir === undefined || dir === "")
+    throw new Error(
+      "OPENSTAR_E2E_SONGS_DIR is not set: run the suite with `just e2e`",
+    );
+  return join(dir, relative);
+}
+
 /** The Stage's screen: a desktop browser on a TV-sized viewport. */
 export const STAGE_VIEWPORT = { width: 1920, height: 1080 };
 
