@@ -800,6 +800,9 @@ pub enum UserMessage {
     /// id), so it is not downloaded again. Checked when a Download starts
     /// and again just before it moves into the Library.
     UsdbSongInLibrary,
+    /// A Download of the same USDB song is already waiting or running, so a
+    /// second one is not started.
+    UsdbSongDownloading,
     /// USDB's text page for the song held no text (no such song, or a page
     /// OpenStar does not know).
     UsdbNoSongText,

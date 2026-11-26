@@ -249,6 +249,7 @@ const REFUSAL_CODES = {
   usdbGaveUp: true,
   usdbUnexpectedStatus: true,
   usdbSongInLibrary: true,
+  usdbSongDownloading: true,
   usdbNoSongText: true,
   usdbTextRejected: true,
   videoDownloadFailed: true,

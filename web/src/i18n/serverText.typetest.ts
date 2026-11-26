@@ -71,6 +71,7 @@ const handlers: CodeHandlers<UserMessage> = {
   usdbUnexpectedStatus: ({ params }) =>
     t("userMessage.usdbUnexpectedStatus", params),
   usdbSongInLibrary: () => t("userMessage.usdbSongInLibrary"),
+  usdbSongDownloading: () => t("userMessage.usdbSongDownloading"),
   usdbNoSongText: () => t("userMessage.usdbNoSongText"),
   usdbTextRejected: ({ params }) =>
     t("userMessage.usdbTextRejected", {

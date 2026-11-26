@@ -778,6 +778,7 @@ export const en = {
   "userMessage.usdbUnexpectedStatus":
     "USDB answered with HTTP {status, number}",
   "userMessage.usdbSongInLibrary": "This song is already in the Library",
+  "userMessage.usdbSongDownloading": "This song is already downloading",
   "userMessage.usdbNoSongText": "USDB sent no text for this song",
   "userMessage.usdbTextRejected":
     "USDB's text for this song can't be played: {reason}",

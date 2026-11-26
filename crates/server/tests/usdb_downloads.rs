@@ -467,6 +467,33 @@ async fn a_usdb_id_already_in_the_library_is_refused_when_the_download_starts() 
 }
 
 #[tokio::test]
+async fn a_usdb_id_already_downloading_is_refused_when_another_download_starts() {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    stub.script(YtDlpStubBehaviour::Delay(Duration::from_secs(1)), 1);
+    let app = started(&usdb, &stub).await;
+    let cookie = app.unlock().await;
+
+    let id = download(&app, &cookie, 1).await;
+    let (status, body) = refusal(start_download(&app, Some(&cookie), 1).await).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(
+        serde_json::from_value::<UserMessage>(body).unwrap(),
+        UserMessage::UsdbSongDownloading
+    );
+    let list: JobList = app.get_json("/api/jobs").await;
+    assert_eq!(
+        list.jobs
+            .iter()
+            .filter(|job| job.kind == JobKind::Download)
+            .count(),
+        1
+    );
+    assert_eq!(ended(&app, id).await, JobState::Done);
+    assert_eq!(library_folders(&app).len(), 1);
+}
+
+#[tokio::test]
 async fn a_usdb_id_that_reaches_the_library_meanwhile_is_refused_before_the_move() {
     let usdb = fake_usdb().await;
     let stub = YtDlpStub::new();
