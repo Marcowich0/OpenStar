@@ -392,6 +392,30 @@ describe("a Phone's own changes", () => {
   });
 });
 
+describe("a toast the Stage raises itself", () => {
+  it("says a lost Mic is back, with that member's avatar", () => {
+    const toast: Toast = {
+      id: 0,
+      actor: { kind: "member", memberId: 2 },
+      event: { code: "backOnMic", params: { memberId: 2, name: "Mia" } },
+    };
+    expect(text(toast)).toBe("Mia is back on the mic");
+    expect(toastContent(toast, party, profiles).actor).toEqual({
+      name: "Mia",
+      avatar: { kind: "builtIn", key: "heart" },
+      colour: "mint",
+    });
+    // A member no longer in the snapshot: the name from the event, no avatar.
+    const gone: Toast = {
+      id: 1,
+      actor: { kind: "member", memberId: 9 },
+      event: { code: "backOnMic", params: { memberId: 9, name: "Kim" } },
+    };
+    expect(text(gone)).toBe("Kim is back on the mic");
+    expect(toastContent(gone, party, profiles).actor).toBeNull();
+  });
+});
+
 // Synthetic events for the toasts whose server side is not built yet: the
 // texts are in the catalogue, ready for the ticket that adds each code.
 describe("toasts whose sender is not built yet", () => {

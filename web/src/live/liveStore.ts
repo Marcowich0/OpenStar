@@ -10,7 +10,7 @@ import {
   receive,
   type LiveState,
 } from "./liveState";
-import { dismissToast } from "./toasts";
+import { addStageToast, dismissToast, type StageToastEvent } from "./toasts";
 
 /** What the server tells the Stage to do to the head's Song. */
 export type SongControlMessage = Extract<
@@ -46,6 +46,8 @@ export interface LiveStore {
   ) => () => void;
   /** Drops a toast the screen has finished showing (`toasts.ts`). */
   dismissToast: (id: number) => void;
+  /** Shows a toast the Stage raises itself ("Mia is back on the mic"). */
+  showStageToast: (event: StageToastEvent) => void;
   close: () => void;
 }
 
@@ -63,7 +65,7 @@ export function createLiveStore(
     handlers: Pick<LiveClientOptions, "onMessage" | "onConnection">,
   ) => LiveClient,
   hello?: () => ClientMessage,
-  pitch?: Pick<PitchRouter, "receive">,
+  pitch?: Pick<PitchRouter, "receive" | "signal">,
 ): LiveStore {
   let state = initialLiveState;
   const listeners = new Set<() => void>();
@@ -83,6 +85,11 @@ export function createLiveStore(
       // those go to their Player's ring buffer, so they never cause a render.
       if (message.type === "pitchReading") {
         pitch?.receive(message.mic, message.reading);
+        return;
+      }
+      // A closed Mic is a lost-Mic signal for the playing Song (#213).
+      if (message.type === "micClosed") {
+        pitch?.signal(message.mic, "connectionClosed");
         return;
       }
       // Mic bridge levels go to the meters, not the reducer.
@@ -137,6 +144,9 @@ export function createLiveStore(
     },
     dismissToast(id) {
       update(dismissToast(state, id));
+    },
+    showStageToast(event) {
+      update({ ...state, ...addStageToast(state, event) });
     },
     close: () => {
       client.close();

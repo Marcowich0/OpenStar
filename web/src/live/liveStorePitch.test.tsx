@@ -97,10 +97,22 @@ describe("Pitch readings in the live store", () => {
     expect(receive).not.toHaveBeenCalled();
   });
 
+  it("hand a closed Mic to the Pitch router, not the reducer", () => {
+    const { server, router } = start();
+    const signal = vi.spyOn(router, "signal");
+    vi.mocked(receive).mockClear();
+    server({ type: "micClosed", mic: { kind: "phone", connection: 1 } });
+    expect(signal).toHaveBeenCalledWith(
+      { kind: "phone", connection: 1 },
+      "connectionClosed",
+    );
+    expect(receive).not.toHaveBeenCalled();
+  });
+
   it("leave every other message to the reducer", () => {
     const { server } = start();
     vi.mocked(receive).mockClear();
-    server({ type: "micClosed", mic: { kind: "phone", connection: 1 } });
+    server({ type: "clockPing", mic: { kind: "phone", connection: 1 }, t0: 5 });
     expect(receive).toHaveBeenCalledTimes(1);
   });
 });

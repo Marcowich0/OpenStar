@@ -121,7 +121,7 @@ export interface StageRound {
 export interface StageSongOptions {
   store: Pick<
     LiveStore,
-    "getSnapshot" | "subscribe" | "send" | "onSongControl"
+    "getSnapshot" | "subscribe" | "send" | "onSongControl" | "showStageToast"
   >;
   loadSong: (id: SongId) => Promise<SongDetail>;
   /** The Profiles, for the lane headers' names and avatars. */
@@ -467,13 +467,29 @@ export function createStageSong(options: StageSongOptions): StageSong {
         heard: (player) => {
           scoring.micEvent(player, "reading");
         },
+        // A closed connection (`micClosed`), and its return (#213).
+        signal: (player, kind) => {
+          scoring.micEvent(player, kind);
+        },
       });
       const state = setup.state(s.buffers);
       scoring.onChange((change) => {
         if (session !== s) return;
         // The header shows it at its next render; `onScoring` writes it now.
-        const player = state.lanes[change.player]?.player;
+        const lane = state.lanes[change.player];
+        const player = lane?.player;
         if (player) player.score = change.score.total;
+        // The lost lane is drawn from `trace.lostAt`, read every frame (#213).
+        if (lane?.trace) lane.trace.lostAt = change.lostAt;
+        if (change.back) {
+          const seat = setup.players[change.player];
+          if (seat) {
+            store.showStageToast({
+              code: "backOnMic",
+              params: { memberId: seat.memberId, name: seat.look?.name ?? "" },
+            });
+          }
+        }
         for (const listener of [...scoringListeners]) listener(change);
       });
       show({
