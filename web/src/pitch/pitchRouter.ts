@@ -8,7 +8,14 @@
 import { placedSongTime, type PlacementClock } from "../clock/placement";
 import type { MicId } from "../generated/MicId";
 import type { PitchReading } from "../generated/PitchReading";
+import type { MicEvent } from "../scoring/micLost";
 import { PitchBuffer } from "./pitchBuffer";
+
+/**
+ * What a Mic's connection or page reports, besides its readings: the lost-Mic
+ * rule's other signals (`scoring/micLost.ts`).
+ */
+export type MicSignal = Exclude<MicEvent["kind"], "reading">;
 
 /**
  * Places a reading from Player `player`'s Mic on Song time, or `null` to drop
@@ -33,6 +40,12 @@ export interface PitchSession {
    * placement drops any (the lost-Mic rule: a paused Song's Mic still sends).
    */
   heard?: (player: number) => void;
+  /**
+   * Told when a Mic of this Song closes (`micClosed`) or reports its page
+   * hidden or visible, and that it is back (`connectionBack`) when a reading
+   * arrives from a Mic that had closed.
+   */
+  signal?: (player: number, kind: MicSignal) => void;
 }
 
 export interface PitchRouter {
@@ -47,6 +60,12 @@ export interface PitchRouter {
   buffers: () => readonly PitchBuffer[];
   /** Takes one relayed reading; dropped unless its Mic sings in this Song. */
   receive: (mic: MicId, reading: PitchReading) => void;
+  /**
+   * Takes a Mic's signal: the server's `micClosed`, or a Phone reporting its
+   * page hidden or visible (no wire message carries that yet). Dropped
+   * unless the Mic sings in this Song.
+   */
+  signal: (mic: MicId, kind: MicSignal) => void;
 }
 
 /**
@@ -76,6 +95,9 @@ export function createPitchRouter(): PitchRouter {
   let players = new Map<string, number>();
   let place: Placement = () => null;
   let heard: ((player: number) => void) | undefined;
+  let signal: PitchSession["signal"];
+  /** Mics of this Song whose connection closed, until their next reading. */
+  let closed = new Set<string>();
 
   return {
     start(session) {
@@ -100,6 +122,8 @@ export function createPitchRouter(): PitchRouter {
       players = assigned;
       place = session.place;
       heard = session.heard;
+      signal = session.signal;
+      closed = new Set();
       return buffers;
     },
     stop() {
@@ -107,16 +131,30 @@ export function createPitchRouter(): PitchRouter {
       players = new Map();
       place = () => null;
       heard = undefined;
+      signal = undefined;
+      closed = new Set();
     },
     buffers: () => buffers,
     receive(mic, reading) {
-      const player = players.get(micKey(mic));
+      const key = micKey(mic);
+      const player = players.get(key);
       if (player === undefined) return;
       const buffer = buffers[player];
       if (buffer === undefined) return;
+      if (closed.size > 0 && closed.delete(key)) {
+        signal?.(player, "connectionBack");
+      }
       heard?.(player);
       const songTime = place(reading, player);
       if (songTime !== null) buffer.push(reading, songTime);
+    },
+    signal(mic, kind) {
+      const key = micKey(mic);
+      const player = players.get(key);
+      if (player === undefined) return;
+      if (kind === "connectionClosed") closed.add(key);
+      if (kind === "connectionBack") closed.delete(key);
+      signal?.(player, kind);
     },
   };
 }

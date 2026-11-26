@@ -11,6 +11,7 @@ export function Icon({ name, className = "size-6" }: IconProps) {
   return (
     <span
       aria-hidden="true"
+      data-icon={name}
       className={`inline-block shrink-0 bg-current mask-contain mask-center mask-no-repeat ${className}`}
       style={{ maskImage: iconVar(name) }}
     />

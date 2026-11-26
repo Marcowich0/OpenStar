@@ -4,7 +4,7 @@ import type { Actor } from "../generated/Actor";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { ServerMessage } from "../generated/ServerMessage";
 import { initialLiveState, receive, type LiveState } from "./liveState";
-import { dismissToast, MAX_TOASTS } from "./toasts";
+import { addStageToast, dismissToast, MAX_TOASTS } from "./toasts";
 
 const party: PartySnapshot = {
   partyId: "p1",
@@ -132,5 +132,27 @@ describe("Party changes as toast entries", () => {
     expect(ponged.toasts).toBe(state.toasts);
     const quiet = receive(stage, change({ kind: "stage" }));
     expect(quiet.toasts).toBe(stage.toasts);
+  });
+});
+
+describe("toasts the Stage raises itself", () => {
+  const back = (memberId: number) =>
+    ({
+      code: "backOnMic",
+      params: { memberId, name: "Mia" },
+    }) as const;
+
+  it("are toasts about that Party member, after the Party changes, at most three", () => {
+    let state = receive(stage, change(remote, "1111"));
+    state = { ...state, ...addStageToast(state, back(2)) };
+    expect(state.toasts.map((toast) => [toast.id, toast.actor])).toEqual([
+      [0, remote],
+      [1, { kind: "member", memberId: 2 }],
+    ]);
+    expect(state.toasts[1]?.event).toEqual(back(2));
+    for (let i = 0; i < MAX_TOASTS; i++) {
+      state = { ...state, ...addStageToast(state, back(i)) };
+    }
+    expect(state.toasts.map((toast) => toast.id)).toEqual([2, 3, 4]);
   });
 });

@@ -215,6 +215,7 @@ export const en = {
   // The sing screen's lane headers (#211).
   "sing.guest": "guest",
   "sing.voiceTag": "· V{voice, number}",
+  "sing.micLost": "{name}'s mic lost",
   "sing.lineRating.perfect": "Perfect!",
   "sing.lineRating.great": "Great!",
   "sing.lineRating.good": "Good",

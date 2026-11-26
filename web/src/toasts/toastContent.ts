@@ -153,6 +153,16 @@ export function toastContent(
           song: event.params.title,
         }),
       };
+    case "backOnMic": {
+      // Raised by the Stage itself (`addStageToast`), about the seat's member.
+      const look = memberLook(party, profiles, event.params.memberId);
+      return {
+        actor: look,
+        parts: tParts("toast.backOnMic", {
+          actor: look?.name ?? event.params.name,
+        }),
+      };
+    }
     case "micBlocked":
       return {
         actor: memberLook(party, profiles, event.params.memberId),

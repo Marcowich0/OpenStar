@@ -85,6 +85,13 @@ export interface LiveScoringChange {
   lineEnds: readonly LineResult[];
   /** Whether the seat's Mic is lost now. */
   lost: boolean;
+  /**
+   * While lost, the Song time of the tick that first saw it lost (what the
+   * lane's `LaneTrace.lostAt` takes); `null` while not lost.
+   */
+  lostAt: number | null;
+  /** The Mic came back in this tick (never on a Restart). */
+  back: boolean;
 }
 
 /** One Player's part of a Song's outcome: what a Score record needs. */
@@ -149,6 +156,8 @@ interface Seat {
   next: number;
   watch: MicWatch;
   lost: boolean;
+  /** Song time of the tick that first saw the Mic lost, while it is. */
+  lostAt: number | null;
   /** The Beat of the last tick that saw the Mic lost, or null. */
   lostFromBeat: number | null;
 }
@@ -180,6 +189,7 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
       next: range.firstBeat,
       watch: createMicWatch(now()),
       lost: false,
+      lostAt: null,
       lostFromBeat: null,
     };
   });
@@ -235,6 +245,7 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
       const lost = seat.watch.lostAt(stageTime);
       const lostChanged = lost !== seat.lost;
       seat.lost = lost;
+      if (lostChanged) seat.lostAt = lost ? songTime : null;
       if (lost) markLost(seat, songTime);
       else seat.lostFromBeat = null;
 
@@ -261,6 +272,8 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
           score: seat.scorer.score(),
           lineEnds: lineEnds ?? [],
           lost,
+          lostAt: seat.lostAt,
+          back: lostChanged && !lost,
         };
         for (const listener of [...listeners]) listener(change);
       }
@@ -298,6 +311,7 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
         s.next = s.range.firstBeat;
         s.watch = createMicWatch(since);
         s.lost = false;
+        s.lostAt = null;
         s.lostFromBeat = null;
       }
       seats.forEach((s, index) => {
@@ -306,6 +320,8 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
           score: s.scorer.score(),
           lineEnds: [],
           lost: false,
+          lostAt: null,
+          back: false,
         };
         for (const listener of [...listeners]) listener(change);
       });

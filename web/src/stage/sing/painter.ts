@@ -332,7 +332,16 @@ export function createPainter(
 
   function headBall(entry: HeadBallEntry) {
     ctx.beginPath();
-    ctx.arc(entry.x, entry.y, entry.radius, 0, 2 * Math.PI);
+    // The bounce squashes the disc; the rim keeps its width all round.
+    ctx.ellipse(
+      entry.x,
+      entry.y,
+      entry.radius * entry.squash.x,
+      entry.radius * entry.squash.y,
+      0,
+      0,
+      2 * Math.PI,
+    );
     ctx.fillStyle = colour(entry.colour);
     ctx.fill();
     ctx.strokeStyle = colour(entry.rim);
