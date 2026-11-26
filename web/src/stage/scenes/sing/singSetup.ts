@@ -6,7 +6,6 @@
 // `scoring/liveScoring.ts`) takes each Player's scoring inputs from here.
 
 import type { LineUp } from "../../../generated/LineUp";
-import type { MicId } from "../../../generated/MicId";
 import type { MicKey } from "../../../generated/MicKey";
 import type { Difficulty } from "../../../generated/Difficulty";
 import type { PartyMemberId } from "../../../generated/PartyMemberId";
@@ -17,6 +16,7 @@ import { resolveMicSettings, type MicKind } from "../../../mics/micSettings";
 import { OPENSTAR_VOLUME } from "../../../playback/gain";
 import { memberLook } from "../../../phone/memberLook";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
+import type { PitchMic } from "../../../pitch/pitchRouter";
 import { pitchBufferCapacity } from "../../../pitch/pitchCapacity";
 import type { PaletteKey } from "../../../theme/tokens";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
@@ -52,10 +52,11 @@ export interface SingSetupInput {
   party: PartySnapshot;
   profiles: readonly Profile[] | undefined;
   /**
-   * The relayed Mic id a seated Mic's readings arrive with, or `null` when
-   * none arrive. The default, `relayedMicId`, names a Phone by its Phone id.
+   * The Mic a seated Mic's readings reach the Pitch router as, or `null`
+   * when none arrive. The default, `pitchMicFor`, names a Phone by its Phone
+   * id and a Local mic by its Local mic id.
    */
-  micIdFor?: (mic: MicKey) => MicId | null;
+  micIdFor?: (mic: MicKey) => PitchMic | null;
   /** The OpenStar volume the Mic thresholds are fixed at. */
   volume?: number;
 }
@@ -63,7 +64,7 @@ export interface SingSetupInput {
 export interface SingSetup {
   players: readonly SingPlayer[];
   /** Which Player each seated Mic sings for (`PitchSession.mics`). */
-  mics: readonly (readonly [MicId, number])[];
+  mics: readonly (readonly [PitchMic, number])[];
   /** Readings per Player's buffer (`PitchSession.capacity`). */
   capacity: number;
   /** The sing screen's state, its lanes reading these buffers (one per Player). */
@@ -71,12 +72,15 @@ export interface SingSetup {
 }
 
 /**
- * The Mic id a seated Mic's relayed readings carry: a Phone's is its Phone
- * id. Local mics relay none yet (#130 delivers the Stage browser's on the
- * page, #151 the Mic bridge's), so they get `null`.
+ * The Mic a seated Mic's readings reach the Pitch router as: a Phone's
+ * relayed readings carry its Phone id; a Stage-browser Local mic's are
+ * delivered on the Stage page under its Local mic id (#130). A Mic bridge
+ * Local mic's readings, once relayed (#151), should arrive under the same id.
  */
-export function relayedMicId(mic: MicKey): MicId | null {
-  return mic.kind === "phone" ? { kind: "phone", phoneId: mic.phoneId } : null;
+export function pitchMicFor(mic: MicKey): PitchMic {
+  return mic.kind === "phone"
+    ? { kind: "phone", phoneId: mic.phoneId }
+    : { kind: "localMic", localMicId: mic.localMicId };
 }
 
 function micKind(mic: MicKey | null): MicKind {
@@ -120,8 +124,8 @@ export function singSetup(input: SingSetupInput): SingSetup {
     };
   });
 
-  const micIdFor = input.micIdFor ?? relayedMicId;
-  const mics: [MicId, number][] = [];
+  const micIdFor = input.micIdFor ?? pitchMicFor;
+  const mics: [PitchMic, number][] = [];
   players.forEach((player, index) => {
     const id = player.mic && micIdFor(player.mic);
     if (id) mics.push([id, index]);

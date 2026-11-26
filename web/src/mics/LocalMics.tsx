@@ -3,7 +3,9 @@
 // how kept Local mics meet the channels seen (`matchLocalMics`): a missing
 // Local mic found again by exact label + channel is re-keyed at once.
 // `StageScreen` wraps the Stage frame in `<LocalMicsProvider>`; the Mics
-// screen reads it with `useLocalMics()` and says while it is open.
+// screen reads it with `useLocalMics()` and says while it is open. While a
+// Song plays, the detectors of its seated Local mics run and their readings
+// go into the Stage's Pitch router (`localMicPitch.ts`).
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -21,7 +23,9 @@ import {
 import { localMicsQuery, micBridgesQuery } from "../api/queries";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridges } from "../generated/MicBridges";
+import { stagePitch } from "../live/browserLive";
 import type { LiveState } from "../live/liveState";
+import type { PitchRouter } from "../pitch/pitchRouter";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
 import { createBridgeLevels } from "./bridgeLevels";
@@ -30,6 +34,11 @@ import {
   type CaptureSnapshot,
   type LocalMicCapture,
 } from "./localMicCapture";
+import {
+  detectingChannels,
+  detectingLocalMics,
+  routeLocalMicReadings,
+} from "./localMicPitch";
 import {
   devicesToOpen,
   matchLocalMics,
@@ -107,6 +116,7 @@ export function useLocalMics(): LocalMicsApi {
 
 const selectIsStage = (live: LiveState) => live.stage?.isStage ?? false;
 const selectConnected = (live: LiveState) => live.connection === "open";
+const selectParty = (live: LiveState) => live.stage?.party ?? null;
 const NO_SUBSCRIPTION = () => () => {};
 const idleSnapshot = () => IDLE;
 
@@ -119,11 +129,14 @@ export function LocalMicsProvider({
   children,
   makeCapture = createLocalMicCapture,
   storage = browserStorage,
+  pitch = stagePitch(),
 }: {
   store: LiveStore;
   children: ReactNode;
   /** Tests only: a capture over fake browser APIs. */
   makeCapture?: () => LocalMicCapture;
+  /** Where this browser's Local mic readings go: the Stage's Pitch router. */
+  pitch?: PitchRouter;
   storage?: () => Pick<Storage, "getItem" | "setItem">;
 }) {
   const isStage = useLive(selectIsStage, store);
@@ -228,6 +241,29 @@ export function LocalMicsProvider({
     if (!capture) return;
     void capture.setOpen(new Set(toOpen === "" ? [] : toOpen.split("\n")));
   }, [capture, toOpen]);
+
+  // Detectors run only for the Local mics seated in the Song that plays;
+  // every open device keeps its meters either way.
+  const party = useLive(selectParty, store);
+  const detecting = useMemo(
+    () => [...detectingLocalMics(party)].sort().join("\n"),
+    [party],
+  );
+  useEffect(() => {
+    made.setDetecting(
+      capture
+        ? detectingChannels({
+            stageBrowser,
+            open: snapshot.open,
+            detecting: new Set(detecting === "" ? [] : detecting.split("\n")),
+          })
+        : [],
+    );
+  }, [made, capture, stageBrowser, snapshot.open, detecting]);
+  useEffect(() => {
+    if (!capture) return;
+    return routeLocalMicReadings(capture, stageBrowser, pitch);
+  }, [capture, stageBrowser, pitch]);
 
   // The server offers the switched-on Local mics that are plugged in to the
   // Line-up: tell it which of this browser's are, whenever that changes and

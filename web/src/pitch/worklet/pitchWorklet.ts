@@ -12,12 +12,21 @@ import processorUrl from "./pitchProcessor.ts?worker&url";
 import wasmUrl from "../../../wasm/openstar_detector.wasm?url";
 import {
   PITCH_PROCESSOR_NAME,
+  type PitchNodeCommand,
   type PitchProcessorOptions,
+  type PitchWorkletLevel,
   type PitchWorkletMessage,
   type PitchWorkletReading,
 } from "./pitchMessages";
 
-export type { PitchWorkletReading } from "./pitchMessages";
+export type { PitchWorkletLevel, PitchWorkletReading } from "./pitchMessages";
+
+export interface PitchNodeOptions {
+  /** Whether the detector runs from the start (default `true`). */
+  detect?: boolean;
+  /** Gets the loudness the node posts while its detector is off. */
+  onLevel?: (level: PitchWorkletLevel) => void;
+}
 
 let detectorBytes: Promise<ArrayBuffer> | null = null;
 const loadedContexts = new WeakMap<BaseAudioContext, Promise<void>>();
@@ -60,14 +69,17 @@ function addWorklet(context: BaseAudioContext): Promise<void> {
 /**
  * A pitch node on `context`: connect one mono source to it (a channel of a
  * `ChannelSplitter`, say); `onReading` gets every reading, voiced or not.
- * Disconnect it and close its port to stop.
+ * With `detect: false` it starts metering only (`onLevel`) until
+ * `setDetecting` switches its detector on. Disconnect it and close its port
+ * to stop.
  */
 export async function createPitchNode(
   context: BaseAudioContext,
   onReading: (reading: PitchWorkletReading) => void,
+  { detect = true, onLevel }: PitchNodeOptions = {},
 ): Promise<AudioWorkletNode> {
   const [wasm] = await Promise.all([detectorWasm(), addWorklet(context)]);
-  const processorOptions: PitchProcessorOptions = { wasm };
+  const processorOptions: PitchProcessorOptions = { wasm, detect };
   const node = new AudioWorkletNode(context, PITCH_PROCESSOR_NAME, {
     numberOfInputs: 1,
     numberOfOutputs: 0,
@@ -77,7 +89,18 @@ export async function createPitchNode(
     processorOptions,
   });
   node.port.onmessage = (event: MessageEvent<PitchWorkletMessage>) => {
-    onReading(event.data);
+    const message = event.data;
+    if (message.type === "reading") onReading(message);
+    else onLevel?.(message);
   };
   return node;
+}
+
+/**
+ * Runs a pitch node's detector or stops it; its level keeps coming either
+ * way. One switched on starts afresh, with an empty window.
+ */
+export function setDetecting(node: AudioWorkletNode, on: boolean): void {
+  const command: PitchNodeCommand = { type: "detect", on };
+  node.port.postMessage(command);
 }
