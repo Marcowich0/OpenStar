@@ -333,3 +333,80 @@ fn readings_are_stamped_at_their_window_centre() {
         }
     }
 }
+
+/// The committed native readings the WASM build is compared with in Vitest
+/// (`web/src/pitch/worklet/pitchProcessor.test.ts`).
+fn native_readings_path() -> PathBuf {
+    fixtures_dir().join("native/readings.json")
+}
+
+/// FNV-1a (32-bit) over each sample's little-endian `f32` bytes: shows that
+/// the TypeScript generator made the very same input.
+fn samples_digest(samples: &[f32]) -> u32 {
+    let mut hash: u32 = 0x811c_9dc5;
+    for sample in samples {
+        for byte in sample.to_le_bytes() {
+            hash ^= u32::from(byte);
+            hash = hash.wrapping_mul(0x0100_0193);
+        }
+    }
+    hash
+}
+
+/// The first signal of every case file at every rate: the digest of its
+/// samples and the native readings, `[pitch | null, clarity, loudness, endFrame]`.
+fn native_readings() -> serde_json::Value {
+    let mut names: Vec<String> = std::fs::read_dir(fixtures_dir())
+        .expect("fixtures/detector")
+        .filter_map(|e| {
+            let path = e.ok()?.path();
+            (path.extension()? == "json").then(|| path.file_stem()?.to_str().map(str::to_owned))?
+        })
+        .collect();
+    names.sort();
+    let mut runs = Vec::new();
+    for name in names {
+        let file = load(&name);
+        let signal = &file.signals[0];
+        for &sample_rate in &file.sample_rates {
+            let generated = generate(&file, signal, sample_rate);
+            let readings: Vec<serde_json::Value> =
+                readings(&generated, sample_rate, file.block_len)
+                    .iter()
+                    .map(|r| serde_json::json!([r.pitch, r.clarity, r.loudness_dbfs, r.end_frame]))
+                    .collect();
+            runs.push(serde_json::json!({
+                "case": name,
+                "signal": 0,
+                "sampleRate": sample_rate,
+                "samplesDigest": samples_digest(&generated.samples),
+                "readings": readings,
+            }));
+        }
+    }
+    serde_json::json!({
+        "description": "Native readings of the first signal of every case file, made by `native_readings_file_is_current` in crates/detector/tests/fixtures.rs. Regenerate with OPENSTAR_UPDATE_NATIVE_READINGS=1 cargo test -p openstar-detector --test fixtures.",
+        "runs": runs,
+    })
+}
+
+#[test]
+fn native_readings_file_is_current() {
+    let current = native_readings();
+    let path = native_readings_path();
+    if std::env::var_os("OPENSTAR_UPDATE_NATIVE_READINGS").is_some() {
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
+        let text = serde_json::to_string(&current).expect("json") + "\n";
+        std::fs::write(&path, text).expect("write");
+        return;
+    }
+    let committed: serde_json::Value = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or(serde_json::Value::Null);
+    assert!(
+        committed == current,
+        "{} is out of date: rerun with OPENSTAR_UPDATE_NATIVE_READINGS=1 and commit it",
+        path.display()
+    );
+}

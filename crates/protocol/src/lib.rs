@@ -264,14 +264,6 @@ pub enum ClientMessage {
         request_id: RequestId,
         control: SongControl,
     },
-    /// The Stage reports that Request `request_id`'s Song reached its
-    /// results screen, played out or ended early: the Request leaves the
-    /// Queue and the Party shows results. Accepted only from the active
-    /// Stage; [`UserMessage::NoSongPlaying`] when that Song is not playing.
-    ReachedResults {
-        request_id: RequestId,
-        ended: SongEnd,
-    },
     /// Next (or Done, with an empty Queue) on the results: the next
     /// Request's Line-up comes up prefilled, or the song browser. A Remote
     /// command; [`UserMessage::NoResults`] when no results show.

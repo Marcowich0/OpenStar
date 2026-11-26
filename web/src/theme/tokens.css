@@ -66,6 +66,8 @@
   /* The lyric bar (#55): a golden Note's unsung text, and the bar's ledge. */
   --color-golden-text: #e09a00;
   --color-lyric-ledge: rgba(43, 45, 66, 0.2);
+  /* The "mic lost" pill on a lane (#55): its ledge. */
+  --color-mic-lost-ledge: rgba(0, 0, 0, 0.25);
 
   /* Radii: buttons, chips and pills use `rounded-full`; cards 36–52 px. */
   --radius-card-sm: 36px;
@@ -83,6 +85,7 @@
   --shadow-ledge-yellow: 0 8px 0 var(--color-yellow-ledge);
   /* Under the sing screen's lyric bar. */
   --shadow-ledge-lyric: 0 10px 0 var(--color-lyric-ledge);
+  --shadow-ledge-mic-lost: 0 6px 0 var(--color-mic-lost-ledge);
 
   /* The one springy back-out easing for all UI motion. */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -101,6 +104,7 @@
   --animate-line-in: line-in 0.35s var(--ease-spring) both;
   --animate-squish: squish 0.65s var(--ease-spring);
   --animate-bob: bob 3s ease-in-out infinite;
+  --animate-mic-lost-dot: mic-lost-dot 1.2s infinite;
 
   /* The breathing Sing / Start button: one breath, up to 6 % larger. */
   @keyframes breathe {
@@ -158,6 +162,13 @@
     }
     45% {
       scale: 1.08 0.92;
+    }
+  }
+
+  /* The "mic lost" pill's three dots, pulsing 0.2 s apart. */
+  @keyframes mic-lost-dot {
+    50% {
+      opacity: 0.2;
     }
   }
 

@@ -1,0 +1,28 @@
+[package]
+name = "openstar-detector-wasm"
+description = "The live pitch detector (openstar-detector) as a WASM module with a C ABI, for the pitch-detection AudioWorklet. No JavaScript glue: the worklet calls these exports directly."
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+# cdylib is the .wasm the worklet loads; rlib lets the native tests call the
+# same exports.
+crate-type = ["cdylib", "rlib"]
+
+# The workspace's one exemption from `unsafe_code = "forbid"` (root
+# Cargo.toml): `#[unsafe(no_mangle)]` on the exports is an unsafe attribute,
+# so this crate denies unsafe code and allows it on each export alone.
+# `tests/unsafe_rule.rs` keeps it that way, and keeps every other crate on the
+# workspace lints.
+[lints.rust]
+unsafe_code = "deny"
+
+[dependencies]
+openstar-detector.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+proptest.workspace = true

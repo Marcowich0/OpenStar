@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { ApiFailure } from "../../../api/api";
 import type { ClientMessage } from "../../../generated/ClientMessage";
 import type { MicId } from "../../../generated/MicId";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
@@ -86,16 +87,22 @@ function setup(over: Partial<StageSongOptions> = {}) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
   const sent: ClientMessage[] = [];
-  const store = createLiveStore((given) => {
-    handlers = given;
-    return {
-      send: (message) => {
-        sent.push(message);
-        return true;
-      },
-      close: () => {},
-    };
-  });
+  // The store hands readings and closed Mics to the router, as in the browser.
+  const pitch = createPitchRouter();
+  const store = createLiveStore(
+    (given) => {
+      handlers = given;
+      return {
+        send: (message) => {
+          sent.push(message);
+          return true;
+        },
+        close: () => {},
+      };
+    },
+    undefined,
+    pitch,
+  );
   const server = (message: ServerMessage) => {
     handlers?.onMessage(message);
   };
@@ -112,9 +119,9 @@ function setup(over: Partial<StageSongOptions> = {}) {
 
   const log: string[] = [];
   let ended: ((how: SongEnding) => void) | null = null;
+  let nowMs = 1_700_000_000_000;
   let resumeLater: (() => void) | null = null;
   const rounds: RoundOutcome[] = [];
-  const pitch = createPitchRouter();
   const loadSong = vi.fn(() => Promise.resolve(testDetail()));
   let playback: ReturnType<typeof fakePlayback> | null = null;
   let stageMs = 0;
@@ -134,7 +141,8 @@ function setup(over: Partial<StageSongOptions> = {}) {
       rounds.push(outcome);
       return Promise.resolve();
     },
-    now: () => 1_700_000_000_000,
+    now: () => nowMs,
+    wait: () => Promise.resolve(),
     schedule: (run) => {
       resumeLater = run;
       return () => {
@@ -178,10 +186,11 @@ function setup(over: Partial<StageSongOptions> = {}) {
     song.attach({} as HTMLMediaElement);
     await flush();
   };
-  const reachedResults = () => sent.filter((m) => m.type === "reachedResults");
+  const reported = () => rounds.filter((r) => r.ended !== "skipped");
 
   return {
     song,
+    store,
     server,
     party,
     control,
@@ -191,7 +200,10 @@ function setup(over: Partial<StageSongOptions> = {}) {
     rounds,
     pitch,
     loadSong,
-    reachedResults,
+    reportedRounds: reported,
+    setNow: (ms: number) => {
+      nowMs = ms;
+    },
     connection,
     playedOut: () => ended?.("played"),
     countdownDone: () => {
@@ -287,43 +299,76 @@ describe("the Stage plays the head's Request", () => {
     expect(t.log).toEqual(["start"]);
   });
 
-  it("raises one end of the Song when End stops it", async () => {
+  it("reports the ended round once when End stops it, one Score per seat", async () => {
     const t = setup();
     await t.start();
     t.control("end");
     expect(t.log.at(-1)).toBe("end");
-    expect(t.reachedResults()).toEqual([
-      { type: "reachedResults", requestId: 5, ended: "ended" },
+    await flush();
+    expect(t.reportedRounds()).toEqual([
+      {
+        songId: 7,
+        requestId: 5,
+        noteFingerprint: "f1ng3rpr1nt",
+        partyId: "party-1",
+        mode: "normal",
+        startedAtMs: 1_700_000_000_000,
+        ended: "ended",
+        scores: [
+          expect.objectContaining({
+            player: { kind: "profile", profileId: 11 },
+            voice: 0,
+            difficulty: "hard",
+            total: 0,
+            micKind: "phone",
+            unfinished: true,
+            beatRange: { firstBeat: 0, lastBeat: 15 },
+          }),
+        ],
+      },
     ]);
     expect(t.song.view()).toMatchObject({ ended: "ended" });
     // A second End, or the media ending after all, raises nothing more.
     t.control("end");
     t.playedOut();
-    expect(t.reachedResults()).toHaveLength(1);
+    await flush();
+    expect(t.reportedRounds()).toHaveLength(1);
     expect(t.pitch.buffers()).toHaveLength(0);
   });
 
-  it("raises the end of the Song for an End that comes while the Song still loads", async () => {
+  it("reports an End that comes while the Song still loads once it has loaded, nothing sung", async () => {
     const t = setup();
     t.party({ playing: PLAYING });
     t.control("start");
     t.control("end");
     await flush();
-    expect(t.reachedResults()).toEqual([
-      { type: "reachedResults", requestId: 5, ended: "ended" },
+    expect(t.reportedRounds()).toEqual([
+      expect.objectContaining({
+        requestId: 5,
+        ended: "ended",
+        scores: [
+          expect.objectContaining({
+            player: { kind: "profile", profileId: 11 },
+            total: 0,
+            unfinished: true,
+            beatValues: Array.from({ length: 16 }, () => ({ kind: "noVoice" })),
+          }),
+        ],
+      }),
     ]);
     t.song.attach({} as HTMLMediaElement);
     await flush();
     expect(t.log).toEqual([]);
   });
 
-  it("raises one end of the Song when it plays out", async () => {
+  it("reports the played round once when it plays out", async () => {
     const t = setup();
     await t.start();
     t.playedOut();
     t.playedOut();
-    expect(t.reachedResults()).toEqual([
-      { type: "reachedResults", requestId: 5, ended: "played" },
+    await flush();
+    expect(t.reportedRounds()).toEqual([
+      expect.objectContaining({ requestId: 5, ended: "played" }),
     ]);
     expect(t.song.lastRound()).toMatchObject({
       requestId: 5,
@@ -339,10 +384,11 @@ describe("the Stage plays the head's Request", () => {
     t.control("skip");
     await flush();
     expect(t.log.at(-1)).toBe("dispose");
-    expect(t.reachedResults()).toEqual([]);
+    expect(t.reportedRounds()).toEqual([]);
     expect(t.rounds).toEqual([
       {
         songId: 7,
+        requestId: 5,
         noteFingerprint: "f1ng3rpr1nt",
         partyId: "party-1",
         mode: "normal",
@@ -383,7 +429,7 @@ describe("the Stage plays the head's Request", () => {
     await t.start();
     t.connection("reconnecting");
     expect(t.log.at(-1)).toBe("dispose");
-    expect(t.reachedResults()).toEqual([]);
+    expect(t.reportedRounds()).toEqual([]);
     expect(t.rounds).toEqual([]);
     expect(t.song.view().kind).toBe("idle");
   });
@@ -393,7 +439,7 @@ describe("the Stage plays the head's Request", () => {
     await t.start();
     t.party({ playing: null });
     expect(t.log.at(-1)).toBe("dispose");
-    expect(t.reachedResults()).toEqual([]);
+    expect(t.reportedRounds()).toEqual([]);
   });
 
   it("does not play a Song it never heard Start for (a reloaded Stage)", async () => {
@@ -469,5 +515,118 @@ describe("the Stage plays the head's Request", () => {
     sing(t, 0, 0, 2300);
     t.frames(4600); // Beat 0 final at 1.25 s + 300 ms after the Restart
     expect(view.state.lanes[0]?.player?.score).toBe(750);
+  });
+
+  it("starts the round when the Song last started from its beginning: after the last Restart", async () => {
+    const t = setup();
+    t.setNow(1_000);
+    await t.start();
+    t.setNow(5_000);
+    t.control("restart");
+    t.setNow(9_000);
+    t.control("end");
+    await flush();
+    expect(t.reportedRounds()).toEqual([
+      expect.objectContaining({ startedAtMs: 5_000 }),
+    ]);
+  });
+
+  it("sends the same outcome again when the answer is lost, and stops on a refusal", async () => {
+    const answers: (() => Promise<unknown>)[] = [
+      () => Promise.reject(new ApiFailure({ kind: "network" })),
+      () => Promise.reject(new ApiFailure({ kind: "unexpected", status: 502 })),
+      () => Promise.resolve(),
+    ];
+    const posted: RoundOutcome[] = [];
+    const t = setup({
+      postRound: (outcome) => {
+        posted.push(outcome);
+        return (answers.shift() ?? (() => Promise.resolve()))();
+      },
+    });
+    await t.start();
+    t.control("end");
+    await flush();
+    await flush();
+    expect(posted).toHaveLength(3);
+    expect(posted[1]).toEqual(posted[0]);
+    expect(posted[2]).toEqual(posted[0]);
+
+    const refusedPosts: RoundOutcome[] = [];
+    const r = setup({
+      postRound: (outcome) => {
+        refusedPosts.push(outcome);
+        return Promise.reject(
+          new ApiFailure({
+            kind: "refused",
+            status: 409,
+            error: { code: "noSongPlaying" },
+          }),
+        );
+      },
+    });
+    await r.start();
+    r.control("end");
+    await flush();
+    await flush();
+    expect(refusedPosts).toHaveLength(1);
+  });
+
+  it("greys Mia's lane while her Mic is lost: the Notes go on, the Score freezes, the Song never pauses", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    const scores: { notes: number }[] = [];
+    t.song.onScoring((change) => scores.push(change.score));
+    view.clock.play();
+    sing(t, 0, 3);
+    t.frames(2300);
+    const lane = view.state.lanes[0];
+    expect(lane?.trace?.lostAt).toBeNull();
+
+    // Her Phone's connection closes, and no reading comes for a while.
+    t.server({ type: "micClosed", mic: MIA_MIC });
+    t.frames(4000);
+    // Lost from the first frame after the close, in Song time.
+    expect(lane?.trace?.lostAt).toBeGreaterThanOrEqual(2.3);
+    expect(lane?.trace?.lostAt).toBeLessThanOrEqual(2.34);
+    // No Note points while lost (a Line that ends still gets its bonus).
+    expect(scores.at(-1)?.notes).toBe(3000);
+    expect(t.song.view()).toMatchObject({ controls: { phase: "playing" } });
+    expect(t.log).toEqual(["start"]);
+    expect(t.store.getSnapshot().toasts).toEqual([]);
+  });
+
+  it("returns Mia's lane when her Mic is back, with a toast saying so", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 1);
+    t.server({ type: "micClosed", mic: MIA_MIC });
+    t.frames(2000);
+    const lane = view.state.lanes[0];
+    expect(lane?.trace?.lostAt).not.toBeNull();
+
+    // A reading from her Mic again: it is back.
+    t.pitch.receive(MIA_MIC, {
+      captureMs: 2000,
+      pitch: 60,
+      clarity: 0.95,
+      loudness: -10,
+    });
+    t.frames(2040);
+    expect(lane?.trace?.lostAt).toBeNull();
+    expect(t.store.getSnapshot().toasts).toEqual([
+      expect.objectContaining({
+        actor: { kind: "member", memberId: 1 },
+        event: { code: "backOnMic", params: { memberId: 1, name: "Mia" } },
+      }),
+    ]);
+    // A Restart is not a return: no second toast.
+    t.control("restart");
+    expect(t.store.getSnapshot().toasts).toHaveLength(1);
   });
 });

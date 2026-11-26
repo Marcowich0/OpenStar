@@ -12,9 +12,11 @@
  *   React render).
  * - **Pause, Resume, Restart** go to the Song controls (#158: freeze, 3-2-1,
  *   seek to `#START` with the buffers cleared and the scoring reset).
- * - **End** stops the Song; a Song that plays out or is ended raises one end
- *   of the Song, `reachedResults`, and its round stays in `lastRound()` for
- *   the results flow (#175).
+ * - **End** stops the Song. A Song that plays out or is ended reports its
+ *   round once (#175): `POST /api/rounds` with each seat's Score, sent again
+ *   while the answer is lost (the server stores one outcome per Request
+ *   once). The server then shows the results to the Party. The round stays
+ *   in `lastRound()`.
  * - **Skip** stops the Song and reports the skipped round once
  *   (`POST /api/rounds`, no Scores); the server has already moved the Party on.
  *
@@ -61,7 +63,21 @@ import {
   type SongControlsOptions,
   type SongControlsState,
 } from "../../playback/songControls";
+import { ApiFailure } from "../../../api/api";
+import { roundOutcome } from "./roundOutcome";
 import { singSetup, type SingSetup } from "./singSetup";
+
+/** How often a played or ended round's outcome is sent when the answer is lost. */
+const REPORT_ATTEMPTS = 6;
+/** The wait before the first resend; it doubles each time. */
+const REPORT_RETRY_MS = 500;
+
+/** A lost answer (no answer, or the server failed): send the same outcome again. */
+function worthRetrying(error: unknown): boolean {
+  if (!(error instanceof ApiFailure)) return false;
+  const failure = error.failure;
+  return failure.kind === "network" || failure.status >= 500;
+}
 
 /** What the sing scene shows. */
 export type StageSongView =
@@ -105,7 +121,7 @@ export interface StageRound {
 export interface StageSongOptions {
   store: Pick<
     LiveStore,
-    "getSnapshot" | "subscribe" | "send" | "onSongControl"
+    "getSnapshot" | "subscribe" | "send" | "onSongControl" | "showStageToast"
   >;
   loadSong: (id: SongId) => Promise<SongDetail>;
   /** The Profiles, for the lane headers' names and avatars. */
@@ -124,6 +140,8 @@ export interface StageSongOptions {
   resumeAudio: () => Promise<void>;
   /** Stores a round's outcome (`POST /api/rounds`). */
   postRound: (outcome: RoundOutcome) => Promise<unknown>;
+  /** Waits before sending an outcome again (`setTimeout`). */
+  wait?: (ms: number) => Promise<void>;
   /** Wall-clock now, Unix ms (`Date.now`). */
   now?: () => number;
   /** The countdown's timer (`SongControlsOptions.schedule`). */
@@ -182,6 +200,12 @@ const IDLE: StageSongView = { kind: "idle" };
 export function createStageSong(options: StageSongOptions): StageSong {
   const { store, pitch } = options;
   const now = options.now ?? (() => Date.now());
+  const wait =
+    options.wait ??
+    ((ms: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+      }));
   const stageNow = options.stageNow ?? (() => performance.now());
   const requestFrame =
     options.requestFrame ??
@@ -285,7 +309,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
       });
   }
 
-  /** The Song played out or was ended: one end of the Song, then the results. */
+  /** The Song played out or was ended: its round is reported once. */
   function finish(s: Session, how: SongEnding) {
     if (s.ended !== null || s.stopped) return;
     s.ended = how;
@@ -294,7 +318,6 @@ export function createStageSong(options: StageSongOptions): StageSong {
     // Score what is due before the readings stop.
     const scoring = s.scoring?.outcome() ?? null;
     pitch.stop();
-    // Ended before it loaded: the end of the Song still goes out, with no round.
     round =
       s.detail && s.setup && scoring
         ? {
@@ -308,8 +331,69 @@ export function createStageSong(options: StageSongOptions): StageSong {
             partyId: s.party?.partyId ?? "",
           }
         : null;
-    store.send({ type: "reachedResults", requestId: s.requestId, ended: how });
     if (session === s) update({ ended: how });
+    void report(s, how, scoring);
+  }
+
+  /**
+   * Sends the round's outcome. Ended before it loaded: once it has, with
+   * nothing sung. Sent again while the answer is lost; a refusal (the Song
+   * no longer plays, say) ends it.
+   */
+  async function report(
+    s: Session,
+    how: SongEnding,
+    scoring: LiveScoringOutcome | null,
+  ) {
+    const detail = await s.load;
+    const party = s.party;
+    if (!detail || !party?.lineUp) return;
+    const setup =
+      s.setup ?? singSetup({ detail, party, profiles: options.profiles() });
+    const outcome = roundOutcome({
+      requestId: s.requestId,
+      songId: detail.id,
+      party,
+      memberIds: setup.players.map((player) => player.memberId),
+      scoring: scoring ?? silentOutcome(detail, setup),
+      startedAtMs: s.startedAtMs,
+      ended: how,
+    });
+    if (!outcome) return;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await options.postRound(outcome);
+        return;
+      } catch (error) {
+        if (attempt >= REPORT_ATTEMPTS || !worthRetrying(error)) return;
+        await wait(REPORT_RETRY_MS * 2 ** (attempt - 1));
+      }
+    }
+  }
+
+  /** The outcome of a Song that never played: every Beat no voice. */
+  function silentOutcome(
+    detail: SongDetail,
+    setup: SingSetup,
+  ): LiveScoringOutcome {
+    const clock = createSongClock({
+      media: playbackPlan(detail).clock,
+      now: stageNow,
+    });
+    return createLiveScoring({
+      song: detail.song,
+      noteFingerprint: detail.noteFingerprint,
+      players: setup.players.map((player) => ({
+        voice: player.voice,
+        difficulty: player.difficulty,
+        micKind: player.micKind,
+        micDelayMs: player.micDelayMs,
+        micThresholdDbfs: player.micThresholdDbfs,
+      })),
+      clock,
+      buffers: () => [],
+      now: stageNow,
+    }).outcome();
   }
 
   function start(message: SongControlMessage) {
@@ -383,13 +467,29 @@ export function createStageSong(options: StageSongOptions): StageSong {
         heard: (player) => {
           scoring.micEvent(player, "reading");
         },
+        // A closed connection (`micClosed`), and its return (#213).
+        signal: (player, kind) => {
+          scoring.micEvent(player, kind);
+        },
       });
       const state = setup.state(s.buffers);
       scoring.onChange((change) => {
         if (session !== s) return;
         // The header shows it at its next render; `onScoring` writes it now.
-        const player = state.lanes[change.player]?.player;
+        const lane = state.lanes[change.player];
+        const player = lane?.player;
         if (player) player.score = change.score.total;
+        // The lost lane is drawn from `trace.lostAt`, read every frame (#213).
+        if (lane?.trace) lane.trace.lostAt = change.lostAt;
+        if (change.back) {
+          const seat = setup.players[change.player];
+          if (seat) {
+            store.showStageToast({
+              code: "backOnMic",
+              params: { memberId: seat.memberId, name: seat.look?.name ?? "" },
+            });
+          }
+        }
         for (const listener of [...scoringListeners]) listener(change);
       });
       show({
@@ -418,6 +518,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
       options
         .postRound({
           songId: detail.id,
+          requestId: s.requestId,
           noteFingerprint: detail.noteFingerprint,
           partyId,
           mode: "normal",

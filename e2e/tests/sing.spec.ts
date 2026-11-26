@@ -5,7 +5,7 @@ import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
 // The Stage plays the head's Request (#164): Start on the Line-up switches
 // to the sing scene and the Song plays from its start; Pause, Resume,
 // Restart, End and Skip from a Remote reach the Stage's playback through the
-// server. A Phone sends its commands over a second socket of its own page,
+// server; an ended Song's round is stored and its results shown (#175). A Phone sends its commands over a second socket of its own page,
 // as `line-up.spec.ts` does.
 
 interface Snapshot {
@@ -201,6 +201,7 @@ test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and 
     const response = await round;
     expect(response.status()).toBe(201);
     expect(response.request().postDataJSON()).toMatchObject({
+      requestId,
       ended: "skipped",
       scores: [],
     });
@@ -216,13 +217,13 @@ test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and 
   }
 });
 
-test("End stops the Song and raises its end once: the Stage shows the results", async ({
+test("End stops the Song: the Stage stores the ended round and the Stage and the Phone show its results", async ({
   stage,
   openPhone,
   request,
 }) => {
   test.setTimeout(60_000);
-  const { phone, requestId, frame } = await partyWithRequest(
+  const { phone, requestId, frame, profile } = await partyWithRequest(
     stage,
     openPhone,
     request,
@@ -235,14 +236,54 @@ test("End stops the Song and raises its end once: the Stage shows the results", 
     await expect(frame).toHaveAttribute("data-scene", "sing");
     await expect.poll(() => mediaTime(stage)).toBeGreaterThan(0.5);
 
+    // End: the Stage sends the round's outcome once and the server answers
+    // with the stored round and its results. No Pitch reading reaches the
+    // scorer yet (the Mic-to-Player map is empty), so the Score is 0.
+    const round = stage.waitForResponse(
+      (r) => r.url().endsWith("/api/rounds") && r.request().method() === "POST",
+    );
     await sendFromPhone(phone, {
       type: "controlSong",
       requestId,
       control: "end",
     });
     ended = true;
+    const response = await round;
+    expect(response.status()).toBe(201);
+    const stored = (await response.json()) as {
+      round: {
+        ended: string;
+        records: { player: { profileId?: number }; unfinished: boolean }[];
+      };
+      results: { players: { name: string; total: number; place: number }[] };
+    };
+    expect(stored.round.ended).toBe("ended");
+    expect(stored.round.records).toEqual([
+      expect.objectContaining({
+        player: { kind: "profile", profileId: profile.id },
+        unfinished: true,
+      }),
+    ]);
+    expect(stored.results.players).toEqual([
+      expect.objectContaining({ name: profile.name, total: 0, place: 1 }),
+    ]);
+
+    // The Stage shows the results; the Phone shows its own Player's.
     await expect(frame).toHaveAttribute("data-scene", "results");
     expect(await media(stage)).toEqual([]);
+    await expect(stage.getByTestId("results-players")).toHaveText(
+      `1. ${profile.name}: 0`,
+    );
+    await phone.getByRole("tab", { name: "Stage" }).click();
+    const mine = phone.getByTestId("my-result");
+    await expect(mine).toContainText("Your Score: 0");
+    await expect(mine).toContainText("Ended early");
+
+    // Storing the record set the Profile's last sung.
+    const after = (await (
+      await request.get(`/api/profiles/${String(profile.id)}`)
+    ).json()) as { lastSungAt: number | null };
+    expect(after.lastSungAt).not.toBeNull();
   } finally {
     if (ended) await sendFromPhone(phone, { type: "closeResults" });
     else

@@ -100,6 +100,7 @@ describe("interface tokens", () => {
       "--color-lane-shadow": "rgba(0, 0, 0, 0.18)",
       "--color-golden-text": "#E09A00",
       "--color-lyric-ledge": "rgba(43, 45, 66, 0.2)",
+      "--color-mic-lost-ledge": "rgba(0, 0, 0, 0.25)",
       "--color-white": "#FFFFFF",
       "--radius-card-sm": "36px",
       "--radius-card": "44px",
@@ -112,6 +113,7 @@ describe("interface tokens", () => {
       "--shadow-ledge-ink": "0 8px 0 var(--color-ink-ledge)",
       "--shadow-ledge-yellow": "0 8px 0 var(--color-yellow-ledge)",
       "--shadow-ledge-lyric": "0 10px 0 var(--color-lyric-ledge)",
+      "--shadow-ledge-mic-lost": "0 6px 0 var(--color-mic-lost-ledge)",
       "--ease-spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
       "--default-transition-timing-function": "var(--ease-spring)",
     });
@@ -174,6 +176,7 @@ describe("motion", () => {
       "--animate-line-in": "line-in 0.35s var(--ease-spring) both",
       "--animate-squish": "squish 0.65s var(--ease-spring)",
       "--animate-bob": "bob 3s ease-in-out infinite",
+      "--animate-mic-lost-dot": "mic-lost-dot 1.2s infinite",
     });
   });
 
