@@ -1,6 +1,6 @@
 [package]
 name = "openstar-detector-wasm"
-description = "The live pitch detector (openstar-detector) as a WASM module with a C ABI, for the pitch-detection AudioWorklet. No JavaScript glue: the worklet calls these exports directly."
+description = "The live pitch detector (openstar-detector) and the capture clock (openstar-capture-clock) as a WASM module with a C ABI, for the pitch-detection AudioWorklet and the main thread. No JavaScript glue: the worklet calls these exports directly."
 version = "0.0.0"
 edition.workspace = true
 rust-version.workspace = true
@@ -21,6 +21,7 @@ crate-type = ["cdylib", "rlib"]
 unsafe_code = "deny"
 
 [dependencies]
+openstar-capture-clock.workspace = true
 openstar-detector.workspace = true
 
 [dev-dependencies]

@@ -22,9 +22,16 @@
 //! grow (the detector allocates its scratch buffers on the first window), so
 //! the caller re-reads `memory.buffer` before each write.
 //!
+//! The same module also carries the capture clock for the main thread (the
+//! `openstar_clock_*` exports, [`clock`]): the frame-to-clock mapping and the
+//! clock sync, so the browser runs the very code the Mic bridge links.
+//!
 //! The only `unsafe` here is `#[unsafe(no_mangle)]` on the exports
 //! (`tests/unsafe_rule.rs`).
 
+pub mod clock;
+
+pub use clock::*;
 use openstar_detector::{Mpm, PitchReading, ReadingMaker};
 use std::cell::RefCell;
 
