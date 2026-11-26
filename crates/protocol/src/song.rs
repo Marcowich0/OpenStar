@@ -220,6 +220,13 @@ pub struct TimingSave {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub auto_fit_from: Option<crate::PhoneId>,
+    /// [`crate::library::SongDetail::loaded_at_ms`] of the Song detail the
+    /// editor opened (server time, ms since the Unix epoch). The save is
+    /// refused (`409 songStartedSinceOpened`) when the Song started playing
+    /// on the Stage since then.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub opened_at_ms: Option<i64>,
 }
 
 /// The version of a `.txt` as OpenStar loaded it: the SHA-256 of its bytes,

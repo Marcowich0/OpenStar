@@ -8,7 +8,9 @@
 //!   1. The file on disk must be the one the index loaded (same mtime and
 //!      SHA-256) and the one the preview was made from (`base`); otherwise
 //!      `409 songFileChanged`. The Song playing now is refused with
-//!      `409 songPlaying`.
+//!      `409 songPlaying`, and a Song that started on the Stage since the
+//!      editor opened it (`openedAtMs`, the detail's `loadedAtMs`) with
+//!      `409 songStartedSinceOpened`, even if it has stopped since.
 //!   2. Before the Song's first edit its bytes are copied to
 //!      `<name>.txt.orig` beside it. An existing Original is never
 //!      overwritten.
@@ -76,6 +78,8 @@ enum Refused {
     Invalid,
     /// The Song plays on the Stage now.
     Playing,
+    /// The Song started on the Stage after the editor opened it.
+    StartedSinceOpened,
     /// There is no Original to restore.
     NoOriginal,
     Failed(anyhow::Error),
@@ -97,6 +101,7 @@ impl IntoResponse for Refused {
                 UserMessage::InvalidMessage,
             ),
             Self::Playing => (StatusCode::CONFLICT, UserMessage::SongPlaying),
+            Self::StartedSinceOpened => (StatusCode::CONFLICT, UserMessage::SongStartedSinceOpened),
             Self::NoOriginal => (StatusCode::NOT_FOUND, UserMessage::NoOriginal),
             Self::Failed(error) => {
                 tracing::error!(?error, "writing a Song's .txt");
@@ -249,6 +254,15 @@ pub(crate) async fn save(
         }
         if state.live.song_playing(id).await {
             return Err(Refused::Playing);
+        }
+        if let Some(opened_at_ms) = save.opened_at_ms
+            && state
+                .live
+                .song_last_started(id)
+                .await
+                .is_some_and(|started_ms| started_ms >= opened_at_ms)
+        {
+            return Err(Refused::StartedSinceOpened);
         }
         let title = on_disk.parsed.song.headers.title.clone();
         let written = patch(&on_disk, save.operations)?;

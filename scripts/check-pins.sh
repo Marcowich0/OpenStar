@@ -2,7 +2,7 @@
 # Checks that every version pin is one Renovate keeps current (docs/renovate.md):
 #
 # - renovate.json is readable JSON, and Dependabot version updates are off;
-# - every base image in the Dockerfile is pinned by digest;
+# - every base image in the Dockerfile is pinned by digest (`scratch` is none);
 # - every action in .github/workflows is pinned by a full commit SHA, with
 #   the version as a comment (`uses: owner/repo@<sha> # vX.Y.Z`);
 # - every `*_VERSION` build argument or environment variable in the
@@ -31,7 +31,7 @@ for f in "$root/.github/dependabot.yml" "$root/.github/dependabot.yaml"; do
   [[ -e "$f" ]] && problem "${f#"$root/"}: Dependabot version updates are not used; Renovate bumps every pin"
 done
 
-# Base images: by digest, except a FROM that names an earlier stage.
+# Base images: by digest, except a FROM that names an earlier stage or scratch.
 stages=" "
 while IFS= read -r line; do
   read -r -a words <<<"$line"
@@ -45,6 +45,8 @@ while IFS= read -r line; do
     stages+="${BASH_REMATCH[1]} "
   fi
   [[ "$stages" == *" $image "* && "$image" != *[:@]* ]] && continue
+  # `scratch` is the empty image, not one that is pulled.
+  [[ "$image" == scratch ]] && continue
   [[ "$image" == *@sha256:* ]] || problem "Dockerfile: base image $image is not pinned by digest"
 done < <(grep -E '^FROM[[:space:]]' "$root/Dockerfile")
 

@@ -42,6 +42,10 @@ copy from-tag
 sed -i 's|^FROM --platform=linux/amd64 debian:trixie-slim@sha256:[0-9a-f]*|FROM --platform=linux/amd64 debian:trixie-slim|' "$repo/Dockerfile"
 expect fail "a base image without a digest" "debian:trixie-slim"
 
+copy bridge-from-tag
+sed -i 's|^FROM --platform=linux/amd64 ubuntu:22.04@sha256:[0-9a-f]*|FROM --platform=linux/amd64 ubuntu:22.04|' "$repo/Dockerfile"
+expect fail "the Mic bridge base image without a digest" "ubuntu:22.04"
+
 copy action-tag
 sed -i '0,/uses: actions\/checkout@[0-9a-f]\{40\}/s//uses: actions\/checkout@v7/' "$repo/.github/workflows/ci.yml"
 expect fail "an action pinned by tag" "actions/checkout@v7"

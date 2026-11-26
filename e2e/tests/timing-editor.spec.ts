@@ -121,3 +121,67 @@ test("the #VIDEOGAP field shows for a Song whose video is a separate file", asyn
   await expect(page.locator("video")).toHaveJSProperty("muted", true);
   await context.close();
 });
+
+// Fine-tuning by hand (#221) in real Chromium: a whole-Song drag on empty
+// space and a Line shift, each committed as one edit on release; the save
+// preview asks for exactly their operations. Nothing is saved.
+test("dragging empty space moves the whole Song and dragging a Line shifts it", async ({
+  browser,
+}, testInfo) => {
+  const context = await browser.newContext({ viewport: DESKTOP });
+  const page = await context.newPage();
+  const previews: unknown[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/timing/preview"))
+      previews.push(request.postDataJSON());
+  });
+  await page.goto("/admin/songs");
+  await page.getByRole("link", { name: "Timing of Sine Melody" }).click();
+  const detail = page.getByRole("img", { name: /detail view/ });
+  await expect(detail).toHaveAttribute("data-pitch-track", "ready", {
+    timeout: 60_000,
+  });
+  const box = await detail.boundingBox();
+  if (!box) throw new Error("the detail view has no box");
+  const gap = page.getByRole("textbox", { name: "#GAP (ms)" });
+  const edits = page.getByRole("list", { name: "Edits" }).locator("li");
+
+  // #GAP 1500, #BPM 300 (a Beat is 0.05 s), 110 px a second: the first Line
+  // starts at 1.5 s, so 0.5 s (55 px) is empty space.
+  await page.mouse.move(box.x + 55, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 80, box.y + 200);
+  await page.mouse.move(box.x + 110, box.y + 200);
+  await expect(
+    page.getByText("Whole Song 0.5 s later · GAP 1,500 → 2,000 ms"),
+  ).toBeVisible();
+  await expect(gap).toHaveValue("2000");
+  await expect(edits).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("timing-drag.png") });
+  await page.mouse.up();
+  await expect(edits).toHaveText(["Whole Song moved: GAP 1,500 → 2,000 ms"]);
+
+  // The first Line now spans 2–4.7 s: grab it at 3 s and drag 2 Beats later.
+  await page.mouse.move(box.x + 330, box.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 336, box.y + 200);
+  await page.mouse.move(box.x + 341, box.y + 200);
+  await expect(
+    page.getByText("+2 beats (0.1 s) · whole beats only"),
+  ).toBeVisible();
+  await page.mouse.up();
+  await expect(detail).toHaveAttribute("data-selection", "0:0-0");
+  await expect(edits).toHaveCount(2);
+  await expect
+    .poll(() => previews.at(-1))
+    .toEqual({
+      operations: [
+        { op: "setGap", seconds: 2 },
+        { op: "setNoteStart", line: 6, start: 2 },
+        { op: "setNoteStart", line: 7, start: 16 },
+        { op: "setNoteStart", line: 8, start: 30 },
+        { op: "setNoteStart", line: 9, start: 44 },
+      ],
+    });
+  await context.close();
+});

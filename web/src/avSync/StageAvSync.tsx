@@ -4,7 +4,9 @@
 // server) step this Stage browser's A/V offset at its current output, saved
 // at once. Done or closing the overlay ends the check for every browser
 // (`StageFrame` sends `endAvSync`); the frame opens and closes this overlay
-// as the server says the check runs.
+// as the server says the check runs. Once its value has loaded, and after
+// every change, the Stage tells the server, which shows it on every Remote
+// (#168).
 
 import { useEffect } from "react";
 
@@ -16,10 +18,16 @@ import { AvSyncPanel, useAvSyncValue, useClickTrack } from "./AvSyncPanel";
 
 export function StageAvSync() {
   const { store, closeOverlay } = useStageFrame();
-  const { ms, step } = useAvSyncValue(useStageAvOffset());
+  const offset = useStageAvOffset();
+  const { ms, step } = useAvSyncValue(offset);
   const landings = useClickTrack(stageAudio());
 
   useEffect(() => store.onAvSyncStep(step), [store, step]);
+  // Not the 0 shown while the kept value loads.
+  const known = offset.loaded || ms !== offset.ms;
+  useEffect(() => {
+    if (known) store.send({ type: "reportAvSyncOffset", avOffsetMs: ms });
+  }, [store, known, ms]);
   useStageKeys({
     ArrowLeft: () => {
       step("down");

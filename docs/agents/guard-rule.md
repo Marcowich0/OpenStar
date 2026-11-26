@@ -33,6 +33,8 @@ Deleting a Profile is `DELETE /api/profiles/{id}`, classified `Guarded(Library::
 
 Deleting a Song is `DELETE /api/songs/{id}`, classified `Guarded(Library::Writes)`: it moves the Song's folder out of the Library to `/appdata/trash/`, so a read-only Library refuses it. The press and hold is the Admin area's; the server needs only the Unlock.
 
+Restoring a Song from the trash is `POST /api/library/trash/{id}/restore`, classified `Guarded(Library::Writes)`: it moves the folder back into the Library, so a read-only Library refuses it. The press and hold is the Admin area's; the server needs only the Unlock. Listing the trash (`GET /api/library/trash`) is not guarded. The 30-day purge deletes only folders in `/appdata/trash` and runs on its own, with no request.
+
 Starting a Download is `POST /api/downloads`, classified `Guarded(Library::Writes)`: a read-only Library refuses it (`409 libraryReadOnly`) before the Unlock is checked.
 
 A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classified `Guarded(Library::Writes)`: it is the Pitch track request behind the guard, refused at once while the Library is read-only because its Accept writes the Library. Accept is the guarded save `POST /api/songs/{id}/timing` with `autoFitFrom` (the Phone's id): it may change only `#GAP` and `#BPM`, and the Stage shows one `autoFitAccepted` toast for it. The desktop editor's own `POST /api/songs/{id}/pitch-track` stays not guarded.

@@ -290,8 +290,14 @@ impl Server {
                 }
             }));
         }
+        // The trash is purged at start and daily.
+        let purge = tokio::spawn(library::trash::purge_daily(
+            self.state.scanner.clone(),
+            self.state.clock.clone(),
+        ));
         let shutdown = async move {
             shutdown.await;
+            purge.abort();
             for task in usdb_tasks {
                 task.abort();
             }

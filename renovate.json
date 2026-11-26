@@ -69,7 +69,7 @@
       "minimumReleaseAge": "2 days"
     },
     {
-      "description": "The Rust toolchain: rust-toolchain.toml, Cargo.toml's rust-version and the rust:<version>-slim-trixie build image move together, for review. The Mic bridge stage takes its toolchain from rust-toolchain.toml.",
+      "description": "The Rust toolchain: rust-toolchain.toml, Cargo.toml's rust-version and the rust:<version>-slim-trixie build image move together, for review. The Mic bridge stage (ubuntu:22.04) copies its toolchain from the Dockerfile's `toolchain` stage, one of these rust image lines.",
       "matchDepNames": ["rust"],
       "groupName": "Rust toolchain"
     },

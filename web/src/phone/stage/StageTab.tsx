@@ -28,6 +28,11 @@ import {
   AvSyncStartButton,
   useAvSyncRunning,
 } from "../onStage/AvSyncCard";
+import {
+  CalibrateMicsButton,
+  CalibrationCard,
+  useCalibrationRun,
+} from "../onStage/CalibrationCard";
 import { PlayingCard } from "../onStage/PlayingCard";
 import { EmptyQueueCard, ResultsCard } from "../onStage/ResultsCard";
 import { VolumeControl } from "../onStage/VolumeControl";
@@ -94,11 +99,19 @@ export function StageTab({
   const mine = myResult(party?.results ?? null, myPhoneId);
   const state = stageState(party);
   const avSync = useAvSyncRunning(store);
+  const calibration = useCalibrationRun(store);
+  // Setup (Calibrate mics, Check A/V sync) only while no Song plays, and
+  // only one of them at a time.
+  const setup =
+    !avSync &&
+    calibration === null &&
+    (state?.kind === "lineUp" || state?.kind === "empty");
 
   return (
     <div className="flex flex-col gap-3 pt-1">
       <h1 className="text-3xl font-bold">{t("stageTab.title")}</h1>
       {avSync && <AvSyncCard store={store} />}
+      {calibration && <CalibrationCard store={store} run={calibration} />}
       {state?.kind === "results" && (
         <ResultsCard store={store} results={state}>
           {mine && (
@@ -215,9 +228,8 @@ export function StageTab({
           </Button>
         </section>
       )}
-      {!avSync && (state?.kind === "lineUp" || state?.kind === "empty") && (
-        <AvSyncStartButton store={store} />
-      )}
+      {setup && <CalibrateMicsButton store={store} />}
+      {setup && <AvSyncStartButton store={store} />}
       <VolumeControl store={store} />
       <SeatSheet
         store={store}

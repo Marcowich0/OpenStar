@@ -488,7 +488,12 @@ pub(crate) async fn request(State(state): State<AppState>, UrlPath(id): UrlPath<
 /// `POST /api/songs/{id}/auto-fit`: a Phone starts Fit to the singing
 /// (#223). The same answer as the Pitch track request, but guarded: on a
 /// Phone, running the fit needs an Unlock (docs/agents/guard-rule.md).
+/// Refused with `409 songPlaying` for the Song playing on the Stage now
+/// (#225).
 pub(crate) async fn auto_fit(State(state): State<AppState>, UrlPath(id): UrlPath<u32>) -> Response {
+    if state.live.song_playing(SongId(id)).await {
+        return (StatusCode::CONFLICT, axum::Json(UserMessage::SongPlaying)).into_response();
+    }
     answer(&state, SongId(id), TIMEOUT).await
 }
 

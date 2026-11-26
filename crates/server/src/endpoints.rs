@@ -89,6 +89,7 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::StartAvSync
         | ClientMessage::StepAvSync { .. }
         | ClientMessage::EndAvSync
+        | ClientMessage::ReportAvSyncOffset { .. }
         // Calibrate mics needs no Admin PIN (v1 spec #52): it stores only
         // Mic settings, which a later run overwrites.
         | ClientMessage::OpenCalibration
@@ -283,6 +284,20 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/songs/{id}/media/{role}",
             NotGuarded,
             library::media,
+        )
+        // The trash: listing it changes nothing; a restore moves a folder
+        // back into the Library (docs/agents/guard-rule.md).
+        .add(
+            Method::GET,
+            "/api/library/trash",
+            NotGuarded,
+            library::trash::list,
+        )
+        .add(
+            Method::POST,
+            "/api/library/trash/{id}/restore",
+            Guarded(Writes),
+            library::trash::restore,
         )
         .add(
             Method::GET,

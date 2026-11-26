@@ -241,6 +241,12 @@ pub struct SongDetail {
     pub loudness_lufs: Option<f64>,
     /// The Song's warnings; it plays anyway.
     pub warnings: Vec<ProblemReason>,
+    /// When the server answered this detail (server time, ms since the
+    /// Unix epoch). The Timing editor returns it with a save
+    /// ([`crate::song::TimingSave::opened_at_ms`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub loaded_at_ms: Option<i64>,
 }
 
 /// One Library problem: a rejected file or a warning, with its reason.
@@ -340,6 +346,33 @@ pub struct ScanStatus {
     pub finished: u32,
     /// The last finished scan, if any.
     pub last: Option<ScanReport>,
+}
+
+/// Names one trashed Song folder (a row of the trash ledger).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TrashId(#[ts(type = "number")] pub i64);
+
+/// A Song folder in the 30-day trash (`GET /api/library/trash`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct TrashedSong {
+    pub id: TrashId,
+    /// The folder's path relative to the Library when it was deleted, with
+    /// `/` between segments; a restore moves it back there.
+    pub original_path: String,
+    /// When it was deleted, in ms since the Unix epoch. It is purged 30 days
+    /// after this.
+    #[ts(type = "number")]
+    pub deleted_ms: i64,
+}
+
+/// Every Song folder in the trash, the most recently deleted first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TrashList {
+    pub songs: Vec<TrashedSong>,
 }
 
 #[cfg(test)]

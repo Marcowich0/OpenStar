@@ -209,6 +209,14 @@ pub enum ClientMessage {
     /// not run changes nothing. It also ends when the Stage closes, another
     /// browser becomes the Stage, or a Song starts.
     EndAvSync,
+    /// The active Stage's A/V offset while Check A/V sync runs, so every
+    /// Remote shows it large: sent when the check opens and after every
+    /// change. Every connection is told [`ServerMessage::AvSyncCheck`].
+    /// Refused with [`UserMessage::NotTheStage`] from anyone but the active
+    /// Stage, [`UserMessage::AvSyncNotRunning`] while the check does not
+    /// run, and [`UserMessage::InvalidMessage`] for a value off the A/V
+    /// offset's range or 10 ms grid.
+    ReportAvSyncOffset { av_offset_ms: i32 },
     /// Calibrate mics (#170), from the Stage's Setup pill (or any joined
     /// Remote), with no Admin PIN: opens the run's checklist with every
     /// joined Phone ticked. Every connection is told
@@ -501,6 +509,17 @@ pub enum ServerMessage {
     /// Stage only: a Remote's press during Check A/V sync (see
     /// [`ClientMessage::StepAvSync`]).
     StepAvSync { step: av_offset::AvSyncStep },
+    /// What is known about the running Check A/V sync, sent to every
+    /// connection after [`ServerMessage::AvSync`] when a Phone starts it and
+    /// whenever the Stage reports its value, and to a new connection after
+    /// `AvSync` while it runs and something is known. `started_by` is the
+    /// Phone that started it (`None` for the Stage), which shows the −/+
+    /// and Done as its page; `av_offset_ms` is the Stage's A/V offset, once
+    /// the Stage has reported it. Both are `None` again on the next check.
+    AvSyncCheck {
+        started_by: Option<PhoneId>,
+        av_offset_ms: Option<i32>,
+    },
     /// The Calibration run, or `None` when it ended, sent to every
     /// connection on every change, and to a new connection after its
     /// [`ServerMessage::LiveState`] while one is open.
@@ -742,6 +761,10 @@ pub enum UserMessage {
     /// The Song plays on the Stage now, so its timing cannot be saved or
     /// restored. Sent with `409`.
     SongPlaying,
+    /// The Song started playing on the Stage after the Timing editor opened
+    /// it (it may have stopped since), so the edit is not saved: the Notes
+    /// may have moved under Players. Sent with `409`; open the Song again.
+    SongStartedSinceOpened,
     /// The Song has no Original (`<name>.txt.orig`) to restore. Sent with
     /// `404`.
     NoOriginal,
@@ -752,6 +775,13 @@ pub enum UserMessage {
     /// The Song's `.txt` sits directly in the Library root, so it has no
     /// folder of its own to delete. Nothing is moved. Sent with `409`.
     SongInLibraryRoot,
+    /// The trash holds no Song folder of this id (it was restored or
+    /// purged). Sent with `404`.
+    NotInTrash,
+    /// A folder named `path` (relative to the Library) exists where the
+    /// trashed Song folder would be restored, and OpenStar never writes into
+    /// an existing folder. Nothing is moved. Sent with `409`.
+    RestoreFolderExists { path: String },
     /// A Song plays on the Stage, so this (Check A/V sync) cannot start.
     NotWhileSongPlays,
     /// Check A/V sync does not run, so there is nothing to step.

@@ -7,7 +7,9 @@ import { overviewHue } from "../../fit/fit";
 import type { TokenRef } from "../../theme/tokens";
 import type {
   DetailEntry,
+  HandleEntry,
   LineBarEntry,
+  PinEntry,
   PillEntry,
   PlayheadEntry,
   ShareColour,
@@ -25,6 +27,7 @@ const FONT_FAMILY = "Fredoka, ui-rounded, system-ui, sans-serif";
 const LYRIC_FONT = `500 13px ${FONT_FAMILY}`;
 const LYRIC_ITALIC_FONT = `italic 500 13px ${FONT_FAMILY}`;
 const RULER_FONT = `500 12px ${FONT_FAMILY}`;
+const HANDLE_FONT = `bold 11px ${FONT_FAMILY}`;
 const DASH = [5, 4];
 const NO_DASH: number[] = [];
 const MATCH_ALPHA = 0.85;
@@ -85,6 +88,24 @@ export function createEditorPainter(
   function playhead(e: PlayheadEntry) {
     ctx.fillStyle = colour(e.colour);
     ctx.fillRect(e.x - e.width / 2, 0, e.width, e.height);
+  }
+
+  function handle(e: HandleEntry) {
+    ctx.fillStyle = colour(e.colour);
+    ctx.beginPath();
+    ctx.roundRect(e.x, e.y, e.width, e.height, BAR_RADIUS);
+    ctx.fill();
+    ctx.fillStyle = colour(e.ink);
+    ctx.font = HANDLE_FONT;
+    ctx.fillText(e.text, e.x + 1, e.y + 13);
+  }
+
+  function pin(e: PinEntry) {
+    ctx.fillStyle = colour(e.colour);
+    ctx.fillRect(e.x - 1, e.y, 2, e.stem);
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.radius, 0, 2 * Math.PI);
+    ctx.fill();
   }
 
   function pill(e: PillEntry) {
@@ -172,6 +193,12 @@ export function createEditorPainter(
           }
           case "pill":
             pill(e);
+            break;
+          case "pin":
+            pin(e);
+            break;
+          case "handle":
+            handle(e);
             break;
           case "playhead":
             playhead(e);

@@ -308,6 +308,7 @@ export const en = {
   "avSync.earlier": "−{ms, number} ms",
   "avSync.zero": "0 ms",
   "avSync.value": "A/V offset",
+  "avSync.valueUnknown": "–",
   "avSync.pattern":
     "A ball bouncing once a second, with a click each time it lands",
   "avSync.stageHint":
@@ -611,6 +612,17 @@ export const en = {
   "admin.songs.delete": "Delete {title}",
   "admin.songs.deleteShort": "Delete",
   "admin.songs.deleteFailed": "The Song could not be deleted",
+  "admin.songs.trash": "Trash",
+  "admin.songs.trash.kept":
+    "Deleted Songs are kept for 30 days, then deleted for good.",
+  "admin.songs.trash.list": "Songs in the trash",
+  "admin.songs.trash.empty": "The trash is empty",
+  "admin.songs.trash.loading": "Loading the trash…",
+  "admin.songs.trash.failed": "The trash could not be loaded",
+  "admin.songs.trash.deleted": "Deleted {when}",
+  "admin.songs.trash.restore": "Restore {path}",
+  "admin.songs.trash.restoreShort": "Restore",
+  "admin.songs.trash.restoreFailed": "The Song could not be restored",
   "admin.songs.timing": "Timing",
   "admin.songs.timingOf": "Timing of {title}",
   "admin.songs.fit.title": "Auto-fit",
@@ -741,11 +753,19 @@ export const en = {
   "userMessage.songFileChanged":
     "This Song's file changed on disk since it was opened. Open it again and redo the edit",
   "userMessage.songPlaying": "This Song is playing on the Stage now",
+  "userMessage.songStartedSinceOpened":
+    "This Song was played on the Stage after you opened it. Open it again and redo the edit",
+  "song.playingNow.reason":
+    "Not while this Song plays on the Stage, so nobody's Notes move mid-Song",
   "userMessage.noOriginal": "This Song has no Original to restore",
   "userMessage.songFolderShared":
     "Its folder also holds {otherTxt}, which deleting the folder would take with it. Move one of them to a folder of its own first",
   "userMessage.songInLibraryRoot":
     "This Song's .txt sits directly in the Library folder, so it has no folder of its own to delete. Move it into a folder first",
+  "userMessage.notInTrash":
+    "This Song is no longer in the trash: it was restored or purged",
+  "userMessage.restoreFolderExists":
+    "A folder named {path} is in the Library now, and OpenStar never writes into an existing folder. Rename or move that folder first",
   "userMessage.notWhileSongPlays": "Not while a Song is playing",
   "userMessage.avSyncNotRunning": "Check A/V sync is not running",
   "userMessage.avSyncRunning": "Check A/V sync is running",
@@ -926,6 +946,43 @@ export const en = {
   "timing.view.shareWhat":
     "The share of Note time where the pitch heard in the Song is within a semitone of the Note. A rough guide: it is low on Songs with loud backing.",
   "timing.view.playhead": "Playhead {time}",
+  // The hint over the detail view while dragging (#221): the change in
+  // Beats and seconds, or the values before and after.
+  "timing.drag.songLater":
+    "Whole Song {seconds, number} s later · GAP {from, number} → {to, number} ms",
+  "timing.drag.songEarlier":
+    "Whole Song {seconds, number} s earlier · GAP {from, number} → {to, number} ms",
+  "timing.drag.stretchAroundPin":
+    "Stretch around the pin · BPM {fromBpm, number} → {toBpm, number} · GAP {fromGap, number} → {toGap, number} ms",
+  "timing.drag.beatsLater": {
+    one: "+{count, number} beat ({seconds, number} s) · whole beats only",
+    other: "+{count, number} beats ({seconds, number} s) · whole beats only",
+  },
+  "timing.drag.beatsEarlier": {
+    one: "−{count, number} beat (−{seconds, number} s) · whole beats only",
+    other: "−{count, number} beats (−{seconds, number} s) · whole beats only",
+  },
+  "timing.drag.stretchLines":
+    "Stretch ×{factor, number} · notes snap to whole beats",
+  "timing.drag.noteLater": {
+    one: "Note +{count, number} beat ({seconds, number} s) · whole beats only",
+    other:
+      "Note +{count, number} beats ({seconds, number} s) · whole beats only",
+  },
+  "timing.drag.noteEarlier": {
+    one: "Note −{count, number} beat (−{seconds, number} s) · whole beats only",
+    other:
+      "Note −{count, number} beats (−{seconds, number} s) · whole beats only",
+  },
+  "timing.drag.noteLength": {
+    one: "Length {count, number} beat ({seconds, number} s)",
+    other: "Length {count, number} beats ({seconds, number} s)",
+  },
+  "timing.drag.pinned": "Pinned: Line {line, number}",
+  "timing.drag.help":
+    "Drag empty space: move the whole Song · double-click a Line: pin it, then drag far from it to stretch the tempo · click a Line to select it (Shift: a range), drag it to shift, drag ◀▶ to stretch · Alt-drag a Note: move it, or its right end: length",
+  "timing.drag.keys":
+    ", and .: nudge the Song by 10 ms (Shift 100 ms), or the selection by 1 beat (Shift 4) · [ and ]: tempo around the playhead · Esc: clear the selection",
   // Checking by ear (#220): playback, speeds, clicks, hum, loop, A/V sync.
   "timing.play.section": "Playback",
   "timing.play.play": "Play",

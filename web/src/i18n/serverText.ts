@@ -109,10 +109,14 @@ export const userMessageText = byCode<UserMessage>({
   pitchTrackFailed: () => t("userMessage.pitchTrackFailed"),
   songFileChanged: () => t("userMessage.songFileChanged"),
   songPlaying: () => t("userMessage.songPlaying"),
+  songStartedSinceOpened: () => t("userMessage.songStartedSinceOpened"),
   noOriginal: () => t("userMessage.noOriginal"),
   songFolderShared: ({ params }) =>
     t("userMessage.songFolderShared", { otherTxt: params.otherTxt }),
   songInLibraryRoot: () => t("userMessage.songInLibraryRoot"),
+  notInTrash: () => t("userMessage.notInTrash"),
+  restoreFolderExists: ({ params }) =>
+    t("userMessage.restoreFolderExists", { path: params.path }),
   notWhileSongPlays: () => t("userMessage.notWhileSongPlays"),
   avSyncNotRunning: () => t("userMessage.avSyncNotRunning"),
   avSyncRunning: () => t("userMessage.avSyncRunning"),

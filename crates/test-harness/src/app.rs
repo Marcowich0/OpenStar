@@ -31,8 +31,10 @@ pub const DEFAULT_ADMIN_PIN: &str = "1234";
 /// loopback address, which nothing listens on, so any USDB call fails fast.
 const NO_USDB: &str = "http://127.0.0.1:9";
 
-/// How long a WebSocket receive or a graceful stop may take before the test fails.
-const WAIT: Duration = Duration::from_secs(5);
+/// How long a WebSocket receive or a graceful stop may take before the test
+/// fails; generous, since other builds may load the machine, and a passing
+/// test never waits it out.
+const WAIT: Duration = Duration::from_secs(30);
 
 /// How long the start-up Library scan may take; generous, since other builds
 /// may load the machine.

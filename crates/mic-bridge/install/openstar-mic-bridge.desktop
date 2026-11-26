@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OpenStar Mic bridge
+Comment=Sends the mics wired to this computer to the OpenStar Stage
+Exec=openstar-mic-bridge
+Icon=openstar-mic-bridge
+Terminal=false
+Categories=AudioVideo;Audio;

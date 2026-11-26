@@ -2,7 +2,7 @@
 // the Original (`<name>.txt.orig`) back over its `.txt` and deletes it. It
 // needs an Unlock and writes the Library, so it goes through `GuardedButton`.
 // The row loses the button when the `library` notice refreshes the
-// Originals.
+// Originals. It is disabled while the Song plays on the Stage (#225).
 
 import { useState } from "react";
 
@@ -12,12 +12,20 @@ import { GuardedButton } from "../guarded/GuardedButton";
 import { refusalText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 
-export function RestoreOriginal({ songId }: { songId: SongId }) {
+export function RestoreOriginal({
+  songId,
+  playing = false,
+}: {
+  songId: SongId;
+  /** The Song plays on the Stage now: disabled, with the reason (#225). */
+  playing?: boolean;
+}) {
   const [failure, setFailure] = useState<string | null>(null);
   return (
     <div className="flex flex-col items-end gap-1">
       <GuardedButton
         writesLibrary
+        isDisabled={playing}
         action={() => {
           setFailure(null);
           return api("POST /api/songs/{id}/restore-original", {
@@ -30,6 +38,9 @@ export function RestoreOriginal({ songId }: { songId: SongId }) {
       >
         {t("admin.songs.restoreOriginal")}
       </GuardedButton>
+      {playing ? (
+        <p className="text-sm text-ink-2">{t("song.playingNow.reason")}</p>
+      ) : null}
       {failure === null ? null : (
         <p role="alert" className="text-sm text-ink-2">
           {failure}

@@ -43,7 +43,7 @@ use axum::extract::{Path, Query, Request, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use openstar_protocol::ChangeTopic;
-use openstar_protocol::library::{ScanStatus, SongId, SongQuery};
+use openstar_protocol::library::{ScanStatus, SongDetail, SongId, SongQuery};
 use tokio::sync::watch;
 use tower_http::services::ServeFile;
 
@@ -343,14 +343,18 @@ pub(crate) async fn songs(
     }
 }
 
-/// `GET /api/songs/{id}`.
+/// `GET /api/songs/{id}`, saying when it answered (`loadedAtMs`).
 pub(crate) async fn song(State(state): State<AppState>, Path(id): Path<u32>) -> Response {
     match state
         .db
         .call(move |conn| index::song(conn, SongId(id)))
         .await
     {
-        Ok(Some(song)) => axum::Json(song).into_response(),
+        Ok(Some(song)) => axum::Json(SongDetail {
+            loaded_at_ms: Some(state.clock.now_millis()),
+            ..song
+        })
+        .into_response(),
         Ok(None) => StatusCode::NOT_FOUND.into_response(),
         Err(error) => server_error(&error),
     }
@@ -476,7 +480,7 @@ mod tests {
 
     /// A scanner without ffprobe and ffmpeg (an empty `PATH`): these tests
     /// look at `.txt` files only, so their empty media is never probed.
-    async fn scanner(songs: &std::path::Path, appdata: &std::path::Path) -> Scanner {
+    pub(super) async fn scanner(songs: &std::path::Path, appdata: &std::path::Path) -> Scanner {
         let db = Database::open(appdata).await.unwrap().database;
         let live = LiveHandle::start(db.clone()).await.unwrap();
         let env = JobEnv {

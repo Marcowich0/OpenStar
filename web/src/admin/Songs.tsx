@@ -4,7 +4,8 @@
 // change notice, like every Song list. Each row is where the Song's admin
 // actions attach: Restore Original (#188, on a Song with an Original), Delete (#190,
 // press and hold, to the trash), the Timing editor
-// (#218) and Fit to the singing (#223), passed as the row's `children`. The
+// (#218) and Fit to the singing (#223), passed as the row's `children`.
+// Below the list, the trash (#191) lists the deleted Songs to restore. The
 // editor's link shows only with a fine pointer and room for it
 // (`useFullTimingEditor`); any other browser gets Fit to the singing instead.
 
@@ -16,11 +17,15 @@ import { originalsQuery, songsQuery } from "../api/queries";
 import type { SongQuery } from "../generated/SongQuery";
 import type { SongSummary } from "../generated/SongSummary";
 import { t } from "../i18n/t";
+import type { LiveStore } from "../live/liveStore";
+import { playingSong } from "../live/playingSong";
+import { useLive } from "../live/useLive";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
 import { DeleteSong } from "./DeleteSong";
 import { RestoreOriginal } from "./RestoreOriginal";
+import { Trash } from "./Trash";
 import { PhoneAutoFit } from "./timing/PhoneAutoFit";
 import { TimingEditorLink } from "./timing/TimingEditorLink";
 import { useFullTimingEditor } from "./timing/useFullTimingEditor";
@@ -30,7 +35,12 @@ function searchQuery(search: string): SongQuery {
   return words === "" ? {} : { search: words };
 }
 
-export function Songs() {
+export function Songs({
+  store,
+}: {
+  /** Where the Song playing now comes from (the browser's live store by default). */
+  store?: LiveStore;
+} = {}) {
   const [search, setSearch] = useState("");
   const query = searchQuery(useDeferredValue(search));
   const list = useQuery({
@@ -39,6 +49,7 @@ export function Songs() {
   });
   const originals = new Set(useQuery(originalsQuery).data ?? []);
   const fullEditor = useFullTimingEditor();
+  const playing = useLive(playingSong, store);
 
   return (
     <AdminSection title={t("admin.songs")} writesLibrary>
@@ -73,7 +84,10 @@ export function Songs() {
             >
               {list.data.songs.map((song) => {
                 const restore = originals.has(song.id) ? (
-                  <RestoreOriginal songId={song.id} />
+                  <RestoreOriginal
+                    songId={song.id}
+                    playing={playing === song.id}
+                  />
                 ) : undefined;
                 return fullEditor ? (
                   <AdminSongRow key={song.id} song={song}>
@@ -82,7 +96,11 @@ export function Songs() {
                     <DeleteSong song={song} />
                   </AdminSongRow>
                 ) : (
-                  <PhoneAutoFit key={song.id} song={song}>
+                  <PhoneAutoFit
+                    key={song.id}
+                    song={song}
+                    {...(store ? { store } : {})}
+                  >
                     {(control, details) => (
                       <AdminSongRow song={song} below={details}>
                         {control}
@@ -100,6 +118,8 @@ export function Songs() {
             {t(list.isError ? "admin.songs.failed" : "admin.songs.loading")}
           </p>
         )}
+
+        <Trash />
       </div>
     </AdminSection>
   );

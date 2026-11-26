@@ -1,10 +1,12 @@
-# The image build needs only the Cargo workspace and the frontend sources
-# (Dockerfile). Everything else stays out of the build context.
+# The image build needs only the Cargo workspace, the frontend sources and
+# the Mic bridge's release packer (Dockerfile). Everything else stays out of
+# the build context.
 *
 !Cargo.toml
 !Cargo.lock
 !crates/
 !web/
+!scripts/bridge-tarball.sh
 web/node_modules/
 web/dist/
 web/wasm/

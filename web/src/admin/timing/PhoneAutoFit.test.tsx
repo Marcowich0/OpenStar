@@ -13,6 +13,7 @@ import type { SongDetail } from "../../generated/SongDetail";
 import type { SongSummary } from "../../generated/SongSummary";
 import type { TimingSave } from "../../generated/TimingSave";
 import { fakeLibraryServer, renderLive, settle } from "../adminTestKit";
+import { playingFeed } from "../../live/playingSongTestKit";
 import { AdminSongRow } from "../Songs";
 import { PhoneAutoFit } from "./PhoneAutoFit";
 
@@ -59,6 +60,7 @@ function detail(c: FitCase): SongDetail {
     },
     loudnessLufs: null,
     warnings: [],
+    loadedAtMs: 5_000,
   };
 }
 
@@ -111,9 +113,11 @@ function server({
   return { fake, state };
 }
 
+/** Job updates, and the Song playing now (`play`, #225). */
 function jobFeed() {
   const listeners = new Set<(job: Job) => void>();
   return {
+    ...playingFeed(),
     onJobChanged(listener: (job: Job) => void) {
       listeners.add(listener);
       return () => {
@@ -248,6 +252,8 @@ describe("Fit to the singing on a Phone", () => {
     const [saved] = state.saved;
     expect(saved?.base).toBe(BASE);
     expect(saved?.autoFitFrom).toBe(PHONE);
+    // When the fit read the Song (#225).
+    expect(saved?.openedAtMs).toBe(5_000);
     expect(saved?.operations.map((o) => o.op)).toEqual(["setGap", "setBpm"]);
     expect(screen.queryByRole("region", { name: "Auto-fit" })).toBeNull();
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -291,5 +297,39 @@ describe("Fit to the singing on a Phone", () => {
     );
     expect(screen.queryByRole("button", { name: "Accept" })).toBeNull();
     expect(fitButton()).toBeEnabled();
+  });
+});
+
+describe("while the Song plays on the Stage", () => {
+  const REASON =
+    "Not while this Song plays on the Stage, so nobody's Notes move mid-Song";
+
+  it("disables Fit to the singing with the reason, and enables it when the Song stops", async () => {
+    const { feed, fake } = await open({ unlocked: true });
+    feed.play(7);
+    expect(fitButton()).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(REASON)).toBeInTheDocument();
+    press("Fit to the singing");
+    await settle();
+    expect(fake.calls).not.toContain("POST /api/songs/7/auto-fit");
+
+    feed.play(null);
+    expect(fitButton()).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText(REASON)).toBeNull();
+  });
+
+  it("disables Accept on a proposal once the Song starts", async () => {
+    const { feed, fake } = await open({ unlocked: true });
+    press("Fit to the singing");
+    await settle();
+    feed.play(7);
+    expect(screen.getByRole("button", { name: "Accept" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(proposal()).toHaveTextContent(REASON);
+    press("Accept");
+    await settle();
+    expect(fake.calls).not.toContain("POST /api/songs/7/timing");
   });
 });

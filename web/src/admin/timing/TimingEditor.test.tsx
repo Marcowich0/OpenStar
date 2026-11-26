@@ -22,6 +22,7 @@ import {
   sungTrack,
   type FitCase,
 } from "../../fit/fitFixtures";
+import { playingFeed } from "../../live/playingSongTestKit";
 import { song as testSong } from "../../timing/testSong";
 import { TimingEditor } from "./TimingEditor";
 
@@ -210,9 +211,11 @@ function fakeServer(start: unknown, options: ServerOptions = {}): Server {
   return server;
 }
 
+/** Job updates, and the Song playing now (`play`, #225). */
 function jobFeed() {
   const listeners = new Set<(job: Job) => void>();
   return {
+    ...playingFeed(),
     onJobChanged(listener: (job: Job) => void) {
       listeners.add(listener);
       return () => {
@@ -1021,5 +1024,325 @@ describe("#VIDEOGAP", () => {
   it("is hidden for a Song with no video", async () => {
     await open();
     expect(videoGapField()).toBeNull();
+  });
+});
+
+// The two-Note Song at 110 px per second: Beat b is at 11b px, the Notes'
+// pills (pitch C) sit around y = 150, and the Line spans 0–220 px.
+const NOTE_Y = 150;
+const EMPTY_X = 440;
+
+type Modifiers = Pick<PointerEventInit, "altKey" | "shiftKey">;
+
+/** Presses at `fromX`, moves to `toX` (checking along the way), and lets go. */
+async function drag(
+  fromX: number,
+  toX: number,
+  {
+    y = NOTE_Y,
+    during,
+    ...modifiers
+  }: Modifiers & { y?: number; during?: () => void } = {},
+) {
+  const canvas = detailCanvas();
+  act(() => {
+    fireEvent.pointerDown(canvas, {
+      clientX: fromX,
+      clientY: y,
+      pointerId: 1,
+      ...modifiers,
+    });
+  });
+  act(() => {
+    fireEvent.pointerMove(canvas, { clientX: toX, clientY: y, pointerId: 1 });
+  });
+  during?.();
+  act(() => {
+    fireEvent.pointerUp(canvas, { clientX: toX, clientY: y, pointerId: 1 });
+  });
+  await settle();
+}
+
+const previewed = (server: Server) =>
+  server.bodies["POST /api/songs/7/timing/preview"]?.at(-1);
+
+describe("dragging the whole Song", () => {
+  it("moves #GAP by the dragged time, live, and commits one edit on release", async () => {
+    const { server } = await open();
+    await drag(EMPTY_X, EMPTY_X + 55, {
+      during: () => {
+        expect(
+          screen.getByText("Whole Song 0.5 s later · GAP 0 → 500 ms"),
+        ).toBeInTheDocument();
+        // The value and the share follow the drag before it is committed.
+        expect(gapField()).toHaveValue("500");
+        expect(share()).toHaveAttribute("aria-valuenow", "25");
+        expect(entries()).toEqual([]);
+      },
+    });
+    expect(screen.queryByText(/Whole Song 0.5 s later/)).toBeNull();
+    expect(entries()).toEqual([
+      { text: "Whole Song moved: GAP 0 → 500 ms", undone: false },
+    ]);
+    expect(previewed(server)).toEqual({
+      operations: [{ op: "setGap", seconds: 0.5 }],
+    });
+  });
+
+  it("works while the Pitch track is pending, and after it failed", async () => {
+    const { feed } = await open({ state: "computing", job: 3 });
+    await drag(EMPTY_X, EMPTY_X - 11);
+    expect(gapField()).toHaveValue("-100");
+    await feed.send({ type: "failed", reason: { code: "pitchTrackFailed" } });
+    await drag(EMPTY_X, EMPTY_X - 11);
+    expect(gapField()).toHaveValue("-200");
+    expect(entries()).toHaveLength(2);
+  });
+
+  it("commits nothing for a press that does not move", async () => {
+    await open();
+    await drag(EMPTY_X, EMPTY_X + 1);
+    expect(entries()).toEqual([]);
+  });
+
+  it("nudges #GAP with , and . by 10 ms (Shift 100 ms), merging quick repeats into one undo step", async () => {
+    await open();
+    await key({ key: "." });
+    await key({ key: "." });
+    await key({ key: ">", shiftKey: true });
+    expect(gapField()).toHaveValue("120");
+    expect(entries()).toEqual([
+      { text: "Whole Song nudged: GAP 0 → 120 ms", undone: false },
+    ]);
+    await key({ key: ",", ctrlKey: true });
+    await key({ key: "z", ctrlKey: true });
+    expect(gapField()).toHaveValue("0");
+  });
+});
+
+describe("pinning a Line and stretching", () => {
+  it("double-click pins the Line and again unpins it", async () => {
+    await open();
+    act(() => {
+      fireEvent.doubleClick(detailCanvas(), { clientX: 55, clientY: NOTE_Y });
+    });
+    expect(detailCanvas()).toHaveAttribute("data-pin", "0:0");
+    expect(screen.getByText("Pinned: Line 1")).toBeInTheDocument();
+    act(() => {
+      fireEvent.doubleClick(detailCanvas(), { clientX: 55, clientY: NOTE_Y });
+    });
+    expect(detailCanvas()).not.toHaveAttribute("data-pin");
+  });
+
+  it("with a pin, a drag at least 32 Beats from it stretches the tempo, keeping the pinned Note's time", async () => {
+    const { server } = await open();
+    act(() => {
+      fireEvent.doubleClick(detailCanvas(), { clientX: 55, clientY: NOTE_Y });
+    });
+    // Grab Beat 40 (4 s) and drag it to 4.4 s: 0.11 s a Beat.
+    await drag(EMPTY_X, EMPTY_X + 44, {
+      during: () => {
+        expect(
+          screen.getByText(
+            "Stretch around the pin · BPM 150 → 136.36 · GAP 0 → 0 ms",
+          ),
+        ).toBeInTheDocument();
+      },
+    });
+    expect(previewed(server)).toEqual({
+      operations: [
+        { op: "setGap", seconds: 0 },
+        { op: "setBpm", beatsPerMinute: 545.44 },
+      ],
+    });
+  });
+
+  it("with a pin, a drag closer than 32 Beats moves the whole Song", async () => {
+    await open();
+    act(() => {
+      fireEvent.doubleClick(detailCanvas(), { clientX: 55, clientY: NOTE_Y });
+    });
+    // 3 s is Beat 30: too close.
+    await drag(330, 341, { y: 300 });
+    expect(gapField()).toHaveValue("100");
+    expect(bpmField()).toHaveValue("150");
+  });
+});
+
+describe("tempo around the playhead", () => {
+  it("[ and ] change #BPM by 0.05 (Shift 0.5), keeping the Beat under the playhead there", async () => {
+    await open();
+    // The playhead at 1 s: Beat 10.
+    fireEvent.pointerDown(detailCanvas(), {
+      clientX: 110,
+      clientY: 10,
+      pointerId: 1,
+    });
+    fireEvent.pointerUp(detailCanvas(), { pointerId: 1 });
+    await key({ key: "}", shiftKey: true });
+    expect(bpmField()).toHaveValue("150.5");
+    // 1 − 10 × 15 / 150.5 s.
+    expect(gapField()).toHaveValue("3");
+    await key({ key: "[" });
+    await key({ key: "[" });
+    expect(bpmField()).toHaveValue("150.4");
+    expect(entries()).toHaveLength(1);
+  });
+});
+
+describe("selecting and moving Lines", () => {
+  it("click selects a Line, Esc clears it", async () => {
+    await open();
+    await drag(55, 55);
+    expect(detailCanvas()).toHaveAttribute("data-selection", "0:0-0");
+    await key({ key: "Escape" });
+    expect(detailCanvas()).not.toHaveAttribute("data-selection");
+  });
+
+  it("dragging the selection shifts it by whole Beats, live, and commits one edit", async () => {
+    const { server } = await open();
+    await drag(55, 55 + 24, {
+      during: () => {
+        expect(
+          screen.getByText("+2 beats (0.2 s) · whole beats only"),
+        ).toBeInTheDocument();
+      },
+    });
+    expect(entries()).toHaveLength(1);
+    expect(entries()[0]?.text).toMatch(/Line 1: \+2 beats/);
+    expect(previewed(server)).toEqual({
+      operations: [
+        { op: "setNoteStart", line: 5, start: 2 },
+        { op: "setNoteStart", line: 6, start: 12 },
+      ],
+    });
+  });
+
+  it(", and . shift the selection by 1 Beat (Shift 4) instead of the Song", async () => {
+    const { server } = await open();
+    await drag(55, 55);
+    await key({ key: "." });
+    await key({ key: ">", shiftKey: true });
+    expect(gapField()).toHaveValue("0");
+    expect(entries()).toHaveLength(1);
+    expect(previewed(server)).toEqual({
+      operations: [
+        { op: "setNoteStart", line: 5, start: 5 },
+        { op: "setNoteStart", line: 6, start: 15 },
+      ],
+    });
+  });
+
+  it("the ◀▶ handle at the selection's end stretches it", async () => {
+    await open();
+    await drag(55, 55);
+    // The handle is just right of the Line's end (220 px), below the ruler.
+    // Dragging it 1 s makes the 2 s Line 3 s long: ×1.5.
+    await drag(228, 228 + 110, {
+      y: 34,
+      during: () => {
+        expect(
+          screen.getByText("Stretch ×1.5 · notes snap to whole beats"),
+        ).toBeInTheDocument();
+      },
+    });
+    expect(entries()[0]?.text).toMatch(/stretched ×1.5/);
+  });
+
+  it("Shift-click extends the selection to a range", async () => {
+    const two = detail();
+    const [a, b] = two.song.voices[0]?.lines[0]?.notes ?? [];
+    if (!a || !b) throw new Error("no Notes");
+    two.song.voices[0] = {
+      lines: [
+        { notes: [a], end: { beat: 10, line: 9 } },
+        { notes: [b], end: null },
+      ],
+    };
+    await open({ state: "ready" }, { detail: two });
+    await drag(55, 55);
+    await drag(165, 165, { shiftKey: true });
+    expect(detailCanvas()).toHaveAttribute("data-selection", "0:0-1");
+  });
+});
+
+describe("Alt-dragging a Note", () => {
+  it("moves it by whole Beats", async () => {
+    const { server } = await open();
+    await drag(55, 55 - 11, { altKey: true });
+    expect(previewed(server)).toEqual({
+      operations: [{ op: "setNoteStart", line: 5, start: -1 }],
+    });
+  });
+
+  it("changes its length by its right end, at least 1 Beat", async () => {
+    const { server } = await open();
+    await drag(217, 217 - 200, { altKey: true });
+    expect(previewed(server)).toEqual({
+      operations: [{ op: "setNoteLength", line: 6, length: 1 }],
+    });
+  });
+});
+
+describe("a cancelled drag", () => {
+  it("commits nothing and shows the file again", async () => {
+    await open();
+    const canvas = detailCanvas();
+    act(() => {
+      fireEvent.pointerDown(canvas, {
+        clientX: EMPTY_X,
+        clientY: NOTE_Y,
+        pointerId: 1,
+      });
+      fireEvent.pointerMove(canvas, {
+        clientX: EMPTY_X + 55,
+        clientY: NOTE_Y,
+        pointerId: 1,
+      });
+      fireEvent.pointerCancel(canvas, { pointerId: 1 });
+    });
+    await settle();
+    expect(entries()).toEqual([]);
+    expect(gapField()).toHaveValue("0");
+  });
+});
+
+describe("while the Song plays on the Stage", () => {
+  const REASON =
+    "Not while this Song plays on the Stage, so nobody's Notes move mid-Song";
+
+  it("disables Fit to the singing and Save with the reason, live, and enables them when it stops", async () => {
+    const { feed } = await open({ state: "ready" }, { unlocked: true });
+    await type(gapField(), "753");
+    expect(fitButton()).toBeEnabled();
+    expect(saveButton()).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText(REASON)).toBeNull();
+
+    feed.play(7);
+    expect(fitButton()).toBeDisabled();
+    expect(offsetOnlyButton()).toBeDisabled();
+    expect(saveButton()).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getAllByText(REASON)).toHaveLength(2);
+
+    // Another Song playing does not matter.
+    feed.play(8);
+    expect(fitButton()).toBeEnabled();
+    expect(saveButton()).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText(REASON)).toBeNull();
+  });
+
+  it("sends when it opened the Song with the save", async () => {
+    const { server } = await open(
+      { state: "ready" },
+      { unlocked: true, detail: { ...detail(), loadedAtMs: 1_234 } },
+    );
+    await type(gapField(), "753");
+    press("Save");
+    await settle();
+    expect(server.bodies["POST /api/songs/7/timing"]?.at(-1)).toEqual({
+      base: FILE_VERSION,
+      operations: [{ op: "setGap", seconds: 0.753 }],
+      openedAtMs: 1_234,
+    });
   });
 });

@@ -27,6 +27,11 @@
 # Also starts a headless Mic bridge (`openstar-mic-bridge --wav`) on the fake
 # mic's 4-channel WAV, waiting for approval.
 #
+# The server's songs folder is mounted read-only at /songs
+# (OPENSTAR_E2E_SONGS_DIR), so a spec can check the bytes a save wrote
+# (e2e/tests/timing-save.spec.ts). A spec that changes the Library puts it
+# back: every spec shares it.
+#
 # Needs Docker, ffmpeg, the openstar-harness and openstar-mic-bridge binaries
 # (`just harness-build`) and
 # e2e/node_modules (`just e2e-install`).
@@ -154,7 +159,9 @@ docker run --rm --init \
   -e OPENSTAR_E2E_BASE_URL="$base_url" \
   -e OPENSTAR_E2E_ADMIN_PIN="$admin_pin" \
   -e OPENSTAR_E2E_USDB_URL="$usdb_url" \
+  -e OPENSTAR_E2E_SONGS_DIR=/songs \
   -v "$root/e2e:/e2e" -w /e2e \
+  -v "$work/songs:/songs:ro" \
   "$PLAYWRIGHT_IMAGE" \
   node node_modules/@playwright/test/cli.js test "${update_args[@]}" "$@" || status=$?
 

@@ -8,20 +8,20 @@ version `ARG` in the Dockerfile or the checksum under it, and there is no
 
 ## What Renovate bumps
 
-| Pin                | Where                                                                                                                                                | Group, schedule             | Merged                         |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------ |
-| Rust toolchain     | `rust-toolchain.toml`, `rust-version` in `Cargo.toml`, `rust:<v>-slim-trixie` in the Dockerfile (both stages)                                        | Rust toolchain, weekly      | after review                   |
-| Crates             | `=` pins in `Cargo.toml` (and `Cargo.lock`), `cargo-deny@…` in `ci.yml`                                                                              | crates, weekly              | after review                   |
-| npm packages       | `web/package.json`, `e2e/package.json` (and their lockfiles)                                                                                         | npm packages, weekly        | after review                   |
-| Playwright         | `@playwright/test` in `e2e/package.json` and the image tag and digest in `scripts/e2e.sh`, together                                                  | Playwright, weekly          | after review                   |
-| Node               | `.node-version` and `node:<v>-trixie-slim` in the Dockerfile, together                                                                               | Node, weekly                | after review                   |
-| pnpm               | `packageManager` in both `package.json` files and `PNPM_VERSION` in the Dockerfile, together                                                         | pnpm, weekly                | after review                   |
-| yt-dlp             | `YTDLP_VERSION` and `YTDLP_SHA256` in the Dockerfile                                                                                                 | own pull request, **daily** | patch and minor once CI passes |
-| Deno               | `DENO_VERSION` and `DENO_SHA256` in the Dockerfile                                                                                                   | own pull request, weekly    | patch and minor once CI passes |
-| Trivy              | `TRIVY_VERSION` and `TRIVY_SHA256` in `ci.yml`                                                                                                       | own pull request, weekly    | patch and minor once CI passes |
-| Base-image digests | `debian:trixie-slim`, the Mic bridge's `ubuntu:22.04`, the BuildKit `# syntax=` image, and a new digest of an unchanged rust, node or Playwright tag | base-image digests, weekly  | once CI passes                 |
-| Action SHAs        | every `uses:` in `.github/workflows/`, and `just-version` of setup-just                                                                              | GitHub Actions, weekly      | patch and minor once CI passes |
-| Lockfiles          | `Cargo.lock`, `web/pnpm-lock.yaml`, `e2e/pnpm-lock.yaml` (lockfile maintenance)                                                                      | weekly                      | after review                   |
+| Pin                | Where                                                                                                                                                                                    | Group, schedule             | Merged                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------ |
+| Rust toolchain     | `rust-toolchain.toml`, `rust-version` in `Cargo.toml`, `rust:<v>-slim-trixie` in the Dockerfile (`wasm`, `server` and `toolchain`, which the Mic bridge stage copies its toolchain from) | Rust toolchain, weekly      | after review                   |
+| Crates             | `=` pins in `Cargo.toml` (and `Cargo.lock`), `cargo-deny@…` in `ci.yml`                                                                                                                  | crates, weekly              | after review                   |
+| npm packages       | `web/package.json`, `e2e/package.json` (and their lockfiles)                                                                                                                             | npm packages, weekly        | after review                   |
+| Playwright         | `@playwright/test` in `e2e/package.json` and the image tag and digest in `scripts/e2e.sh`, together                                                                                      | Playwright, weekly          | after review                   |
+| Node               | `.node-version` and `node:<v>-trixie-slim` in the Dockerfile, together                                                                                                                   | Node, weekly                | after review                   |
+| pnpm               | `packageManager` in both `package.json` files and `PNPM_VERSION` in the Dockerfile, together                                                                                             | pnpm, weekly                | after review                   |
+| yt-dlp             | `YTDLP_VERSION` and `YTDLP_SHA256` in the Dockerfile                                                                                                                                     | own pull request, **daily** | patch and minor once CI passes |
+| Deno               | `DENO_VERSION` and `DENO_SHA256` in the Dockerfile                                                                                                                                       | own pull request, weekly    | patch and minor once CI passes |
+| Trivy              | `TRIVY_VERSION` and `TRIVY_SHA256` in `ci.yml`                                                                                                                                           | own pull request, weekly    | patch and minor once CI passes |
+| Base-image digests | `debian:trixie-slim`, the Mic bridge's `ubuntu:22.04`, the BuildKit `# syntax=` image, and a new digest of an unchanged rust, node or Playwright tag                                     | base-image digests, weekly  | once CI passes                 |
+| Action SHAs        | every `uses:` in `.github/workflows/`, and `just-version` of setup-just                                                                                                                  | GitHub Actions, weekly      | patch and minor once CI passes |
+| Lockfiles          | `Cargo.lock`, `web/pnpm-lock.yaml`, `e2e/pnpm-lock.yaml` (lockfile maintenance)                                                                                                          | weekly                      | after review                   |
 
 Rules that hold across the table:
 
@@ -65,10 +65,10 @@ one Renovate would miss:
   `github-release-attachments`;
 - the Playwright image's version differing from `@playwright/test`.
 
-A new stage that installs Rust (the Mic bridge's `ubuntu:22.04` stage) takes its version
-from `rust-toolchain.toml` (rustup reads it), or uses `ARG RUST_VERSION` with
-`# renovate: datasource=rust-version depName=rust` above it, which joins the Rust toolchain
-group.
+A new stage that needs Rust on another base copies `/usr/local/rustup` and
+`/usr/local/cargo` from the Dockerfile's `toolchain` stage, as the Mic bridge's
+`ubuntu:22.04` stage does. So it builds with the very toolchain of the other Rust stages,
+and the Rust toolchain group bumps it with no pin of its own.
 
 ## Switching it on (owner, once)
 

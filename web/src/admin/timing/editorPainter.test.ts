@@ -87,4 +87,40 @@ describe("the Timing editor's painter", () => {
     expect(calls).toContainEqual(["fillText", "la", 10, 30]);
     expect(calls[0]).toEqual(["setTransform", 2, 0, 0, 2, 0, 0]);
   });
+
+  it("draws the ◀▶ handle as a rounded tab with its text, and the pin as a head on a stem", () => {
+    const { ctx, calls } = recordingContext();
+    createEditorPainter(ctx, colour).paintDetail(
+      [
+        {
+          type: "handle",
+          x: 20,
+          y: 26,
+          width: 16,
+          height: 18,
+          colour: "--color-blue",
+          ink: "--color-white",
+          text: "◀▶",
+        },
+        {
+          type: "pin",
+          x: 5,
+          y: 50,
+          radius: 5,
+          stem: 12,
+          colour: "--color-purple",
+        },
+      ],
+      size,
+    );
+    expect(calls).toContainEqual(["roundRect", 20, 26, 16, 18, 6]);
+    expect(fills(calls)).toEqual([
+      "value(--color-blue)",
+      "value(--color-white)",
+      "value(--color-purple)",
+    ]);
+    expect(calls.some((c) => c[0] === "fillText" && c[1] === "◀▶")).toBe(true);
+    expect(calls).toContainEqual(["arc", 5, 50, 5, 0, 2 * Math.PI]);
+    expect(calls).toContainEqual(["fillRect", 4, 50, 2, 12]);
+  });
 });
