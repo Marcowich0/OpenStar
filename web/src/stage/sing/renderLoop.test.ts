@@ -5,6 +5,9 @@ import type { ParsedSong } from "../../generated/ParsedSong";
 import { frame, singVoices, type DrawList, type SingState } from "./frame";
 import { ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
+import { LineRatings } from "./lineRating";
+import { PitchBuffer } from "../../pitch/pitchBuffer";
+import { SPARKLE_RATE } from "./effects";
 import { createRenderLoop } from "./renderLoop";
 
 const grid = { gapSeconds: 1, beatsPerMinute: 120 };
@@ -49,6 +52,10 @@ function setup(
     loop,
     painted,
     callbacks,
+    /** Sets the Song time without drawing. */
+    time: (t: number) => {
+      now = t;
+    },
     at: (t: number) => {
       now = t;
       loop.step();
@@ -153,5 +160,91 @@ describe("the render loop's effects", () => {
     at(1);
     at(2);
     expect(particleY(painted[1])).toBe(100);
+  });
+});
+
+describe("the render loop's Line ratings", () => {
+  function scale(list: DrawList | undefined): number | undefined {
+    const entry = list?.find((e) => e.type === "lineRating");
+    return entry?.type === "lineRating" ? entry.scale : undefined;
+  }
+
+  it("advances the pops by the real time between animation frames, before drawing", () => {
+    const ratings = new LineRatings();
+    ratings.show(0, "sing.lineRating.good");
+    const { loop, callbacks, painted } = setup({
+      state: () => ({ ...state, ratings }),
+    });
+    loop.start();
+    callbacks[0]?.(1000);
+    expect(scale(painted[0])).toBeCloseTo(0.3);
+    callbacks[1]?.(1260);
+    expect(scale(painted[1])).toBeCloseTo(1.2, 1);
+    callbacks[2]?.(1660);
+    expect(scale(painted[2])).toBeCloseTo(1);
+  });
+});
+
+describe("the render loop's golden sparkle", () => {
+  /** A golden Note on Beats 4–7 (3 s to 5 s) at C4, sung on pitch from 3 s to 3.5 s. */
+  function goldenSung(): SingState {
+    const golden: Note[] = [
+      { kind: "golden", start: 4, length: 4, pitch: 0, text: "la ", line: 1 },
+    ];
+    const readings = new PitchBuffer(200);
+    for (let ms = 3000; ms <= 3500; ms += 10) {
+      readings.push(
+        { captureMs: ms, pitch: 60, clarity: 0.95, loudness: -20 },
+        ms / 1000,
+      );
+    }
+    return {
+      grid,
+      voices: singVoices({
+        voices: [{ lines: [{ notes: golden, end: null }] }],
+      }),
+      lanes: [
+        {
+          colour: "teal",
+          voice: 0,
+          trace: {
+            readings,
+            micThresholdDbfs: -40,
+            difficulty: "medium",
+            lostAt: null,
+          },
+        },
+      ],
+      effects: new ParticlePool(256),
+    };
+  }
+
+  it("throws sparkles from the head ball while it hits a golden Note, by the real frame delta", () => {
+    const sung = goldenSung();
+    const { loop, callbacks, time } = setup({ state: () => sung });
+    time(3.5);
+    loop.start();
+    callbacks[0]?.(1000); // the first frame only notes the time
+    expect(sung.effects?.live).toBe(0);
+    callbacks[1]?.(1250);
+    expect(sung.effects?.live).toBe(SPARKLE_RATE / 4);
+  });
+
+  it("throws none off the golden Note", () => {
+    const sung = goldenSung();
+    const { loop, callbacks, time } = setup({ state: () => sung });
+    time(2.5); // before the Note: no head ball
+    loop.start();
+    callbacks[0]?.(1000);
+    callbacks[1]?.(1250);
+    expect(sung.effects?.live).toBe(0);
+  });
+
+  it("throws none on a step() of its own (no real time passes)", () => {
+    const sung = goldenSung();
+    const { at } = setup({ state: () => sung });
+    at(3.5);
+    at(3.5);
+    expect(sung.effects?.live).toBe(0);
   });
 });

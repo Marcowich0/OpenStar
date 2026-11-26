@@ -8,6 +8,7 @@ import { singVoices, type SingState } from "./frame";
 import { confettiBurst, ParticlePool } from "./effects";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
 import { laneLayout } from "./laneLayout";
+import { lineEnded, LineRatings } from "./lineRating";
 import { LanePanels, SingScreen } from "./SingScreen";
 
 // The real lane layout, watched: the panels are placed by it.
@@ -603,5 +604,52 @@ describe("a lane whose Mic is lost", () => {
     const rendersAfterMount = commits.mock.calls.length;
     runFrame();
     expect(commits).toHaveBeenCalledTimes(rendersAfterMount);
+  });
+});
+
+describe("a Line rating", () => {
+  it("pops its word in the Party colour, outlined in white with a soft ledge, beside the lane header, without a React render", () => {
+    const ratings = new LineRatings();
+    const s: SingState = { ...state, ratings };
+    const commits = vi.fn();
+    const { container } = render(
+      <Profiler id="sing" onRender={commits}>
+        <SingScreen
+          state={s}
+          clock={{ songTime: () => 3 }}
+          avOffset={() => 0}
+        />
+      </Profiler>,
+    );
+    const words = () => [
+      ...container.querySelectorAll<HTMLElement>("[data-line-rating]"),
+    ];
+    runFrame(1000);
+    expect(words()).toHaveLength(2);
+    expect(words().every((w) => w.hidden)).toBe(true);
+    const mounted = commits.mock.calls.length;
+    lineEnded(s, 1, { rating: 6, word: "sing.lineRating.great" });
+    runFrame(1100);
+    const bo = words()[1];
+    expect(bo).toBeVisible();
+    expect(bo).toHaveTextContent("Great!");
+    expect(bo?.style.color).toBe("var(--color-party-teal)");
+    // A 4 px white outline (half of an 8 px stroke painted under the fill)
+    // and a soft ledge.
+    expect(bo?.style.getPropertyValue("-webkit-text-stroke")).toBe(
+      "8px var(--color-white)",
+    );
+    expect(bo?.style.getPropertyValue("paint-order")).toBe("stroke");
+    expect(bo?.style.textShadow).toBe("0 5px 4px var(--color-lane-ledge)");
+    // In the headers layer, above the lanes canvas.
+    expect(bo?.closest("[data-layer]")).toHaveAttribute(
+      "data-layer",
+      "headers",
+    );
+    expect(words()[0]?.hidden).toBe(true);
+    // After the pop it is gone again.
+    for (let t = 1350; t <= 3000; t += 200) runFrame(t);
+    expect(bo?.hidden).toBe(true);
+    expect(commits).toHaveBeenCalledTimes(mounted);
   });
 });

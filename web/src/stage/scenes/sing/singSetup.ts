@@ -25,6 +25,7 @@ import type { PitchMic } from "../../../pitch/pitchRouter";
 import { pitchBufferCapacity } from "../../../pitch/pitchCapacity";
 import type { PaletteKey } from "../../../theme/tokens";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
+import { LineRatings } from "../../sing/lineRating";
 import {
   singVoices,
   type LanePlayer,
@@ -153,6 +154,7 @@ export function singSetup(input: SingSetupInput): SingSetup {
       voices,
       lengthSeconds: detail.lengthSeconds,
       effects: new ParticlePool(EFFECTS_CAPACITY),
+      ratings: new LineRatings(),
       lanes: players.map((player, index): SingLane => {
         const readings = buffers[index];
         return {

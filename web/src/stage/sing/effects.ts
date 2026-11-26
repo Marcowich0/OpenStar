@@ -12,15 +12,15 @@
  * switch does not throw particles off screen.
  *
  * Live particles go into the draw list as `particle` entries (`draw`), and
- * the same painter paints them on the effects canvas. Which game events
- * trigger which burst (golden Note sparkle, Perfect! Line rating) is wired by
- * #55's sing screen tickets; they call `confettiBurst` on the pool they put in
- * `SingState.effects`.
+ * the same painter paints them on the effects canvas. A Perfect! Line bursts
+ * `confettiBurst` from the lane header (`lineRating.ts`), and the render loop
+ * runs `GoldenSparkles` at the head ball while a golden Note is hit (#216).
  *
  * Sizes are in the 1920 × 1080 reference frame, times in seconds.
  */
 
 import type { InterfaceToken, PaletteKey } from "../../theme/tokens";
+import type { HeadBallEntry } from "./pitchTrace";
 
 export type ParticleShape = "dot" | "star";
 
@@ -246,22 +246,90 @@ export function confettiBurst(
   count: number = CONFETTI_COUNT,
 ): void {
   for (let i = 0; i < count; i++) {
-    const angle = (pool.random() * 2 - 1) * (50 * (Math.PI / 180));
-    const speed = 600 + pool.random() * 500;
-    const own = pool.random() < 0.5;
-    const accent =
-      ACCENTS[Math.floor(pool.random() * ACCENTS.length)] ?? colour;
-    pool.spawn(
-      x,
-      y,
-      speed * Math.sin(angle),
-      -speed * Math.cos(angle),
-      pool.random() * 2 * Math.PI,
-      0.6 + pool.random() * 0.7,
-      8 + pool.random() * 12,
-      i % 3 === 0 ? "star" : "dot",
-      own ? colour : accent,
-      (pool.random() * 2 - 1) * 6,
-    );
+    throwOne(pool, x, y, colour, i % 3 === 0, BURST_SPEED);
+  }
+}
+
+/** Launch speeds, reference pixels per second: from, and how much more. */
+const BURST_SPEED = { from: 600, spread: 500 } as const;
+const SPARKLE_SPEED = { from: 250, spread: 250 } as const;
+
+/** One confetti particle thrown up within 50° of vertical. */
+function throwOne(
+  pool: ParticlePool,
+  x: number,
+  y: number,
+  colour: ParticleColour,
+  star: boolean,
+  speedRange: { readonly from: number; readonly spread: number },
+): void {
+  const angle = (pool.random() * 2 - 1) * (50 * (Math.PI / 180));
+  const speed = speedRange.from + pool.random() * speedRange.spread;
+  const own = pool.random() < 0.5;
+  const accent = ACCENTS[Math.floor(pool.random() * ACCENTS.length)] ?? colour;
+  pool.spawn(
+    x,
+    y,
+    speed * Math.sin(angle),
+    -speed * Math.cos(angle),
+    pool.random() * 2 * Math.PI,
+    0.6 + pool.random() * 0.7,
+    8 + pool.random() * 12,
+    star ? "star" : "dot",
+    own ? colour : accent,
+    (pool.random() * 2 - 1) * 6,
+  );
+}
+
+/** Sparkle particles per second of real time while a golden Note is hit. */
+export const SPARKLE_RATE = 24;
+/** Lanes the sparkle keeps a count for (`laneLayout`'s most). */
+const SPARKLE_LANES = 8;
+
+/**
+ * The sparkle at the head ball while a golden Note is being hit (#55): the
+ * same confetti, thrown gently from the ball at `SPARKLE_RATE` a second of
+ * real time, whatever the frame rate. The render loop calls `emit` once a
+ * frame with that frame's draw list and real delta; it reads the head balls
+ * the list marks `golden`. Allocates nothing.
+ */
+export class GoldenSparkles {
+  /** Each lane's particles owed but not yet thrown (a fraction). */
+  private readonly owed = new Float64Array(SPARKLE_LANES);
+  private readonly active = new Uint8Array(SPARKLE_LANES);
+
+  emit(
+    list: readonly { readonly type: string }[],
+    pool: ParticlePool,
+    delta: number,
+  ): void {
+    this.active.fill(0);
+    const dt = delta > 0 ? Math.min(delta, MAX_FRAME_DELTA) : 0;
+    for (const entry of list) {
+      if (entry.type !== "headBall") continue;
+      const ball = entry as HeadBallEntry;
+      if (!ball.golden || ball.lane < 0 || ball.lane >= SPARKLE_LANES) {
+        continue;
+      }
+      this.active[ball.lane] = 1;
+      let owed = (this.owed[ball.lane] ?? 0) + dt * SPARKLE_RATE;
+      // A hair of slack, so 144 frames of 1/144 s owe a whole 24.
+      while (owed >= 1 - 1e-9) {
+        throwOne(
+          pool,
+          ball.x,
+          ball.y,
+          ball.colour,
+          pool.random() < 1 / 3,
+          SPARKLE_SPEED,
+        );
+        owed -= 1;
+      }
+      this.owed[ball.lane] = Math.max(0, owed);
+    }
+    // A lane off a golden Note starts its next golden stretch afresh.
+    for (let lane = 0; lane < SPARKLE_LANES; lane++) {
+      if (this.active[lane] === 0) this.owed[lane] = 0;
+    }
   }
 }
