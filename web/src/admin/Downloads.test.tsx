@@ -89,7 +89,7 @@ afterEach(() => {
 describe("the Downloads section", () => {
   it("lists the mirror's songs with cover, title, artist, rating and views", async () => {
     usdbServer();
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     const [first, second] = rows();
     expect(first).toHaveTextContent("First Tune");
@@ -105,7 +105,7 @@ describe("the Downloads section", () => {
 
   it("marks only the songs already in the Library", async () => {
     usdbServer();
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     const [first, second] = rows();
     expect(within(first as HTMLElement).getByText("In Library")).toBeVisible();
@@ -119,7 +119,7 @@ describe("the Downloads section", () => {
           url.searchParams.get("search") === "other" ? SONGS.slice(1) : SONGS,
         ),
     });
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     act(() => {
       fireEvent.change(screen.getByRole("searchbox"), {
@@ -137,7 +137,7 @@ describe("the Downloads section", () => {
 
   it("sorts by views first, and by rating when asked", async () => {
     const server = usdbServer();
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
     expect(server.calls).toContain("GET /api/usdb/songs?sort=views");
 
     act(() => {
@@ -151,14 +151,14 @@ describe("the Downloads section", () => {
 
   it("says how many matched when it shows only the first ones", async () => {
     usdbServer({ songs: results(SONGS, 120) });
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     expect(screen.getByText("Showing 2 of 120 songs")).toBeVisible();
   });
 
   it("says so when nothing matches, and when nothing is mirrored", async () => {
     usdbServer({ songs: results([]) });
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
     expect(screen.getByText("No USDB songs are here yet")).toBeVisible();
 
     act(() => {
@@ -173,14 +173,14 @@ describe("the Downloads section", () => {
 
   it("asks for a fresh mirror once when it opens", async () => {
     const server = usdbServer();
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     expect(server.count("POST /api/usdb/mirror/refresh")).toBe(1);
   });
 
   it("starts a full refetch by hand without the Admin PIN", async () => {
     const server = usdbServer();
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     act(() => {
       fireEvent.click(
@@ -205,7 +205,7 @@ describe("the Downloads section", () => {
       ),
       songs: results([]),
     });
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     const text = notices().textContent;
     expect(text).toContain("OPENSTAR_USDB_USERNAME");
@@ -218,7 +218,7 @@ describe("the Downloads section", () => {
 
   it("shows “USDB login failed” after a failed login", async () => {
     usdbServer({ status: "loginFailed" });
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     expect(notices()).toHaveTextContent("USDB login failed");
   });
@@ -226,7 +226,7 @@ describe("the Downloads section", () => {
   it("shows the fill's progress and the songs mirrored so far, and follows the mirror's notices", async () => {
     let status = mirror({ type: "filling", percent: 10 }, 300);
     const server = usdbServer({ mirror: () => status });
-    const live = await renderLive(<Downloads />);
+    const live = await renderLive((store) => <Downloads store={store} />);
 
     expect(notices()).toHaveTextContent(
       "Fetching USDB's song list: 10% (300 songs so far)",
@@ -254,7 +254,7 @@ describe("the Downloads section", () => {
         params: { status: 503 },
       }),
     });
-    await renderLive(<Downloads />);
+    await renderLive((store) => <Downloads store={store} />);
 
     expect(notices()).toHaveTextContent(
       "The last update of the USDB list failed",
