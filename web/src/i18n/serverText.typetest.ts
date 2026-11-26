@@ -4,7 +4,12 @@
 import type { PartyEvent } from "../generated/PartyEvent";
 import type { ProblemReason } from "../generated/ProblemReason";
 import type { UserMessage } from "../generated/UserMessage";
-import { byCode, problemReasonText, type CodeHandlers } from "./serverText";
+import {
+  byCode,
+  problemReasonText,
+  txtRejectionText,
+  type CodeHandlers,
+} from "./serverText";
 import { t } from "./t";
 
 const handlers: CodeHandlers<UserMessage> = {
@@ -64,6 +69,13 @@ const handlers: CodeHandlers<UserMessage> = {
   usdbGaveUp: ({ params }) => t("userMessage.usdbGaveUp", params),
   usdbUnexpectedStatus: ({ params }) =>
     t("userMessage.usdbUnexpectedStatus", params),
+  usdbSongInLibrary: () => t("userMessage.usdbSongInLibrary"),
+  usdbNoSongText: () => t("userMessage.usdbNoSongText"),
+  usdbTextRejected: ({ params }) =>
+    t("userMessage.usdbTextRejected", {
+      reason: txtRejectionText(params.rejection),
+    }),
+  videoDownloadFailed: () => t("userMessage.videoDownloadFailed"),
   pitchTrackFailed: () => t("userMessage.pitchTrackFailed"),
   songFileChanged: () => t("userMessage.songFileChanged"),
   songPlaying: () => t("userMessage.songPlaying"),
