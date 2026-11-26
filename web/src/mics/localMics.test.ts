@@ -569,13 +569,13 @@ describe("loopback channels of the known-models table", () => {
       loopbackChannel("b", "Scarlett 4i4 4th Gen", 4, 1),
       loopbackChannel("b", "Scarlett 4i4 4th Gen", 5, 2),
     ];
-    expect(localMicName(first!.source, "")).toBe(
+    expect(localMicName(first.source, "")).toBe(
       "Scarlett 4i4 4th Gen · Loopback 1",
     );
-    expect(localMicName(second!.source, "")).toBe(
+    expect(localMicName(second.source, "")).toBe(
       "Scarlett 4i4 4th Gen · Loopback 2",
     );
-    expect(localMicName(first!.source, "Song")).toBe("Song");
+    expect(localMicName(first.source, "Song")).toBe("Song");
   });
 
   it("go last in their bridge's group, after every device's inputs", () => {
