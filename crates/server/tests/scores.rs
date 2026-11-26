@@ -487,10 +487,15 @@ async fn deleting_a_profile_deletes_its_records_and_renaming_keeps_them() {
     };
     assert_eq!(players(&app), [profile(ada.id), profile(bo.id)]);
 
-    // No delete endpoint exists yet (Admin area); delete the row as it will.
-    open_db(&app)
-        .execute("DELETE FROM profiles WHERE id = ?1", [bo.id.0])
+    let cookie = app.unlock().await;
+    let response = app
+        .http()
+        .delete(app.url(&format!("/api/profiles/{}", bo.id.0)))
+        .header("cookie", cookie)
+        .send()
+        .await
         .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
     assert_eq!(players(&app), [profile(ada.id)]);
 }
 

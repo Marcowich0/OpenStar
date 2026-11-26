@@ -3,9 +3,8 @@
 //!
 //! The name rules are [`check_name`]; uniqueness is checked and the row
 //! written in one transaction, and the `name_key` column is `UNIQUE` too.
-//! Deleting a Profile belongs to the Admin area (#199 mounts its guarded
-//! endpoint); [`delete_profile`] is the handler, which deletes through the
-//! Party (`LiveHandle::delete_profile`).
+//! Deleting a Profile belongs to the Admin area: [`delete_profile`] is the
+//! guarded endpoint, which deletes through the Party (`LiveHandle::delete_profile`).
 
 use axum::Json;
 use axum::extract::{Path, State};
@@ -415,8 +414,7 @@ pub(crate) async fn edit_profile(
     }
 }
 
-/// `DELETE /api/profiles/{id}` (mounted by #199; only a test route mounts
-/// it so far): `204` once the Profile and its Score records are gone, `404
+/// `DELETE /api/profiles/{id}` (guarded: it deletes kept data): `204` once the Profile and its Score records are gone, `404
 /// profileNotFound`, or `409 profileSinging` while it sings in the playing
 /// Song. Through the live-state task: a Party member leaves the Party first.
 pub(crate) async fn delete_profile(State(state): State<AppState>, Path(id): Path<u32>) -> Response {

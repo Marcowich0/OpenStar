@@ -445,6 +445,32 @@ impl TestApp {
             .to_owned()
     }
 
+    /// Gives the app's Admin PIN at `POST /api/unlock`, as the Admin area
+    /// would, and returns the `Cookie` header value of the new Unlock, to send
+    /// with guarded calls. A correct PIN resets the shared wrong-guess count.
+    pub async fn unlock(&self) -> String {
+        let pin = self
+            .var("OPENSTAR_ADMIN_PIN")
+            .expect("the Admin PIN is set");
+        let response = self
+            .http
+            .post(self.url("/api/unlock"))
+            .json(&serde_json::json!({ "pin": pin }))
+            .send()
+            .await
+            .unwrap_or_else(|e| panic!("POST /api/unlock: {e}"));
+        let status = response.status();
+        assert!(status.is_success(), "POST /api/unlock answered {status}");
+        response
+            .headers()
+            .get(reqwest::header::SET_COOKIE)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.split(';').next())
+            .expect("a correct PIN sets the Unlock cookie")
+            .trim()
+            .to_owned()
+    }
+
     /// Opens a WebSocket at `path` (starting with `/`).
     pub async fn connect_ws_at(&self, path: &str) -> WsClient {
         self.try_connect_ws_at(path, None)

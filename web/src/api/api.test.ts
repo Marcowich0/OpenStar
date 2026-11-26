@@ -120,6 +120,16 @@ describe("the typed fetch wrapper", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/profiles/a%2Fb");
   });
 
+  it("answers a 204 with no body as null", async () => {
+    const fetchMock = serverAnswers(new Response(null, { status: 204 }));
+
+    await expect(
+      api("DELETE /api/profiles/{id}", { params: { id: "7" } }),
+    ).resolves.toBeNull();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/profiles/7");
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("DELETE");
+  });
+
   it("sends a route's query in the URL, leaving out absent fields", async () => {
     const fetchMock = vi.fn<
       (url: string, init?: RequestInit) => Promise<Response>

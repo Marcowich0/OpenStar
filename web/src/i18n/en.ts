@@ -390,7 +390,17 @@ export const en = {
   "admin.libraryProblems.failed": "The Library problems could not be loaded",
   "admin.libraryProblems.rejection": "Rejected",
   "admin.libraryProblems.warning": "Warning",
-  "admin.profiles.placeholder": "Delete Profiles here. Coming soon.",
+  "admin.profiles.intro":
+    "Deleting a Profile also deletes its Score records. Hold Delete for a moment.",
+  "admin.profiles.list": "Profiles",
+  "admin.profiles.empty": "No Profiles yet",
+  "admin.profiles.loading": "Loading the Profiles…",
+  "admin.profiles.failed": "The Profiles could not be loaded",
+  "admin.profiles.lastSung": "Last sung {date}",
+  "admin.profiles.neverSung": "Never sung",
+  "admin.profiles.delete": "Delete {name}",
+  "admin.profiles.deleteShort": "Delete",
+  "admin.profiles.deleteFailed": "The Profile could not be deleted",
   "admin.testGuarded": "Test guarded action",
   "admin.testGuardedDone": "The guarded action is done",
 

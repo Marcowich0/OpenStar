@@ -3,13 +3,12 @@
 //! change event, and a deleted Profile that is a Party member leaves the
 //! Party the way Leave party does, unless it sings in the playing Song.
 //!
-//! The Admin area's delete endpoints belong to #190 (Songs) and #199
-//! (Profiles); the Profile delete is reached here through the test-only
-//! route `DELETE /api/test/profiles/{id}`, which runs the same Party seam.
+//! A Profile is deleted at the Admin area's guarded `DELETE /api/profiles/{id}`
+//! (#199); the Song delete belongs to #190.
 
 use std::path::Path;
 
-use openstar_protocol::admin::UnlockRequest;
+use openstar_protocol::admin::{ApiError, ApiErrorCode};
 use openstar_protocol::library::{SongId, SongList, SongSummary};
 use openstar_protocol::profile::{Avatar, AvatarKey, NewProfile, PaletteKey, Profile, ProfileId};
 use openstar_protocol::{
@@ -35,9 +34,9 @@ fn write_song(folder: &Path, title: &str) {
     .unwrap();
 }
 
-/// A fresh app (with the test routes) whose Library holds "Solo" and "Encore".
+/// A fresh app whose Library holds "Solo" and "Encore".
 async fn app_with_songs() -> (TestApp, SongId, SongId) {
-    let mut app = TestApp::builder().test_routes().start().await;
+    let mut app = TestApp::start().await;
     write_song(&app.songs_dir().join("Solo"), "Solo");
     write_song(&app.songs_dir().join("Encore"), "Encore");
     app.restart().await;
@@ -188,23 +187,7 @@ async fn rescan_without(app: &TestApp, folder: &str) {
     assert_eq!(response.status(), StatusCode::ACCEPTED);
 }
 
-/// Unlocks with the test Admin PIN; returns the cookie pair to send back.
-async fn unlock(app: &TestApp) -> String {
-    let response = app
-        .http()
-        .post(app.url("/api/unlock"))
-        .json(&UnlockRequest {
-            pin: "1234".to_owned(),
-        })
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let cookie = response.headers()["set-cookie"].to_str().unwrap();
-    cookie.split(';').next().unwrap().trim().to_owned()
-}
-
-/// Deletes Profile `id` through the Party seam; the status and any refusal.
+/// Deletes Profile `id` at the guarded endpoint; the status and any refusal.
 async fn delete_profile(
     app: &TestApp,
     cookie: &str,
@@ -212,7 +195,7 @@ async fn delete_profile(
 ) -> (StatusCode, Option<UserMessage>) {
     let response = app
         .http()
-        .delete(app.url(&format!("/api/test/profiles/{}", id.0)))
+        .delete(app.url(&format!("/api/profiles/{}", id.0)))
         .header("cookie", cookie)
         .send()
         .await
@@ -333,7 +316,7 @@ async fn deleting_a_profile_in_the_party_frees_its_colour_and_drops_it_from_the_
             .any(|seat| seat.member_id == bo_id),
         "Bo sits in the waiting Line-up"
     );
-    let cookie = unlock(&app).await;
+    let cookie = app.unlock().await;
 
     assert_eq!(
         delete_profile(&app, &cookie, bo.id).await,
@@ -435,7 +418,7 @@ async fn deleting_a_profile_is_refused_while_it_sings_in_the_playing_song() {
         recv(sockets[0]).await,
         ServerMessage::ControlSong { .. }
     ));
-    let cookie = unlock(&app).await;
+    let cookie = app.unlock().await;
 
     assert_eq!(
         delete_profile(&app, &cookie, bo.id).await,
@@ -470,4 +453,35 @@ async fn deleting_a_profile_is_refused_while_it_sings_in_the_playing_song() {
         PartyEvent::ProfileDeleted { member_id, .. } if member_id == bo_id
     ));
     assert!(party.members.is_empty());
+}
+
+#[tokio::test]
+async fn deleting_a_profile_is_refused_without_an_unlock_and_the_profile_stays() {
+    let app = TestApp::start().await;
+    let bo = create_profile(&app, "Bo", PaletteKey::Sky).await;
+
+    let response = app
+        .http()
+        .delete(app.url(&format!("/api/profiles/{}", bo.id.0)))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    let refusal: ApiError = response.json().await.unwrap();
+    assert_eq!(refusal.code, ApiErrorCode::UnlockRequired);
+    let profiles: Vec<Profile> = app.get_json("/api/profiles").await;
+    assert!(profiles.iter().any(|p| p.id == bo.id));
+
+    // With an Unlock the same call deletes it; a second call finds nothing.
+    let cookie = app.unlock().await;
+    assert_eq!(
+        delete_profile(&app, &cookie, bo.id).await,
+        (StatusCode::NO_CONTENT, None)
+    );
+    let profiles: Vec<Profile> = app.get_json("/api/profiles").await;
+    assert!(profiles.iter().all(|p| p.id != bo.id));
+    assert_eq!(
+        delete_profile(&app, &cookie, bo.id).await,
+        (StatusCode::NOT_FOUND, Some(UserMessage::ProfileNotFound))
+    );
 }
