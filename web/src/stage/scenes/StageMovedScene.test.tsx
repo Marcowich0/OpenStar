@@ -42,10 +42,10 @@ function fakeServer(remembered: boolean) {
 
 /** A Stage browser that was the Stage until another browser took over. */
 async function movedStage() {
-  let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
-    null;
+  type Handlers = Pick<LiveClientOptions, "onMessage" | "onConnection">;
+  const client: { handlers?: Handlers } = {};
   const store = createLiveStore((given) => {
-    handlers = given;
+    client.handlers = given;
     return { send: () => true, close: () => {} };
   });
   const takeStageBack = vi.fn();
@@ -54,14 +54,12 @@ async function movedStage() {
   });
   render(
     <QueryClientProvider client={queries}>
-      <StageFrame
-        store={store}
-        takeStageBack={takeStageBack}
-      />
+      <StageFrame store={store} takeStageBack={takeStageBack} />
     </QueryClientProvider>,
   );
   await act(async () => {
-    const h = handlers!;
+    const h = client.handlers;
+    if (h === undefined) throw new Error("the live client never connected");
     h.onConnection("open");
     h.onMessage({
       type: "liveState",
