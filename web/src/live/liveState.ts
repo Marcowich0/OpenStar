@@ -60,6 +60,11 @@ export interface LiveState {
    * has reported. `progressAt` (`songProgress.ts`) extrapolates from it.
    */
   songProgress: ProgressAnchor | null;
+  /**
+   * Check A/V sync runs on the Stage (#163), as the server told it: the
+   * Stage shows the test pattern, a Remote its big −/+ and Done.
+   */
+  avSync: boolean;
 }
 
 export const initialLiveState: LiveState = {
@@ -74,6 +79,7 @@ export const initialLiveState: LiveState = {
   volume: null,
   volumeSteps: 0,
   songProgress: null,
+  avSync: false,
 };
 
 /** The progress, kept only while its Request is the one playing in `party`. */
@@ -100,8 +106,10 @@ export function receive(
     case "liveState":
       return {
         ...state,
-        // The server tells the latest report again right after this.
+        // The server tells the latest report again right after this, and
+        // whether Check A/V sync runs.
         songProgress: null,
+        avSync: false,
         stage: {
           stageId: message.stageId,
           party: message.party,
@@ -155,6 +163,13 @@ export function receive(
       );
       return anchor === null ? state : { ...state, songProgress: anchor };
     }
+    case "avSync":
+      return state.avSync === message.running
+        ? state
+        : { ...state, avSync: message.running };
+    case "stepAvSync":
+      // Stage only: routed to the Check A/V sync screen in liveStore.ts.
+      return state;
     case "changed":
       // Change notices invalidate HTTP data; they change no live state.
       return state;

@@ -102,6 +102,8 @@ export const userMessageText = byCode<UserMessage>({
   songFileChanged: () => t("userMessage.songFileChanged"),
   songPlaying: () => t("userMessage.songPlaying"),
   noOriginal: () => t("userMessage.noOriginal"),
+  notWhileSongPlays: () => t("userMessage.notWhileSongPlays"),
+  avSyncNotRunning: () => t("userMessage.avSyncNotRunning"),
 });
 
 /** An accepted change to the Party, as a toast. */

@@ -12,6 +12,8 @@ import { songsQuery } from "../../api/queries";
 import type { SongId } from "../../generated/SongId";
 import type { SongSummary } from "../../generated/SongSummary";
 import type { UserMessage } from "../../generated/UserMessage";
+import type { LiveState } from "../../live/liveState";
+import { useLive } from "../../live/useLive";
 import { userMessageText } from "../../i18n/serverText";
 import { t } from "../../i18n/t";
 import { tokenVar } from "../../theme/tokens";
@@ -23,6 +25,8 @@ import { CAROUSEL_ARROWS, SongCarousel } from "./songBrowser/SongCarousel";
 import { SongInfo } from "./songBrowser/SongInfo";
 import { addStageRequest } from "./songBrowser/stageRequest";
 import { useCarouselPreview } from "./songBrowser/useCarouselPreview";
+
+const selectAvSync = (live: LiveState) => live.avSync;
 
 /** The logo's star, on a 64-unit grid. */
 const STAR = "M32 4l8 18 19 2-14 13 4 19-17-10-17 10 4-19L5 24l19-2z";
@@ -38,7 +42,9 @@ export function SongBrowserScene() {
   const found = songs?.findIndex((s) => s.id === selectedId) ?? -1;
   const index = found === -1 ? 0 : found;
   const song: SongSummary | undefined = songs?.[index];
-  const detail = useCarouselPreview(song?.id ?? null);
+  // Previews stop while Check A/V sync runs (#163): only its click plays.
+  const avSync = useLive(selectAvSync, store);
+  const detail = useCarouselPreview(song?.id ?? null, avSync);
 
   const select = (next: number) => {
     const nextSong = songs?.[next];

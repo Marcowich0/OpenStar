@@ -68,6 +68,8 @@ const handlers: CodeHandlers<UserMessage> = {
   songFileChanged: () => t("userMessage.songFileChanged"),
   songPlaying: () => t("userMessage.songPlaying"),
   noOriginal: () => t("userMessage.noOriginal"),
+  notWhileSongPlays: () => t("userMessage.notWhileSongPlays"),
+  avSyncNotRunning: () => t("userMessage.avSyncNotRunning"),
 };
 
 // A code the Rust side adds (here `queueFull`) fails until it is mapped.

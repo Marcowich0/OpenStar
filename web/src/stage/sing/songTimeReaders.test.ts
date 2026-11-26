@@ -44,12 +44,14 @@ describe("who reads the Song's position", () => {
     // to the preview point and schedules its fades on the AudioContext's
     // `currentTime`; it feeds no clock. The Calibration tone run (#156) reads
     // its AudioContext's `currentTime` only to schedule tones; their play
-    // times come from `outputTime`.
+    // times come from `outputTime`. So does the Check A/V sync click
+    // (#163) for its clicks and their landing times.
     expect(
       filesMatching(
         /\.currentTime\b|\.mediaTime\b|requestVideoFrameCallback\s*\(/,
       ),
     ).toEqual([
+      "src/avSync/clickTrack.ts",
       "src/calibration/toneRun.ts",
       "src/clock/songClock.ts",
       "src/playback/mediaPlayback.ts",
@@ -80,9 +82,14 @@ describe("who reads the Song's position", () => {
       "src/stage/sing/SingScreen.tsx",
       "src/stage/sing/renderLoop.ts",
     ]);
-    // The kept value is loaded only to be handed to that getter.
+    // The kept value is loaded only to be handed to that getter, and by
+    // Check A/V sync (#163), which shows and steps it and draws its own
+    // test pattern with it, never Song time.
     expect(filesMatching(/from "[^"]*\/(avOffset|use\w*AvOffset)"/)).toEqual([
       "src/avOffset/useAvOffset.ts",
+      "src/avSync/AvSyncPanel.tsx",
+      "src/avSync/StageAvSync.tsx",
+      "src/avSync/avSyncStep.ts",
       "src/stage/output/useStageAvOffset.ts",
       "src/stage/scenes/sing/SingScene.tsx",
     ]);
