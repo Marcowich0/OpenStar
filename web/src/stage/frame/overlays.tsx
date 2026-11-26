@@ -1,6 +1,6 @@
 // What each overlay shows, and the overlay itself: a veil over the whole
-// screen and a cream modal (44 px radius) in the reference frame. The Songs,
-// Queue and People overlays are placeholders until their tickets fill them;
+// screen and a cream modal (44 px radius) in the reference frame. Songs and
+// Queue are `../overlays/`; People is a placeholder until its ticket fills it;
 // so are two of the Setup menu's three screens (Calibrate mics #52, Check
 // A/V sync #53). Mics is `mics/MicsScreen.tsx`.
 
@@ -12,6 +12,8 @@ import { useLive } from "../../live/useLive";
 import { MicsScreen } from "../../mics/MicsScreen";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
+import { QueueOverlay } from "../overlays/QueueOverlay";
+import { SongsOverlay } from "../overlays/SongsOverlay";
 import type { OverlayId } from "./overlayIds";
 import { ReferenceBox } from "./ReferenceBox";
 import { StageLayer, useStageFrame } from "./stageFrameContext";
@@ -25,16 +27,6 @@ const selectParty = (live: LiveState) => live.stage?.party ?? null;
 
 function ComingSoon() {
   return <p className="text-3xl text-ink-2">{t("stage.overlay.comingSoon")}</p>;
-}
-
-function QueueOverlay() {
-  const { store } = useStageFrame();
-  const party = useLive(selectParty, store);
-  return (
-    <p className="text-3xl text-ink-2">
-      {t("stage.queue.count", { count: party?.queue.length ?? 0 })}
-    </p>
-  );
 }
 
 function PeopleOverlay() {
@@ -63,7 +55,7 @@ function PeopleOverlay() {
 }
 
 export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
-  songs: { title: "stage.overlay.songs", component: ComingSoon },
+  songs: { title: "stage.overlay.songs", component: SongsOverlay },
   queue: { title: "stage.overlay.queue", component: QueueOverlay },
   people: { title: "stage.overlay.people", component: PeopleOverlay },
   mics: { title: "stage.overlay.mics", component: MicsScreen },

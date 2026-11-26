@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -105,13 +106,19 @@ function setup(
     });
   };
   const takeStageBack = vi.fn();
+  // The Songs and Queue overlays read queries; these tests fetch nothing.
+  const queries = new QueryClient({
+    defaultOptions: { queries: { enabled: false, retry: false } },
+  });
   const view = render(
-    <StageFrame
-      store={store}
-      takeStageBack={takeStageBack}
-      scenes={FRAME_SCENES}
-      {...options}
-    />,
+    <QueryClientProvider client={queries}>
+      <StageFrame
+        store={store}
+        takeStageBack={takeStageBack}
+        scenes={FRAME_SCENES}
+        {...options}
+      />
+    </QueryClientProvider>,
   );
   live((h) => {
     h.onConnection("open");
@@ -234,7 +241,11 @@ describe("StageFrame overlays", () => {
       fireEvent.click(pills.getByRole("button", { name: "Queue 4" }));
     });
     expect(overlay()).toHaveAccessibleName("Queue");
-    expect(screen.getByText("4 Requests in the Queue")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("list", { name: "Queue" })).getAllByRole(
+        "listitem",
+      ),
+    ).toHaveLength(4);
     act(() => {
       fireEvent.click(pills.getByRole("button", { name: "People 2" }));
     });
