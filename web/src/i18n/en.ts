@@ -449,6 +449,13 @@ export const en = {
   "admin.songs.restoreOriginal.failed": "The Original could not be restored",
   "admin.songs.timing": "Timing",
   "admin.songs.timingOf": "Timing of {title}",
+  "admin.songs.fit.title": "Auto-fit",
+  "admin.songs.fit.run": "Fit to the singing",
+  "admin.songs.fit.check": "Accept to save it, or Undo.",
+  "admin.songs.fit.accept": "Accept",
+  "admin.songs.fit.undo": "Undo",
+  "admin.songs.fit.saved": "Fit saved. Restore Original takes it back.",
+  "admin.songs.fit.saveFailed": "The fit could not be saved",
   "admin.libraryProblems.intro":
     "Why a file does not show up as a Song. Rejected files are hidden from Players; Songs with warnings still play.",
   "admin.libraryProblems.rescan": "Rescan",
@@ -641,6 +648,7 @@ export const en = {
   "partyEvent.songSkipped": "{song} was skipped",
   "partyEvent.resultsShown": "The results of {song}",
   "partyEvent.resultsClosed": "On to the next Song",
+  "partyEvent.autoFitAccepted": "The Auto-fit of {song} was accepted",
   // Line-up warnings: the screen resolves the member's name.
   "lineUpWarning.noMic": "{name} has no mic",
   "lineUpWarning.micBlocked": "{name}'s mic is blocked",
@@ -696,6 +704,7 @@ export const en = {
   "toast.localMicBack": "{mic} is back on {actor}'s seat",
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",
   "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",
+  "toast.youAutoFitAccepted": "You accepted the Auto-fit of {song}",
 
   // The Timing editor's edit list: one entry per edit, with the values
   // before and after it (GAP in ms, BPM as in the file, video gap in s).

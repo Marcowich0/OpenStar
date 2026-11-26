@@ -213,6 +213,13 @@ pub struct TimingSave {
     /// version.
     pub base: TxtVersion,
     pub operations: Vec<TimingOperation>,
+    /// Set when a Phone accepts its Auto-fit (#223): the Phone that ran it.
+    /// Then only `setGap` and `setBpm` are allowed, and the Stage shows a
+    /// [`crate::PartyEvent::AutoFitAccepted`] toast naming that Phone's
+    /// Party member. The desktop Timing editor leaves it out.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub auto_fit_from: Option<crate::PhoneId>,
 }
 
 /// The version of a `.txt` as OpenStar loaded it: the SHA-256 of its bytes,

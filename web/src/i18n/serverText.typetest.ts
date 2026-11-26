@@ -114,6 +114,7 @@ export const wrongParam = byCode<PartyEvent>({
   songSkipped: ({ params }) => params.title,
   resultsShown: ({ params }) => params.title,
   resultsClosed: () => "",
+  autoFitAccepted: ({ params }) => params.title,
 });
 
 // Every Library problem reason renders through one handler per code: a

@@ -3,11 +3,13 @@
 // cached track or names the job computing it; follow that job's progress over
 // the WebSocket's job updates, then download the frames. The desktop Timing
 // editor runs it when a Song is opened; a Phone's Fit to the singing (#223)
-// runs it on the button.
+// runs it on the button, through its own guarded start
+// (`POST /api/songs/{id}/auto-fit`).
 
 import { api } from "../api/api";
 import type { Job } from "../generated/Job";
 import type { JobId } from "../generated/JobId";
+import type { PitchTrackStart } from "../generated/PitchTrackStart";
 import type { SongId } from "../generated/SongId";
 import type { UserMessage } from "../generated/UserMessage";
 import { downloadPitchTrack, type PitchTrack } from "./pitchTrackFile";
@@ -25,6 +27,11 @@ export interface PitchTrackLoadOptions {
   onJobChanged: (listener: (job: Job) => void) => () => void;
   /** Aborting stops listening; nothing is reported afterwards. */
   signal: AbortSignal;
+  /**
+   * Asks the server for the track; by default the not guarded
+   * `POST /api/songs/{id}/pitch-track`. A Phone passes its guarded start.
+   */
+  start?: () => Promise<PitchTrackStart>;
 }
 
 const COULD_NOT_LISTEN: UserMessage = { code: "pitchTrackFailed" };
@@ -35,7 +42,15 @@ const COULD_NOT_LISTEN: UserMessage = { code: "pitchTrackFailed" };
  */
 export function loadPitchTrack(
   song: SongId,
-  { onJobChanged, signal }: PitchTrackLoadOptions,
+  {
+    onJobChanged,
+    signal,
+    start = () =>
+      api("POST /api/songs/{id}/pitch-track", {
+        params: { id: String(song) },
+        signal,
+      }),
+  }: PitchTrackLoadOptions,
   report: (load: PitchTrackLoad) => void,
 ): void {
   let finished = false;
@@ -87,10 +102,7 @@ export function loadPitchTrack(
     }
   }
 
-  api("POST /api/songs/{id}/pitch-track", {
-    params: { id: String(song) },
-    signal,
-  }).then(
+  start().then(
     (start) => {
       if (start.state === "ready") {
         stop();
