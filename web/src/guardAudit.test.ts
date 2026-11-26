@@ -38,6 +38,12 @@ const sources = import.meta.glob<string>(
   { query: "?raw", import: "default", eager: true },
 );
 
+function source(file: string): string {
+  const text = sources[file];
+  if (text === undefined) throw new Error(`no source ${file}`);
+  return text;
+}
+
 /** `from "<relative>"` and `import("<relative>")` targets, resolved to source keys. */
 function imports(file: string, source: string): string[] {
   const dir = file.split("/").slice(0, -1);
@@ -46,7 +52,7 @@ function imports(file: string, source: string): string[] {
     /(?:from\s+|import\s*\(\s*)["'](\.{1,2}\/[^"']+)["']/g,
   )) {
     const parts = [...dir];
-    for (const part of match[1]!.split("/")) {
+    for (const part of (match[1] ?? "").split("/")) {
       if (part === "..") parts.pop();
       else if (part !== ".") parts.push(part);
     }
@@ -62,9 +68,8 @@ function imports(file: string, source: string): string[] {
 function reachableFrom(root: string): string[] {
   const seen = new Set<string>([root]);
   const todo = [root];
-  while (todo.length > 0) {
-    const file = todo.pop()!;
-    for (const next of imports(file, sources[file]!)) {
+  for (let file = todo.pop(); file !== undefined; file = todo.pop()) {
+    for (const next of imports(file, source(file))) {
       if (!seen.has(next)) {
         seen.add(next);
         todo.push(next);
@@ -111,7 +116,7 @@ describe("the guard audit", () => {
       const reachable = reachableFrom(root);
       expect(reachable.length).toBeGreaterThan(5);
       const offenders = reachable
-        .map((file) => [file, guardedUses(sources[file]!)] as const)
+        .map((file) => [file, guardedUses(source(file))] as const)
         .filter(([, uses]) => uses.length > 0);
       expect(offenders).toEqual([]);
     },
@@ -121,7 +126,7 @@ describe("the guard audit", () => {
     expect(reachableFrom("./mics/MicsScreen.tsx")).toContain(
       "./mics/ForgetBridge.tsx",
     );
-    expect(guardedUses(sources["./mics/ForgetBridge.tsx"]!)).toEqual([
+    expect(guardedUses(source("./mics/ForgetBridge.tsx"))).toEqual([
       "DELETE /api/mic-bridges/{id}",
       "the guarded-action flow",
     ]);
