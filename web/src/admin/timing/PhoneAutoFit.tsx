@@ -93,7 +93,7 @@ export function PhoneAutoFit({
 
   async function propose(track: PitchTrack, signal: AbortSignal) {
     try {
-      const detail = await queryClient.fetchQuery(songQuery(song.id));
+      const detail = await queryClient.query(songQuery(song.id));
       const fit = autoFit(openTimingModel(detail.song), createMatcher(track), {
         tempo: true,
       });
