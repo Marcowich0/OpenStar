@@ -16,7 +16,11 @@ USDB parsers (#47) are tested against. No test ever talks to the real USDB.
   `?link=profil` without that cookie serves `logged-out/profil.html`. Every
   other page is served whatever the cookie.
 - A test can script the next requests to get an error status with
-  `Retry-After`, or `not-logged-in.html`.
+  `Retry-After`, or `not-logged-in.html` (or the normal answer, to let some
+  requests through first).
+- Once a test gives the fake a song list (`FakeUsdb::set_songs`),
+  `POST ?link=list` renders pages of it in `list.html`'s row shape (`limit`,
+  `start`, `order=lastchange` or by id, `ud`) instead of serving `list.html`.
 
 ## The pages
 

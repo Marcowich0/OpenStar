@@ -28,6 +28,13 @@ pub enum JobKind {
     /// Computes a Song's Pitch track over its original audio file, one at a
     /// time at low priority, for Auto-fit and the Timing editor.
     PitchTrack,
+    /// Reads USDB's whole song list into the mirror and drops the songs USDB
+    /// no longer has: the first fill, the weekly full refetch and one started
+    /// by hand.
+    UsdbMirrorRefetch,
+    /// Reads USDB's song list newest change first into the mirror, until the
+    /// first song older than the newest one already mirrored.
+    UsdbMirrorUpdate,
 }
 
 /// Where a job stands.
