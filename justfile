@@ -132,6 +132,17 @@ image-smoke tag="openstar:local" build_id="dev":
     scripts/image-smoke.sh {{ tag }} {{ build_id }}
     scripts/image-checksum.test.sh
 
+# The owner's pre-release check on a real Library (release checklist item 1):
+# parses every Song text under `path` with the Library's parser and checks
+# that writing it unedited gives back the same bytes, in memory. Never writes
+# into the Library. Lists crashes, mismatches (with the first line that
+# differs) and rejects (with their reasons), then the counts; fails on any
+# crash or mismatch. Never run by `just check`, `just ci` or CI.
+# A relative `path` is taken from the directory `just` was called in.
+corpus path:
+    library="$(cd {{ quote(invocation_directory()) }} && realpath -- {{ quote(path) }})"; \
+    cargo run --release --locked -p openstar -- corpus "$library"
+
 # Run the server on OPENSTAR_PORT (default 8080) with ./.appdata and ./.songs.
 run: web-build
     mkdir -p .appdata .songs

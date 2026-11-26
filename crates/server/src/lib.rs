@@ -44,6 +44,7 @@ pub use config::{Config, Secret, UsdbCredentials};
 use db::Database;
 use jobs::Jobs;
 use library::Scanner;
+pub use library::corpus;
 use live::LiveHandle;
 
 /// The build identifier, worked out by `build.rs` (see [`build_id`]).

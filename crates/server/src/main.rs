@@ -1,12 +1,16 @@
+use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Context;
 use openstar::{Config, Server};
 use tracing_subscriber::EnvFilter;
 
-const USAGE: &str = "usage: openstar [healthcheck | --version]
+const USAGE: &str = "usage: openstar [healthcheck | corpus <path> | --version]
   (no argument)  run the server, configured by OPENSTAR_* environment variables
   healthcheck    exit 0 when /healthz on OPENSTAR_PORT answers success
+  corpus <path>  parse every Song text in the Library at <path> and check that
+                 writing it unedited gives back its bytes (writes nothing);
+                 exit 1 on any crash or mismatch
   --version      print the build identifier";
 
 #[tokio::main]
@@ -20,6 +24,7 @@ async fn main() -> ExitCode {
     {
         [] => serve().await,
         ["healthcheck"] => healthcheck().await,
+        ["corpus", path] => return corpus(Path::new(path)),
         ["--version" | "-V"] => {
             println!("{}", openstar::BUILD_ID);
             Ok(())
@@ -37,6 +42,28 @@ async fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("OpenStar: {error:#}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// `just corpus <path>`: the report on stdout, exit 1 on a crash, a
+/// mismatch or a Library that cannot be listed.
+fn corpus(path: &Path) -> ExitCode {
+    match openstar::corpus::run(path) {
+        Ok(report) => {
+            println!("{report}");
+            if report.passed() {
+                ExitCode::SUCCESS
+            } else {
+                ExitCode::FAILURE
+            }
+        }
+        Err(error) => {
+            eprintln!(
+                "OpenStar: cannot list the Library at {}: {error:#}",
+                path.display()
+            );
             ExitCode::FAILURE
         }
     }
