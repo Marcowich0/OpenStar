@@ -24,7 +24,7 @@ const FRAME_BYTES = 12;
 export function readPitchTrack(bytes: ArrayBuffer): PitchTrack {
   if (bytes.byteLength % FRAME_BYTES !== 0) {
     throw new Error(
-      `a Pitch track is whole 12-byte frames, got ${bytes.byteLength} bytes`,
+      `a Pitch track is whole 12-byte frames, got ${String(bytes.byteLength)} bytes`,
     );
   }
   const frames = bytes.byteLength / FRAME_BYTES;

@@ -240,7 +240,7 @@ export async function api<R extends Route>(
 ): Promise<ResponseOf<R>> {
   // The call site is checked against `Endpoints`; from here on the options
   // are handled the same for every route.
-  const response = await send(route, "application/json", options as Given);
+  const response = await send(route, "application/json", options);
   return (await response.json()) as ResponseOf<R>;
 }
 
@@ -270,7 +270,7 @@ export async function apiBytes<R extends ByteRoute>(
   const response = await send(
     route,
     "application/octet-stream, application/json",
-    options as Given,
+    options,
   );
   return await response.arrayBuffer();
 }
