@@ -63,6 +63,25 @@ impl Slot {
     }
 }
 
+/// Why a child run with [`ToolCommand::run_lines_with_stderr`] failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ToolFailure {
+    /// What [`ToolCommand::run_lines`] would have failed with.
+    pub message: UserMessage,
+    /// The last lines the child wrote to stderr (at most 20); empty when it
+    /// did not run to its end (cancelled, not found).
+    pub stderr: Vec<String>,
+}
+
+impl From<UserMessage> for ToolFailure {
+    fn from(message: UserMessage) -> Self {
+        Self {
+            message,
+            stderr: Vec::new(),
+        }
+    }
+}
+
 /// A child process to start; see [`Slot::command`].
 pub struct ToolCommand<'a> {
     slot: &'a Slot,
@@ -82,7 +101,18 @@ impl ToolCommand<'_> {
     /// cancelled (the child is killed first), [`UserMessage::ToolNotFound`]
     /// when the program is missing and [`UserMessage::ToolFailed`] when it
     /// exits unsuccessfully.
-    pub async fn run_lines(self, mut on_line: impl FnMut(&str)) -> Result<(), UserMessage> {
+    pub async fn run_lines(self, on_line: impl FnMut(&str)) -> Result<(), UserMessage> {
+        self.run_lines_with_stderr(on_line)
+            .await
+            .map_err(|failure| failure.message)
+    }
+
+    /// [`ToolCommand::run_lines`], also handing back the last lines the child
+    /// wrote to stderr when it failed (yt-dlp's `HTTP Error 403`).
+    pub async fn run_lines_with_stderr(
+        self,
+        mut on_line: impl FnMut(&str),
+    ) -> Result<(), ToolFailure> {
         self.run(
             |stdout| Output::Lines(BufReader::new(stdout).lines(), String::new()),
             |chunk| {
@@ -107,13 +137,14 @@ impl ToolCommand<'_> {
             },
         )
         .await
+        .map_err(|failure| failure.message)
     }
 
     async fn run(
         self,
         output: impl FnOnce(tokio::process::ChildStdout) -> Output,
         mut on_chunk: impl FnMut(Chunk<'_>),
-    ) -> Result<(), UserMessage> {
+    ) -> Result<(), ToolFailure> {
         let low_priority = self.slot.lane.low_priority();
         let mut command = if low_priority {
             let mut nice = Command::new("nice");
@@ -167,7 +198,7 @@ impl ToolCommand<'_> {
                     if let Err(error) = child.kill().await {
                         tracing::warn!(%error, program = self.program, "killing a cancelled child process");
                     }
-                    return Err(UserMessage::JobCancelled);
+                    return Err(UserMessage::JobCancelled.into());
                 }
                 more = next_chunk(&mut stdout), if stdout.is_some() => {
                     if more {
@@ -187,28 +218,33 @@ impl ToolCommand<'_> {
         };
         let status = status.map_err(|error| {
             tracing::error!(%error, program = self.program, "waiting for a child process");
-            UserMessage::ServerError
+            ToolFailure::from(UserMessage::ServerError)
         })?;
         if status.success() {
             return Ok(());
         }
         let tail = match stderr {
-            Some(task) => task.await.unwrap_or_default(),
-            None => VecDeque::new(),
+            Some(task) => Vec::from(task.await.unwrap_or_default()),
+            None => Vec::new(),
         };
         tracing::warn!(
             program = self.program,
             %status,
-            stderr = %Vec::from(tail).join("\n"),
+            stderr = %tail.join("\n"),
             "a child process failed"
         );
         // `nice` exits 127 when it cannot find the program.
-        if low_priority && status.code() == Some(127) {
-            return Err(UserMessage::ToolNotFound { tool: self.program });
-        }
-        Err(UserMessage::ToolFailed {
-            tool: self.program,
-            exit_code: status.code(),
+        let message = if low_priority && status.code() == Some(127) {
+            UserMessage::ToolNotFound { tool: self.program }
+        } else {
+            UserMessage::ToolFailed {
+                tool: self.program,
+                exit_code: status.code(),
+            }
+        };
+        Err(ToolFailure {
+            message,
+            stderr: tail,
         })
     }
 }

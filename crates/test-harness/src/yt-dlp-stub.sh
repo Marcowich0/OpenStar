@@ -9,6 +9,7 @@
 #                        delay <seconds>  (waits, then succeeds)
 #                      With no line left, the call succeeds.
 #   calls/NNNNNN.span  "<start> <end>" in Unix seconds, once the call exits.
+#   calls/NNNNNN.pid   the call's process id (a hanging call keeps it).
 #
 # On success it writes tiny generated media (made with ffmpeg) where -o/--output
 # and -P/--paths ask: audio with -x/--extract-audio (format from --audio-format,
@@ -16,7 +17,9 @@
 # --remux-video, default mp4). -j/--dump-json prints one JSON line per URL
 # instead and writes nothing: for a `ytsearchN:<query>` URL, N flat search hits
 # (`stubsearch1` ...), as with --flat-playlist (no match filter is applied).
-# --version prints a stub version.
+# With --progress-template, a download prints progress lines as the
+# template asks (`percent|speed|eta`, the Download's template) before
+# writing. --version prints a stub version.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,6 +38,7 @@ started="$(date +%s.%N)"
         mv "$here/behaviours.next" "$here/behaviours"
     fi
 } 9>"$here/calls/.lock"
+echo "$$" >"$here/calls/$call.pid"
 trap 'printf "%s %s\n" "$started" "$(date +%s.%N)" >"$here/calls/$call.span"' EXIT
 
 case "$behaviour" in
@@ -59,6 +63,7 @@ extract_audio=false
 audio_format=m4a
 video_format=mp4
 dump_json=false
+progress=false
 urls=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -69,6 +74,7 @@ while [[ $# -gt 0 ]]; do
     --audio-format) audio_format="$2"; shift ;;
     --merge-output-format | --remux-video) video_format="$2"; shift ;;
     -j | --dump-json) dump_json=true ;;
+    --progress-template) progress=true; shift ;;
     # Options that take a value, so the value is not read as a URL.
     -f | --format | -S | --format-sort | --progress-template | --extractor-args | \
         --cookies | --user-agent | --referer | --add-header | -r | --limit-rate | \
@@ -113,6 +119,11 @@ if [[ -n "$home_path" && "$path" != /* ]]; then path="$home_path/$path"; fi
 mkdir -p "$(dirname "$path")"
 
 echo "[download] Destination: $path"
+if $progress; then
+    echo "  0.0%|Unknown B/s|Unknown"
+    echo " 50.0%|  1.00MiB/s|00:01"
+    echo "100.0%|  2.00MiB/s|00:00"
+fi
 if $extract_audio; then
     ffmpeg -hide_banner -loglevel error -nostdin -y \
         -f lavfi -i "sine=frequency=440:sample_rate=44100:duration=1" "$path"
