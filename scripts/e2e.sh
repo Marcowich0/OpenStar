@@ -25,7 +25,10 @@
 # its PATH, so the video picker's lookups never reach a video site.
 #
 # Also starts a headless Mic bridge (`openstar-mic-bridge --wav`) on the fake
-# mic's 4-channel WAV, waiting for approval.
+# mic's 4-channel WAV, waiting for approval, and the Mic bridge launcher
+# (`openstar-harness bridge-launcher`), through which a spec starts and stops
+# bridges of its own on the same WAV (e2e/bridge.ts): the bridge binary
+# cannot run in the Playwright image, whose glibc is older.
 #
 # The server's songs folder is mounted read-only at /songs
 # (OPENSTAR_E2E_SONGS_DIR), so a spec can check the bytes a save wrote
@@ -72,7 +75,13 @@ work="$(mktemp -d "${TMPDIR:-/tmp}/openstar-e2e.XXXXXX")"
 server_pid=""
 bridge_pid=""
 usdb_pid=""
+launcher_pid=""
 cleanup() {
+  # The launcher stops every bridge it started when it is terminated.
+  if [ -n "$launcher_pid" ]; then
+    kill "$launcher_pid" 2>/dev/null || true
+    wait "$launcher_pid" 2>/dev/null || true
+  fi
   if [ -n "$usdb_pid" ]; then
     kill "$usdb_pid" 2>/dev/null || true
     wait "$usdb_pid" 2>/dev/null || true
@@ -150,6 +159,22 @@ env -i PATH="$PATH" HOME="$work" XDG_CONFIG_HOME="$work/bridge-config" \
   "$bridge" --wav "$root/e2e/generated/mic/multichannel.wav" >"$work/mic-bridge.log" 2>&1 &
 bridge_pid=$!
 
+# The Mic bridge launcher on a free port; its first stdout line is its base
+# URL. Each bridge it starts gets its own config folder, so it waits for
+# approval (e2e/tests/mic-bridge-flow.spec.ts).
+"$harness" bridge-launcher --bridge "$bridge" --server "$base_url" \
+  --wav "$root/e2e/generated/mic/multichannel.wav" \
+  >"$work/bridge-launcher.out" 2>"$work/bridge-launcher.log" &
+launcher_pid=$!
+launcher_url=""
+for _ in $(seq 100); do
+  launcher_url="$(head -n 1 "$work/bridge-launcher.out" 2>/dev/null || true)"
+  [ -n "$launcher_url" ] && break
+  kill -0 "$launcher_pid" 2>/dev/null || break
+  sleep 0.1
+done
+[ -n "$launcher_url" ] || { echo "e2e: the Mic bridge launcher did not start; its log:" >&2; cat "$work/bridge-launcher.log" >&2; exit 1; }
+
 status=0
 docker run --rm --init \
   --network host --ipc host \
@@ -159,6 +184,7 @@ docker run --rm --init \
   -e OPENSTAR_E2E_BASE_URL="$base_url" \
   -e OPENSTAR_E2E_ADMIN_PIN="$admin_pin" \
   -e OPENSTAR_E2E_USDB_URL="$usdb_url" \
+  -e OPENSTAR_E2E_BRIDGE_LAUNCHER_URL="$launcher_url" \
   -e OPENSTAR_E2E_SONGS_DIR=/songs \
   -v "$root/e2e:/e2e" -w /e2e \
   -v "$work/songs:/songs:ro" \
