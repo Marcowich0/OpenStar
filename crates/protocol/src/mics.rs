@@ -173,6 +173,22 @@ pub struct LocalMic {
     pub switched_on: bool,
 }
 
+/// A switched-on Local mic as the Line-up offers it, in the Party snapshot:
+/// its name and whether it can sing now.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct PartyLocalMic {
+    pub local_mic_id: String,
+    pub source: LocalMicSource,
+    /// The name the host gave it; empty shows the default name.
+    pub name: String,
+    /// Plugged in (a Stage-browser device the Stage reports, a bridge
+    /// channel whose bridge is open and offers it). An unplugged or
+    /// closed-bridge Local mic is never free and is dimmed in Mic lists.
+    pub present: bool,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

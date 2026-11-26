@@ -2,7 +2,7 @@
 //! snapshots and a `proptest` property.
 
 use openstar_protocol::library::SongId;
-use openstar_protocol::mics::MicKey;
+use openstar_protocol::mics::{LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::scoring::{PlayerResult, ScorePlayer};
 use openstar_protocol::{
@@ -77,6 +77,18 @@ fn party() -> PartySnapshot {
             paused: true,
         }),
         results: None,
+        local_mics: vec![PartyLocalMic {
+            local_mic_id: "browser:stage-1:device-1:0".to_owned(),
+            source: LocalMicSource::Browser {
+                stage_browser: "stage-1".to_owned(),
+                device_id: "device-1".to_owned(),
+                label: "USB Audio".to_owned(),
+                channel: 0,
+                stereo: true,
+            },
+            name: "Red mic".to_owned(),
+            present: false,
+        }],
     }
 }
 

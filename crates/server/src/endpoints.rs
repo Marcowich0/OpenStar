@@ -118,6 +118,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // The Mics screen opening only lets bridges meter more channels;
         // levels are a meter, from approved bridges only.
         | ClientMessage::SetMicsScreenOpen { .. }
+        // Which Local mics are plugged in only says what the Line-up may
+        // offer; nothing is kept.
+        | ClientMessage::ReportPresentLocalMics { .. }
         | ClientMessage::BridgeLevels { .. } => Access::NotGuarded,
     }
 }

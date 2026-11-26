@@ -90,6 +90,20 @@ impl Bridges {
             .collect();
         MicBridges { bridges, requests }
     }
+
+    /// The Local mic ids of every channel an open bridge offers now.
+    pub fn offered_local_mics(&self) -> std::collections::HashSet<String> {
+        self.open
+            .values()
+            .flat_map(channels_of)
+            .map(|channel| channel.local_mic_id)
+            .collect()
+    }
+
+    /// The approved bridges' ids, in order of approval.
+    pub fn approved_ids(&self) -> Vec<BridgeId> {
+        self.approved.iter().map(|a| a.bridge_id.clone()).collect()
+    }
 }
 
 /// Every hardware channel of an open bridge, interface by interface.
@@ -271,6 +285,8 @@ impl LiveState {
         self.hub
             .send_to(id, &ServerMessage::BridgeMicsScreen { open });
         self.bridges_changed();
+        // Its switched-on Local mics are present again.
+        self.local_mics_changed();
     }
 
     /// The active Stage says its Mics screen opened or closed.
@@ -397,6 +413,9 @@ impl LiveState {
         let was_open = self.bridges.open.remove(&id).is_some();
         if was_waiting || was_open {
             self.bridges_changed();
+        }
+        if was_open {
+            self.local_mics_changed();
         }
     }
 

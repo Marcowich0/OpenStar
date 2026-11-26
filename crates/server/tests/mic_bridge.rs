@@ -34,11 +34,11 @@ fn hello(host_name: &str, token: Option<&str>) -> ClientMessage {
 async fn open_stage(app: &TestApp) -> WsClient {
     let mut stage = app.connect_stage().await;
     assert!(matches!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::LiveState { is_stage: true, .. }
     ));
     assert!(matches!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::PartyChanged { .. }
     ));
     stage
@@ -236,7 +236,7 @@ async fn approving_a_request_that_is_gone_is_refused() {
         .send(&ClientMessage::ApproveBridge { request_id })
         .await;
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::BridgeRequestNotFound
         }
@@ -384,7 +384,7 @@ async fn the_server_tells_the_bridge_which_channels_the_stage_switched_on() {
         })
         .await;
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Changed {
             topics: vec![ChangeTopic::MicSettings]
         }
@@ -422,7 +422,7 @@ async fn a_bridge_local_mic_id_that_does_not_match_its_source_is_refused() {
         })
         .await;
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::InvalidMessage
         }
@@ -452,7 +452,7 @@ async fn a_rename_and_a_find_it_reach_the_bridge_like_a_switch() {
             name: "  Red mic ".into(),
         })
         .await;
-    assert_eq!(stage.recv().await, mic_settings_changed);
+    assert_eq!(stage.recv_past_local_mics().await, mic_settings_changed);
     let mut expected = all_off(&bridge_id);
     expected[0].name = "Red mic".into();
     assert_eq!(expect_channels(&mut bridge).await, expected);
@@ -472,7 +472,7 @@ async fn a_rename_and_a_find_it_reach_the_bridge_like_a_switch() {
             switched_on: true,
         })
         .await;
-    assert_eq!(stage.recv().await, mic_settings_changed);
+    assert_eq!(stage.recv_past_local_mics().await, mic_settings_changed);
     stage
         .send(&ClientMessage::SetLocalMicName {
             local_mic_id: "browser:stage:dongle:0".into(),
@@ -480,7 +480,7 @@ async fn a_rename_and_a_find_it_reach_the_bridge_like_a_switch() {
             name: "Blue mic".into(),
         })
         .await;
-    assert_eq!(stage.recv().await, mic_settings_changed);
+    assert_eq!(stage.recv_past_local_mics().await, mic_settings_changed);
     assert_eq!(expect_channels(&mut bridge).await, expected);
     assert_eq!(expect_channels(&mut bridge).await, expected);
     stage
@@ -490,7 +490,7 @@ async fn a_rename_and_a_find_it_reach_the_bridge_like_a_switch() {
             source: channels[2].source.clone(),
         })
         .await;
-    assert_eq!(stage.recv().await, mic_settings_changed);
+    assert_eq!(stage.recv_past_local_mics().await, mic_settings_changed);
     expected[2].name = "Blue mic".into();
     expected[2].switched_on = true;
     assert_eq!(expect_channels(&mut bridge).await, expected);
@@ -514,7 +514,7 @@ async fn a_rename_or_find_it_whose_bridge_id_does_not_match_its_source_is_refuse
         })
         .await;
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::InvalidMessage
         }
@@ -527,7 +527,7 @@ async fn a_rename_or_find_it_whose_bridge_id_does_not_match_its_source_is_refuse
         })
         .await;
     assert_eq!(
-        stage.recv().await,
+        stage.recv_past_local_mics().await,
         ServerMessage::Rejected {
             reason: UserMessage::InvalidMessage
         }

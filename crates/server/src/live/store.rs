@@ -45,6 +45,7 @@ pub async fn load_party(
                         line_up: None,
                         playing: None,
                         results: None,
+                        local_mics: Vec::new(),
                     })
                 },
             )

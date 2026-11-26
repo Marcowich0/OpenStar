@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use crate::StageId;
 use crate::library::SongId;
-use crate::mics::MicKey;
+use crate::mics::{MicKey, PartyLocalMic};
 use crate::profile::{Avatar, Difficulty, NewProfile, PaletteKey, ProfileId};
 use crate::scoring::PlayerResult;
 
@@ -217,6 +217,11 @@ pub struct PartySnapshot {
     /// someone presses Next or Done ([`crate::ClientMessage::CloseResults`]).
     /// Kept across a restart.
     pub results: Option<SongResults>,
+    /// Every switched-on Local mic, in Mics-screen order, with whether it
+    /// is present: what the Mic lists of the Line-up offer. Not kept: made
+    /// by the server from the kept Local mics and what the Stage and the
+    /// Mic bridges report.
+    pub local_mics: Vec<PartyLocalMic>,
 }
 
 /// The head's Song while it plays: the Party's 'playing' state.
@@ -610,6 +615,9 @@ pub enum PartyEvent {
     /// The waiting Line-up changed: who sits where, a Mic, or a seat was
     /// added or taken off.
     LineUpChanged,
+    /// The switched-on Local mics changed: one was switched on or off,
+    /// renamed, plugged in or out, or its bridge opened or closed. No toast.
+    LocalMicsChanged,
     /// A Party member who sat in one seat of the Line-up was chosen for
     /// another: it moved there and its old seat was taken off.
     SeatMoved {
