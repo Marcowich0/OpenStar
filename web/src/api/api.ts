@@ -21,6 +21,8 @@ import type { SongHighScores } from "../generated/SongHighScores";
 import type { SongList } from "../generated/SongList";
 import type { SongQuery } from "../generated/SongQuery";
 import type { RoundStored } from "../generated/RoundStored";
+import type { StageTrustRequest } from "../generated/StageTrustRequest";
+import type { StageTrustStatus } from "../generated/StageTrustStatus";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
 import type { UsdbMirrorStatus } from "../generated/UsdbMirrorStatus";
@@ -41,6 +43,10 @@ export interface Endpoints {
   "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
   "POST /api/unlock/heartbeat": { response: UnlockStatus };
   "POST /api/lock": { response: UnlockStatus };
+  "POST /api/stage/trust": {
+    body: StageTrustRequest;
+    response: StageTrustStatus;
+  };
   "GET /api/profiles": { response: Profile[] };
   "POST /api/profiles": { body: NewProfile; response: Profile };
   "GET /api/profiles/{id}": { response: Profile };
@@ -133,6 +139,7 @@ const REFUSAL_CODES = {
   wrongPin: true,
   unlockRequired: true,
   libraryReadOnly: true,
+  stagePinRequired: true,
   invalidMessage: true,
   notTheStage: true,
   serverError: true,

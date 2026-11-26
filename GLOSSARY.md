@@ -44,6 +44,10 @@ _Avoid_: Settings, admin panel, back office
 A browser's permission to do guarded actions without entering the Admin PIN again. It ends after a while without use, or when locked by hand. Being the Stage is not an Unlock.
 _Avoid_: Admin session, login, admin mode
 
+**Stage trust**:
+A browser being remembered as one that entered the Admin PIN to become the Stage, so it can become the Stage again with no PIN. It lasts until the Admin PIN changes. It is not an Unlock, and an Unlock is not Stage trust.
+_Avoid_: Stage login, Stage session, trusted device
+
 **Local mic**:
 One input channel of a microphone or audio interface wired to a computer in the room, read either by the Stage itself or by a Mic bridge, and switched on as a Mic in the Stage's Mics setup. Each channel is its own Local mic, with its own name and Mic delay.
 _Avoid_: Wired mic, channel, input

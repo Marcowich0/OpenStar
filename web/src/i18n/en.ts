@@ -190,6 +190,8 @@ export const en = {
   "adminPinPad.wait": "Too many wrong PINs, try again in {time}",
   "adminPinPad.failed": "The PIN could not be checked. Try again.",
   "adminPinPad.cancel": "Cancel",
+  "stageTrust.heading": "Enter the Admin PIN to make this browser the Stage",
+  "stageTrust.enterPin": "Enter the Admin PIN",
 
   // The walking skeleton's server check (shown on the Phone and the Stage).
   "server.loading": "Asking the server…",
@@ -435,6 +437,7 @@ export const en = {
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
   "apiError.libraryReadOnly": "The Library is read-only",
+  "apiError.stagePinRequired": "Enter the Admin PIN to make this the Stage",
 
   "libraryReadOnly.songsFolderNotWritable":
     "OpenStar cannot write to the songs folder {songsDir}, so the Library is read-only",

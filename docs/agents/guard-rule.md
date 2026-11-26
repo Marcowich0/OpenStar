@@ -27,7 +27,7 @@ Every new HTTP endpoint, in every area, is classified by this one rule.
 | Forget a Mic bridge (removes its approval token and its Local mics, with their Mic delays and bleed levels)             | Stage, Mics screen    | Unlock plus press and hold | no                 |
 | Becoming the Stage: the first Stage on a fresh server, taking over by opening `/stage`, and "Make this the Stage again" | `/stage`              | PIN once per browser       | no                 |
 
-Becoming the Stage is not an Unlock, and an Unlock does not make a browser the Stage. Its PIN check belongs to its own ticket (Stage trust), which reuses the PIN check and the wrong-guess wait.
+Becoming the Stage is not an Unlock, and an Unlock does not make a browser the Stage. It needs Stage trust instead: `POST /api/stage/trust` checks the Admin PIN itself, through the same PIN check and wrong-guess wait as the Unlock, and remembers the browser by its own cookie. `GET /ws/stage`, which makes a browser the Stage, refuses one without Stage trust (`403 stagePinRequired`). Both are classified `NotGuarded` in `endpoints.rs`, because the guard there checks an Unlock, which these must not need. Their handlers do the check instead.
 
 `POST /api/unlock/heartbeat` is also classified guarded (`Library::Untouched`). It does nothing but needs a live Unlock, and it resets the idle time like a guarded action.
 
