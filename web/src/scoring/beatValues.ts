@@ -70,8 +70,11 @@ export function beatValues(input: BeatValuesInput): BeatValue[] {
   return byBeat.map((beat) => beatValue(beat, micThresholdDbfs));
 }
 
-/** The value of one Beat from every reading that falls in it. */
-function beatValue(
+/**
+ * The value of one Beat from every reading that falls in it (the live scorer
+ * collects a Beat's readings itself and finalises it with this).
+ */
+export function beatValue(
   readings: readonly BeatReading[],
   micThresholdDbfs: number,
 ): BeatValue {

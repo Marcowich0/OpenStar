@@ -100,15 +100,14 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     expect(setup.mics).toEqual([[{ kind: "phone", connection: 9 }, 1]]);
   });
 
-  it("makes one scorer per Player, on that Player's Voice and Difficulty", () => {
+  it("gives each Player their Mic kind and the buffers' capacity", () => {
     const party = testParty({ lineUp: testLineUp([MIA_SEAT, LEO_SEAT], true) });
     const setup = singSetup({
       detail: testDetail({ duet: true }),
       party,
       profiles: PROFILES,
     });
-    expect(setup.scorers).toHaveLength(2);
-    expect(setup.scorers[0]?.score().total).toBe(0);
+    expect(setup.players.map((p) => p.micKind)).toEqual(["phone", "localMic"]);
     expect(setup.capacity).toBeGreaterThan(0);
   });
 
