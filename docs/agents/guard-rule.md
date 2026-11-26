@@ -51,7 +51,7 @@ Deleting a Profile is `DELETE /api/profiles/{id}`, classified `Guarded(Library::
 - New party (press and hold only);
 - every Queue, Line-up and playback action, including Restart, Skip and End (press and hold);
 - Calibrate mics and "Calibrate this mic now";
-- Check A/V sync;
+- Check A/V sync, and reading and setting a browser's own A/V offset at its output (`GET /api/av-offset`, `PUT /api/av-offset`);
 - setting the OpenStar volume, from the Stage or a Remote;
 - hiding the join card;
 - on the Mics screen: switching Local mics on and off, renaming a Local mic, Find it, and setting a Mic threshold;

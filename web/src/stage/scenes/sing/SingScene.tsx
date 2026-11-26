@@ -16,14 +16,12 @@ import { useStageFrame, useStageKeys } from "../../frame/stageFrameContext";
 import { ResumeCountdown } from "../../playback/ResumeCountdown";
 import { SingBackdrop } from "../../sing/SingBackdrop";
 import { SingScreen } from "../../sing/SingScreen";
+import { useStageAvOffset } from "../../output/useStageAvOffset";
 import type { StageSong, StageSongView } from "./stageSong";
 import { writeLaneScore } from "./laneScore";
 import { useStageSong, useStageSongView } from "./useStageSong";
 
 const selectPlaying = (live: LiveState) => live.stage?.party?.playing ?? null;
-
-/** The A/V offset is #161's; until then nothing is drawn behind. */
-const noAvOffset = () => 0;
 
 export function SingScene() {
   const { store } = useStageFrame();
@@ -76,6 +74,9 @@ function Singing({
   song: StageSong;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  // This Stage browser's A/V offset at its current output: the lanes, Notes,
+  // playhead, lyric fill and Pitch traces are drawn this much behind.
+  const avOffset = useStageAvOffset();
   useEffect(
     () =>
       song.onScoring((change) => {
@@ -102,7 +103,7 @@ function Singing({
       <SingScreen
         state={view.state}
         clock={view.clock}
-        avOffset={noAvOffset}
+        avOffset={avOffset.seconds}
         backdrop={
           <SingBackdrop
             media={view.detail.media}
