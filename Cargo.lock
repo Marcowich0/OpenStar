@@ -1126,6 +1126,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "openstar-detector-wasm"
+version = "0.0.0"
+dependencies = [
+ "insta",
+ "openstar-detector",
+ "proptest",
+]
+
+[[package]]
 name = "openstar-mic-bridge"
 version = "0.0.0"
 dependencies = [

@@ -4,8 +4,19 @@ Synthetic cases that pin the live pitch detector (`crates/detector`). Each JSON
 file describes one family of signals, how to feed them and the limits every
 run must meet. The native build runs them in `cargo test`
 (`crates/detector/tests/fixtures.rs`); the WASM build runs the same files
-through the worklet code path in Vitest. No audio is stored: both runs generate
-the samples from the description below, so they must follow it exactly.
+through the worklet code path in Vitest
+(`web/src/pitch/worklet/pitchProcessor.test.ts`, generator in
+`detectorCases.ts`). No audio is stored: both runs generate the samples from
+the description below, so they must follow it exactly.
+
+`native/readings.json` holds the native build's readings of the first signal
+of every file at every rate, with a digest of its samples (FNV-1a, 32-bit, over
+each sample's little-endian `f32` bytes). The Vitest run checks that it made
+the same samples and that the WASM build reads them the same: `endFrame` and
+voiced or not exactly, pitch, clarity and loudness within 1e-9 (the WASM
+build's maths library rounds `sin`, `cos`, `log2` and `log10` differently in
+the last bit). `cargo test` fails when the file is out of date; regenerate it
+with `OPENSTAR_UPDATE_NATIVE_READINGS=1 cargo test -p openstar-detector --test fixtures`.
 
 ## File format
 

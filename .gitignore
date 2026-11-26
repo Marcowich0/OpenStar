@@ -12,3 +12,5 @@
 /e2e/test-results/
 # Fake mic WAVs `just e2e` generates (fixtures/mic/).
 /e2e/generated/
+# The detector WASM module `just wasm` builds for the pitch worklet.
+/web/wasm/
