@@ -40,6 +40,7 @@ import type { LiveStore, SongControlMessage } from "../../../live/liveStore";
 import type {
   MediaPlayback,
   PlaybackElement,
+  PositionReport,
   SongEnding,
 } from "../../../playback/mediaPlayback";
 import {
@@ -132,6 +133,8 @@ export interface StageSongOptions {
     plan: PlaybackPlan;
     clock: SongClock;
     onEnded: (how: SongEnding) => void;
+    /** Where the Song stands, on start, pause, resume, Restart and end only (#159). */
+    onReport: (report: PositionReport) => void;
   }) => Pick<
     MediaPlayback,
     "start" | "pause" | "resume" | "restart" | "end" | "dispose"
@@ -264,12 +267,23 @@ export function createStageSong(options: StageSongOptions): StageSong {
   function begin(s: Session) {
     if (s.playback || s.stopped || !s.setup || !s.clock || !element) return;
     if (view.kind !== "singing") return;
+    const { plan, detail } = view;
     const playback = options.createPlayback({
       element,
-      plan: view.plan,
+      plan,
       clock: s.clock,
       onEnded: (how) => {
         finish(s, how);
+      },
+      onReport: ({ positionSeconds, rate }) => {
+        // The server passes it to every Remote, which extrapolates from it.
+        options.store.send({
+          type: "reportSongPosition",
+          requestId: s.requestId,
+          positionSeconds,
+          rate,
+          lengthSeconds: plan.endSeconds ?? detail.lengthSeconds,
+        });
       },
     });
     s.playback = playback;

@@ -9,8 +9,8 @@ use openstar::clock::ManualClock;
 use openstar_protocol::library::{SongId, SongList};
 use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
 use openstar_protocol::{
-    ClientMessage, JoinAs, NewGuest, PartySnapshot, PhoneId, RequestId, ServerMessage,
-    SongControl, SongProgress, UserMessage,
+    ClientMessage, JoinAs, NewGuest, PartySnapshot, PhoneId, RequestId, ServerMessage, SongControl,
+    SongProgress, UserMessage,
 };
 use openstar_test_harness::{TestApp, WsClient};
 
@@ -167,7 +167,13 @@ async fn each_stage_report_reaches_every_connection_once_and_nothing_else_does()
     } = playing().await;
 
     // Start, pause, resume, Restart and end: one report each, passed on as it is.
-    for (position, rate) in [(0.0, 1.0), (12.5, 0.0), (12.5, 1.0), (0.0, 1.0), (61.0, 0.0)] {
+    for (position, rate) in [
+        (0.0, 1.0),
+        (12.5, 0.0),
+        (12.5, 1.0),
+        (0.0, 1.0),
+        (61.0, 0.0),
+    ] {
         stage.send(&report(request, position, rate)).await;
         let sent = expected(request, position, rate, 0);
         assert_eq!(progress(&mut phone).await, sent);
@@ -207,7 +213,10 @@ async fn a_remote_that_connects_mid_song_is_told_the_latest_report_and_its_age()
         recv(&mut late).await,
         ServerMessage::LiveState { .. }
     ));
-    assert_eq!(progress(&mut late).await, expected(request, 20.0, 0.0, 1500));
+    assert_eq!(
+        progress(&mut late).await,
+        expected(request, 20.0, 0.0, 1500)
+    );
     hears_nothing(&mut late).await;
 }
 
@@ -267,10 +276,7 @@ async fn only_the_active_stage_reports_and_only_for_the_playing_song() {
             length_seconds: Some(-5.0),
         },
     ] {
-        assert_eq!(
-            refused(&mut stage, bad).await,
-            UserMessage::InvalidMessage
-        );
+        assert_eq!(refused(&mut stage, bad).await, UserMessage::InvalidMessage);
     }
     hears_nothing(&mut phone).await;
 }

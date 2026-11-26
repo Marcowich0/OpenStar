@@ -2180,7 +2180,9 @@ impl LiveState {
         if playing.request_id != progress.request_id {
             return None;
         }
-        let age = now_ms.saturating_sub(*received_ms).clamp(0, i64::from(u32::MAX));
+        let age = now_ms
+            .saturating_sub(*received_ms)
+            .clamp(0, i64::from(u32::MAX));
         Some(SongProgress {
             age_ms: u32::try_from(age).unwrap_or(u32::MAX),
             ..progress.clone()

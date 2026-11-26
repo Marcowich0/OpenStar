@@ -4,6 +4,7 @@ import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { StageId } from "../generated/StageId";
 import type { UserMessage } from "../generated/UserMessage";
+import { anchorProgress, type ProgressAnchor } from "./songProgress";
 import { addToast, type Toast } from "./toasts";
 
 /** Where the browser's one WebSocket stands. */
@@ -53,6 +54,12 @@ export interface LiveState {
   volume: number | null;
   /** How many volume steps (from the Stage or a Remote) the server has told. */
   volumeSteps: number;
+  /**
+   * The Stage's latest position report for the playing Song (#159), pinned
+   * to this browser's clock; `null` while no Song plays or before the Stage
+   * has reported. `progressAt` (`songProgress.ts`) extrapolates from it.
+   */
+  songProgress: ProgressAnchor | null;
 }
 
 export const initialLiveState: LiveState = {
@@ -66,14 +73,35 @@ export const initialLiveState: LiveState = {
   validJoinCode: null,
   volume: null,
   volumeSteps: 0,
+  songProgress: null,
 };
 
-/** Applies a server message. The `switch` is exhaustive over the generated union. */
-export function receive(state: LiveState, message: ServerMessage): LiveState {
+/** The progress, kept only while its Request is the one playing in `party`. */
+function progressFor(
+  progress: ProgressAnchor | null,
+  party: PartySnapshot | null,
+): ProgressAnchor | null {
+  return progress !== null && party?.playing?.requestId === progress.requestId
+    ? progress
+    : null;
+}
+
+/**
+ * Applies a server message. The `switch` is exhaustive over the generated union.
+ * `receivedAtMs` is this browser's clock when the message arrived; only a
+ * Song progress report uses it.
+ */
+export function receive(
+  state: LiveState,
+  message: ServerMessage,
+  receivedAtMs = 0,
+): LiveState {
   switch (message.type) {
     case "liveState":
       return {
         ...state,
+        // The server tells the latest report again right after this.
+        songProgress: null,
         stage: {
           stageId: message.stageId,
           party: message.party,
@@ -86,6 +114,7 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
         ? {
             ...state,
             stage: { ...state.stage, party: message.party },
+            songProgress: progressFor(state.songProgress, message.party),
             ...addToast(state, state.stage.isStage, message.change),
           }
         : state;
@@ -119,6 +148,13 @@ export function receive(state: LiveState, message: ServerMessage): LiveState {
         volume: message.volume,
         volumeSteps: state.volumeSteps + (message.stepped ? 1 : 0),
       };
+    case "songProgress": {
+      const anchor = progressFor(
+        anchorProgress(message.progress, receivedAtMs),
+        state.stage?.party ?? null,
+      );
+      return anchor === null ? state : { ...state, songProgress: anchor };
+    }
     case "changed":
       // Change notices invalidate HTTP data; they change no live state.
       return state;
