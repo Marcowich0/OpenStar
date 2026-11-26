@@ -22,12 +22,19 @@ ci: check e2e
 e2e *args: build harness-build e2e-install screenshot-page
     scripts/e2e.sh {{ args }}
 
-# The only command that writes the painter screenshot baselines
-# (e2e/tests/__screenshots__/): it deletes them and takes them again in the
-# same pinned Playwright image as `just e2e`. Commit the changed images; the
-# PR shows them.
-update-screenshots: build harness-build e2e-install screenshot-page
+# The only command that writes the screenshot baselines: the Mic bridge
+# window's (crates/mic-bridge/tests/snapshots/, drawn on the CPU, no display)
+# and the painter's (e2e/tests/__screenshots__/, deleted and taken again in
+# the same pinned Playwright image as `just e2e`). Commit the changed images;
+# the PR shows them.
+update-screenshots: update-bridge-screenshots build harness-build e2e-install screenshot-page
     OPENSTAR_E2E_UPDATE_SCREENSHOTS=1 scripts/e2e.sh tests/painter.spec.ts
+
+# The Mic bridge window's baselines alone (part of `just update-screenshots`;
+# `cargo test` compares against them and refuses to write them otherwise).
+update-bridge-screenshots:
+    rm -f crates/mic-bridge/tests/snapshots/*.png
+    UPDATE_SNAPSHOTS=force OPENSTAR_UPDATE_SCREENSHOTS=1 cargo test --locked -p openstar-mic-bridge --test window
 
 # The test-only painter screenshot page (web/sing-test.html), built into
 # e2e/generated/screenshot-page/; never part of the production build.
