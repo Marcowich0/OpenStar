@@ -19,7 +19,7 @@ version `ARG` in the Dockerfile or the checksum under it, and there is no
 | yt-dlp             | `YTDLP_VERSION` and `YTDLP_SHA256` in the Dockerfile                                                                                                                                     | own pull request, **daily** | patch and minor once CI passes |
 | Deno               | `DENO_VERSION` and `DENO_SHA256` in the Dockerfile                                                                                                                                       | own pull request, weekly    | patch and minor once CI passes |
 | Trivy              | `TRIVY_VERSION` and `TRIVY_SHA256` in `ci.yml`                                                                                                                                           | own pull request, weekly    | patch and minor once CI passes |
-| Base-image digests | `debian:trixie-slim`, the Mic bridge's `ubuntu:22.04`, the BuildKit `# syntax=` image, and a new digest of an unchanged rust, node or Playwright tag                                     | base-image digests, weekly  | once CI passes                 |
+| Base-image digests | `debian:trixie-slim`, the Mic bridge's `debian:12`, the BuildKit `# syntax=` image, and a new digest of an unchanged rust, node or Playwright tag                                        | base-image digests, weekly  | once CI passes                 |
 | Action SHAs        | every `uses:` in `.github/workflows/`, and `just-version` of setup-just                                                                                                                  | GitHub Actions, weekly      | patch and minor once CI passes |
 | Lockfiles          | `Cargo.lock`, `web/pnpm-lock.yaml`, `e2e/pnpm-lock.yaml` (lockfile maintenance)                                                                                                          | weekly                      | after review                   |
 
@@ -30,8 +30,8 @@ Rules that hold across the table:
 - **Weekly** means Monday, 00:00–06:00 UTC; yt-dlp is checked every day in the same hours.
 - **npm bumps wait two days after the release**, because pnpm refuses packages published
   less than a day ago and the lockfile update would fail.
-- **`ubuntu:22.04` gets digest bumps only.** A newer Ubuntu would raise the Mic bridge's
-  glibc floor (2.35), which was decided. Runner labels (`runs-on: ubuntu-24.04`) are not
+- **`debian:12` gets digest bumps only.** A newer Debian would raise the Mic bridge's
+  glibc floor (2.35, checked by the bridge stage), which was decided. Runner labels (`runs-on: ubuntu-24.04`) are not
   bumped either; change them by hand.
 - **"Once CI passes"**: Renovate merges such a pull request itself (`platformAutomerge`
   is off), and only when every check on its last commit has passed. CI on a pull request
@@ -67,7 +67,7 @@ one Renovate would miss:
 
 A new stage that needs Rust on another base copies `/usr/local/rustup` and
 `/usr/local/cargo` from the Dockerfile's `toolchain` stage, as the Mic bridge's
-`ubuntu:22.04` stage does. So it builds with the very toolchain of the other Rust stages,
+`debian:12` stage does. So it builds with the very toolchain of the other Rust stages,
 and the Rust toolchain group bumps it with no pin of its own.
 
 ## Switching it on (owner, once)

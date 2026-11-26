@@ -7,7 +7,11 @@ Stage through the server (v1 spec #51). See the crate docs (`src/lib.rs`).
 
 Real capture links the system's PipeWire library, so building needs its
 development files and libclang (for the bindings), for example on Debian or
-Ubuntu: `libpipewire-0.3-dev libclang-dev pkg-config`. The binary needs
+Ubuntu: `libpipewire-0.3-dev libclang-dev pkg-config`, PipeWire 0.3.65 or
+newer: no `pipewire-rs` release compiles against older headers (Ubuntu
+22.04's 0.3.48). The released binary is built on Debian 12 (the Dockerfile's
+`bridge` stage) and calls only functions 0.3.48 has, so it still runs on
+Ubuntu 22.04. The binary needs
 `libpipewire-0.3.so.0` at run time, as every PipeWire desktop has, and links
 nothing else beyond glibc (`tests/capture.rs` checks it); it never links
 `libpulse`.
@@ -26,7 +30,8 @@ once at start: an interface plugged in later needs a restart.
 
 ## Manual check of real capture
 
-Not run in CI (there is no sound server there). On a desktop with PipeWire
+Not run in CI (there is no sound server there); it is item 23 of
+`docs/release-checklist.md`, on Ubuntu 22.04 as well. On a desktop with PipeWire
 and an interface in Pro Audio (for example a Scarlett 4i4 4th Gen):
 
 1. `pactl list cards short` shows the card; `pactl set-card-profile <card> pro-audio`.
