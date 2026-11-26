@@ -107,19 +107,19 @@ export function CalibrationCard({
               </li>
             ))}
           </ul>
-          <div className="flex gap-3">
-            <Button fill="white" className="grow" onPress={end}>
-              {t("calibration.cancel")}
-            </Button>
+          <div className="flex flex-col gap-3">
             <Button
               fill="green"
-              className="grow"
+              className="w-full"
               isDisabled={!run.mics.some((m) => m.chosen)}
               onPress={() => {
                 store.send({ type: "startCalibration" });
               }}
             >
               {t("calibration.continue")}
+            </Button>
+            <Button fill="white" className="w-full" onPress={end}>
+              {t("calibration.cancel")}
             </Button>
           </div>
         </>
@@ -149,19 +149,19 @@ export function CalibrationCard({
               </li>
             ))}
           </ul>
-          <div className="flex gap-3">
-            <Button fill="white" className="grow" onPress={end}>
-              {t("calibration.cancel")}
-            </Button>
+          <div className="flex flex-col gap-3">
             <Button
               fill="green"
-              className="grow"
+              className="w-full"
               isDisabled={!run.mics.some((m) => m.ready)}
               onPress={() => {
                 store.send({ type: "calibrationGo" });
               }}
             >
               {t("calibration.go")}
+            </Button>
+            <Button fill="white" className="w-full" onPress={end}>
+              {t("calibration.cancel")}
             </Button>
           </div>
         </>
