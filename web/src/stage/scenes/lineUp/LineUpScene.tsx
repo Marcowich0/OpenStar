@@ -62,6 +62,14 @@ export function LineUpScene() {
   return <LineUpBody party={party} lineUp={lineUp} />;
 }
 
+/** The seat whose meter holds the focus (Local mic seats only), or `null`. */
+function focusedSeatMeter(): number | null {
+  const active = document.activeElement;
+  const seat =
+    active instanceof HTMLElement ? active.dataset.seatMeter : undefined;
+  return seat === undefined ? null : Number(seat);
+}
+
 /** Where the seat meters read each Mic's level. */
 function useMicLevels(): MicLevels {
   const { capture, bridgeLevelDbfs, phoneLevelDbfs } = useLocalMics();
@@ -88,8 +96,14 @@ function LineUpBody({
   const songs = useQuery(songsQuery()).data?.songs;
   const localMics = localMicOptions(party);
   const levels = useMicLevels();
-  const thresholdOf = useMicThresholds(store);
+  const thresholds = useMicThresholds(store);
   const [picking, setPicking] = useState<Picking | null>(null);
+  // The seat whose meter is in the adjust mode; only a Local mic seat's.
+  const [adjusting, setAdjusting] = useState<number | null>(null);
+  const adjustingMic = (() => {
+    const mic = adjusting === null ? null : lineUp.seats[adjusting]?.mic;
+    return mic?.kind === "localMic" ? mic.localMicId : null;
+  })();
   const startRef = useRef<HTMLDivElement>(null);
 
   const songOf = (id: SongId | undefined): SongSummary | undefined =>
@@ -151,6 +165,33 @@ function LineUpBody({
       startRef.current?.querySelector("button")?.click();
       return true;
     },
+    // Enter on a Local mic seat's meter starts and ends its adjust mode,
+    // in which ←/→ move the Mic threshold line 1 dB; Esc ends it too.
+    Enter: () => {
+      if (adjustingMic !== null) {
+        setAdjusting(null);
+        return true;
+      }
+      const seat = focusedSeatMeter();
+      if (seat === null) return false;
+      setAdjusting(seat);
+      return true;
+    },
+    Escape: () => {
+      if (adjustingMic === null) return false;
+      setAdjusting(null);
+      return true;
+    },
+    ArrowLeft: () => {
+      if (adjustingMic === null) return false;
+      thresholds.nudge(adjustingMic, -1);
+      return true;
+    },
+    ArrowRight: () => {
+      if (adjustingMic === null) return false;
+      thresholds.nudge(adjustingMic, 1);
+      return true;
+    },
   });
 
   const head = songOf(party.queue[0]?.songId);
@@ -210,7 +251,14 @@ function LineUpBody({
                 readLevel={() =>
                   seatLevelDbfs(seat.mic, party.localMics, levels)
                 }
-                micThresholdDbfs={thresholdOf(seat.mic)}
+                micThresholdDbfs={thresholds.effectiveDbfs(seat.mic)}
+                thresholdAdjustable={seat.mic?.kind === "localMic"}
+                adjustingThreshold={
+                  adjustingMic !== null && adjusting === index
+                }
+                onMeterBlur={() => {
+                  if (adjusting === index) setAdjusting(null);
+                }}
                 duet={lineUp.duet}
                 name={look?.name ?? ""}
                 avatar={look?.avatar ?? null}

@@ -27,6 +27,13 @@ export interface StageMicSettings {
   set(values: StageOutputMicSettings | null): void;
   /** What is stored for `mic` at the current Stage output, if anything. */
   storedFor(mic: MicKey): StoredMicSettings | undefined;
+  /**
+   * Keeps a Mic threshold set by hand for a Local mic (dBFS at the reference
+   * volume) in the loaded values at once, before the server's copy comes
+   * back, and returns the Stage output it belongs to (`null`: none loaded,
+   * so nothing to set it for).
+   */
+  setByHand(localMicId: string, referenceDbfs: number): string | null;
   /** Called after every `set`. */
   subscribe: (listener: () => void) => () => void;
   /** The loaded values (for `useSyncExternalStore`). */
@@ -42,13 +49,31 @@ function sameMic(a: MicKey, b: MicKey): boolean {
 export function createStageMicSettings(): StageMicSettings {
   let loaded: StageOutputMicSettings | null = null;
   const listeners = new Set<() => void>();
+  const set = (values: StageOutputMicSettings | null) => {
+    loaded = values;
+    for (const listener of [...listeners]) listener();
+  };
+  const storedFor = (mic: MicKey) =>
+    loaded?.mics.find((entry) => sameMic(entry.mic, mic))?.settings;
   return {
-    set(values) {
-      loaded = values;
-      for (const listener of [...listeners]) listener();
-    },
-    storedFor(mic) {
-      return loaded?.mics.find((entry) => sameMic(entry.mic, mic))?.settings;
+    set,
+    storedFor,
+    setByHand(localMicId, referenceDbfs) {
+      if (!loaded) return null;
+      const { stageOutput, mics } = loaded;
+      const mic: MicKey = { kind: "localMic", localMicId };
+      const settings: StoredMicSettings = {
+        ...storedFor(mic),
+        micThreshold: { referenceDbfs, setBy: "hand" },
+      };
+      set({
+        stageOutput,
+        mics: [
+          ...mics.filter((entry) => !sameMic(entry.mic, mic)),
+          { mic, settings },
+        ],
+      });
+      return stageOutput;
     },
     subscribe(listener) {
       listeners.add(listener);
