@@ -16,7 +16,8 @@ import { phoneMicFor } from "./mic/browserPhoneMic";
 import type { PhoneMic } from "./mic/phoneMic";
 import { phoneMember, phonePage } from "./phonePage";
 import { Remote } from "./Remote";
-import { isSeatedMic } from "./takeover/micTakeover";
+import type { RequestId } from "../generated/RequestId";
+import { takeoverShows } from "./takeover/micTakeover";
 import { MicTakeover } from "./takeover/MicTakeover";
 import { useMicTakeover } from "./takeover/useMicTakeover";
 /** The server answered that this Phone is in no Party: it has to join. */
@@ -49,21 +50,33 @@ export function PhonePageView({
   mic: givenMic,
 }: PhonePageViewProps) {
   const myPhoneId = phoneId(storage);
+  // The Request whose After the Song screen was closed with Done.
+  const [doneWith, setDoneWith] = useState<RequestId | null>(null);
+  // After Done the Remote opens on its Stage tab, once.
+  const [toStageTab, setToStageTab] = useState(false);
   const selectPage = useCallback(
     (state: LiveState) =>
       phonePage(state, {
         calibrating: () => false,
-        micTakeover: (s) => isSeatedMic(s, myPhoneId),
+        micTakeover: (s) => takeoverShows(s, myPhoneId, doneWith),
       }),
-    [myPhoneId],
+    [myPhoneId, doneWith],
   );
   const page = useLive(selectPage, store);
   const mic = givenMic ?? phoneMicFor(store, myPhoneId);
-  const takeover = useMicTakeover(store, myPhoneId, mic);
+  const takeover = useMicTakeover(store, myPhoneId, mic, doneWith);
+  if (page === "micTakeover" && toStageTab) setToStageTab(false);
   // "Queue & controls": the Remote on top of the takeover, until "Back to
   // my mic"; it closes with the takeover.
   const [remoteOnTop, setRemoteOnTop] = useState(false);
   if (page !== "micTakeover" && remoteOnTop) setRemoteOnTop(false);
+  // The Song's results close the Remote on top: the Player sees their result.
+  const afterFor = takeover?.step === "after" ? takeover.requestId : null;
+  const [shownAfter, setShownAfter] = useState<RequestId | null>(null);
+  if (afterFor !== shownAfter) {
+    setShownAfter(afterFor);
+    if (afterFor !== null) setRemoteOnTop(false);
+  }
   const member = useLive(phoneMember, store);
   const outside = useLive(selectOutside, store);
   // The favourite-colour notice is for a Phone that joined through the flow
@@ -112,6 +125,10 @@ export function PhonePageView({
             myMemberId={member?.memberId ?? null}
             onOpenRemote={() => {
               setRemoteOnTop(true);
+            }}
+            onDone={(requestId) => {
+              setDoneWith(requestId);
+              setToStageTab(true);
             }}
           />
         );
@@ -173,6 +190,13 @@ export function PhonePageView({
             }}
           />
         );
-      return <Remote store={store} phoneId={myPhoneId} me={me} />;
+      return (
+        <Remote
+          store={store}
+          phoneId={myPhoneId}
+          me={me}
+          {...(toStageTab ? { initialTab: "stage" as const } : {})}
+        />
+      );
   }
 }

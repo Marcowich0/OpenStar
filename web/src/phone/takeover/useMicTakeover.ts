@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 import type { PhoneId } from "../../generated/PhoneId";
+import type { RequestId } from "../../generated/RequestId";
 import type { LiveStore } from "../../live/liveStore";
 import { useLiveState } from "../../live/useLive";
 import type { PhoneMic } from "../mic/phoneMic";
@@ -11,8 +12,10 @@ export function useMicTakeover(
   store: LiveStore,
   phoneId: PhoneId,
   mic: PhoneMic,
+  /** The Request whose After the Song screen was closed with Done. */
+  done: RequestId | null = null,
 ): MicTakeover | null {
   const state = useLiveState(store);
   const snapshot = useSyncExternalStore(mic.subscribe, mic.getSnapshot);
-  return micTakeover(state, phoneId, snapshot);
+  return micTakeover(state, phoneId, snapshot, done);
 }

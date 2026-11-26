@@ -14,6 +14,10 @@ import {
   renderWithParty,
   stubFetch,
 } from "../stage/testParty";
+import {
+  playerResult,
+  songResults,
+} from "../../stage/scenes/results/testResults";
 
 function memoryStorage(): PhoneStorage {
   const items = new Map([["openstar.phoneId", MY_PHONE]]);
@@ -178,20 +182,56 @@ describe("the mic takeover", () => {
     expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
   });
 
-  it("shows why the mic is blocked, with Try again", async () => {
+  it("shows a full-screen card naming a refused permission, and Try again opens the mic again", async () => {
     const mic = fakeMic("failed");
     mic.set({ blocked: "permissionRefused" });
     renderPage(PARTY, mic);
-    expect(await screen.findByText("The mic did not open")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-    expect(mic.turnOn).toHaveBeenCalled();
+    const card = await screen.findByRole("region", {
+      name: "Your mic is blocked",
+    });
+    expect(within(card).getByText("Permission refused")).toBeTruthy();
+    // The full-screen card replaces the avatar and the level ring.
+    expect(screen.queryByTestId("level-ring")).toBeNull();
+    fireEvent.click(within(card).getByRole("button", { name: "Try again" }));
+    expect(mic.turnOn).toHaveBeenCalledTimes(1);
+    // Once the mic opens, the card goes.
+    mic.set({ state: "on", blocked: null });
+    expect(
+      screen.queryByRole("region", { name: "Your mic is blocked" }),
+    ).toBeNull();
+    expect(screen.getByText("Sing a note to check")).toBeTruthy();
   });
 
-  it("says the mic stopped after the page was hidden, with Sing again", async () => {
+  it("names an address that isn't HTTPS", async () => {
+    const mic = fakeMic("failed");
+    mic.set({ blocked: "noHttps" });
+    renderPage(PARTY, mic);
+    const card = await screen.findByRole("region", {
+      name: "Your mic is blocked",
+    });
+    expect(within(card).getByText("This address isn't HTTPS")).toBeTruthy();
+  });
+
+  it("says the mic stopped and the Song kept going after the page was hidden, and Sing again reopens it", async () => {
     const mic = fakeMic("lost");
     renderPage(PLAYING, mic);
-    fireEvent.click(await screen.findByRole("button", { name: "Sing again" }));
-    expect(mic.singAgain).toHaveBeenCalled();
+    expect(
+      await screen.findByRole("heading", { name: "Your mic stopped" }),
+    ).toBeTruthy();
+    expect(screen.getByText(/The song kept going/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Sing again" }));
+    expect(mic.singAgain).toHaveBeenCalledTimes(1);
+    mic.set({ state: "on" });
+    expect(screen.getByRole("heading", { name: "Sing it!" })).toBeTruthy();
+  });
+
+  it("offers Turn on my mic for a mic lost before Start, which reopens it", async () => {
+    const mic = fakeMic("lost");
+    renderPage(PARTY, mic);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Turn on my mic" }),
+    );
+    expect(mic.singAgain).toHaveBeenCalledTimes(1);
   });
 
   it("names the Voice in a duet only", async () => {
@@ -267,5 +307,96 @@ describe("the mic takeover", () => {
     expect(screen.queryByRole("main", { name: "Your mic" })).toBeNull();
     expect(screen.getByRole("tablist")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Back to my mic" })).toBeNull();
+  });
+});
+
+/** The results of Valerie (Request 1): Bo sang on this Phone. */
+const BO_RESULT = playerResult({
+  memberId: 1,
+  name: "Bo",
+  colour: "cherry",
+  mic: { kind: "phone", phoneId: MY_PHONE },
+  total: 6420,
+  rankTitleBand: 5,
+  newHighScore: true,
+});
+const RESULTS: PartySnapshot = {
+  ...PARTY,
+  head: null,
+  lineUp: null,
+  queue: [],
+  results: songResults([BO_RESULT], { songId: 40 }),
+};
+
+describe("after the Song", () => {
+  it("shows the Player's own Score, Rank title and New high score! until Done", async () => {
+    renderPage(RESULTS, fakeMic("on"));
+    const screenAfter = await screen.findByRole("main", {
+      name: "After the Song",
+    });
+    expect(screenAfter.style.backgroundColor).toBe("var(--color-party-cherry)");
+    expect(within(screenAfter).getByTestId("after-score").textContent).toBe(
+      "6420",
+    );
+    expect(within(screenAfter).getByText("Headliner")).toBeTruthy();
+    expect(within(screenAfter).getByText("New high score!")).toBeTruthy();
+    expect(within(screenAfter).queryByText("Ended early")).toBeNull();
+    expect(await within(screenAfter).findByText("Valerie")).toBeTruthy();
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  it("marks a Player who did not finish as Ended early, with no badge", async () => {
+    const ended = {
+      ...RESULTS,
+      results: songResults(
+        [{ ...BO_RESULT, unfinished: true, newHighScore: false }],
+        { songId: 40, ended: "ended" },
+      ),
+    };
+    renderPage(ended, fakeMic("on"));
+    const screenAfter = await screen.findByRole("main", {
+      name: "After the Song",
+    });
+    expect(within(screenAfter).getByText("Ended early")).toBeTruthy();
+    expect(within(screenAfter).queryByText("New high score!")).toBeNull();
+  });
+
+  it("Done returns to the Remote's Stage tab", async () => {
+    const { mic } = renderPage(RESULTS, fakeMic("on"));
+    fireEvent.click(await screen.findByRole("button", { name: "Done" }));
+    expect(screen.queryByRole("main", { name: "After the Song" })).toBeNull();
+    expect(
+      screen.getByRole("tab", { name: "Stage", selected: true }),
+    ).toBeTruthy();
+    // The mic stays held for a next Line-up that seats this Phone.
+    expect(mic.turnOff).not.toHaveBeenCalled();
+  });
+
+  it("shows the result to a Phone back after the Song while the Stage is on the results", async () => {
+    renderPage(RESULTS, fakeMic("lost"));
+    expect(
+      await screen.findByRole("main", { name: "After the Song" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Sing again" })).toBeNull();
+  });
+
+  it("shows the Remote to a Phone back once the Stage has left the results", async () => {
+    renderPage({ ...RESULTS, results: null }, fakeMic("lost"));
+    expect(await screen.findByRole("tablist")).toBeTruthy();
+    expect(screen.queryByRole("main", { name: "After the Song" })).toBeNull();
+  });
+
+  it("closes the Remote on top when the Song's results arrive, so the result shows", async () => {
+    const { server } = renderPage(PLAYING, fakeMic("on"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Queue & controls" }),
+    );
+    expect(screen.getByRole("tablist")).toBeTruthy();
+    server({
+      type: "partyChanged",
+      party: { ...RESULTS, playing: null },
+      change: { actor: { kind: "stage" }, event: { code: "lineUpChanged" } },
+    });
+    expect(screen.getByRole("main", { name: "After the Song" })).toBeTruthy();
   });
 });

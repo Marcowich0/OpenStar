@@ -272,6 +272,15 @@ test("every Phone's Stage tab follows the playing Song, its results and the empt
 
     // Both Stage tabs show the results; the Queue is empty, so Done.
     await expect(frame).toHaveAttribute("data-scene", "results");
+    // The singer's Phone shows its own result first (#176); Done opens
+    // its Remote's Stage tab.
+    await mine
+      .getByRole("main", { name: "After the Song" })
+      .getByRole("button", { name: "Done" })
+      .click();
+    await expect(
+      mine.getByRole("tab", { name: "Stage", selected: true }),
+    ).toBeVisible();
     for (const phone of phones) {
       const card = phone.getByTestId("results-card");
       await expect(card).toContainText("Results on the Stage");

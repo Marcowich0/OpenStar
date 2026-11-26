@@ -60,6 +60,7 @@ export function Remote({
   phoneId,
   me,
   backToMic,
+  initialTab,
 }: {
   store: LiveStore;
   /** This Phone's own id: its Mic is "This phone" on the Stage tab. */
@@ -67,14 +68,16 @@ export function Remote({
   me?: MeActions;
   /** Set while the Remote is open on top of the mic takeover. */
   backToMic?: { colour: PaletteKey; onBack: () => void };
+  /** The tab to open on instead of the default (Done after the Song: Stage). */
+  initialTab?: RemoteTab;
 }) {
   const member = useLive(phoneMember, store);
   const party = useLive(selectParty, store);
   const profiles = useQuery(profilesQuery);
   const look = member ? memberLook(member, profiles.data) : null;
   // Picked once, when the Remote opens; after that the person picks.
-  const [tab, setTab] = useState<RemoteTab>(() =>
-    defaultTab(selectParty(store.getSnapshot())),
+  const [tab, setTab] = useState<RemoteTab>(
+    () => initialTab ?? defaultTab(selectParty(store.getSnapshot())),
   );
   const strip = statusStrip(party, tab);
   const count = queueCount(party);

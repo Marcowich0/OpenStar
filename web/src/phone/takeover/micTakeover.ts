@@ -6,14 +6,19 @@
 // Steps: Seated (the mic is off: "Turn on my mic", also once the Song has
 // started without it), opening, Mic is on (before Start; a mic kept open from
 // the previous Song comes straight here), Singing (after Start), mic blocked
-// and mic lost. The After the Song screen is #176's: while the results show
-// there is no Line-up, so the takeover is `null` and the Remote's Stage tab
-// shows them (the mic stays open through them, `micRole` "between").
+// and mic lost (#176). After the Song (#176): while the Stage shows the
+// results of a Song this Phone was a Player's Mic for, the takeover shows that
+// Player's own result until Done, whatever the mic did meanwhile, so a Phone
+// back after the Song shows it too; once the Stage leaves the results (or
+// after Done) the Remote returns. The mic stays open through the results
+// (`micRole` "between").
 
 import type { MicBlockedReason, PhoneMicSnapshot } from "../mic/phoneMic";
+import { myResult } from "../stage/myResult";
 import type { PaletteKey } from "../../generated/PaletteKey";
 import type { PartyMemberId } from "../../generated/PartyMemberId";
 import type { PhoneId } from "../../generated/PhoneId";
+import type { PlayerResult } from "../../generated/PlayerResult";
 import type { RequestId } from "../../generated/RequestId";
 import type { Seat } from "../../generated/Seat";
 import type { SongId } from "../../generated/SongId";
@@ -22,7 +27,10 @@ import type { LiveState } from "../../live/liveState";
 export type TakeoverStep =
   "seated" | "opening" | "micOn" | "singing" | "blocked" | "lost";
 
-export interface MicTakeover {
+export type MicTakeover = SeatTakeover | AfterTheSong;
+
+/** While this Phone is the Mic of a seat in the Line-up. */
+export interface SeatTakeover {
   step: TakeoverStep;
   /** The seat this Phone is the Mic of, and its index in the Line-up. */
   seat: Seat;
@@ -45,6 +53,17 @@ export interface MicTakeover {
   blocked: MicBlockedReason | null;
 }
 
+/** The After the Song screen: the Player's own result, until Done. */
+export interface AfterTheSong {
+  step: "after";
+  /** The Request sung: Done is remembered for it. */
+  requestId: RequestId;
+  songId: SongId;
+  memberId: PartyMemberId;
+  colour: PaletteKey;
+  result: PlayerResult;
+}
+
 /** Whether the Phone `phoneId` is the Mic of a seat in the Line-up. */
 export function isSeatedMic(state: LiveState, phoneId: PhoneId): boolean {
   return (
@@ -54,11 +73,52 @@ export function isSeatedMic(state: LiveState, phoneId: PhoneId): boolean {
   );
 }
 
+/**
+ * Whether the Phone page is the takeover: this Phone is a seat's Mic, or the
+ * Stage shows the results of a Song it was a Player's Mic for and Done was
+ * not tapped for that Request (`done`).
+ */
+export function takeoverShows(
+  state: LiveState,
+  phoneId: PhoneId,
+  done: RequestId | null,
+): boolean {
+  return (
+    isSeatedMic(state, phoneId) || afterTheSong(state, phoneId, done) !== null
+  );
+}
+
+function afterTheSong(
+  state: LiveState,
+  phoneId: PhoneId,
+  done: RequestId | null,
+): AfterTheSong | null {
+  const results = state.stage?.party?.results ?? null;
+  if (!results || results.requestId === done) return null;
+  const result = myResult(results, phoneId);
+  if (!result) return null;
+  return {
+    step: "after",
+    requestId: results.requestId,
+    songId: results.songId,
+    memberId: result.memberId,
+    colour: result.colour,
+    result,
+  };
+}
+
+/**
+ * The takeover for this Phone, or `null` while the Remote shows. `done` is
+ * the Request whose After the Song screen was closed with Done.
+ */
 export function micTakeover(
   state: LiveState,
   phoneId: PhoneId,
   mic: Pick<PhoneMicSnapshot, "state" | "blocked">,
+  done: RequestId | null = null,
 ): MicTakeover | null {
+  const after = afterTheSong(state, phoneId, done);
+  if (after) return after;
   const party = state.stage?.party;
   const lineUp = party?.lineUp;
   if (!party || !lineUp) return null;
@@ -106,7 +166,8 @@ function step(mic: PhoneMicSnapshot["state"], started: boolean): TakeoverStep {
     case "failed":
       return "blocked";
     case "lost":
-      return "lost";
+      // Before Start the Song has not kept going: turn the mic back on.
+      return started ? "lost" : "seated";
   }
 }
 

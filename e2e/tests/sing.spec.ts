@@ -283,7 +283,15 @@ test("End stops the Song: the Stage stores the ended round and the Stage and the
     await expect(
       stage.getByText("Ended early, so no high scores this time"),
     ).toBeVisible();
-    await phone.getByRole("tab", { name: "Stage" }).click();
+    // The Phone shows its Player's own result (#176) until Done, which
+    // opens the Remote's Stage tab with the results card.
+    const own = phone.getByRole("main", { name: "After the Song" });
+    await expect(own.getByTestId("after-score")).toHaveText("0");
+    await expect(own).toContainText("Ended early");
+    await own.getByRole("button", { name: "Done" }).click();
+    await expect(
+      phone.getByRole("tab", { name: "Stage", selected: true }),
+    ).toBeVisible();
     const mine = phone.getByTestId("my-result");
     await expect(mine).toContainText("Your Score: 0");
     await expect(mine).toContainText("Ended early");
