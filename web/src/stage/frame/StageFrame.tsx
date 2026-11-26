@@ -14,6 +14,7 @@ import "./stageFrame.css";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { SongSummary } from "../../generated/SongSummary";
 import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
 import { liveStore, useLive } from "../../live/useLive";
@@ -28,6 +29,7 @@ import { OVERLAY_KEYS, type OverlayId } from "./overlayIds";
 import { StageOverlay } from "./overlays";
 import { PillRow } from "./PillRow";
 import { StageToasts } from "../toasts/StageToasts";
+import { SongSearchProvider } from "../search/songSearch";
 import { StageVolume } from "../volume/StageVolume";
 import { ReferenceBox } from "./ReferenceBox";
 import { SCENES, type SceneDefinition } from "./sceneComponents";
@@ -74,6 +76,7 @@ export function StageFrame({
   const scene = chooseScene(stage);
   const rules = SCENE_RULES[scene];
   const [overlay, setOverlay] = useState<OverlayId | null>(null);
+  const [songDetail, setSongDetail] = useState<SongSummary | null>(null);
   // A scene that refuses overlays (a Song plays) closes the open one.
   if (!rules.overlays && overlay !== null) setOverlay(null);
   // Check A/V sync (#163) shows while the server says it runs, whoever
@@ -121,6 +124,13 @@ export function StageFrame({
         endShared(overlay);
         setOverlay(id);
       },
+      songDetail: overlay === "songDetail" ? songDetail : null,
+      openSongDetail: (song) => {
+        if (!allowOverlays) return;
+        endShared(overlay);
+        setSongDetail(song);
+        setOverlay("songDetail");
+      },
       closeOverlay: () => {
         // Done, Cancel, Esc or the close button ends the check or the run
         // for every browser.
@@ -130,7 +140,7 @@ export function StageFrame({
       store,
       takeStageBack,
     };
-  }, [scene, overlay, allowOverlays, store, takeStageBack]);
+  }, [scene, overlay, songDetail, allowOverlays, store, takeStageBack]);
   const internals = useMemo<FrameInternals>(
     () => ({ api, layersRef, keysRef }),
     [api],
@@ -273,46 +283,51 @@ export function StageFrame({
 
   return (
     <FrameContext value={internals}>
-      <div
-        ref={frameRef}
-        data-stage-frame
-        data-scene={scene}
-        className="fixed inset-0 overflow-hidden select-none"
-        onPointerOver={(event) => {
-          const root = topRoot();
-          const target =
-            event.target instanceof Element
-              ? event.target.closest(FOCUSABLE)
-              : null;
-          if (
-            target instanceof HTMLElement &&
-            root?.contains(target) &&
-            target !== document.activeElement
-          ) {
-            target.focus({ preventScroll: true });
-          }
-        }}
-      >
-        <LayerContext value={SCENE_LAYER}>
-          <div data-stage-layer={SCENE_LAYER} className="absolute inset-0">
-            {fullScreen ? (
-              <Scene />
-            ) : (
-              <ReferenceBox>
+      <SongSearchProvider>
+        <div
+          ref={frameRef}
+          data-stage-frame
+          data-scene={scene}
+          className="fixed inset-0 overflow-hidden select-none"
+          onPointerOver={(event) => {
+            // Hover never takes the focus out of a text field (the song
+            // browser's search box): typing would land elsewhere.
+            if (isTextField(document.activeElement)) return;
+            const root = topRoot();
+            const target =
+              event.target instanceof Element
+                ? event.target.closest(FOCUSABLE)
+                : null;
+            if (
+              target instanceof HTMLElement &&
+              root?.contains(target) &&
+              target !== document.activeElement
+            ) {
+              target.focus({ preventScroll: true });
+            }
+          }}
+        >
+          <LayerContext value={SCENE_LAYER}>
+            <div data-stage-layer={SCENE_LAYER} className="absolute inset-0">
+              {fullScreen ? (
                 <Scene />
-              </ReferenceBox>
-            )}
-            {rules.pillRow && (
-              <ReferenceBox passThrough>
-                <PillRow setup={rules.setup} />
-              </ReferenceBox>
-            )}
-          </div>
-        </LayerContext>
-        {shownOverlay && <StageOverlay id={shownOverlay} />}
-        <StageToasts store={store} duringSong={scene === "sing"} />
-        <StageVolume />
-      </div>
+              ) : (
+                <ReferenceBox>
+                  <Scene />
+                </ReferenceBox>
+              )}
+              {rules.pillRow && (
+                <ReferenceBox passThrough>
+                  <PillRow setup={rules.setup} />
+                </ReferenceBox>
+              )}
+            </div>
+          </LayerContext>
+          {shownOverlay && <StageOverlay id={shownOverlay} />}
+          <StageToasts store={store} duringSong={scene === "sing"} />
+          <StageVolume />
+        </div>
+      </SongSearchProvider>
     </FrameContext>
   );
 }

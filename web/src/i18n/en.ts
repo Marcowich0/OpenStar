@@ -302,6 +302,7 @@ export const en = {
   "stage.overlay.mics": "Mics",
   "stage.overlay.calibrateMics": "Calibrate mics",
   "stage.overlay.avSync": "Check A/V sync",
+  "stage.overlay.songDetail": "High scores",
   "stage.overlay.close": "Close",
   // Check A/V sync (#163), on the Stage and on a Remote's Stage tab.
   "avSync.later": "+{ms, number} ms",
