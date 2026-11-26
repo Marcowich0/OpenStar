@@ -69,8 +69,14 @@ for arg in "$@"; do
   esac
 done
 if [ "${OPENSTAR_E2E_UPDATE_SCREENSHOTS:-}" = "1" ]; then
+  # Only the painter spec has baselines, and they are all taken again: any
+  # other selection would delete baselines it never takes again.
+  if [ "$*" != "tests/painter.spec.ts" ]; then
+    echo "e2e: OPENSTAR_E2E_UPDATE_SCREENSHOTS=1 is for 'just update-screenshots' (tests/painter.spec.ts) only" >&2
+    exit 2
+  fi
   # Taken again from scratch, so a removed case leaves no stale image behind.
-  rm -rf "$root/e2e/tests/__screenshots__"
+  rm -rf "$root/e2e/tests/__screenshots__/painter.spec.ts"
   update_args=(--update-snapshots=all)
 fi
 
@@ -80,14 +86,15 @@ watcher_pid=""
 usdb_pid=""
 launcher_pid=""
 cleanup() {
+  # The watcher first, so it starts no bridge while the rest stops.
+  if [ -n "$watcher_pid" ]; then
+    kill "$watcher_pid" 2>/dev/null || true
+    wait "$watcher_pid" 2>/dev/null || true
+  fi
   # The launcher stops every bridge it started when it is terminated.
   if [ -n "$launcher_pid" ]; then
     kill "$launcher_pid" 2>/dev/null || true
     wait "$launcher_pid" 2>/dev/null || true
-  fi
-  if [ -n "$watcher_pid" ]; then
-    kill "$watcher_pid" 2>/dev/null || true
-    wait "$watcher_pid" 2>/dev/null || true
   fi
   if [ -n "$usdb_pid" ]; then
     kill "$usdb_pid" 2>/dev/null || true
