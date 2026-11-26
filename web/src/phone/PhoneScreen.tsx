@@ -102,7 +102,8 @@ export function PhonePageView({
   }, [inParty, onInParty]);
   const outside = useLive(selectOutside, store);
   // The favourite-colour notice is for a Phone that joined through the flow
-  // here, not one the server found already in the Party.
+  // here (or switched identity with "Someone else is using this phone"),
+  // not one the server found already in the Party.
   const [joinedHere, setJoinedHere] = useState(false);
   if (outside && !joinedHere) setJoinedHere(true);
   const [noticeDone, setNoticeDone] = useState<number | null>(null);
@@ -136,7 +137,13 @@ export function PhonePageView({
           linkCode={undefined}
           store={store}
           storage={storage}
-          switching={{ onBack: closeMeScreen, onDone: closeMeScreen }}
+          switching={{
+            onBack: closeMeScreen,
+            onDone: () => {
+              setJoinedHere(true);
+              closeMeScreen();
+            },
+          }}
           {...(random ? { random } : {})}
         />
       );
