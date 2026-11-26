@@ -639,6 +639,7 @@ export const en = {
   "admin.libraryProblems.failed": "The Library problems could not be loaded",
   "admin.libraryProblems.rejection": "Rejected",
   "admin.libraryProblems.warning": "Warning",
+  "admin.libraryProblems.hidden": "Hidden",
   "admin.profiles.intro":
     "Deleting a Profile also deletes its Score records. Hold Delete for a moment.",
   "admin.profiles.list": "Profiles",
@@ -819,6 +820,7 @@ export const en = {
     "The audio {file} does not play on the Stage and could not be converted",
   "fileProblem.videoNotConverted":
     "The video {file} does not play on the Stage and could not be converted, so the Song plays over its background",
+  "fileProblem.hiddenDuplicate": "Hidden duplicate of {preferred}",
 
   // Toasts: structured events from the server, rendered on the Stage and Phones.
   "partyEvent.partyStarted": "New party started, Join code {joinCode}",

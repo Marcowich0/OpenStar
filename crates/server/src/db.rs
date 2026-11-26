@@ -417,6 +417,10 @@ const MIGRATIONS: &[&str] = &[
         original_path TEXT NOT NULL,
         deleted_ms    INTEGER NOT NULL
     ) STRICT;",
+    // 30: whether a `<name>.txt.orig` (an Original kept by a Timing edit)
+    // lies beside the `.txt` (#142): the first step of the preferred-copy
+    // rule among duplicates. Set again at every scan.
+    "ALTER TABLE library_files ADD COLUMN has_original INTEGER NOT NULL DEFAULT 0;",
 ];
 
 /// The schema version this build migrates to.
