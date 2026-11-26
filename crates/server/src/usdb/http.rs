@@ -26,7 +26,7 @@ pub(crate) async fn search(
 ) -> Response {
     match state
         .db
-        .call(move |conn| Ok(super::search::search(conn, &query)?))
+        .call(move |conn| super::search::search(conn, &query))
         .await
     {
         Ok(results) => Json(results).into_response(),
