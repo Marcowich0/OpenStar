@@ -6,7 +6,7 @@ default: check
 
 # Every fast check: Rust, dependency licences and advisories, TypeScript,
 # Prettier, the generated-types drift check and the fixture rules.
-check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check pins-check shell-check
+check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check pins-check shell-check bridge-tarball-check
 
 # What CI runs: every fast check, then the browser end-to-end tests.
 ci: check e2e
@@ -125,7 +125,8 @@ image tag="openstar:local" build_id="dev":
     docker buildx build --platform linux/amd64 --build-arg OPENSTAR_BUILD_ID={{ build_id }} --load -t {{ tag }} .
 
 # Smoke-test a built image: what it holds, its user, volumes and HEALTHCHECK,
-# and that it starts as 1000:1000 and as 99:100. Then check that a wrong
+# that it starts as 1000:1000 and as 99:100, and that the Mic bridge it serves
+# is of its build and starts headless on this machine. Then check that a wrong
 # yt-dlp or Deno checksum fails the build.
 image-smoke tag="openstar:local" build_id="dev":
     scripts/image-smoke.sh {{ tag }} {{ build_id }}
@@ -141,6 +142,17 @@ run: web-build
 # CI runner image; on a desktop, install it from the distro.
 shell-check:
     shellcheck --shell=sh crates/mic-bridge/install/install.sh
+
+# Test the Mic bridge release tarball's packer (scripts/bridge-tarball.sh,
+# run in the Dockerfile's `bridge` stage): its name, contents and checksum.
+bridge-tarball-check:
+    scripts/bridge-tarball.test.sh >/dev/null
+
+# The Mic bridge release files (`openstar-mic-bridge-<build id>-x86_64-linux.tar.gz`
+# and its .sha256) from the Dockerfile's `bridge` stage, into `dir`. CI runs
+# this for a vX.Y.Z release; the tarball holds the same binary as the image.
+bridge-release dir="target/bridge-release" build_id="dev":
+    docker buildx build --platform linux/amd64 --build-arg OPENSTAR_BUILD_ID={{ build_id }} --target bridge-release --output type=local,dest={{ dir }} .
 
 # Test what each CI event builds and publishes (scripts/ci-image-meta.sh,
 # used by .github/workflows/ci.yml): only main, vX.Y.Z tags and the weekly

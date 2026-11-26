@@ -5,7 +5,8 @@
 # the yt-dlp and Deno downloads are x86-64 binaries.
 #
 # The OpenStar image (docs/docker-image.md): one server binary with the
-# frontend embedded, plus ffmpeg, ffprobe, yt-dlp and Deno, on Debian trixie.
+# frontend embedded, plus ffmpeg, ffprobe, yt-dlp, Deno and the matching Mic
+# bridge, on Debian trixie.
 # Build it with `just image`; `just image-smoke` checks the result.
 #
 # Every version is pinned here; Renovate bumps them (renovate.json, the
@@ -70,6 +71,54 @@ RUN --mount=type=cache,id=openstar-cargo-registry,target=/usr/local/cargo/regist
     && install -D -m 0755 target/release/openstar /out/openstar
 
 # ---------------------------------------------------------------------------
+# The pinned Rust toolchain, as a stage of its own: the Mic bridge stage
+# copies it from here, so every Rust stage builds with the very same
+# toolchain (the one rust-toolchain.toml names) and Renovate bumps it with
+# the other rust:<version> lines.
+FROM --platform=linux/amd64 rust:1.100.0-slim-trixie@sha256:3b199fd6db7d709274df56565b8f4003f9e30d7bfcff9d53148c86053b7855e2 AS toolchain
+
+# ---------------------------------------------------------------------------
+# Mic bridge: built on Ubuntu 22.04, so the binary needs glibc 2.35 or newer
+# and runs on any current desktop (Ubuntu 22.04+, Debian 12+, Fedora, Arch).
+# Graphics libraries are loaded at run time (crates/mic-bridge/tests/window.rs
+# checks the binary's NEEDED list). The same build identifier as the server.
+# Its output is both what the runtime image serves under /bridge/ and the
+# release tarball (stage `bridge-release`), so the two are the same binary.
+FROM --platform=linux/amd64 ubuntu:22.04@sha256:b000e69a50ff940390233025e7a337fb8469b509e2334fa4d018ac30f3e18cdb AS bridge
+ARG OPENSTAR_BUILD_ID
+ARG GITHUB_REF
+ARG GITHUB_SHA
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=toolchain /usr/local/rustup /usr/local/rustup
+COPY --from=toolchain /usr/local/cargo /usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
+COPY scripts/bridge-tarball.sh scripts/
+RUN --mount=type=cache,id=openstar-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=openstar-cargo-bridge-target,target=/src/target \
+    OPENSTAR_BUILD_ID="${OPENSTAR_BUILD_ID}" GITHUB_REF="${GITHUB_REF}" GITHUB_SHA="${GITHUB_SHA}" \
+    cargo build --release --locked -p openstar-mic-bridge --bin openstar-mic-bridge \
+    && install -D -m 0755 target/release/openstar-mic-bridge /out/bridge/openstar-mic-bridge
+# The glibc floor: no symbol newer than GLIBC_2.35.
+RUN newest="$(objdump -T /out/bridge/openstar-mic-bridge | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)+' | sed 's/GLIBC_//' | sort -uV | tail -n 1)" \
+    && echo "the Mic bridge needs glibc ${newest}" \
+    && [ "$(printf '%s\n2.35\n' "$newest" | sort -V | tail -n 1)" = 2.35 ]
+RUN install -m 0644 crates/mic-bridge/install/install.sh crates/mic-bridge/install/openstar-mic-bridge.svg /out/bridge/ \
+    && scripts/bridge-tarball.sh /out/bridge/openstar-mic-bridge crates/mic-bridge/install /out/release
+
+# The release files alone: `openstar-mic-bridge-<build id>-x86_64-linux.tar.gz`
+# and its .sha256. CI exports this stage for a vX.Y.Z release
+# (`docker buildx build --target bridge-release --output type=local,...`).
+FROM scratch AS bridge-release
+COPY --from=bridge /out/release/ /
+
+# ---------------------------------------------------------------------------
 # Tools: yt-dlp and Deno, downloaded at pinned versions. The build fails when
 # a download does not match its checksum.
 FROM --platform=linux/amd64 debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 AS tools
@@ -108,9 +157,11 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=tools /out/yt-dlp /out/deno /usr/local/bin/
 COPY --from=server /out/openstar /usr/local/bin/openstar
-# The Mic bridge files served under /bridge/ (#208 puts them here), and the
-# two volumes, owned by the default user so fresh named volumes are writable.
-RUN mkdir -p /usr/share/openstar/bridge /songs /appdata \
+# The Mic bridge files the server serves under /bridge/: the bridge of this
+# build, the install script and the icon.
+COPY --from=bridge /out/bridge/ /usr/share/openstar/bridge/
+# The two volumes, owned by the default user so fresh named volumes are writable.
+RUN mkdir -p /songs /appdata \
     && chown 1000:1000 /songs /appdata
 # Any `user:` works (for example 99:100 on Unraid): no user needs to exist in
 # /etc/passwd, and HOME points at a folder every user can write, for the
