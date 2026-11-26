@@ -19,6 +19,8 @@ pass() { echo "image-smoke: ok: $*" >&2; }
 # are removed by that name (run_and_check runs in a subshell, so a list kept
 # there would be lost), with their anonymous volumes.
 cleanup() {
+    # shellcheck disable=SC2086 # a list of temporary folders
+    [ -z "${bridge_dirs:-}" ] || rm -rf $bridge_dirs
     docker ps -aq --filter "name=^openstar-smoke-.*-$$\$" | xargs -r docker rm -fv >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -56,7 +58,9 @@ version="$(in_image openstar --version)"
 [ "$version" = "$build_id" ] || fail "openstar --version prints '$version', not '$build_id'"
 pass "openstar --version is $build_id"
 
-binaries="$(in_image sh -c 'find / -xdev -type f -name "openstar*" -perm -u+x 2>/dev/null; true')"
+# The Mic bridge folder is checked below; any other openstar* program is a
+# second server binary.
+binaries="$(in_image sh -c 'find / -xdev -path /usr/share/openstar/bridge -prune -o -type f -name "openstar*" -perm -u+x -print 2>/dev/null; true')"
 [ "$binaries" = /usr/local/bin/openstar ] || fail "expected one openstar binary, found: $binaries"
 pass "one server binary"
 
@@ -78,10 +82,74 @@ pass "ffmpeg, ffprobe, yt-dlp and deno run"
 in_image test -s /etc/ssl/certs/ca-certificates.crt || fail "no system CA certificates (USDB needs TLS)"
 pass "CA certificates for TLS"
 
-in_image test -d /usr/share/openstar/bridge || fail "no /usr/share/openstar/bridge folder"
-pass "Mic bridge folder /usr/share/openstar/bridge"
+# The Mic bridge of this very build (the Dockerfile's `bridge` stage), with
+# the install script and the icon the server hands out under /bridge/.
+bridge_files="$(in_image sh -c 'cd /usr/share/openstar/bridge && stat -c "%n %a %u:%g" * | sort')"
+expected_bridge_files="install.sh 644 0:0
+openstar-mic-bridge 755 0:0
+openstar-mic-bridge.svg 644 0:0"
+[ "$bridge_files" = "$expected_bridge_files" ] ||
+    fail "/usr/share/openstar/bridge holds:"$'\n'"$bridge_files"$'\n'"expected:"$'\n'"$expected_bridge_files"
+pass "Mic bridge folder: the bridge, install.sh and the icon"
 
 # --- Running -------------------------------------------------------------
+# The Mic bridge as a computer in the room gets it: fetched from the running
+# server, checked against the served checksum, the same build identifier as
+# the server, and started headless on a WAV file until the server asks for
+# its approval on the Stage. It runs on this machine, outside the image.
+check_bridge() {
+    local label="$1" base="$2" dir
+    dir="$(mktemp -d)"
+    # Removed by the EXIT trap too, if a check fails.
+    bridge_dirs="${bridge_dirs:-} $dir"
+    (cd "$dir" &&
+        curl -fsS -o openstar-mic-bridge "$base/bridge/openstar-mic-bridge" &&
+        curl -fsS -o openstar-mic-bridge.sha256 "$base/bridge/openstar-mic-bridge.sha256") ||
+        fail "$label: /bridge/openstar-mic-bridge or its .sha256 does not load"
+    (cd "$dir" && sha256sum --check --strict --quiet openstar-mic-bridge.sha256) ||
+        fail "$label: /bridge/openstar-mic-bridge does not match /bridge/openstar-mic-bridge.sha256"
+    chmod +x "$dir/openstar-mic-bridge"
+    local version
+    version="$("$dir/openstar-mic-bridge" --version)" || fail "$label: the fetched bridge does not run"
+    [ "$version" = "$build_id" ] || fail "$label: the bridge's --version is '$version', not the server's '$build_id'"
+    pass "$label: /bridge/openstar-mic-bridge matches its checksum and is $build_id"
+
+    local script
+    script="$(curl -fsS "$base/bridge/install.sh")" || fail "$label: /bridge/install.sh does not load"
+    [[ "$script" == "#!/bin/sh"*"$base"* ]] || fail "$label: /bridge/install.sh does not carry the address $base"
+    local icon
+    icon="$(curl -fsS -o /dev/null -w '%{http_code}' "$base/bridge/openstar-mic-bridge.svg")" || icon=failed
+    [ "$icon" = 200 ] || fail "$label: /bridge/openstar-mic-bridge.svg answers $icon"
+    pass "$label: serves install.sh with its own address, and the icon"
+
+    # Two channels of a tone, made by the image's own ffmpeg.
+    docker run --rm --network none --entrypoint sh "$image" -c \
+        'ffmpeg -hide_banner -loglevel error -f lavfi -i "sine=frequency=220:duration=60" -ac 2 -ar 48000 /tmp/mics.wav && cat /tmp/mics.wav' \
+        >"$dir/mics.wav" || fail "$label: ffmpeg in the image cannot write the test WAV"
+    mkdir -p "$dir/config/openstar-mic-bridge"
+    echo "$base" >"$dir/config/openstar-mic-bridge/server"
+    env -i PATH="$PATH" HOME="$dir" XDG_CONFIG_HOME="$dir/config" \
+        "$dir/openstar-mic-bridge" --wav "$dir/mics.wav" >"$dir/bridge.log" 2>&1 &
+    local pid=$! waiting=""
+    for _ in $(seq 1 100); do
+        if grep -q "Waiting for approval on the Stage: code" "$dir/bridge.log"; then
+            waiting=yes
+            break
+        fi
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 0.2
+    done
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    if [ -z "$waiting" ]; then
+        cat "$dir/bridge.log" >&2
+        fail "$label: the headless bridge did not reach 'Waiting for approval' within 20 s"
+    fi
+    grep -q "Reading 2 channel(s) of mics.wav" "$dir/bridge.log" ||
+        fail "$label: the headless bridge did not read the WAV's 2 channels"
+    pass "$label: the bridge starts headless with --wav and waits for approval on the Stage"
+}
+
 # Starts a container with the given `docker run` options, waits for Docker
 # to call it healthy, and checks the build id in its logs and server-info.
 run_and_check() {
@@ -158,6 +226,8 @@ run_and_check() {
     rm -f "$body"
     [ "$magic" = 0061736d ] || fail "$label: $wasm is not a WASM module"
     pass "$label: serves the pitch worklet $worklet and the detector $wasm"
+
+    [ "$label" = default ] && check_bridge "$label" "$base"
 
     local logs
     logs="$(docker logs "$name" 2>&1)"
