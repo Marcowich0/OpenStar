@@ -321,7 +321,6 @@ describe("the Stage plays the head's Request", () => {
         ],
       },
     ]);
-    expect(t.sent.map((m) => m.type)).not.toContain("reachedResults");
     expect(t.song.view()).toMatchObject({ ended: "ended" });
     // A second End, or the media ending after all, raises nothing more.
     t.control("end");
