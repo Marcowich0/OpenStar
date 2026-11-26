@@ -74,6 +74,9 @@ export const en = {
   "phoneMic.on": "Mic is on",
   "phoneMic.failed": "The mic did not open",
   "phoneMic.tryAgain": "Try again",
+  "phoneMic.stopped": "Your mic stopped",
+  "phoneMic.stoppedBody": "The song kept going. Tap to carry on in your seat.",
+  "phoneMic.singAgain": "Sing again",
   "phoneMic.diagnostics": "Mic diagnostics",
   "phoneMic.readingsPerSecond": "{count, number} readings/s",
   "phoneMic.detectorCost":
