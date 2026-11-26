@@ -219,10 +219,14 @@ async fn sing_on_channel_0(stage: &mut WsClient, bridge_id: &BridgeId, song: Son
     request_id
 }
 
-/// Plays the Stage (answers clock pings) until a Pitch reading of `mic`
-/// arrives; returns whether the Stage was told `mic` closed first.
-async fn until_reading(stage: &mut WsClient, clock: Instant, mic: &MicId) -> bool {
-    let mut closed = false;
+/// Plays the Stage (answers clock pings) until `wanted` holds for a
+/// message, which it returns.
+async fn play_until(
+    stage: &mut WsClient,
+    clock: Instant,
+    what: &str,
+    wanted: impl Fn(&ServerMessage) -> bool,
+) -> ServerMessage {
     tokio::time::timeout(WAIT, async {
         loop {
             match stage.recv().await {
@@ -236,17 +240,17 @@ async fn until_reading(stage: &mut WsClient, clock: Instant, mic: &MicId) -> boo
                         })
                         .await;
                 }
-                ServerMessage::MicClosed { mic: closed_mic } if &closed_mic == mic => {
-                    closed = true;
-                }
-                ServerMessage::PitchReading { mic: from, .. } if &from == mic => return,
+                message if wanted(&message) => return message,
                 _ => {}
             }
         }
     })
     .await
-    .unwrap_or_else(|_| panic!("no reading of {mic:?}"));
-    closed
+    .unwrap_or_else(|_| panic!("the Stage got no {what}"))
+}
+
+fn reading_of(mic: &MicId) -> impl Fn(&ServerMessage) -> bool + '_ {
+    move |message| matches!(message, ServerMessage::PitchReading { mic: from, .. } if from == mic)
 }
 
 #[tokio::test]
@@ -282,7 +286,7 @@ async fn a_bridge_of_another_build_updates_during_a_song_and_reconnects_approved
     // It sings in a Song.
     sing_on_channel_0(&mut stage, &bridge_id, song).await;
     bridge.line("Detecting 1 channel(s)").await;
-    until_reading(&mut stage, clock, &mic).await;
+    play_until(&mut stage, clock, "reading", reading_of(&mic)).await;
 
     // Mid-Song, the bridge restarts as another build: it updates to the
     // server's, restarts into it and reconnects with its kept token. The
@@ -300,10 +304,20 @@ async fn a_bridge_of_another_build_updates_during_a_song_and_reconnects_approved
         .await;
     assert_eq!(bridge.child.id(), pid, "restarted in place");
     bridge.line("Detecting 1 channel(s)").await;
-    assert!(
-        until_reading(&mut stage, clock, &mic).await,
-        "the Stage was told the Mic closed while the bridge updated"
-    );
+    play_until(
+        &mut stage,
+        clock,
+        "Mic closed",
+        |message| matches!(message, ServerMessage::MicClosed { mic: closed } if closed == &mic),
+    )
+    .await;
+    play_until(
+        &mut stage,
+        clock,
+        "reading after the update",
+        reading_of(&mic),
+    )
+    .await;
 
     // It now is the server's copy, executable, and nothing is left beside
     // it; the token is the one it had, and it is the same bridge.
