@@ -74,19 +74,20 @@ export function isSeatedMic(state: LiveState, phoneId: PhoneId): boolean {
 }
 
 /**
- * Whether the Phone page is the takeover: this Phone is a seat's Mic, or the
- * Stage shows the results of a Song it was a Player's Mic for and Done was
- * not tapped for that Request (`done`).
+ * Whether the Phone page is the takeover: [`micTakeover`] has one for this
+ * Phone (it is a seat's Mic, or the Stage shows the results of a Song it was
+ * a Player's Mic for and Done was not tapped for that Request, `done`). The
+ * mic's state only picks the takeover's step, never whether there is one.
  */
 export function takeoverShows(
   state: LiveState,
   phoneId: PhoneId,
   done: RequestId | null,
 ): boolean {
-  return (
-    isSeatedMic(state, phoneId) || afterTheSong(state, phoneId, done) !== null
-  );
+  return micTakeover(state, phoneId, MIC_OFF, done) !== null;
 }
+
+const MIC_OFF = { state: "off", blocked: null } as const;
 
 function afterTheSong(
   state: LiveState,

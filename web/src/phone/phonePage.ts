@@ -7,23 +7,16 @@ export type PhonePage =
   "joinFlow" | "calibrating" | "avSync" | "micTakeover" | "remote";
 
 /**
- * The conditions later tickets fill in, each a pure function of the store:
- * whether a Calibrating run or Check A/V sync runs with this Phone taking
- * part, and whether this Phone is the Mic of a seat in the Line-up (or shows
- * its own Score after the Song).
+ * The conditions that need this Phone's id, each a pure function of the
+ * store: whether a Calibrating run or Check A/V sync runs with this Phone
+ * taking part, and whether this Phone is the Mic of a seat in the Line-up (or
+ * shows its own Score after the Song).
  */
 export interface PhonePageConditions {
   calibrating: (state: LiveState) => boolean;
   avSync: (state: LiveState) => boolean;
   micTakeover: (state: LiveState) => boolean;
 }
-
-/** None is known without this Phone's id. */
-const STORE_CONDITIONS: PhonePageConditions = {
-  calibrating: () => false,
-  avSync: () => false,
-  micTakeover: () => false,
-};
 
 /**
  * Whether Phone `phoneId` started the running Check A/V sync (#168): its
@@ -52,7 +45,7 @@ export function phoneMember(state: LiveState): PartyMember | null {
  */
 export function phonePage(
   state: LiveState,
-  conditions: PhonePageConditions = STORE_CONDITIONS,
+  conditions: PhonePageConditions,
 ): PhonePage {
   if (phoneMember(state) === null) return "joinFlow";
   // Calibrate mics and Check A/V sync never run together: one slot.

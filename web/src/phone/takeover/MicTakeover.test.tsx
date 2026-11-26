@@ -419,6 +419,25 @@ describe("after the Song", () => {
     expect(mic.turnOff).not.toHaveBeenCalled();
   });
 
+  it("opens the Stage tab once after Done: a Remote opened again later picks its tab as usual", async () => {
+    renderPage(RESULTS, fakeMic("on"));
+    fireEvent.click(await screen.findByRole("button", { name: "Done" }));
+    expect(
+      screen.getByRole("tab", { name: "Stage", selected: true }),
+    ).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /^Me/ }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Me" })).getByRole("button", {
+        name: "Change name, look or colour",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    // No Line-up waits: a Remote opens on Songs.
+    expect(
+      screen.getByRole("tab", { name: "Songs", selected: true }),
+    ).toBeTruthy();
+  });
+
   it("shows the result to a Phone back after the Song while the Stage is on the results", async () => {
     renderPage(RESULTS, fakeMic("lost"));
     expect(

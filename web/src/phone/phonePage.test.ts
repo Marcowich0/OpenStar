@@ -99,10 +99,6 @@ describe("the Phone page's state", () => {
       }),
     ).toBe("joinFlow");
   });
-
-  it("is the Remote with the store's own conditions, which later tickets fill in", () => {
-    expect(phonePage(live(1))).toBe("remote");
-  });
 });
 
 describe("whether this Phone shows Check A/V sync as its page", () => {

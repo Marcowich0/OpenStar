@@ -122,10 +122,14 @@ export function PhonePageView({
   if (page === "joinFlow" && meScreen !== null) setMeScreen(null);
   const me: MeActions = {
     phoneId: myPhoneId,
+    // The Remote opened after a Me sheet screen picks its tab as usual: the
+    // Stage tab after Done is for the Remote that Done opens.
     onSomeoneElse: () => {
+      setToStageTab(false);
       setMeScreen({ kind: "switch" });
     },
     onChangeLook: (look) => {
+      setToStageTab(false);
       setMeScreen({ kind: "edit", look });
     },
   };
