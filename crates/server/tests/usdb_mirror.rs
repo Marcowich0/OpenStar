@@ -231,8 +231,12 @@ async fn the_downloads_section_gets_an_update_only_when_the_mirror_is_over_a_day
     clock.advance(Duration::from_secs(120));
     assert_eq!(mirror(&app).await.state, UsdbMirrorState::Stale);
     let asked = post(&app, "/api/usdb/mirror/refresh").await;
+    // The update of ten songs can already be over when the answer is built:
+    // then the mirror is fresh again, with a newer refresh time.
     assert!(
-        matches!(asked.state, UsdbMirrorState::Refreshing { full: false, .. }),
+        matches!(asked.state, UsdbMirrorState::Refreshing { full: false, .. })
+            || (asked.state == UsdbMirrorState::Fresh
+                && asked.last_refreshed_ms > filled.last_refreshed_ms),
         "{asked:?}"
     );
     let status = wait_until_fresh(&app).await;
@@ -259,8 +263,10 @@ async fn a_full_refetch_by_hand_needs_no_pin_and_drops_songs_usdb_no_longer_has(
 
     // No Unlock: the request carries no cookie at all.
     let asked = post(&app, "/api/usdb/mirror/refetch").await;
+    // As above: the refetch can already be over when the answer is built.
     assert!(
-        matches!(asked.state, UsdbMirrorState::Refreshing { full: true, .. }),
+        matches!(asked.state, UsdbMirrorState::Refreshing { full: true, .. })
+            || (asked.state == UsdbMirrorState::Fresh && asked.last_full_ms > filled.last_full_ms),
         "{asked:?}"
     );
     let status = wait_for(&app, "refetched", |s| {

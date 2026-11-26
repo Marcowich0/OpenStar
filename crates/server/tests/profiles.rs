@@ -264,7 +264,7 @@ async fn creating_and_editing_send_a_change_notice() {
 }
 
 #[tokio::test]
-async fn no_profile_appears_by_itself_and_there_is_no_delete_outside_the_admin_area() {
+async fn no_profile_appears_by_itself_and_deleting_one_needs_an_unlock() {
     let mut app = TestApp::start().await;
     let mut socket = app.connect_ws().await;
     let _ = socket.recv().await;
@@ -278,7 +278,8 @@ async fn no_profile_appears_by_itself_and_there_is_no_delete_outside_the_admin_a
         .send()
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    // The delete is the Admin area's guarded action (#199).
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 
     // Profiles are kept data: they survive a restart unchanged.
     app.restart().await;

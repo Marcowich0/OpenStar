@@ -6,7 +6,7 @@ default: check
 
 # Every fast check: Rust, dependency licences and advisories, TypeScript,
 # Prettier, the generated-types drift check and the fixture rules.
-check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check
+check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check pins-check
 
 # What CI runs: every fast check, then the browser end-to-end tests.
 ci: check e2e
@@ -134,3 +134,11 @@ run: web-build
 # schedule publish; pull requests never do.
 ci-meta-check:
     scripts/ci-image-meta.test.sh >/dev/null
+
+# Every version pin is one Renovate keeps current (scripts/check-pins.sh,
+# docs/renovate.md): base images by digest, actions by SHA, a `# renovate:`
+# comment on every `*_VERSION`, checksums that move with their version, and
+# the Playwright image in step with @playwright/test.
+pins-check:
+    scripts/check-pins.test.sh >/dev/null
+    scripts/check-pins.sh

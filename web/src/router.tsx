@@ -101,6 +101,23 @@ const songsRoute = createRoute({
   component: lazyRouteComponent(() => import("./admin/Songs"), "Songs"),
 });
 
+/**
+ * `/admin/songs/<id>/timing`: a Song's Timing editor (#218), a desktop view
+ * of the Songs section. Opening it needs no PIN.
+ */
+const timingEditorRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/songs/$song/timing",
+  params: {
+    parse: ({ song }) => ({ song: Number(song) }),
+    stringify: ({ song }) => ({ song: String(song) }),
+  },
+  component: lazyRouteComponent(
+    () => import("./admin/timing/TimingEditorPage"),
+    "TimingEditorPage",
+  ),
+});
+
 const libraryProblemsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "/library-problems",
@@ -125,6 +142,7 @@ const routeTree = rootRoute.addChildren([
     adminIndexRoute,
     downloadsRoute,
     songsRoute,
+    timingEditorRoute,
     libraryProblemsRoute,
     profilesRoute,
   ]),

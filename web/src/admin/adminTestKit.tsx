@@ -1,4 +1,4 @@
-// Test kit for the Admin area's Library sections: a stubbed `fetch` with
+// Test kit for the Admin area's sections: a stubbed `fetch` with
 // settable answers, and a fake WebSocket whose change notices reach the
 // query cache through the app's own `invalidateOnChange`.
 
@@ -30,7 +30,10 @@ class FakeSocket implements LiveSocket {
   }
 }
 
-/** A body, or a function of the URL that gives one (or a promise of one). */
+/**
+ * A body, or a function of the URL (and the request) that gives one, or a
+ * promise of one. A `Response` is sent as it is (a status other than 200).
+ */
 type Answer = unknown;
 
 export interface FakeLibraryServer {
@@ -69,14 +72,15 @@ export function fakeLibraryServer(
         return Promise.resolve(new Response(null, { status: 404 }));
       const body =
         typeof answer === "function"
-          ? (answer as (url: URL) => unknown)(url)
+          ? (answer as (url: URL, init: RequestInit) => unknown)(url, init)
           : answer;
-      return Promise.resolve(body).then(
-        (resolved) =>
-          new Response(JSON.stringify(resolved), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }),
+      return Promise.resolve(body).then((resolved) =>
+        resolved instanceof Response
+          ? resolved
+          : new Response(JSON.stringify(resolved), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
       );
     }),
   );

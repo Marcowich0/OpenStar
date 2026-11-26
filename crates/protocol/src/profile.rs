@@ -11,7 +11,9 @@
 //!   name, avatar and favourite colour of any Profile and answers with it.
 //!
 //! Anyone may call them: no Unlock, no ownership. Deleting a Profile is in the
-//! Admin area only. A refused name answers `422` with
+//! Admin area only: `DELETE /api/profiles/{id}` is guarded and answers `204`,
+//! `404` [`UserMessage::ProfileNotFound`] or `409` `profileSinging` while the
+//! Profile sings in the playing Song. A refused name answers `422` with
 //! [`UserMessage::ProfileNameEmpty`] or [`UserMessage::ProfileNameTooLong`],
 //! and a name another Profile holds answers `409` with
 //! [`UserMessage::ProfileNameTaken`], which names that Profile. Every create

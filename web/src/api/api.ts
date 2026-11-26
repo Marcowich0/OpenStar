@@ -59,6 +59,8 @@ export interface Endpoints {
   "POST /api/profiles": { body: NewProfile; response: Profile };
   "GET /api/profiles/{id}": { response: Profile };
   "PATCH /api/profiles/{id}": { body: ProfileEdit; response: Profile };
+  /** Guarded: deletes the Profile and its Score records; `204`, no body. */
+  "DELETE /api/profiles/{id}": { response: null };
   "GET /api/jobs": { response: JobList };
   "GET /api/songs": { query: SongQuery; response: SongList };
   "GET /api/songs/{id}": { response: SongDetail };
@@ -275,6 +277,8 @@ export async function api<R extends Route>(
   // The call site is checked against `Endpoints`; from here on the options
   // are handled the same for every route.
   const response = await send(route, "application/json", options);
+  // `204 No Content` has no body: such routes declare `response: null`.
+  if (response.status === 204) return null;
   return (await response.json()) as ResponseOf<R>;
 }
 
