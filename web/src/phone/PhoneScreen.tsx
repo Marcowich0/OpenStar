@@ -6,6 +6,8 @@ import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { phoneId, type PhoneStorage } from "../live/phoneId";
 import { liveStore, useLive } from "../live/useLive";
+import { CalibratingTakeover } from "./calibrating/CalibratingTakeover";
+import { isCalibrating } from "./calibrating/calibrating";
 import { FavouriteTaken } from "./FavouriteTaken";
 import { JoinFlow } from "./JoinFlow";
 import { JoinForm } from "./JoinForm";
@@ -57,7 +59,7 @@ export function PhonePageView({
   const selectPage = useCallback(
     (state: LiveState) =>
       phonePage(state, {
-        calibrating: () => false,
+        calibrating: (s) => isCalibrating(s, myPhoneId),
         micTakeover: (s) => takeoverShows(s, myPhoneId, doneWith),
       }),
     [myPhoneId, doneWith],
@@ -112,9 +114,10 @@ export function PhonePageView({
           {...(random ? { random } : {})}
         />
       );
-    // Calibrating comes with its ticket; until then the Remote shows.
     case "calibrating":
-      return <Remote store={store} phoneId={myPhoneId} me={me} />;
+      return (
+        <CalibratingTakeover store={store} phoneId={myPhoneId} mic={mic} />
+      );
     case "micTakeover":
       if (takeover && !remoteOnTop)
         return (
