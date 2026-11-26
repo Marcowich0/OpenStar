@@ -211,6 +211,25 @@ fn walk(root: &Path) -> anyhow::Result<Vec<Candidate>> {
     Ok(candidates)
 }
 
+/// Reads every candidate `.txt` in `folder` (relative to the Library, at any
+/// depth), as a scan would: for a new Song folder applied straight to the
+/// index without a scan.
+pub(crate) fn read_folder(root: &Path, folder: &str) -> anyhow::Result<Vec<ReadFile>> {
+    let base = PathBuf::from(folder);
+    let mut resolver = Resolver::new(root);
+    Ok(walk(&root.join(&base))?
+        .into_iter()
+        .map(|candidate| {
+            let candidate = Candidate {
+                path: slash_path(&base.join(&candidate.path)),
+                folder: base.join(&candidate.folder),
+                ..candidate
+            };
+            read(root, &mut resolver, candidate)
+        })
+        .collect())
+}
+
 fn slash_path(path: &Path) -> String {
     path.components()
         .map(|c| c.as_os_str().to_string_lossy())

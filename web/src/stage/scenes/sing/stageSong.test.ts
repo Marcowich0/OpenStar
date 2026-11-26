@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { ClientMessage } from "../../../generated/ClientMessage";
+import type { MicId } from "../../../generated/MicId";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
 import type { RoundOutcome } from "../../../generated/RoundOutcome";
 import type { ServerMessage } from "../../../generated/ServerMessage";
@@ -13,6 +14,40 @@ import { createStageSong, type StageSongOptions } from "./stageSong";
 import { PROFILES, testDetail, testParty } from "./testSong";
 
 const PLAYING = { requestId: 5, songId: 7, paused: false };
+
+/** Mia's Phone as relayed readings name it. */
+const MIA_MIC: MicId = { kind: "phone", connection: 1 };
+
+/**
+ * Mia sings Beats `first`–`last` of the test Song (#GAP 1 s, 250 ms Beats)
+ * in tune on her Phone (default 100 ms Mic delay), each Beat's readings
+ * arriving in a burst 150 ms after it ends; the Song clock started at Stage
+ * time `songStartMs`. Before the first Beat the Phone sends one quiet reading
+ * during the intro, so it is never silent for the lost-Mic rule's 1 s.
+ */
+function sing(
+  t: ReturnType<typeof setup>,
+  first: number,
+  last: number,
+  songStartMs = 0,
+) {
+  const receive = (
+    captureMs: number,
+    pitch: number | null,
+    loudness: number,
+  ) => {
+    t.pitch.receive(MIA_MIC, { captureMs, pitch, clarity: 0.95, loudness });
+  };
+  t.frames(songStartMs + 600);
+  receive(songStartMs + 600, null, -90);
+  for (let b = first; b <= last; b++) {
+    const beatMs = songStartMs + 1000 + 250 * b;
+    t.frames(beatMs + 250 + 150);
+    for (const offset of [25, 85, 145, 205]) {
+      receive(beatMs + offset + 100, 60, -10);
+    }
+  }
+}
 
 /** A playback that records what it was told; `end()` signals like the real one. */
 function fakePlayback(onEnded: (how: SongEnding) => void, log: string[]) {
@@ -82,6 +117,8 @@ function setup(over: Partial<StageSongOptions> = {}) {
   const pitch = createPitchRouter();
   const loadSong = vi.fn(() => Promise.resolve(testDetail()));
   let playback: ReturnType<typeof fakePlayback> | null = null;
+  let stageMs = 0;
+  let nextFrame: (() => void) | null = null;
   const song = createStageSong({
     store,
     loadSong,
@@ -104,6 +141,16 @@ function setup(over: Partial<StageSongOptions> = {}) {
         resumeLater = null;
       };
     },
+    stageNow: () => stageMs,
+    requestFrame: (callback) => {
+      nextFrame = callback;
+      return 1;
+    },
+    cancelFrame: () => {
+      nextFrame = null;
+    },
+    micIdFor: (mic) =>
+      mic.kind === "phone" && mic.phoneId === "phone-mia" ? MIA_MIC : null,
     ...over,
   });
 
@@ -152,6 +199,14 @@ function setup(over: Partial<StageSongOptions> = {}) {
       resumeLater?.();
     },
     playback: () => playback,
+    /** Moves the Stage clock to `ms`, running an animation frame every 20 ms. */
+    frames(ms: number) {
+      while (stageMs < ms) {
+        stageMs = Math.min(stageMs + 20, ms);
+        nextFrame?.();
+      }
+    },
+    framesRunning: () => nextFrame !== null,
   };
 }
 
@@ -364,5 +419,55 @@ describe("the Stage plays the head's Request", () => {
     await flush();
     expect(t.song.view()).toMatchObject({ playFailed: false });
     expect(t.log).toEqual(["start"]);
+  });
+
+  it("scores Mia live: the running Score reaches her lane, and the round carries the outcome", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    const totals: number[] = [];
+    t.song.onScoring((change) => totals.push(change.score.total));
+    view.clock.play(); // the media plays from Stage time 0
+
+    sing(t, 0, 3); // delivered late, but inside the grace period
+    t.frames(2300); // Beat 3 final at 2.0 s + 300 ms
+    // 12 scored Beats: 750 points each.
+    expect(view.state.lanes[0]?.player?.score).toBe(3000);
+    expect(totals.at(-1)).toBe(3000);
+
+    t.playedOut();
+    expect(t.framesRunning()).toBe(false);
+    const round = t.song.lastRound();
+    expect(round?.scoring.noteFingerprint).toBe("f1ng3rpr1nt");
+    expect(round?.scoring.players).toEqual([
+      expect.objectContaining({
+        voice: 0,
+        difficulty: "hard",
+        micKind: "phone",
+        beatRange: { firstBeat: 0, lastBeat: 15 },
+        score: { total: 3000, notes: 3000, golden: 0, lineBonus: 0 },
+        finished: false,
+        micLost: false,
+      }),
+    ]);
+  });
+
+  it("starts the Score over on Restart", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 3);
+    t.frames(2300);
+    expect(view.state.lanes[0]?.player?.score).toBe(3000);
+
+    t.control("restart");
+    view.clock.seek(0); // the media's Restart re-anchors the clock
+    expect(view.state.lanes[0]?.player?.score).toBe(0);
+    sing(t, 0, 0, 2300);
+    t.frames(4600); // Beat 0 final at 1.25 s + 300 ms after the Restart
+    expect(view.state.lanes[0]?.player?.score).toBe(750);
   });
 });

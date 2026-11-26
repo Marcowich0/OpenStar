@@ -1,8 +1,9 @@
 // What a Song's sing screen needs, built once at Start from the Line-up the
 // server fixed (#164): one Player per seat, in seat order, with their Party
 // colour, Voice, Difficulty and Mic; the Mic-to-Player map the Pitch router
-// routes readings by; one scorer per Player; and the `SingState` the render
-// loop draws, its lanes reading each Player's ring buffer.
+// routes readings by; and the `SingState` the render loop draws, its lanes
+// reading each Player's ring buffer. The live scoring session (#165,
+// `scoring/liveScoring.ts`) takes each Player's scoring inputs from here.
 
 import type { LineUp } from "../../../generated/LineUp";
 import type { MicId } from "../../../generated/MicId";
@@ -17,7 +18,6 @@ import { OPENSTAR_VOLUME } from "../../../playback/gain";
 import { memberLook } from "../../../phone/memberLook";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
 import { pitchBufferCapacity } from "../../../pitch/pitchCapacity";
-import { createScorer, type Scorer } from "../../../scoring/scorer";
 import type { PaletteKey } from "../../../theme/tokens";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import {
@@ -36,6 +36,8 @@ export interface SingPlayer {
   voice: number;
   difficulty: Difficulty;
   mic: MicKey | null;
+  /** What the Player sings into, for the Score record. */
+  micKind: MicKind;
   /** The lane header's look; `undefined` while a Profile's look is unknown. */
   look: LanePlayer | undefined;
   /** The Mic delay used to place this Player's readings, ms. */
@@ -65,8 +67,6 @@ export interface SingSetup {
   mics: readonly (readonly [MicId, number])[];
   /** Readings per Player's buffer (`PitchSession.capacity`). */
   capacity: number;
-  /** One per Player, in Player order. */
-  scorers: readonly Scorer[];
   /** The sing screen's state, its lanes reading these buffers (one per Player). */
   state: (buffers: readonly PitchBuffer[]) => SingState;
 }
@@ -100,6 +100,7 @@ export function singSetup(input: SingSetupInput): SingSetup {
       voice: Math.min(seat.voice === "p2" ? 1 : 0, lastVoice),
       difficulty: seat.difficulty,
       mic: seat.mic,
+      micKind: micKind(seat.mic),
       look: look
         ? {
             name: look.name,
@@ -120,15 +121,6 @@ export function singSetup(input: SingSetupInput): SingSetup {
     if (id) mics.push([id, index]);
   });
 
-  const scorers = players.map((player) => {
-    const voice = song.voices[player.voice] ?? { lines: [] };
-    return createScorer({
-      voice,
-      headers: song.headers,
-      difficulty: player.difficulty,
-    });
-  });
-
   const voices = singVoices(song);
   const layout = laneLayout(players.length);
 
@@ -136,7 +128,6 @@ export function singSetup(input: SingSetupInput): SingSetup {
     players,
     mics,
     capacity: pitchBufferCapacity(song.headers, layout),
-    scorers,
     state: (buffers) => ({
       grid: song.headers,
       voices,
