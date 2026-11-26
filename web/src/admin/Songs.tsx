@@ -16,6 +16,7 @@ import { t } from "../i18n/t";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
+import { TimingEditorLink } from "./timing/TimingEditorLink";
 
 function searchQuery(search: string): SongQuery {
   const words = search.trim();
@@ -62,7 +63,9 @@ export function Songs() {
               className="flex flex-col gap-3"
             >
               {list.data.songs.map((song) => (
-                <AdminSongRow key={song.id} song={song} />
+                <AdminSongRow key={song.id} song={song}>
+                  <TimingEditorLink song={song} />
+                </AdminSongRow>
               ))}
             </ul>
           )

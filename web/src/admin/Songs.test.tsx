@@ -1,4 +1,12 @@
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRoute,
+  createRouter,
+  RouterProvider,
+} from "@tanstack/react-router";
 import { act, fireEvent, screen, within } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SongList } from "../generated/SongList";
@@ -45,6 +53,22 @@ function songList(songs: SongSummary[]): SongList {
   };
 }
 
+/** The Songs section inside a router, as on `/admin/songs` (its rows link). */
+function SongsInRouter() {
+  const [router] = useState(() => {
+    const root = createRootRoute({ component: Songs });
+    const timing = createRoute({
+      getParentRoute: () => root,
+      path: "/admin/songs/$song/timing",
+    });
+    return createRouter({
+      routeTree: root.addChildren([timing]),
+      history: createMemoryHistory(),
+    });
+  });
+  return <RouterProvider router={router} />;
+}
+
 const list = () => screen.getByRole("list", { name: "Songs in the Library" });
 const rows = () => within(list()).getAllByRole("listitem");
 
@@ -56,7 +80,7 @@ afterEach(() => {
 describe("the Songs section", () => {
   it("lists every playable Song with its cover, title and artist", async () => {
     fakeLibraryServer({ "GET /api/songs": songList(SONGS) });
-    await renderLive(<Songs />);
+    await renderLive(<SongsInRouter />);
 
     const [abba, queen] = rows();
     expect(abba).toHaveTextContent("Waterloo");
@@ -76,7 +100,7 @@ describe("the Songs section", () => {
           url.searchParams.get("search") === "queen" ? SONGS.slice(1) : SONGS,
         ),
     });
-    await renderLive(<Songs />);
+    await renderLive(<SongsInRouter />);
 
     act(() => {
       fireEvent.change(
@@ -93,7 +117,7 @@ describe("the Songs section", () => {
 
   it("says when nothing matches and when the Library is empty", async () => {
     fakeLibraryServer({ "GET /api/songs": songList([]) });
-    await renderLive(<Songs />);
+    await renderLive(<SongsInRouter />);
     expect(
       screen.getByText("The Library has no playable Songs yet"),
     ).toBeVisible();
@@ -107,12 +131,23 @@ describe("the Songs section", () => {
     expect(screen.getByText("No Songs match")).toBeVisible();
   });
 
+  it("links each Song to its Timing editor", async () => {
+    fakeLibraryServer({ "GET /api/songs": songList(SONGS) });
+    await renderLive(<SongsInRouter />);
+
+    expect(
+      within(rows()[1] as HTMLElement).getByRole("link", {
+        name: "Timing of Bohemian Rhapsody",
+      }),
+    ).toHaveAttribute("href", "/admin/songs/2/timing");
+  });
+
   it("refreshes on the Library change notice", async () => {
     let songs = SONGS;
     const server = fakeLibraryServer({
       "GET /api/songs": () => songList(songs),
     });
-    const live = await renderLive(<Songs />);
+    const live = await renderLive(<SongsInRouter />);
     expect(rows()).toHaveLength(2);
 
     songs = [...SONGS, song(3, "Toto", "Africa", false)];
