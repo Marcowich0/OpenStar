@@ -107,6 +107,12 @@ run_and_check() {
 
     local port
     port="$(docker port "$name" 8090/tcp | head -n 1 | sed 's/.*://')"
+    local health
+    health="$(curl -fsS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$port/healthz")" ||
+        fail "$label: /healthz does not answer"
+    [ "$health" = 200 ] || fail "$label: /healthz answers $health"
+    pass "$label: /healthz answers 200"
+
     local info
     info="$(curl -fsS "http://127.0.0.1:$port/api/server-info")"
     [[ "$info" == *"\"version\":\"$build_id\""* ]] || fail "$label: server-info is $info"
