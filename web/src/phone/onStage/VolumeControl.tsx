@@ -15,7 +15,7 @@ import { Icon } from "../../ui/Icon";
 const selectVolume = (state: LiveState) => state.volume;
 
 const STEP_BUTTON =
-  "flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-ink shadow-ledge outline-none focus-visible:outline-4 focus-visible:outline-yellow disabled:cursor-not-allowed disabled:opacity-45";
+  "flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white shadow-ledge-ink outline-none focus-visible:outline-4 focus-visible:outline-yellow disabled:cursor-not-allowed disabled:opacity-45";
 
 export function VolumeControl({ store }: { store: LiveStore }) {
   // `null` until a Stage has reported its output: nothing to step yet.
