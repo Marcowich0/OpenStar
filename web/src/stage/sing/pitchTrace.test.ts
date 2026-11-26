@@ -424,6 +424,29 @@ describe("the head ball", () => {
     ).toBe(false);
   });
 
+  it("bounces gently: wider and flatter by up to 14 %, keeping its area, moved by Song time", () => {
+    const s = state(trace(buffer(sung(3, 3.5, 60))));
+    const squash = (t: number) => {
+      const ball = frame(s, t, oneLane).find((e) => e.type === "headBall");
+      if (ball?.type !== "headBall") throw new Error("no ball");
+      return ball.squash;
+    };
+    const seen = [3.3, 3.35, 3.4, 3.45, 3.5].map(squash);
+    for (const { x, y } of seen) {
+      expect(x).toBeGreaterThanOrEqual(1);
+      expect(x).toBeLessThanOrEqual(1.14);
+      expect(x * y).toBeCloseTo(1, 9);
+    }
+    // It moves: not the same shape at every Song time.
+    expect(new Set(seen.map(({ x }) => x.toFixed(4))).size).toBeGreaterThan(1);
+    // The same Song time gives the same shape (a frozen frame stays still).
+    expect(squash(3.4)).toEqual(squash(3.4));
+    // Over a whole bounce it reaches close to 14 % and back to round.
+    const xs = Array.from({ length: 200 }, (_, i) => squash(3 + i * 0.0025).x);
+    expect(Math.max(...xs)).toBeGreaterThan(1.139);
+    expect(Math.min(...xs)).toBeLessThan(1.001);
+  });
+
   it("is smaller in lanes under 130 px", () => {
     const list = frame(
       state(trace(buffer(sung(3, 3.5, 60)))),

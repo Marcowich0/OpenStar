@@ -92,6 +92,30 @@ export interface HeadBallEntry {
   colour: PaletteKey;
   rim: TokenName;
   rimWidth: number;
+  /**
+   * The bounce: the ball's horizontal (`x`) and vertical (`y`) scale. Wider
+   * and flatter by up to `HEAD_BALL_SQUASH`, with `x × y = 1`, so it keeps
+   * its area. The painter scales the disc and its rim about its centre.
+   */
+  squash: { x: number; y: number };
+}
+
+/** The head ball's bounce at its widest: 14 % (#55). */
+export const HEAD_BALL_SQUASH = 0.14;
+/** The bounce's speed, radians of Song time per second, as in the prototype. */
+const BOUNCE_RATE = 9;
+
+/**
+ * The head ball's squash at Song time `songTime` in lane `lane` (lanes bounce
+ * out of step). On Song time, so a paused or frozen frame holds still.
+ */
+export function headBallSquash(
+  songTime: number,
+  lane: number,
+): { x: number; y: number } {
+  const x =
+    1 + HEAD_BALL_SQUASH * Math.abs(Math.sin(songTime * BOUNCE_RATE + lane));
+  return { x, y: 1 / x };
 }
 
 /**
@@ -352,6 +376,7 @@ export function traceLane(
         colour: g.colour,
         rim: "--color-white",
         rimWidth: 3,
+        squash: headBallSquash(songTime, g.lane),
       } satisfies HeadBallEntry);
     }
   }

@@ -99,6 +99,56 @@ describe("Pitch router", () => {
     expect(heard).toEqual([1]);
   });
 
+  it("tells the session when a Mic of the Song closes, and that it is back at its next reading", () => {
+    const router = createPitchRouter();
+    const events: string[] = [];
+    router.start({
+      players: 2,
+      mics: [
+        [phone(7), 1],
+        [phone(4), 0],
+      ],
+      capacity: 8,
+      place: asSeconds,
+      heard: (player) => events.push(`reading ${String(player)}`),
+      signal: (player, kind) => events.push(`${kind} ${String(player)}`),
+    });
+    router.signal(phone(7), "connectionClosed");
+    router.signal(phone(3), "connectionClosed"); // not in this Song
+    router.receive(phone(7), reading(10));
+    router.receive(phone(7), reading(20));
+    router.signal(phone(4), "pageHidden");
+    router.signal(phone(4), "pageVisible");
+    expect(events).toEqual([
+      "connectionClosed 1",
+      "connectionBack 1",
+      "reading 1",
+      "reading 1",
+      "pageHidden 0",
+      "pageVisible 0",
+    ]);
+    router.stop();
+    router.signal(phone(7), "connectionClosed");
+    expect(events).toHaveLength(6);
+  });
+
+  it("forgets a closed Mic at the next Start", () => {
+    const router = createPitchRouter();
+    const events: string[] = [];
+    const session = {
+      players: 1,
+      mics: [[phone(7), 0]] as const,
+      capacity: 8,
+      place: asSeconds,
+      signal: (_: number, kind: string) => events.push(kind),
+    };
+    router.start(session);
+    router.signal(phone(7), "connectionClosed");
+    router.start(session);
+    router.receive(phone(7), reading(10));
+    expect(events).toEqual(["connectionClosed"]);
+  });
+
   it("tells placement which Player the reading belongs to", () => {
     const router = createPitchRouter();
     const seen: number[] = [];

@@ -514,7 +514,7 @@ describe("the painter", () => {
     expect(calls).toContainEqual(["lineTo", 5, 6]);
   });
 
-  it("fills the head ball in the Party colour with a white rim", () => {
+  it("fills the head ball in the Party colour with a white rim, squashed by its bounce", () => {
     const ball: HeadBallEntry = {
       type: "headBall",
       lane: 0,
@@ -525,12 +525,13 @@ describe("the painter", () => {
       colour: "cherry",
       rim: "--color-white",
       rimWidth: 3,
+      squash: { x: 1.1, y: 1 / 1.1 },
     };
     const { ctx, calls } = recordingContext();
     createPainter(ctx, colour).paint([ball], view);
     expect(calls.slice(3)).toEqual([
       ["beginPath"],
-      ["arc", 600, 780, 14, 0, 2 * Math.PI],
+      ["ellipse", 600, 780, 14 * 1.1, 14 / 1.1, 0, 0, 2 * Math.PI],
       ["set", "fillStyle", "value(cherry)"],
       ["fill"],
       ["set", "strokeStyle", "value(--color-white)"],

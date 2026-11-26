@@ -18,9 +18,11 @@ import type { SongClock } from "../../clock/songClock";
 import { readToken, tokenVar } from "../../theme/tokens";
 import { t } from "../../i18n/t";
 import { Avatar } from "../../ui/Avatar";
+import { Icon } from "../../ui/Icon";
 import { Score } from "../../ui/Score";
 import type { DrawList, SingLane, SingState } from "./frame";
 import { laneHeaderSizes } from "./laneHeader";
+import { createLaneLostWriter, type LaneLostWriter } from "./laneLost";
 import { laneLayout, type LaneRect } from "./laneLayout";
 import { createLyricDriver, LyricBar } from "./LyricBar";
 import { createPainter, referenceTransform } from "./painter";
@@ -83,6 +85,7 @@ export function SingScreen({
   const effectsRef = useRef<HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState(currentViewport);
   const [lyrics] = useState(createLyricDriver);
+  const [lost] = useState(createLaneLostWriter);
 
   // The loop reads the latest props each frame without restarting.
   const latest = useRef({ state, clock, avOffset, frameTime, viewport });
@@ -130,6 +133,7 @@ export function SingScreen({
         painter.paint(list, transform);
         effects?.paint(list, transform);
         lyrics.apply(list);
+        lost.apply(list);
         if (!painted && rootRef.current) {
           // For screenshots (#58): the first frame is on the canvas.
           rootRef.current.dataset.painted = "true";
@@ -141,7 +145,7 @@ export function SingScreen({
     return () => {
       loop.stop();
     };
-  }, [lyrics]);
+  }, [lyrics, lost]);
 
   const frame = referenceTransform(viewport.width, viewport.height, 1);
   const referenceStyle = {
@@ -182,9 +186,20 @@ export function SingScreen({
         {lanes.map((lane, i) => (
           <LaneHeader
             key={i}
+            index={i}
             rect={lane}
             lane={state.lanes[i]}
             duet={state.voices.length > 1}
+            lost={lost}
+          />
+        ))}
+        {lanes.map((lane, i) => (
+          <MicLostPill
+            key={i}
+            index={i}
+            rect={lane}
+            name={state.lanes[i]?.player?.name}
+            lost={lost}
           />
         ))}
         <LyricBar voices={state.voices} driver={lyrics} />
@@ -253,13 +268,17 @@ export const LanePanels = memo(function LanePanels({
  * running Score.
  */
 function LaneHeader({
+  index,
   rect,
   lane,
   duet,
+  lost,
 }: {
+  index: number;
   rect: LaneRect;
   lane: SingLane | undefined;
   duet: boolean;
+  lost: LaneLostWriter;
 }) {
   const player = lane?.player;
   const sizes = laneHeaderSizes(rect.height);
@@ -267,8 +286,9 @@ function LaneHeader({
   const narrow = rect.notesX - rect.x < 240;
   return (
     <div
+      ref={lost.header(index)}
       data-lane-header
-      className={`absolute flex items-center text-ink ${narrow ? "gap-2 pr-1.5 pl-3" : "gap-3.5 pr-3 pl-[18px]"}`}
+      className={`absolute flex items-center text-ink data-lost:opacity-55 ${narrow ? "gap-2 pr-1.5 pl-3" : "gap-3.5 pr-3 pl-[18px]"}`}
       style={{
         left: `${String(rect.x)}px`,
         top: `${String(rect.y)}px`,
@@ -310,6 +330,53 @@ function LaneHeader({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** The three pulsing dots, 0.2 s apart. */
+const DOT_DELAYS = [0, 0.2, 0.4];
+
+/**
+ * The ink pill on a lane whose Mic is lost (#55): "Mia's mic lost" with a
+ * crossed-out mic and three pulsing dots, centred 150 px right of the lane's
+ * middle. Hidden until the render loop sees the lane lost (`laneLost.ts`).
+ */
+function MicLostPill({
+  index,
+  rect,
+  name,
+  lost,
+}: {
+  index: number;
+  rect: LaneRect;
+  name: string | undefined;
+  lost: LaneLostWriter;
+}) {
+  if (name === undefined) return null;
+  return (
+    <div
+      ref={lost.pill(index)}
+      data-lane-lost
+      hidden
+      className="absolute flex -translate-1/2 items-center gap-3.5 rounded-full bg-ink py-2.5 pr-7 pl-3.5 text-[28px] font-semibold whitespace-nowrap text-white shadow-ledge-mic-lost"
+      style={{
+        left: `${String(rect.x + rect.width / 2 + 150)}px`,
+        top: `${String(rect.y + rect.height / 2)}px`,
+      }}
+    >
+      <Icon name="mic-off" className="size-10" />
+      <span>{t("sing.micLost", { name })}</span>
+      <span className="flex">
+        {DOT_DELAYS.map((delay) => (
+          <span
+            key={delay}
+            data-dot
+            className="ml-[5px] inline-block size-2 animate-mic-lost-dot rounded-full bg-white"
+            style={{ animationDelay: `${String(delay)}s` }}
+          />
+        ))}
+      </span>
     </div>
   );
 }

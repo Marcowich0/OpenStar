@@ -349,6 +349,36 @@ describe("a lost Mic", () => {
   });
 });
 
+describe("a lost Mic's moments", () => {
+  it("tells the Song time the loss was first seen, and which change is the Mic coming back", () => {
+    const r = rig({ players: [player(), player()] });
+    const changes: [number, number | null, boolean][] = [];
+    r.session.onChange((change) => {
+      changes.push([change.player, change.lostAt, change.back]);
+    });
+    r.at(200);
+    r.micEvent(1, "pageHidden");
+    r.at(300); // Song time 0.3 s
+    r.at(400); // still lost: no change
+    r.micEvent(1, "pageVisible");
+    r.at(500);
+    expect(changes).toEqual([
+      [1, 0.3, false],
+      [1, null, true],
+    ]);
+  });
+
+  it("is not a return on a Restart", () => {
+    const r = rig();
+    const back: boolean[] = [];
+    r.session.onChange((change) => back.push(change.back));
+    r.micEvent(0, "connectionClosed");
+    r.at(100);
+    r.restart();
+    expect(back).toEqual([false, false]);
+  });
+});
+
 describe("a duet", () => {
   it("scores two Players on different Voices and Difficulties against their own Voice", () => {
     const r = rig({
