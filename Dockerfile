@@ -8,7 +8,10 @@
 # frontend embedded, plus ffmpeg, ffprobe, yt-dlp and Deno, on Debian trixie.
 # Build it with `just image`; `just image-smoke` checks the result.
 #
-# Every version is pinned here; Renovate bumps them (the `# renovate:` lines).
+# Every version is pinned here; Renovate bumps them (renovate.json, the
+# `# renovate:` lines). For yt-dlp and Deno the datasource is
+# github-release-attachments, so a bump also carries the new checksum: keep
+# each `*_SHA256` right below its `*_VERSION` (scripts/check-pins.sh).
 # The base images are pinned by digest as well as by tag.
 
 # The build identifier (crates/server/src/build_id.rs): `X.Y.Z`, `edge-<sha>`
@@ -70,11 +73,11 @@ RUN --mount=type=cache,id=openstar-cargo-registry,target=/usr/local/cargo/regist
 # Tools: yt-dlp and Deno, downloaded at pinned versions. The build fails when
 # a download does not match its checksum.
 FROM --platform=linux/amd64 debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 AS tools
-# renovate: datasource=github-releases depName=yt-dlp/yt-dlp
+# renovate: datasource=github-release-attachments depName=yt-dlp/yt-dlp
 ARG YTDLP_VERSION=2026.11.23
 # The `yt-dlp_linux` line of the release's SHA2-256SUMS.
 ARG YTDLP_SHA256=249ddb058234276bc449b9cd9492aad9f133bda5923c61a9e39983ae114ef17d
-# renovate: datasource=github-releases depName=denoland/deno
+# renovate: datasource=github-release-attachments depName=denoland/deno
 ARG DENO_VERSION=v2.9.8
 # The release's deno-x86_64-unknown-linux-gnu.zip.sha256sum.
 ARG DENO_SHA256=e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609
