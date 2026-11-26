@@ -200,10 +200,12 @@ async fn sing_on_channel_0(stage: &mut WsClient, bridge_id: &BridgeId, song: Son
         .await;
     loop {
         let party = next_party(stage).await;
-        let seated = party
-            .line_up
-            .iter()
-            .any(|line_up| line_up.seats.iter().any(|seat| seat.mic == Some(mic.clone())));
+        let seated = party.line_up.iter().any(|line_up| {
+            line_up
+                .seats
+                .iter()
+                .any(|seat| seat.mic == Some(mic.clone()))
+        });
         if seated {
             break;
         }
@@ -350,8 +352,7 @@ async fn a_bridge_that_cannot_write_its_file_does_not_connect_and_says_how_to_up
         .await
         .unwrap()
         .unwrap();
-    std::fs::set_permissions(installed.dir.path(), std::fs::Permissions::from_mode(0o755))
-        .unwrap();
+    std::fs::set_permissions(installed.dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
 
     assert_eq!(
         message,
