@@ -5,13 +5,15 @@
 //! This build is headless and reads a WAV file in place of an interface
 //! (`--wav <file>`): each channel of the file is one hardware channel, and
 //! the file name is the interface's device name. It sends meter levels
-//! ([`levels`]); capture (#205), Pitch readings (#153), the window (#204)
-//! and updates (#209) come later.
+//! ([`levels`]), and [`sender`] turns a Local mic's capture into Pitch
+//! readings on the Stage's clock; capture (#205), running it on the WAV
+//! input (#153), the window (#204) and updates (#209) come later.
 
 pub mod cli;
 pub mod client;
 pub mod config;
 pub mod levels;
+pub mod sender;
 pub mod wav;
 
 /// The build identifier, worked out exactly as the server's (`X.Y.Z`,

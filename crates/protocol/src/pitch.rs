@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::PhoneId;
+use crate::bridge::BridgeId;
 
 /// One measurement of what a Mic heard at one moment.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
@@ -47,6 +48,27 @@ pub enum MicId {
     /// (`MicKey::Phone`), so the Stage can match readings to their seat,
     /// and the same Mic again after the Phone reconnects.
     Phone { phone_id: PhoneId },
+    /// One Local mic of an approved Mic bridge: the bridge (named by the id
+    /// of its approval token) and the Local mic id of the channel, the same
+    /// id a Line-up seat names (`MicKey::LocalMic`). Each Local mic syncs its
+    /// own clock, so the Stage answers its pings naming this Mic.
+    Bridge {
+        bridge_id: BridgeId,
+        local_mic_id: String,
+    },
+}
+
+/// Which of a Mic bridge's Local mics a reading, ping or pong is for: one
+/// hardware channel of one interface it offered in its hello. Only a bridge
+/// sends it; a Phone, which is one Mic, never does.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BridgeInput {
+    /// The interface's `device.name`, as in its `BridgeInterface`.
+    pub device_name: String,
+    /// The hardware channel, from 0.
+    pub channel: u32,
 }
 
 #[cfg(test)]
@@ -71,8 +93,8 @@ mod tests {
             loudness in finite(),
         ) {
             let sent = PitchReading { capture_ms, pitch, clarity, loudness };
-            let text = serde_json::to_string(&ClientMessage::PitchReading { reading: sent }).unwrap();
-            let ClientMessage::PitchReading { reading } = serde_json::from_str(&text).unwrap() else {
+            let text = serde_json::to_string(&ClientMessage::PitchReading { reading: sent, input: None }).unwrap();
+            let ClientMessage::PitchReading { reading, .. } = serde_json::from_str(&text).unwrap() else {
                 panic!("not a reading");
             };
             let relayed = serde_json::to_string(&ServerMessage::PitchReading {
@@ -90,6 +112,51 @@ mod tests {
             };
             prop_assert_eq!(bits(&received), bits(&sent));
         }
+    }
+
+    #[test]
+    fn a_phones_messages_carry_no_bridge_input_and_a_bridges_do() {
+        let phone: ClientMessage =
+            serde_json::from_str(r#"{"type":"clockPing","t0":1.5}"#).unwrap();
+        assert_eq!(
+            phone,
+            ClientMessage::ClockPing {
+                t0: 1.5,
+                input: None
+            }
+        );
+        let to_phone = ServerMessage::ClockPong {
+            t0: 1.0,
+            ts: 2.0,
+            epoch: 3.0,
+            input: None,
+        };
+        assert_eq!(
+            serde_json::to_string(&to_phone).unwrap(),
+            r#"{"type":"clockPong","t0":1.0,"ts":2.0,"epoch":3.0}"#
+        );
+        let bridge: ClientMessage = serde_json::from_str(
+            r#"{"type":"clockPing","t0":1.5,"input":{"deviceName":"usb","channel":2}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            bridge,
+            ClientMessage::ClockPing {
+                t0: 1.5,
+                input: Some(BridgeInput {
+                    device_name: "usb".into(),
+                    channel: 2
+                }),
+            }
+        );
+        let mic = MicId::Bridge {
+            bridge_id: BridgeId("b1".into()),
+            local_mic_id: "bridge:b1:usb:2".into(),
+        };
+        assert_eq!(
+            serde_json::to_string(&mic).unwrap(),
+            r#"{"kind":"bridge","bridgeId":"b1","localMicId":"bridge:b1:usb:2"}"#
+        );
     }
 
     #[test]

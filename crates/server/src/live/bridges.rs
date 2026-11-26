@@ -11,7 +11,7 @@ use openstar_protocol::bridge::{
     BridgeRequestId, LocalMicLevel, MicBridge, MicBridges, bridge_local_mic_id,
 };
 use openstar_protocol::mics::LocalMicSource;
-use openstar_protocol::{ChangeTopic, ServerMessage, UserMessage};
+use openstar_protocol::{BridgeInput, ChangeTopic, MicId, ServerMessage, UserMessage};
 
 use super::LiveState;
 use super::hub::ConnectionId;
@@ -103,6 +103,36 @@ impl Bridges {
     /// The approved bridges' ids, in order of approval.
     pub fn approved_ids(&self) -> Vec<BridgeId> {
         self.approved.iter().map(|a| a.bridge_id.clone()).collect()
+    }
+}
+
+impl Open {
+    /// The Mic of the hardware channel `input`, if this bridge offers it.
+    fn mic(&self, input: &BridgeInput) -> Option<MicId> {
+        let offered = self.interfaces.iter().any(|interface| {
+            interface.device_name == input.device_name && input.channel < interface.channels
+        });
+        offered.then(|| MicId::Bridge {
+            bridge_id: self.bridge_id.clone(),
+            local_mic_id: bridge_local_mic_id(&self.bridge_id, &input.device_name, input.channel),
+        })
+    }
+
+    /// The hardware channel whose Local mic id is `local_mic_id`.
+    fn input_of(&self, local_mic_id: &str) -> Option<BridgeInput> {
+        self.inputs().find(|input| {
+            bridge_local_mic_id(&self.bridge_id, &input.device_name, input.channel) == local_mic_id
+        })
+    }
+
+    /// Every hardware channel it offers, interface by interface.
+    fn inputs(&self) -> impl Iterator<Item = BridgeInput> + '_ {
+        self.interfaces.iter().flat_map(|interface| {
+            (0..interface.channels).map(|channel| BridgeInput {
+                device_name: interface.device_name.clone(),
+                channel,
+            })
+        })
     }
 }
 
@@ -349,6 +379,46 @@ impl LiveState {
         }
     }
 
+    /// The Mic that bridge socket `id` sends a reading or ping as: one of
+    /// its Local mics, if the bridge is approved and open and offers
+    /// `input`. `None` drops it: an unapproved bridge's readings never
+    /// reach the Stage, and a bridge must say which Local mic it means.
+    pub(super) fn bridge_mic(
+        &self,
+        id: ConnectionId,
+        input: Option<&BridgeInput>,
+    ) -> Option<MicId> {
+        self.bridges.open.get(&id)?.mic(input?)
+    }
+
+    /// The Stage's pong for one Local mic of a bridge: to that bridge's open
+    /// connection, naming the Local mic. Dropped when the bridge has gone.
+    pub(super) fn bridge_pong(
+        &mut self,
+        bridge_id: &BridgeId,
+        local_mic_id: &str,
+        t0: f64,
+        ts: f64,
+        epoch: f64,
+    ) {
+        let target = self.bridges.open.iter().find_map(|(&id, open)| {
+            (&open.bridge_id == bridge_id)
+                .then(|| open.input_of(local_mic_id).map(|input| (id, input)))
+                .flatten()
+        });
+        if let Some((id, input)) = target {
+            self.hub.send_to(
+                id,
+                &ServerMessage::ClockPong {
+                    t0,
+                    ts,
+                    epoch,
+                    input: Some(input),
+                },
+            );
+        }
+    }
+
     /// Tells open bridges (`only` one, or every one) each of their channels:
     /// switched on or not, and its name.
     pub(super) async fn send_bridge_channels(&mut self, only: Option<ConnectionId>) {
@@ -404,13 +474,22 @@ impl LiveState {
     }
 
     /// A connection closed: a waiting bridge stops waiting, an open one
-    /// shows as closed.
+    /// shows as closed and the Stage is told each of its Local mics closed
+    /// (an older connection the bridge replaced is no longer open, so it
+    /// closes without a notice).
     pub(super) fn bridge_closed(&mut self, id: ConnectionId) {
         self.bridges.sockets.remove(&id);
         let before = self.bridges.waiting.len();
         self.bridges.waiting.retain(|w| w.connection != id);
         let was_waiting = self.bridges.waiting.len() != before;
-        let was_open = self.bridges.open.remove(&id).is_some();
+        let closed = self.bridges.open.remove(&id);
+        let was_open = closed.is_some();
+        if let Some(open) = closed {
+            let mics: Vec<MicId> = open.inputs().filter_map(|input| open.mic(&input)).collect();
+            for mic in mics {
+                self.send_to_stage(&ServerMessage::MicClosed { mic });
+            }
+        }
         if was_waiting || was_open {
             self.bridges_changed();
         }

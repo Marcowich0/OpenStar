@@ -51,6 +51,33 @@ describe("Pitch router", () => {
     expect(captures(buffers[1])).toEqual([100]);
   });
 
+  it("routes a Mic bridge's relayed readings and Mic-closed to the seat naming its Local mic", () => {
+    const router = createPitchRouter();
+    const localMicId = "bridge:b1:alsa_card.usb-X-00:2";
+    const events: string[] = [];
+    const buffers = router.start({
+      players: 2,
+      // A seat names a bridge Local mic like any Local mic.
+      mics: [
+        [phone(1), 0],
+        [{ kind: "localMic", localMicId }, 1],
+      ],
+      capacity: 8,
+      place: asSeconds,
+      signal: (player, kind) => events.push(`${kind} ${String(player)}`),
+    });
+    const relayed: MicId = { kind: "bridge", bridgeId: "b1", localMicId };
+    router.receive(relayed, reading(100));
+    router.receive(
+      { kind: "bridge", bridgeId: "b1", localMicId: `${localMicId}x` },
+      reading(200),
+    );
+    router.signal(relayed, "connectionClosed");
+    expect(captures(buffers[0])).toEqual([]);
+    expect(captures(buffers[1])).toEqual([100]);
+    expect(events).toEqual(["connectionClosed 1"]);
+  });
+
   it("puts each reading into the buffer of the Player its Mic is assigned to", () => {
     const router = createPitchRouter();
     const buffers = router.start({
