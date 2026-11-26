@@ -442,6 +442,11 @@ export const en = {
   "stage.sing.notPlaying": "This Song is not playing here",
   "stage.sing.playFailed": "The browser did not start the Song",
   "stage.sing.play": "Play",
+  "stage.perf.measuring": "Measuring frame times",
+  "stage.perf.current": "Frame {ms} ms",
+  "stage.perf.mean": "Mean {ms} ms",
+  "stage.perf.worst": "Worst {ms} ms",
+  "stage.perf.budget": "Budget {ms} ms ({hz} Hz)",
   // The results screen (#182).
   "stage.results.endedEarly": "Ended early, so no high scores this time",
   "stage.results.legend": "What the bars are made of",

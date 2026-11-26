@@ -55,6 +55,38 @@ describe("the app's routes", () => {
     });
   });
 
+  it("hands the perf overlay and synthetic lanes to the Stage", () => {
+    expect(leafMatch("/stage")?.search).toEqual({
+      perf: undefined,
+      lanes: undefined,
+    });
+    expect(leafMatch("/stage?perf")?.search).toEqual({
+      perf: true,
+      lanes: undefined,
+    });
+    expect(leafMatch("/stage?perf&lanes=8")?.search).toEqual({
+      perf: true,
+      lanes: 8,
+    });
+  });
+
+  it.each(["0", "9", "2.5", "x", "-1"])(
+    "rejects ?perf&lanes=%s on the Stage",
+    (lanes) => {
+      expect(leafMatch(`/stage?perf&lanes=${lanes}`)?.search).toEqual({
+        perf: true,
+        lanes: undefined,
+      });
+    },
+  );
+
+  it("ignores synthetic lanes without the perf overlay", () => {
+    expect(leafMatch("/stage?lanes=8")?.search).toEqual({
+      perf: undefined,
+      lanes: undefined,
+    });
+  });
+
   it("has no route for the test-only sing screen", () => {
     // The painter screenshot page is a test build of its own (#203).
     expect(leafMatch("/stage/sing-test")?.routeId).not.toBe("/stage/sing-test");

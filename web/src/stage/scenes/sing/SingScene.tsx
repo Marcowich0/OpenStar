@@ -17,6 +17,7 @@ import { ResumeCountdown } from "../../playback/ResumeCountdown";
 import { SingBackdrop } from "../../sing/SingBackdrop";
 import { SingScreen } from "../../sing/SingScreen";
 import { useStageAvOffset } from "../../output/useStageAvOffset";
+import { useStagePerf } from "../../perf/stagePerf";
 import type { StageSong, StageSongView } from "./stageSong";
 import { writeLaneScore } from "./laneScore";
 import { useStageSong, useStageSongView } from "./useStageSong";
@@ -77,14 +78,18 @@ function Singing({
   // This Stage browser's A/V offset at its current output: the lanes, Notes,
   // playhead, lyric fill and Pitch traces are drawn this much behind.
   const avOffset = useStageAvOffset();
+  // `?perf`: the frame-time overlay; `?perf&lanes=8`: synthetic lanes drawn
+  // instead of the Line-up's, which then show no real Player's Score (#227).
+  const perf = useStagePerf(view);
+  const synthetic = perf.state !== null;
   useEffect(
     () =>
       song.onScoring((change) => {
-        if (root.current) {
+        if (root.current && !synthetic) {
           writeLaneScore(root.current, change.player, change.score.total);
         }
       }),
-    [song],
+    [song, synthetic],
   );
   const attach = useCallback(
     (element: HTMLMediaElement | null) => {
@@ -110,7 +115,7 @@ function Singing({
       className="h-full"
     >
       <SingScreen
-        state={view.state}
+        state={perf.state ?? view.state}
         clock={view.clock}
         avOffset={avOffset.seconds}
         backdrop={
@@ -127,6 +132,7 @@ function Singing({
           </audio>
         )}
         <ResumeCountdown state={view.controls} />
+        {perf.overlay}
         {view.playFailed && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-10">
             <p className="rounded-card bg-white/90 px-12 py-6 text-5xl text-ink">
