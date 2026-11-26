@@ -204,10 +204,6 @@ impl Measurement {
 /// current size and mtime. For the Pitch track job, which runs it in its own
 /// slot; it never replaces the scan's pass. Does nothing for a file the
 /// index has not probed.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "the seam the Pitch track job (#57) calls")
-)]
 pub(crate) async fn measure_once(slot: &Slot, env: &JobEnv, path: &str) -> Result<(), UserMessage> {
     let wanted = path.to_owned();
     let Some(audio) = env

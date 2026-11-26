@@ -12,7 +12,7 @@ use std::ffi::OsString;
 use std::process::Stdio;
 
 use openstar_protocol::UserMessage;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::watch;
 
@@ -83,6 +83,37 @@ impl ToolCommand<'_> {
     /// when the program is missing and [`UserMessage::ToolFailed`] when it
     /// exits unsuccessfully.
     pub async fn run_lines(self, mut on_line: impl FnMut(&str)) -> Result<(), UserMessage> {
+        self.run(
+            |stdout| Output::Lines(BufReader::new(stdout).lines(), String::new()),
+            |chunk| {
+                if let Chunk::Line(line) = chunk {
+                    on_line(line);
+                }
+            },
+        )
+        .await
+    }
+
+    /// Runs the child to its end, handing what it writes to stdout to
+    /// `on_bytes` as it arrives, in chunks of any size (raw PCM on a pipe).
+    /// Fails like [`ToolCommand::run_lines`].
+    pub async fn run_bytes(self, mut on_bytes: impl FnMut(&[u8])) -> Result<(), UserMessage> {
+        self.run(
+            |stdout| Output::Bytes(stdout, vec![0; BYTES_CHUNK], 0),
+            |chunk| {
+                if let Chunk::Bytes(bytes) = chunk {
+                    on_bytes(bytes);
+                }
+            },
+        )
+        .await
+    }
+
+    async fn run(
+        self,
+        output: impl FnOnce(tokio::process::ChildStdout) -> Output,
+        mut on_chunk: impl FnMut(Chunk<'_>),
+    ) -> Result<(), UserMessage> {
         let low_priority = self.slot.lane.low_priority();
         let mut command = if low_priority {
             let mut nice = Command::new("nice");
@@ -124,7 +155,7 @@ impl ToolCommand<'_> {
                 tail
             })
         });
-        let mut stdout = child.stdout.take().map(|out| BufReader::new(out).lines());
+        let mut stdout = child.stdout.take().map(output);
 
         let cancelled = self.slot.cancelled();
         tokio::pin!(cancelled);
@@ -138,16 +169,19 @@ impl ToolCommand<'_> {
                     }
                     return Err(UserMessage::JobCancelled);
                 }
-                line = next_line(&mut stdout), if stdout.is_some() => match line {
-                    Some(line) => {
-                        on_line(&line);
-                        // Lines read from a buffer cost the task no budget, so
+                more = next_chunk(&mut stdout), if stdout.is_some() => {
+                    if more {
+                        if let Some(output) = &stdout {
+                            on_chunk(output.chunk());
+                        }
+                        // Reads from a buffer cost the task no budget, so
                         // a chatty child would otherwise hold a worker thread
                         // (and delay the relay) until its pipe runs dry.
                         tokio::task::coop::consume_budget().await;
+                    } else {
+                        stdout = None;
                     }
-                    None => stdout = None,
-                },
+                }
                 status = child.wait(), if stdout.is_none() => break status,
             }
         };
@@ -179,16 +213,56 @@ impl ToolCommand<'_> {
     }
 }
 
-/// The next stdout line, or `None` once stdout is closed (or unreadable).
-async fn next_line(
-    stdout: &mut Option<tokio::io::Lines<BufReader<tokio::process::ChildStdout>>>,
-) -> Option<String> {
-    let lines = stdout.as_mut()?;
-    match lines.next_line().await {
-        Ok(line) => line,
-        Err(error) => {
-            tracing::warn!(%error, "reading a child process's output");
-            None
+/// How many bytes [`ToolCommand::run_bytes`] reads at most per chunk.
+const BYTES_CHUNK: usize = 64 * 1024;
+
+/// A child's stdout as a job reads it.
+enum Output {
+    /// Lines; holds the last line read.
+    Lines(
+        tokio::io::Lines<BufReader<tokio::process::ChildStdout>>,
+        String,
+    ),
+    /// Raw bytes; holds the buffer and how much of it the last read filled.
+    Bytes(tokio::process::ChildStdout, Vec<u8>, usize),
+}
+
+/// What the last read gave.
+enum Chunk<'a> {
+    Line(&'a str),
+    Bytes(&'a [u8]),
+}
+
+impl Output {
+    fn chunk(&self) -> Chunk<'_> {
+        match self {
+            Self::Lines(_, line) => Chunk::Line(line),
+            Self::Bytes(_, buffer, filled) => Chunk::Bytes(&buffer[..*filled]),
         }
     }
+}
+
+/// Reads the next line or chunk of stdout into `stdout`; false once stdout
+/// is closed (or unreadable).
+async fn next_chunk(stdout: &mut Option<Output>) -> bool {
+    let Some(output) = stdout.as_mut() else {
+        return false;
+    };
+    let read = match output {
+        Output::Lines(lines, last) => lines.next_line().await.map(|line| match line {
+            Some(line) => {
+                *last = line;
+                true
+            }
+            None => false,
+        }),
+        Output::Bytes(out, buffer, filled) => out.read(buffer).await.map(|n| {
+            *filled = n;
+            n > 0
+        }),
+    };
+    read.unwrap_or_else(|error| {
+        tracing::warn!(%error, "reading a child process's output");
+        false
+    })
 }

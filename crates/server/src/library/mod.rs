@@ -14,6 +14,7 @@ mod conversion;
 mod identity;
 mod index;
 mod loudness;
+pub(crate) mod pitch_track;
 mod probe;
 mod probing;
 mod publish;
@@ -25,6 +26,7 @@ pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;
 pub(crate) use index::song as song_detail;
 pub use loudness::Measurement;
+pub use pitch_track::PitchTrackJob;
 pub(crate) use publish::{NewSongFolder, clear_staging};
 
 use std::path::PathBuf;

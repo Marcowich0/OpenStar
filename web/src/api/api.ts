@@ -10,6 +10,7 @@ import type { LibraryProblem } from "../generated/LibraryProblem";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridges } from "../generated/MicBridges";
 import type { NewProfile } from "../generated/NewProfile";
+import type { PitchTrackStart } from "../generated/PitchTrackStart";
 import type { Profile } from "../generated/Profile";
 import type { ProfileEdit } from "../generated/ProfileEdit";
 import type { RoundOutcome } from "../generated/RoundOutcome";
@@ -47,6 +48,7 @@ export interface Endpoints {
   "GET /api/songs": { query: SongQuery; response: SongList };
   "GET /api/songs/{id}": { response: SongDetail };
   "GET /api/songs/{id}/high-scores": { response: SongHighScores };
+  "POST /api/songs/{id}/pitch-track": { response: PitchTrackStart };
   "GET /api/library/problems": { response: LibraryProblem[] };
   "GET /api/library/scan": { response: ScanStatus };
   "POST /api/library/rescan": { response: ScanStatus };
@@ -176,6 +178,7 @@ const REFUSAL_CODES = {
   usdbUnreachable: true,
   usdbGaveUp: true,
   usdbUnexpectedStatus: true,
+  pitchTrackFailed: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */
@@ -237,26 +240,65 @@ export async function api<R extends Route>(
 ): Promise<ResponseOf<R>> {
   // The call site is checked against `Endpoints`; from here on the options
   // are handled the same for every route.
-  const given = options as
-    | {
-        signal?: AbortSignal;
-        body?: unknown;
-        params?: Record<string, string>;
-        query?: Record<string, QueryValue>;
-      }
-    | undefined;
+  const response = await send(route, "application/json", options);
+  return (await response.json()) as ResponseOf<R>;
+}
+
+/**
+ * Every endpoint whose 2xx body is bytes rather than JSON, keyed as
+ * `endpoints.rs` mounts it. None takes a body or a query.
+ */
+export interface ByteEndpoints {
+  /** The cached Pitch track's frames as stored (`fit/pitchTrackFile.ts`). */
+  "GET /api/songs/{id}/pitch-track": object;
+}
+
+export type ByteRoute = keyof ByteEndpoints;
+
+type ByteArgs<R extends ByteRoute> = [PathParamNames<R>] extends [never]
+  ? [options?: { signal?: AbortSignal }]
+  : [options: { signal?: AbortSignal } & ParamsOption<R>];
+
+/**
+ * Calls one byte endpoint and returns its body. Fails like `api`; a refusal
+ * still comes as a JSON code.
+ */
+export async function apiBytes<R extends ByteRoute>(
+  route: R,
+  ...[options]: ByteArgs<R>
+): Promise<ArrayBuffer> {
+  const response = await send(
+    route,
+    "application/octet-stream, application/json",
+    options,
+  );
+  return await response.arrayBuffer();
+}
+
+type Given =
+  | {
+      signal?: AbortSignal;
+      body?: unknown;
+      params?: Record<string, string>;
+      query?: Record<string, QueryValue>;
+    }
+  | undefined;
+
+/** Sends `route` and returns its 2xx answer, unread. */
+async function send(
+  route: string,
+  accept: string,
+  given: Given,
+): Promise<Response> {
   const space = route.indexOf(" ");
   const method = route.slice(0, space);
   const path =
     pathOf(route.slice(space + 1), given?.params) + queryOf(given?.query);
-  const init: RequestInit = { method, headers: { accept: "application/json" } };
+  const init: RequestInit = { method, headers: { accept } };
   if (given?.signal) init.signal = given.signal;
   if (given?.body !== undefined) {
     init.body = JSON.stringify(given.body);
-    init.headers = {
-      accept: "application/json",
-      "content-type": "application/json",
-    };
+    init.headers = { accept, "content-type": "application/json" };
   }
 
   let response: Response;
@@ -275,5 +317,5 @@ export async function api<R extends Route>(
         : { kind: "unexpected", status: response.status },
     );
   }
-  return (await response.json()) as ResponseOf<R>;
+  return response;
 }

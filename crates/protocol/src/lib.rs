@@ -11,6 +11,7 @@ pub mod library;
 pub mod mics;
 pub mod party;
 pub mod pitch;
+pub mod pitch_track;
 pub mod profile;
 pub mod scoring;
 pub mod song;
@@ -560,6 +561,10 @@ pub enum UserMessage {
     UsdbGaveUp { status: u16 },
     /// USDB answered with an HTTP `status` OpenStar did not expect.
     UsdbUnexpectedStatus { status: u16 },
+    /// The Pitch track job could not listen to the Song: its audio could not
+    /// be decoded, the job failed, or it ran past its 2-minute timeout
+    /// ("Couldn't listen to this Song"). The drag tools still work.
+    PitchTrackFailed,
 }
 
 #[cfg(test)]
