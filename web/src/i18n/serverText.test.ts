@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { colourName } from "./colourNames";
 import { en } from "./en";
+import type { PartyLocalMic } from "../generated/PartyLocalMic";
 import type { PaletteKey } from "../theme/tokens";
 import { t } from "./t";
 import {
@@ -83,6 +84,64 @@ describe("server texts", () => {
     expect(partyEventText({ code: "requestPlayNext", params: africa })).toBe(
       "Africa plays next",
     );
+  });
+
+  it("turns the Mic warnings into text with the Local mic's name and the bridge's host", () => {
+    const nameOf = () => "Mia";
+    const localMics = [
+      {
+        localMicId: "red",
+        name: "Red mic",
+        present: false,
+        source: {
+          kind: "browser",
+          stageBrowser: "s",
+          deviceId: "d",
+          label: "USB",
+          channel: 0,
+          stereo: false,
+        },
+      },
+      {
+        localMicId: "b-1",
+        name: "",
+        present: false,
+        source: {
+          kind: "bridge",
+          bridgeId: "b",
+          deviceName: "umc",
+          label: "UMC404HD",
+          channel: 1,
+        },
+      },
+    ] satisfies PartyLocalMic[];
+    expect(
+      lineUpWarningText(
+        {
+          code: "localMicUnplugged",
+          params: { memberId: 1, localMicId: "red" },
+        },
+        nameOf,
+        localMics,
+      ),
+    ).toBe("Red mic is unplugged");
+    expect(
+      lineUpWarningText(
+        {
+          code: "bridgeClosed",
+          params: { memberId: 1, localMicId: "b-1", hostName: "hermes" },
+        },
+        nameOf,
+        localMics,
+      ),
+    ).toBe("hermes mic bridge is closed");
+    expect(
+      lineUpWarningText(
+        { code: "localMicSilent", params: { memberId: 1, localMicId: "b-1" } },
+        nameOf,
+        localMics,
+      ),
+    ).toBe("UMC404HD · Input 2 sends no sound: check the interface");
   });
 
   it("turns Line-up warnings into text with the member's name", () => {

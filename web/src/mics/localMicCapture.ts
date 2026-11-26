@@ -82,6 +82,11 @@ export interface LocalMicCapture {
    */
   levelDbfs: (deviceId: string, channel: number) => number | null;
   /**
+   * Whether a channel's newest window was exact digital silence (every
+   * sample 0); `null` if its device is not open or nothing came yet.
+   */
+  digitalZero: (deviceId: string, channel: number) => boolean | null;
+  /**
    * Runs the detector of exactly these channels (open now or later); every
    * other channel only meters.
    */
@@ -133,6 +138,8 @@ interface OpenDevice {
   sessions: SenderSession[];
   /** Each channel's newest loudness, dBFS; `null` before its first reading. */
   levels: (number | null)[];
+  /** Each channel's newest window's `zero`; `null` before the first. */
+  zeros: (boolean | null)[];
 }
 
 /** `navigator.mediaDevices`, which is missing outside a secure context. */
@@ -240,6 +247,7 @@ export function createLocalMicCapture({
       { length: channels },
       () => null,
     );
+    const zeros: (boolean | null)[] = levels.map(() => null);
     // Without the capture clock the meters still run; readings are dropped.
     const clock = await captureClock().catch(() => null);
     const sessions = clock ? levels.map(() => clock.local()) : [];
@@ -251,6 +259,7 @@ export function createLocalMicCapture({
             audio,
             (reading) => {
               levels[channel] = reading.loudness;
+              zeros[channel] = reading.zero;
               const stamped = sessions[channel]?.stampReading(reading, now());
               if (!stamped) return;
               for (const listener of readingListeners)
@@ -260,6 +269,7 @@ export function createLocalMicCapture({
               detect: detecting.has(channelKey(deviceId, channel)),
               onLevel: (level) => {
                 levels[channel] = level.loudness;
+                zeros[channel] = level.zero;
               },
             },
           ),
@@ -283,7 +293,7 @@ export function createLocalMicCapture({
     const splitter = audio.createChannelSplitter(channels);
     source.connect(splitter);
     nodes.forEach((node, channel) => splitter.connect(node, channel));
-    opened.set(deviceId, { stream, source, nodes, sessions, levels });
+    opened.set(deviceId, { stream, source, nodes, sessions, levels, zeros });
     // `setDetecting` may have changed while this device was opening.
     nodes.forEach((node, channel) => {
       setNodeDetecting(node, detecting.has(channelKey(deviceId, channel)));
@@ -319,6 +329,9 @@ export function createLocalMicCapture({
       const device = opened.get(deviceId);
       if (!device || channel >= device.nodes.length) return null;
       return Math.max(SILENCE_DBFS, device.levels[channel] ?? SILENCE_DBFS);
+    },
+    digitalZero(deviceId, channel) {
+      return opened.get(deviceId)?.zeros[channel] ?? null;
     },
     setDetecting(channels) {
       const next = new Set<string>();

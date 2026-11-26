@@ -29,6 +29,7 @@ import type { PitchRouter } from "../pitch/pitchRouter";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
 import { createBridgeLevels } from "./bridgeLevels";
+import { createSilentLocalMics } from "./silentLocalMics";
 import {
   createLocalMicCapture,
   type CaptureSnapshot,
@@ -117,6 +118,9 @@ export function useLocalMics(): LocalMicsApi {
 const selectIsStage = (live: LiveState) => live.stage?.isStage ?? false;
 const selectConnected = (live: LiveState) => live.connection === "open";
 const selectParty = (live: LiveState) => live.stage?.party ?? null;
+/** How often the Stage looks for Local mics in digital silence, ms. */
+const SILENCE_LOOK_MS = 250;
+
 const NO_SUBSCRIPTION = () => () => {};
 const idleSnapshot = () => IDLE;
 
@@ -287,6 +291,46 @@ export function LocalMicsProvider({
       localMicIds: present === "" ? [] : present.split("\n"),
     });
   }, [store, isStage, connected, keptQuery.isSuccess, present]);
+
+  // Exact digital silence for more than 2 s, on either path, is the "sends
+  // no sound" seat warning: looked at four times a second and reported
+  // whenever it changes (a new connection starts with none).
+  const [silentWatch] = useState(createSilentLocalMics);
+  const [silent, setSilent] = useState("");
+  const partyLocalMics = party?.localMics;
+  useEffect(() => {
+    if (!isStage) return;
+    const look = () => {
+      const now = performance.now();
+      const ids = silentWatch.look(
+        partyLocalMics ?? [],
+        {
+          browser: (deviceId, channel) => made.digitalZero(deviceId, channel),
+          bridge: (localMicId) => levels.digitalZero(localMicId, now),
+        },
+        now,
+      );
+      setSilent(ids.join("\n"));
+    };
+    look();
+    const timer = setInterval(look, SILENCE_LOOK_MS);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [isStage, made, levels, silentWatch, partyLocalMics]);
+  const reportedSilent = useRef("");
+  useEffect(() => {
+    if (!isStage || !connected) {
+      reportedSilent.current = "";
+      return;
+    }
+    if (silent === reportedSilent.current) return;
+    reportedSilent.current = silent;
+    store.send({
+      type: "reportSilentLocalMics",
+      localMicIds: silent === "" ? [] : silent.split("\n"),
+    });
+  }, [store, isStage, connected, silent]);
 
   // Every write is sent and shown at once; the change notice refetches.
   const updateKept = useCallback(

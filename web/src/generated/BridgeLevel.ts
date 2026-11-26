@@ -8,4 +8,9 @@ export type BridgeLevel = { deviceName: string, channel: number,
 /**
  * RMS level in dBFS: at most 0, and −100 for silence.
  */
-levelDbfs: number, };
+levelDbfs: number, 
+/**
+ * Every sample of the interval was exactly 0 (not quiet noise): the
+ * "sends no sound" warning's input.
+ */
+digitalSilence: boolean, };

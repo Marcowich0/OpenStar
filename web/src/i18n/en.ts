@@ -852,6 +852,11 @@ export const en = {
   "lineUpWarning.micBlocked": "{name}'s mic is blocked",
   "lineUpWarning.duetNeedsVoice":
     "A duet needs someone on Voice {voice, number}",
+  // Mic warnings (v1 spec #51): only what is certain. {mic} is the Local
+  // mic's name, {host} the Mic bridge's computer.
+  "lineUpWarning.localMicUnplugged": "{mic} is unplugged",
+  "lineUpWarning.bridgeClosed": "{host} mic bridge is closed",
+  "lineUpWarning.localMicSilent": "{mic} sends no sound: check the interface",
   // Toasts that name the Remote's Party member (`toasts/`).
   "toast.list": "Party changes",
   "toast.requestAdded": "{actor} added {song}",

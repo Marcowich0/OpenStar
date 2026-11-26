@@ -123,6 +123,29 @@ describe("where each warning hangs", () => {
     ]);
   });
 
+  it("hangs the Mic warnings under the seat whose Local mic they concern", () => {
+    const unplugged = {
+      code: "localMicUnplugged",
+      params: { memberId: 2, localMicId: "red" },
+    } as const;
+    const closed = {
+      code: "bridgeClosed",
+      params: { memberId: 1, localMicId: "b-0", hostName: "hermes" },
+    } as const;
+    const silent = {
+      code: "localMicSilent",
+      params: { memberId: 2, localMicId: "red" },
+    } as const;
+    const placed = placeWarnings(
+      lineUp({ seats, warnings: [closed, unplugged, silent] }),
+    );
+    expect(placed.bySeat).toEqual([[closed], [unplugged, silent]]);
+    expect(placed.songWide).toEqual([]);
+    expect(micHasProblem([unplugged])).toBe(true);
+    expect(micHasProblem([closed])).toBe(true);
+    expect(micHasProblem([silent])).toBe(true);
+  });
+
   it("turns the Mic field bad for no mic and for a blocked mic", () => {
     expect(micHasProblem([{ code: "noMic", params: { memberId: 1 } }])).toBe(
       true,

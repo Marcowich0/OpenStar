@@ -80,6 +80,7 @@ class PitchProcessor extends AudioWorkletProcessor {
         const message: PitchWorkletLevel = {
           type: "level",
           loudness,
+          zero: this.meter.zero(),
           endFrame: blockStart + block.length,
         };
         this.port.postMessage(message);
@@ -95,6 +96,7 @@ class PitchProcessor extends AudioWorkletProcessor {
         pitch: reading.pitch,
         clarity: reading.clarity,
         loudness: reading.loudness,
+        zero: this.meter.zero(),
         endFrame: blockStart + end,
         sampleRate,
       };

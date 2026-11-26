@@ -16,7 +16,7 @@
 use std::time::Duration;
 
 use crate::detecting::Detecting;
-use crate::levels::{LEVEL_INTERVAL, Metering, channel_levels_dbfs};
+use crate::levels::{LEVEL_INTERVAL, Metering, channel_digital_silence, channel_levels_dbfs};
 use crate::sender::MonotonicClock;
 use anyhow::Context as _;
 use futures_util::{SinkExt as _, StreamExt as _};
@@ -377,12 +377,13 @@ async fn session(
                     };
                     let interface = input.interface();
                     let read = channel_levels_dbfs(frames, interface.channels as usize);
+                    let zeros = channel_digital_silence(frames, interface.channels as usize);
                     frames.clear();
                     report.event(Event::Levels {
                         device_name: &interface.device_name,
                         levels_dbfs: &read,
                     });
-                    levels.extend(metering.levels_to_send(interface, &read));
+                    levels.extend(metering.levels_to_send(interface, &read, &zeros));
                 }
                 if !levels.is_empty() {
                     send(&mut socket, &ClientMessage::BridgeLevels { levels }).await?;

@@ -269,7 +269,9 @@ function LineUpBody({
                     : micLabel(party, seat.mic, localMics),
                 )}
                 micBad={micHasProblem(warnings)}
-                warnings={warnings.map((w) => lineUpWarningText(w, nameOf))}
+                warnings={warnings.map((w) =>
+                  lineUpWarningText(w, nameOf, party.localMics),
+                )}
                 order={index}
                 isDefault={index === 0}
                 onWho={() => {
@@ -359,7 +361,7 @@ function LineUpBody({
             key={JSON.stringify(warning)}
             className="text-[28px] font-semibold text-warn-fg"
           >
-            {lineUpWarningText(warning, nameOf)}
+            {lineUpWarningText(warning, nameOf, party.localMics)}
           </p>
         ))}
         <div ref={startRef}>

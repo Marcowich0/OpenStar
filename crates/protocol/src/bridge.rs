@@ -74,6 +74,10 @@ pub struct BridgeLevel {
     pub channel: u32,
     /// RMS level in dBFS: at most 0, and −100 for silence.
     pub level_dbfs: f64,
+    /// Every sample of the interval was exactly 0 (not quiet noise): the
+    /// "sends no sound" warning's input.
+    #[serde(default)]
+    pub digital_silence: bool,
 }
 
 /// A channel's input delay, as a bridge's capture backend reported it.
@@ -94,6 +98,8 @@ pub struct BridgeInputDelay {
 pub struct LocalMicLevel {
     pub local_mic_id: String,
     pub level_dbfs: f64,
+    /// As [`BridgeLevel::digital_silence`].
+    pub digital_silence: bool,
 }
 
 /// One hardware channel of an open bridge, as the Mics screen lists it.

@@ -25,7 +25,10 @@
 # its PATH, so the video picker's lookups never reach a video site.
 #
 # Also starts a headless Mic bridge (`openstar-mic-bridge --wav`) on the fake
-# mic's 4-channel WAV, waiting for approval.
+# mic's 4-channel WAV, waiting for approval. A spec stops and starts it again
+# by writing `stop` or `start` to e2e/generated/bridge-control/command; the
+# watcher here does it and removes the file (`bridgeControl` in
+# e2e/fixtures.ts).
 #
 # The server's songs folder is mounted read-only at /songs
 # (OPENSTAR_E2E_SONGS_DIR), so a spec can check the bytes a save wrote
@@ -70,16 +73,19 @@ fi
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/openstar-e2e.XXXXXX")"
 server_pid=""
-bridge_pid=""
+watcher_pid=""
 usdb_pid=""
 cleanup() {
+  if [ -n "$watcher_pid" ]; then
+    kill "$watcher_pid" 2>/dev/null || true
+    wait "$watcher_pid" 2>/dev/null || true
+  fi
   if [ -n "$usdb_pid" ]; then
     kill "$usdb_pid" 2>/dev/null || true
     wait "$usdb_pid" 2>/dev/null || true
   fi
-  if [ -n "$bridge_pid" ]; then
-    kill "$bridge_pid" 2>/dev/null || true
-    wait "$bridge_pid" 2>/dev/null || true
+  if [ -f "$work/bridge.pid" ]; then
+    kill "$(cat "$work/bridge.pid")" 2>/dev/null || true
   fi
   if [ -n "$server_pid" ]; then
     kill "$server_pid" 2>/dev/null || true
@@ -146,9 +152,40 @@ echo "e2e: openstar serves $base_url"
 # approve it (e2e/tests/mic-bridge.spec.ts), with its own config folder.
 mkdir -p "$work/bridge-config/openstar-mic-bridge"
 echo "$base_url" >"$work/bridge-config/openstar-mic-bridge/server"
-env -i PATH="$PATH" HOME="$work" XDG_CONFIG_HOME="$work/bridge-config" \
-  "$bridge" --wav "$root/e2e/generated/mic/multichannel.wav" >"$work/mic-bridge.log" 2>&1 &
-bridge_pid=$!
+start_bridge() {
+  env -i PATH="$PATH" HOME="$work" XDG_CONFIG_HOME="$work/bridge-config" \
+    "$bridge" --wav "$root/e2e/generated/mic/multichannel.wav" >>"$work/mic-bridge.log" 2>&1 &
+  echo $! >"$work/bridge.pid"
+}
+start_bridge
+
+# Stops or starts the bridge when a spec asks (e2e/tests/lost-local-mic.spec.ts):
+# it keeps its config, so it comes back approved, as a closed window reopened.
+control="$root/e2e/generated/bridge-control"
+rm -rf "$control"
+mkdir -p "$control"
+(
+  while true; do
+    if [ -f "$control/command" ]; then
+      case "$(cat "$control/command")" in
+        stop)
+          pid="$(cat "$work/bridge.pid" 2>/dev/null || true)"
+          if [ -n "$pid" ]; then
+            kill "$pid" 2>/dev/null || true
+            while kill -0 "$pid" 2>/dev/null; do sleep 0.05; done
+          fi
+          rm -f "$work/bridge.pid"
+          ;;
+        start)
+          [ -f "$work/bridge.pid" ] || start_bridge
+          ;;
+      esac
+      rm -f "$control/command"
+    fi
+    sleep 0.1
+  done
+) &
+watcher_pid=$!
 
 status=0
 docker run --rm --init \

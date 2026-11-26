@@ -51,7 +51,10 @@ export function placeWarnings(lineUp: LineUp): PlacedWarnings {
   for (const warning of lineUp.warnings) {
     switch (warning.code) {
       case "noMic":
-      case "micBlocked": {
+      case "micBlocked":
+      case "localMicUnplugged":
+      case "bridgeClosed":
+      case "localMicSilent": {
         const seat = lineUp.seats.findIndex(
           (s) => s.memberId === warning.params.memberId,
         );
@@ -69,7 +72,14 @@ export function placeWarnings(lineUp: LineUp): PlacedWarnings {
 
 /** Whether a seat's warnings make its Mic field a bad field (warn colours). */
 export function micHasProblem(warnings: readonly LineUpWarning[]): boolean {
-  return warnings.some((w) => w.code === "noMic" || w.code === "micBlocked");
+  return warnings.some(
+    (w) =>
+      w.code === "noMic" ||
+      w.code === "micBlocked" ||
+      w.code === "localMicUnplugged" ||
+      w.code === "bridgeClosed" ||
+      w.code === "localMicSilent",
+  );
 }
 
 /** A switched-on Local mic the Mic list may offer. */
