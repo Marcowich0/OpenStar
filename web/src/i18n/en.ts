@@ -73,6 +73,12 @@ export const en = {
   "phoneMic.opening": "Opening the mic…",
   "phoneMic.on": "Mic is on",
   "phoneMic.failed": "The mic did not open",
+  "phoneMic.blocked.permissionRefused":
+    "This phone said no to the mic. Allow the microphone for this page in the browser's settings, then try again.",
+  "phoneMic.blocked.noHttps":
+    "This page is not on a secure (https) address, so the browser keeps the mic closed. Ask the host for the https address.",
+  "phoneMic.blocked.notOpened":
+    "The browser could not open a microphone on this phone.",
   "phoneMic.tryAgain": "Try again",
   "phoneMic.stopped": "Your mic stopped",
   "phoneMic.stoppedBody": "The song kept going. Tap to carry on in your seat.",

@@ -9,15 +9,21 @@ import {
   fakeTime,
   pipelineOptions,
 } from "../../pitch/capture/testCapture";
-import { createPhoneMic } from "./phoneMic";
+import { createPhoneMic, MediaDevicesMissingError } from "./phoneMic";
 
-/** A fake socket to a Stage 1000 ms ahead that answers each ping at once. */
+/**
+ * A fake socket to a Stage 1000 ms ahead that answers each ping at once.
+ * `drop()` takes it down (nothing is sent), `reconnect()` opens it again.
+ */
 function fakeStore(time: ReturnType<typeof fakeTime>) {
   const sent: ClientMessage[] = [];
   const listeners = new Set<(pong: ClockPongFields) => void>();
+  const reconnectListeners = new Set<() => void>();
+  let up = true;
   return {
     sent,
     send(message: ClientMessage) {
+      if (!up) return false;
       sent.push(message);
       if (message.type === "clockPing") {
         const pong = { t0: message.t0, ts: time.now() + 1000, epoch: 77 };
@@ -30,6 +36,19 @@ function fakeStore(time: ReturnType<typeof fakeTime>) {
       return () => {
         listeners.delete(listener);
       };
+    },
+    onReconnect(listener: () => void) {
+      reconnectListeners.add(listener);
+      return () => {
+        reconnectListeners.delete(listener);
+      };
+    },
+    drop() {
+      up = false;
+    },
+    reconnect() {
+      up = true;
+      for (const listener of [...reconnectListeners]) listener();
     },
   };
 }
@@ -75,7 +94,10 @@ function fakeWakeLock() {
   return lock;
 }
 
-async function setUp(refuse?: Error) {
+async function setUp(
+  refuse?: Error,
+  getUserMedia?: (c: MediaStreamConstraints) => Promise<MediaStream>,
+) {
   const time = fakeTime(1000);
   const page = fakePage();
   const wakeLock = fakeWakeLock();
@@ -85,7 +107,7 @@ async function setUp(refuse?: Error) {
   const capture = await pipelineOptions({
     time,
     createPitchNode: nodes.create,
-    getUserMedia: media.getUserMedia,
+    getUserMedia: getUserMedia ?? media.getUserMedia,
     createContext: () => fakeContext(48000),
   });
   const mic = createPhoneMic({
@@ -330,5 +352,148 @@ describe("the Phone's mic lifecycle", () => {
     const before = store.sent.length;
     page.set("visible");
     expect(store.sent.length).toBe(before);
+  });
+});
+
+const sentOf = (sent: ClientMessage[], type: ClientMessage["type"]) =>
+  sent.filter((m) => m.type === type);
+
+describe("the Phone's mic after a network drop", () => {
+  it("restarts clock sync with fast pings and sends no reading until a new offset exists", async () => {
+    const { mic, store, nodes, time } = await setUp();
+    mic.turnOn();
+    await settle();
+    // Synced, and past the fast pings: one a second.
+    time.advanceTo(9000);
+    nodes.emit(reading(48000 * 8));
+    expect(sentReadings(store.sent)).toHaveLength(1);
+
+    store.drop();
+    time.advanceTo(12_000);
+    const before = store.sent.length;
+    store.reconnect();
+    // Readings made after the reconnect wait for the first new pong.
+    nodes.emit(reading(48000 * 11));
+    expect(store.sent.slice(before)).toEqual([]);
+    time.advanceTo(12_000 + 200);
+    const pings = sentOf(store.sent.slice(before), "clockPing");
+    expect(pings).toHaveLength(1);
+    nodes.emit(reading(48000 * 11 + 512));
+    expect(sentReadings(store.sent)).toHaveLength(2);
+    // 200 ms apart for 5 s.
+    time.advanceTo(17_000);
+    expect(sentOf(store.sent.slice(before), "clockPing")).toHaveLength(25);
+    mic.turnOff();
+  });
+
+  it("does nothing on a reconnect while the mic is off", async () => {
+    const { mic, store } = await setUp();
+    store.drop();
+    store.reconnect();
+    expect(store.sent).toEqual([]);
+    expect(mic.getSnapshot().state).toBe("off");
+  });
+});
+
+describe("the Phone's blocked mic", () => {
+  it("names a refused permission and reports the mic blocked to the Stage", async () => {
+    const { mic, store } = await setUp(
+      new DOMException("denied", "NotAllowedError"),
+    );
+    mic.turnOn();
+    await settle();
+    expect(mic.getSnapshot()).toMatchObject({
+      state: "failed",
+      blocked: "permissionRefused",
+    });
+    expect(sentOf(store.sent, "reportMicBlocked")).toEqual([
+      { type: "reportMicBlocked", blocked: true },
+    ]);
+  });
+
+  it("names a missing navigator.mediaDevices (no HTTPS) apart from a refusal", async () => {
+    const { mic } = await setUp(new MediaDevicesMissingError());
+    mic.turnOn();
+    await settle();
+    expect(mic.getSnapshot()).toMatchObject({
+      state: "failed",
+      blocked: "noHttps",
+    });
+  });
+
+  it("names any other failure to open as the mic not opening", async () => {
+    const { mic, store } = await setUp(
+      new DOMException("none", "NotFoundError"),
+    );
+    mic.turnOn();
+    await settle();
+    expect(mic.getSnapshot().blocked).toBe("notOpened");
+    expect(sentOf(store.sent, "reportMicBlocked")).toHaveLength(1);
+  });
+
+  it("retries on the same open path and clears the block when it opens", async () => {
+    let refuse = true;
+    const asked: MediaStreamConstraints[] = [];
+    const ok = fakeMedia();
+    const { mic, store } = await setUp(undefined, (constraints) => {
+      asked.push(constraints);
+      return refuse
+        ? Promise.reject(new DOMException("denied", "NotAllowedError"))
+        : ok.getUserMedia(constraints);
+    });
+    mic.turnOn();
+    await settle();
+    expect(mic.getSnapshot().state).toBe("failed");
+    refuse = false;
+    mic.turnOn();
+    expect(mic.getSnapshot()).toMatchObject({
+      state: "opening",
+      blocked: null,
+    });
+    await settle();
+    expect(mic.getSnapshot()).toMatchObject({ state: "on", blocked: null });
+    expect(asked).toHaveLength(2);
+    expect(asked[1]).toEqual(asked[0]);
+    expect(sentOf(store.sent, "reportMicBlocked")).toEqual([
+      { type: "reportMicBlocked", blocked: true },
+      { type: "reportMicBlocked", blocked: false },
+    ]);
+    mic.turnOff();
+  });
+
+  it("does not report an opened mic it never reported blocked", async () => {
+    const { mic, store } = await setUp();
+    mic.turnOn();
+    await settle();
+    expect(sentOf(store.sent, "reportMicBlocked")).toEqual([]);
+    mic.turnOff();
+  });
+
+  it("reports the block again after a reconnect, since the server keeps it in memory only", async () => {
+    const { mic, store } = await setUp(
+      new DOMException("denied", "NotAllowedError"),
+    );
+    mic.turnOn();
+    await settle();
+    store.drop();
+    store.reconnect();
+    expect(sentOf(store.sent, "reportMicBlocked")).toEqual([
+      { type: "reportMicBlocked", blocked: true },
+      { type: "reportMicBlocked", blocked: true },
+    ]);
+  });
+
+  it("clears a block it reported when the mic is turned off", async () => {
+    const { mic, store } = await setUp(
+      new DOMException("denied", "NotAllowedError"),
+    );
+    mic.turnOn();
+    await settle();
+    mic.turnOff();
+    expect(mic.getSnapshot()).toMatchObject({ state: "off", blocked: null });
+    expect(sentOf(store.sent, "reportMicBlocked").at(-1)).toEqual({
+      type: "reportMicBlocked",
+      blocked: false,
+    });
   });
 });
