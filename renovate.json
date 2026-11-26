@@ -1,0 +1,141 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Keeps every pin current (docs/renovate.md). Weekly groups; yt-dlp daily. Patch and minor bumps of yt-dlp, Deno, Trivy, the base-image digests and the actions merge once CI passes; the Rust toolchain, Node, pnpm, crates, npm packages and every major wait for review.",
+  "extends": ["config:recommended"],
+  "timezone": "UTC",
+  "schedule": ["* 0-5 * * 1"],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 20,
+  "platformAutomerge": false,
+  "pinDigests": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["* 0-5 * * 1"]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "`# renovate: datasource=… depName=…` above a `*_VERSION` build argument or environment variable, with an optional `*_SHA256` below it that Renovate keeps in step (github-release-attachments).",
+      "managerFilePatterns": [
+        "/(^|/)Dockerfile[^/]*$/",
+        "/^\\.github/workflows/[^/]+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)[^\\n]*\\n\\s*(?:ARG\\s+)?[A-Z0-9_]+_VERSION\\s*[=:]\\s*\"?(?<currentValue>[^\"\\s]+)\"?(?:\\s*\\n(?:\\s*#[^\\n]*\\n)*\\s*(?:ARG\\s+)?[A-Z0-9_]+_SHA256\\s*[=:]\\s*\"?(?<currentDigest>[a-f0-9]{64})\"?)?"
+      ]
+    },
+    {
+      "customType": "regex",
+      "description": "The Rust version in the root Cargo.toml (`rust-version`), which follows rust-toolchain.toml.",
+      "managerFilePatterns": ["/^Cargo\\.toml$/"],
+      "matchStrings": ["\\nrust-version\\s*=\\s*\"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "rust",
+      "datasourceTemplate": "rust-version"
+    },
+    {
+      "customType": "regex",
+      "description": "The Playwright image in scripts/e2e.sh, by tag and digest.",
+      "managerFilePatterns": ["/^scripts/e2e\\.sh$/"],
+      "matchStrings": [
+        "\"(?<depName>mcr\\.microsoft\\.com/playwright):(?<currentValue>[^@\"\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})\""
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Crates installed in CI by taiki-e/install-action (`tool: cargo-deny@X.Y.Z`).",
+      "managerFilePatterns": ["/^\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "\\n\\s*tool:\\s*(?<depName>[a-z0-9_-]+)@(?<currentValue>[0-9][^\\s,]*)"
+      ],
+      "datasourceTemplate": "crate"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Crates (Cargo.toml, `=` pins, and cargo-deny in CI): one weekly group of non-major bumps, for review.",
+      "matchDatasources": ["crate"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "crates"
+    },
+    {
+      "description": "npm packages (web/ and e2e/): one weekly group of non-major bumps, for review. pnpm refuses packages published less than a day ago, so wait two days.",
+      "matchDatasources": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "npm packages"
+    },
+    {
+      "matchDatasources": ["npm"],
+      "minimumReleaseAge": "2 days"
+    },
+    {
+      "description": "The Rust toolchain: rust-toolchain.toml, Cargo.toml's rust-version and the rust:<version>-slim-trixie build image move together, for review. The Mic bridge stage takes its toolchain from rust-toolchain.toml.",
+      "matchDepNames": ["rust"],
+      "groupName": "Rust toolchain"
+    },
+    {
+      "description": "Node: .node-version and the node:<version>-trixie-slim frontend image move together, for review.",
+      "matchDepNames": ["node"],
+      "matchDatasources": ["node-version", "docker"],
+      "groupName": "Node"
+    },
+    {
+      "description": "pnpm: both packageManager fields and the Dockerfile's PNPM_VERSION move together, for review.",
+      "matchDepNames": ["pnpm"],
+      "groupName": "pnpm"
+    },
+    {
+      "description": "Playwright: @playwright/test in e2e/package.json and the image in scripts/e2e.sh must be bumped together (the image's browsers belong to that version), for review.",
+      "matchDepNames": ["@playwright/test", "mcr.microsoft.com/playwright"],
+      "groupName": "Playwright"
+    },
+    {
+      "description": "The Mic bridge's ubuntu:22.04 base: the digest only. A newer Ubuntu would raise the bridge's glibc floor (2.35), which was decided.",
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["ubuntu"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "enabled": false
+    },
+    {
+      "description": "Base-image digests (debian:trixie-slim, ubuntu:22.04, and a refreshed digest of the same rust, node or Playwright tag): one weekly group, merged once CI passes.",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["digest", "pin", "pinDigest"],
+      "groupName": "base-image digests",
+      "automerge": true
+    },
+    {
+      "description": "GitHub Actions SHAs, and just through setup-just: one weekly group of non-major bumps, merged once CI passes.",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pin", "pinDigest"],
+      "groupName": "GitHub Actions",
+      "automerge": true
+    },
+    {
+      "description": "GitHub-hosted runner labels (runs-on) are chosen by hand.",
+      "matchDatasources": ["github-runners"],
+      "enabled": false
+    },
+    {
+      "description": "Deno and Trivy: weekly, each bump with its checksum, merged once CI passes.",
+      "matchDepNames": ["denoland/deno", "aquasecurity/trivy"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "yt-dlp: calendar versions (YYYY.MM.DD), checked daily, each bump with its checksum, merged once CI passes. A new year is a major bump and waits for review.",
+      "matchDepNames": ["yt-dlp/yt-dlp"],
+      "versioning": "regex:^(?<major>\\d{4})\\.(?<minor>\\d{2})\\.(?<patch>\\d{2})(?:\\.(?<build>\\d+))?$",
+      "schedule": ["* 0-5 * * *"]
+    },
+    {
+      "matchDepNames": ["yt-dlp/yt-dlp"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Every major version waits for review, whatever matched above.",
+      "matchUpdateTypes": ["major"],
+      "automerge": false
+    }
+  ]
+}
