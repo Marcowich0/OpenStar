@@ -17,7 +17,7 @@ export type RemoteTab = (typeof REMOTE_TABS)[number];
  * playing (or paused) Song, then the waiting Line-up, then the empty Queue.
  * `null` before the Party is known, or for a moment between states.
  */
-export type StageState =
+export type StageCard =
   | {
       kind: "results";
       songId: SongId;
@@ -35,7 +35,7 @@ export type StageState =
   | { kind: "lineUp"; songId: SongId }
   | { kind: "empty" };
 
-export function stageState(party: PartySnapshot | null): StageState | null {
+export function stageCard(party: PartySnapshot | null): StageCard | null {
   if (!party) return null;
   if (party.results) {
     return {
@@ -62,7 +62,7 @@ export function stageState(party: PartySnapshot | null): StageState | null {
 
 /** The Stage tab whenever a Line-up waits, Songs otherwise. */
 export function defaultTab(party: PartySnapshot | null): RemoteTab {
-  return stageState(party)?.kind === "lineUp" ? "stage" : "songs";
+  return stageCard(party)?.kind === "lineUp" ? "stage" : "songs";
 }
 
 /**
@@ -70,14 +70,14 @@ export function defaultTab(party: PartySnapshot | null): RemoteTab {
  * Stage tab. While a Song plays or is paused: its cover, title and Players,
  * with a round Pause/Resume. While a Line-up waits: "Line-up for <Song>".
  */
-export type StatusStrip = Extract<StageState, { kind: "playing" | "lineUp" }>;
+export type StatusStrip = Extract<StageCard, { kind: "playing" | "lineUp" }>;
 
 export function statusStrip(
   party: PartySnapshot | null,
   tab: RemoteTab,
 ): StatusStrip | null {
   if (tab === "stage") return null;
-  const state = stageState(party);
+  const state = stageCard(party);
   return state?.kind === "playing" || state?.kind === "lineUp" ? state : null;
 }
 

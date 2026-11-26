@@ -1,5 +1,5 @@
 // The Remote's Stage tab (v1 spec #49, "Stage tab"): what the Stage is doing,
-// in one card per state (`stageState`), and the OpenStar volume under it in
+// in one card per state (`stageCard`), and the OpenStar volume under it in
 // every state. The waiting Line-up's card: "Up next: who sings?" with the
 // Song's cover and title, one row per seat, "Add a singer", the server's
 // warnings, and a big Start. The playing Song's card (`PlayingCard`), the
@@ -36,7 +36,7 @@ import {
 import { PlayingCard } from "../onStage/PlayingCard";
 import { EmptyQueueCard, ResultsCard } from "../onStage/ResultsCard";
 import { VolumeControl } from "../onStage/VolumeControl";
-import { stageState } from "../remoteFrame";
+import { stageCard } from "../remoteFrame";
 import { editLineUp, startSong } from "./lineUpCommands";
 import { SeatSheet, Tag } from "./SeatSheet";
 import { myResult } from "./myResult";
@@ -102,7 +102,7 @@ export function StageTab({
     lineUp?.warnings.filter((w) => w.code !== "notCalibrated") ?? [];
 
   const mine = myResult(party?.results ?? null, myPhoneId);
-  const state = stageState(party);
+  const state = stageCard(party);
   const avSync = useAvSyncRunning(store);
   const calibration = useCalibrationRun(store);
   // Setup (Calibrate mics, Check A/V sync) only while no Song plays, and

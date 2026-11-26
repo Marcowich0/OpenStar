@@ -18,7 +18,7 @@ import { Button } from "../../ui/Button";
 import { Cover } from "../../ui/Cover";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
-import type { StageState } from "../remoteFrame";
+import type { StageCard } from "../remoteFrame";
 import { songLength } from "../songs/SongTags";
 import { controlSong, usePlayerNames } from "./playing";
 
@@ -42,7 +42,7 @@ export function PlayingCard({
   playing,
 }: {
   store: LiveStore;
-  playing: Extract<StageState, { kind: "playing" }>;
+  playing: Extract<StageCard, { kind: "playing" }>;
 }) {
   const song = useQuery(songQuery(playing.songId)).data;
   const players = usePlayerNames(store, playing.players);
