@@ -29,8 +29,10 @@ import {
 } from "./pitchTrace";
 
 import type { ParticleEntry, ParticlePool } from "./effects";
+import type { LineRatingEntry, LineRatings } from "./lineRating";
 
 export type { ParticleEntry } from "./effects";
+export type { LineRatingEntry } from "./lineRating";
 export type {
   HeadBallEntry,
   LaneTrace,
@@ -90,6 +92,12 @@ export interface SingState {
    * loop advances it by each frame's real delta, and `frame()` only reads it.
    */
   effects?: ParticlePool;
+  /**
+   * The lanes' Line rating pops (#216). `lineEnded` starts one; the render
+   * loop advances them by each frame's real delta, and `frame()` only reads
+   * them.
+   */
+  ratings?: LineRatings;
 }
 
 /** A parsed Song's Voices, flattened once for drawing (not per frame). */
@@ -282,6 +290,7 @@ export type DrawEntry =
   | HeadBallEntry
   | LaneEndEntry
   | LyricEntry
+  | LineRatingEntry
   | ParticleEntry;
 export type DrawList = DrawEntry[];
 
@@ -576,6 +585,7 @@ export function frame(
     list.push({ type: "laneEnd", lane });
   }
   lyricFill(list, state, now);
+  state.ratings?.draw(list, state.lanes, layout);
   // Last: the painter draws these on the effects canvas, above the DOM layers.
   state.effects?.draw(list);
   return list;

@@ -14,6 +14,8 @@ import type {
   SongEnding,
 } from "../../../playback/mediaPlayback";
 import { createPitchRouter } from "../../../pitch/pitchRouter";
+import { frame, type SingState } from "../../sing/frame";
+import { laneLayout } from "../../sing/laneLayout";
 import { createStageSong, type StageSongOptions } from "./stageSong";
 import { PROFILES, testDetail, testParty } from "./testSong";
 
@@ -800,5 +802,50 @@ describe("the Score on each seat's Phone", () => {
       seat: 0,
       total: 0,
     });
+  });
+});
+
+describe("Line ratings on the sing screen (ticket 216)", () => {
+  const shown = (state: SingState) =>
+    frame(state, 0, laneLayout(state.lanes.length)).filter(
+      (entry) => entry.type === "lineRating",
+    );
+
+  it("pops the rating and throws Perfect! confetti from Mia's header when her Line ends", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+
+    sing(t, 0, 3);
+    t.frames(2300);
+    // Mid-Line: no rating yet.
+    expect(shown(view.state)).toEqual([]);
+    expect(view.state.effects?.live).toBe(0);
+
+    sing(t, 4, 7);
+    t.frames(4500); // the first Line ends at Beat 10, every Note hit
+    expect(shown(view.state)).toEqual([
+      expect.objectContaining({
+        lane: 0,
+        word: "sing.lineRating.perfect",
+      }),
+    ]);
+    expect(view.state.effects?.live).toBe(30);
+  });
+
+  it("clears the pops and the confetti on Restart", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 7);
+    t.frames(4500);
+    expect(shown(view.state)).toHaveLength(1);
+    t.control("restart");
+    expect(shown(view.state)).toEqual([]);
+    expect(view.state.effects?.live).toBe(0);
   });
 });

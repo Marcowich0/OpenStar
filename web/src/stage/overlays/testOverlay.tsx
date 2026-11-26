@@ -168,7 +168,7 @@ export function renderOverlays(
       h.onMessage({ type: "rejected", reason });
     });
   };
-  return { sent, store, changeParty, reject, ...view };
+  return { sent, store, queries, changeParty, reject, ...view };
 }
 
 export function press(key: string) {

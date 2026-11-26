@@ -23,6 +23,10 @@ import { Score } from "../../ui/Score";
 import type { DrawList, SingLane, SingState } from "./frame";
 import { laneHeaderSizes } from "./laneHeader";
 import { createLaneLostWriter, type LaneLostWriter } from "./laneLost";
+import {
+  createLineRatingWriter,
+  type LineRatingWriter,
+} from "./lineRatingWriter";
 import { laneLayout, type LaneRect } from "./laneLayout";
 import { createLyricDriver, LyricBar } from "./LyricBar";
 import { createPainter, referenceTransform } from "./painter";
@@ -86,6 +90,7 @@ export function SingScreen({
   const [viewport, setViewport] = useState(currentViewport);
   const [lyrics] = useState(createLyricDriver);
   const [lost] = useState(createLaneLostWriter);
+  const [ratings] = useState(createLineRatingWriter);
 
   // The loop reads the latest props each frame without restarting.
   const latest = useRef({ state, clock, avOffset, frameTime, viewport });
@@ -134,6 +139,7 @@ export function SingScreen({
         effects?.paint(list, transform);
         lyrics.apply(list);
         lost.apply(list);
+        ratings.apply(list);
         if (!painted && rootRef.current) {
           // For screenshots (#58): the first frame is on the canvas.
           rootRef.current.dataset.painted = "true";
@@ -145,7 +151,7 @@ export function SingScreen({
     return () => {
       loop.stop();
     };
-  }, [lyrics, lost]);
+  }, [lyrics, lost, ratings]);
 
   const frame = referenceTransform(viewport.width, viewport.height, 1);
   const referenceStyle = {
@@ -201,6 +207,9 @@ export function SingScreen({
             name={state.lanes[i]?.player?.name}
             lost={lost}
           />
+        ))}
+        {lanes.map((_, i) => (
+          <LineRatingWord key={i} index={i} writer={ratings} />
         ))}
         <LyricBar voices={state.voices} driver={lyrics} />
       </div>
@@ -331,6 +340,36 @@ function LaneHeader({
         </>
       )}
     </div>
+  );
+}
+
+/** The Line rating's 4 px white outline: an 8 px stroke under the fill. */
+const RATING_STYLE = {
+  WebkitTextStroke: `8px ${tokenVar("--color-white")}`,
+  paintOrder: "stroke",
+  // A soft ledge: the lane ledge colour, slightly blurred.
+  textShadow: `0 5px 4px ${tokenVar("--color-lane-ledge")}`,
+} as const;
+
+/**
+ * Lane `index`'s Line rating word (#55, "Line ratings"). Hidden until a Line
+ * ends; the render loop places, scales and fades it (`lineRatingWriter.ts`).
+ */
+function LineRatingWord({
+  index,
+  writer,
+}: {
+  index: number;
+  writer: LineRatingWriter;
+}) {
+  return (
+    <span
+      ref={writer.word(index)}
+      data-line-rating
+      hidden
+      className="absolute leading-none font-bold whitespace-nowrap"
+      style={RATING_STYLE}
+    />
   );
 }
 

@@ -2,11 +2,20 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { serverInfoQuery, songQuery, songsQuery } from "../../../api/queries";
+import {
+  serverInfoQuery,
+  songHighScoresQuery,
+  songQuery,
+  songsQuery,
+} from "../../../api/queries";
 import { createQueryClient } from "../../../api/queryClient";
 import type { ClientMessage } from "../../../generated/ClientMessage";
+import type { HighScoreHolder } from "../../../generated/HighScoreHolder";
+import type { HighScoreTable } from "../../../generated/HighScoreTable";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
 import type { SongDetail } from "../../../generated/SongDetail";
+import type { SongFilters } from "../../../generated/SongFilters";
+import type { SongQuery } from "../../../generated/SongQuery";
 import type { SongSummary } from "../../../generated/SongSummary";
 import type { LiveClientOptions } from "../../../live/liveClient";
 import { createLiveStore } from "../../../live/liveStore";
@@ -99,6 +108,17 @@ const SONGS = [
   song(4, "Wave"),
 ];
 
+const FILTERS: SongFilters = {
+  languages: ["English"],
+  genres: ["Pop"],
+  years: [1982, 1999],
+  editions: [],
+  creators: [],
+  duet: [false, true],
+  hasVideo: [false],
+  length: null,
+};
+
 const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   partyId: "p",
   stageId: "main",
@@ -133,20 +153,15 @@ function setup(
     };
   });
   const queries = createQueryClient();
-  const songList = (list: SongSummary[]) => ({
-    songs: list,
-    filters: {
-      languages: [],
-      genres: [],
-      years: [],
-      editions: [],
-      creators: [],
-      duet: [],
-      hasVideo: [],
-      length: null,
-    },
-  });
+  const songList = (list: SongSummary[]) => ({ songs: list, filters: FILTERS });
   if (songs) queries.setQueryData(songsQuery().queryKey, songList(songs));
+  // What `GET /api/songs` answers for a search or filter.
+  const answer = (query: SongQuery, list: SongSummary[]) => {
+    queries.setQueryData(songsQuery(query).queryKey, songList(list));
+  };
+  const highScores = (id: number, tables: HighScoreTable[]) => {
+    queries.setQueryData(songHighScoresQuery(id).queryKey, { tables });
+  };
   const songsArrive = (list: SongSummary[]) => {
     act(() => {
       queries.setQueryData(songsQuery().queryKey, songList(list));
@@ -213,6 +228,8 @@ function setup(
   };
   return {
     sent,
+    answer,
+    highScores,
     changeParty,
     reject,
     songsArrive,
@@ -510,5 +527,257 @@ describe("the preview", () => {
       }),
     );
     expect(preview.stop).toHaveBeenCalled();
+  });
+});
+
+describe("search", () => {
+  const box = () =>
+    screen.getByRole("searchbox", { name: "Search songs or artists" });
+  const filters = () => screen.getByRole("group", { name: "Filters" });
+  const type = (text: string) => {
+    act(() => {
+      fireEvent.change(box(), { target: { value: text } });
+    });
+  };
+
+  it("opens on / with the box focused and the Songs tab's filter chips", () => {
+    setup();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    press("/");
+    expect(document.activeElement).toBe(box());
+    expect(
+      within(filters())
+        .getAllByRole("button")
+        .map((chip) => chip.textContent),
+    ).toEqual(["All", "Duets", "English", "Pop", "1999", "1982"]);
+  });
+
+  it("narrows the carousel to the matching Songs as you type", () => {
+    const { answer } = setup();
+    answer({ search: "isl" }, [SONGS[1] as SongSummary]);
+    press("/");
+    type("isl");
+    expect(title()).toHaveTextContent("Islands");
+    expect(screen.queryByTestId("carousel-cover-1")).toBeNull();
+  });
+
+  it("narrows by a filter chip, and All clears it", () => {
+    const { answer } = setup();
+    answer({ duet: true }, [SONGS[0] as SongSummary]);
+    press("/");
+    const duets = within(filters()).getByRole("button", { name: "Duets" });
+    click(duets);
+    expect(duets).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByTestId("carousel-cover-2")).toBeNull();
+    click(within(filters()).getByRole("button", { name: "All" }));
+    expect(screen.getByTestId("carousel-cover-2")).toBeInTheDocument();
+  });
+
+  it("replaces the carousel with a short message when nothing matches", () => {
+    const { answer } = setup();
+    answer({ search: "zzz" }, []);
+    press("/");
+    type("zzz");
+    expect(screen.getByText("No Songs match")).toBeVisible();
+    expect(screen.queryByTestId("carousel-selected")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sing!" })).toBeNull();
+  });
+
+  it("moves the focus down from the box to the chips, then to the carousel", () => {
+    setup();
+    press("/");
+    press("ArrowDown");
+    expect(document.activeElement).toBe(
+      within(filters()).getByRole("button", { name: "All" }),
+    );
+    press("ArrowDown");
+    expect(document.activeElement).toBe(selectedCover());
+  });
+
+  it("lets / be typed into the box", () => {
+    setup();
+    press("/");
+    press("/");
+    expect(screen.getAllByRole("searchbox")).toHaveLength(1);
+    expect(document.activeElement).toBe(box());
+  });
+
+  it("clears the search and closes the box on Esc", () => {
+    const { answer } = setup();
+    answer({ search: "isl" }, [SONGS[1] as SongSummary]);
+    press("/");
+    type("isl");
+    press("Escape");
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    expect(screen.getByTestId("carousel-cover-1")).toBeInTheDocument();
+    // The Song found stays selected.
+    expect(title()).toHaveTextContent("Islands");
+    expect(document.activeElement).toBe(selectedCover());
+    // Opened again, it starts empty.
+    press("/");
+    expect(box()).toHaveValue("");
+  });
+
+  it("narrows the Songs overlay's carousel too", () => {
+    const { answer } = setup();
+    answer({ search: "isl" }, [SONGS[1] as SongSummary]);
+    press("/");
+    type("isl");
+    press("ArrowDown");
+    press("s");
+    const songs = screen.getByRole("dialog", { name: "Songs" });
+    expect(within(songs).getByTestId("carousel-selected")).toHaveAccessibleName(
+      "Islands",
+    );
+    expect(within(songs).queryByTestId("carousel-cover-1")).toBeNull();
+  });
+
+  it("keeps the focus in the box when the Songs arrive after it opened", async () => {
+    const { songsArrive } = setup(null);
+    press("/");
+    songsArrive(SONGS);
+    await screen.findByTestId("carousel-selected");
+    expect(document.activeElement).toBe(box());
+  });
+
+  it("keeps the focus in the box while the mouse passes over a cover", () => {
+    setup();
+    press("/");
+    act(() => {
+      fireEvent.pointerOver(selectedCover());
+    });
+    expect(document.activeElement).toBe(box());
+  });
+});
+
+describe("the Song detail", () => {
+  const holder = (
+    profileId: number,
+    name: string,
+    favouriteColour: HighScoreHolder["favouriteColour"],
+  ): HighScoreHolder => ({
+    profileId,
+    name,
+    avatar: { kind: "builtIn", key: "cat" },
+    favouriteColour,
+  });
+  const table = (
+    voice: number,
+    difficulty: HighScoreTable["difficulty"],
+    entries: HighScoreTable["entries"],
+  ): HighScoreTable => ({ voice, difficulty, entries });
+  const TABLES: HighScoreTable[] = [
+    table(0, "easy", []),
+    table(0, "medium", [
+      {
+        place: 1,
+        holder: holder(4, "Sofie", "sky"),
+        total: 9480,
+        olderTiming: false,
+      },
+      {
+        place: 2,
+        holder: holder(5, "Jonas", "cherry"),
+        total: 7120,
+        olderTiming: true,
+      },
+    ]),
+    table(0, "hard", [
+      {
+        place: 1,
+        holder: holder(5, "Jonas", "cherry"),
+        total: 6010,
+        olderTiming: false,
+      },
+    ]),
+    table(1, "easy", []),
+    table(1, "medium", [
+      {
+        place: 1,
+        holder: holder(6, "Maja", "mint"),
+        total: 8800,
+        olderTiming: false,
+      },
+    ]),
+    table(1, "hard", []),
+  ];
+
+  function openDetail() {
+    const view = setup();
+    view.highScores(1, TABLES);
+    // As Enter does: the arrows put the focus on the chip, Enter clicks it.
+    const best = screen.getByRole("button", { name: "Best 9,480 · Sofie" });
+    act(() => {
+      best.focus();
+    });
+    click(best);
+    return view;
+  }
+  const detailDialog = () =>
+    screen.getByRole("dialog", { name: "High scores" });
+  const rows = () =>
+    within(detailDialog())
+      .getAllByRole("listitem")
+      .map((row) => row.textContent);
+
+  it("opens from the best-score chip with the Song and its Medium table", () => {
+    openDetail();
+    expect(within(detailDialog()).getByText("Africa")).toBeVisible();
+    expect(
+      within(detailDialog()).getByRole("tab", {
+        name: "Medium",
+        selected: true,
+      }),
+    ).toBeVisible();
+    expect(rows()).toEqual(["1Sofie9,480", "2JonasOlder timing7,120"]);
+  });
+
+  it("shows the place, the avatar, the name in the favourite colour and the Score in tabular figures", () => {
+    openDetail();
+    const [first] = within(detailDialog()).getAllByRole("listitem");
+    const row = within(first as HTMLElement);
+    expect(row.getByRole("img", { name: "Sofie" })).toBeVisible();
+    expect(row.getByText("Sofie").style.color).toBe("var(--color-party-sky)");
+    expect(row.getByText("9,480")).toHaveClass("tabular-nums");
+    expect(row.getByText("1")).toHaveClass("tabular-nums");
+  });
+
+  it("switches Difficulty and Voice with the tabs", () => {
+    openDetail();
+    click(within(detailDialog()).getByRole("tab", { name: "Hard" }));
+    expect(rows()).toEqual(["1Jonas6,010"]);
+    click(within(detailDialog()).getByRole("tab", { name: "Voice 2" }));
+    click(within(detailDialog()).getByRole("tab", { name: "Medium" }));
+    expect(rows()).toEqual(["1Maja8,800"]);
+    click(within(detailDialog()).getByRole("tab", { name: "Easy" }));
+    expect(
+      within(detailDialog()).getByText("No High scores yet"),
+    ).toBeVisible();
+  });
+
+  it("has no Voice tabs for a Song that is not a duet", () => {
+    const solo = song(7, "Solo", {
+      topHighScore: { total: 100, holder: holder(4, "Sofie", "sky") },
+    });
+    const { highScores } = setup([solo]);
+    highScores(7, [
+      table(0, "easy", []),
+      table(0, "medium", []),
+      table(0, "hard", []),
+    ]);
+    click(screen.getByRole("button", { name: "Best 100 · Sofie" }));
+    expect(
+      within(detailDialog()).queryByRole("tab", { name: /Voice/ }),
+    ).toBeNull();
+    expect(within(detailDialog()).getAllByRole("tab")).toHaveLength(3);
+  });
+
+  it("closes on Esc, giving the focus back to the chip", () => {
+    openDetail();
+    press("Escape");
+    expect(screen.queryByRole("dialog", { name: "High scores" })).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Best 9,480 · Sofie" }),
+    );
   });
 });

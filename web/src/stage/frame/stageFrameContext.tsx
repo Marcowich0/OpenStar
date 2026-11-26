@@ -1,7 +1,8 @@
 // The seams the Stage's screens use inside the frame (`StageFrame.tsx`):
 //
 // - `useStageFrame()`: the current scene and overlay, `openOverlay(id)`,
-//   `closeOverlay()`, the live store and `takeStageBack()`.
+//   `openSongDetail(song)`, `closeOverlay()`, the live store and
+//   `takeStageBack()`.
 // - `useStageKeys(bindings, { global })`: key bindings. They fire only while
 //   the layer they were bound in is the top one (the scene, an overlay or a
 //   pick list), before the frame's own keys; `global` bindings fire on every
@@ -21,6 +22,7 @@ import {
   type ReactNode,
 } from "react";
 
+import type { SongSummary } from "../../generated/SongSummary";
 import type { LiveStore } from "../../live/liveStore";
 import { focusDefault } from "./focusables";
 import type { OverlayId } from "./overlayIds";
@@ -32,6 +34,10 @@ export interface StageFrameApi {
   overlay: OverlayId | null;
   /** Opens an overlay, unless the scene refuses overlays (a Song plays). */
   openOverlay: (id: OverlayId) => void;
+  /** The Song the Song detail overlay shows, while it is open. */
+  songDetail: SongSummary | null;
+  /** Opens the Song detail overlay: the Song's High score tables. */
+  openSongDetail: (song: SongSummary) => void;
   closeOverlay: () => void;
   store: LiveStore;
   /** Makes this browser the Stage again (Stage moved here). */

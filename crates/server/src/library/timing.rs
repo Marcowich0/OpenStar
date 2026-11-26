@@ -26,7 +26,9 @@
 //! - **Restore Original** (`POST /api/songs/{id}/restore-original`, guarded,
 //!   writes the Library): the Original replaces the `.txt` the same atomic
 //!   way, then the Original is deleted, so the next edit keeps a fresh one.
-//!   Score records are not touched. Answers the restored file's version.
+//!   Score records are kept; if the restored file has another identity key
+//!   they move to it, as for any own edit. Answers the restored file's
+//!   version.
 //!
 //! Saves, restores and scans hold the scanner's `index_writes` lock, so they
 //! never interleave.
@@ -186,7 +188,9 @@ fn changed_lines(written: &txt::Written) -> Vec<ChangedLine> {
 
 impl Scanner {
     /// Reads `path` (relative to the Library) into the index again, keeping
-    /// its row, and tells every browser.
+    /// its row, and tells every browser. An own write that changed the
+    /// Song's identity key moves its Score records in the same transaction
+    /// ([`index::store_own_write`]).
     async fn reindex(&self, path: String) -> anyhow::Result<()> {
         let root = self.inner.songs_dir.clone();
         let file = tokio::task::spawn_blocking(move || scan::read_file(&root, &path)).await??;
@@ -195,7 +199,7 @@ impl Scanner {
             .db
             .call(move |conn| {
                 let tx = conn.transaction()?;
-                index::store_read(&tx, std::slice::from_ref(&file), parser_version)?;
+                index::store_own_write(&tx, &file, parser_version)?;
                 tx.commit()
             })
             .await?;

@@ -98,6 +98,11 @@ export interface HeadBallEntry {
    * its area. The painter scales the disc and its rim about its centre.
    */
   squash: { x: number; y: number };
+  /**
+   * It is hitting a golden Note (a golden or golden Rap Note), so it
+   * sparkles (#216). Absent: not golden (a drawing with no Notes of its own).
+   */
+  golden?: boolean;
 }
 
 /** The head ball's bounce at its widest: 14 % (#55). */
@@ -231,6 +236,8 @@ let headVoiced = false;
 let headPitch = 0;
 let headClarity = 0;
 let headLoudness = 0;
+/** The newest point hit a golden Note. */
+let lastGolden = false;
 /** The reading the hit test sees; reused, so testing allocates nothing. */
 const reading = { pitch: null as number | null, clarity: 0, loudness: 0 };
 
@@ -247,6 +254,7 @@ function endRun() {
 
 function resetHead() {
   run = null;
+  lastGolden = false;
   headTime = -Infinity;
   headVoiced = false;
 }
@@ -264,6 +272,7 @@ function addPoint(songTime: number, beat: number, guessed: boolean) {
   const hit = under
     ? readingHits(reading, threshold, under, difficulty)
     : false;
+  lastGolden = hit && (under?.kind === "golden" || under?.kind === "goldenRap");
   const point: TracePoint = {
     songTime,
     pitch,
@@ -377,6 +386,7 @@ export function traceLane(
         rim: "--color-white",
         rimWidth: 3,
         squash: headBallSquash(songTime, g.lane),
+        golden: lastGolden,
       } satisfies HeadBallEntry);
     }
   }

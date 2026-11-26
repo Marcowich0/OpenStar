@@ -7,7 +7,8 @@
 // has lost its Mic. Every lane has a made-up Player (one a Guest) and Score.
 // A confetti burst from the first lane header (#134) is caught in flight: a
 // seeded burst, aged a fixed time, so the screenshots stay exact (the page
-// freezes the effects' frame time).
+// freezes the effects' frame time). The first lane's Line rating (Perfect!)
+// and the second's (Great!) are caught settled, before they fade (#216).
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
@@ -20,6 +21,20 @@ import type { SingTestCase } from "../../singTest/search";
 import { confettiBurst, EFFECTS_CAPACITY, ParticlePool } from "./effects";
 import { singVoices, type SingState } from "./frame";
 import { laneLayout } from "./laneLayout";
+import { LineRatings } from "./lineRating";
+
+/** How long the synthetic Line ratings have been showing, seconds. */
+const RATING_AGE = 0.6;
+
+/** Perfect! on the first lane and Great! on the second, `RATING_AGE` old. */
+function ratings(): LineRatings {
+  const pops = new LineRatings();
+  pops.show(0, "sing.lineRating.perfect");
+  pops.show(1, "sing.lineRating.great");
+  // Advanced in steps no longer than a frame's most.
+  for (let age = 0; age < RATING_AGE - 1e-9; age += 0.2) pops.advance(0.2);
+  return pops;
+}
 
 /** How long the synthetic confetti burst has been flying, seconds. */
 const BURST_AGE = 0.12;
@@ -170,5 +185,6 @@ export function syntheticSing(name: SingTestCase): SingState {
       },
     })),
     effects: burst(lanes.length, PALETTE_KEYS[0]),
+    ratings: ratings(),
   };
 }

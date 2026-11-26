@@ -12,6 +12,7 @@ import type { SongSummary } from "../../../generated/SongSummary";
 import { t } from "../../../i18n/t";
 import { Chip } from "../../../ui/Chip";
 import { Cover } from "../../../ui/Cover";
+import { isTextField } from "../../frame/focusables";
 import { useStageKeys } from "../../frame/stageFrameContext";
 import {
   CAROUSEL,
@@ -61,9 +62,10 @@ export function SongCarousel({
 
   // The Songs arrive after the scene started and set its default focus, so
   // the carousel takes the focus when it appears, unless an overlay or pick
-  // list holds it.
+  // list holds it, or someone types in the search box.
   useLayoutEffect(() => {
     const active = document.activeElement;
+    if (isTextField(active)) return;
     const layer = active?.closest("[data-stage-layer]") ?? null;
     if (
       layer === null ||
