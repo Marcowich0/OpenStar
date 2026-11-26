@@ -2388,10 +2388,8 @@ impl LiveState {
             .map(|(&connection, _)| connection)
             .collect();
         for connection in phones {
-            self.hub.send_to(
-                connection,
-                &ServerMessage::LineScore { request_id, total },
-            );
+            self.hub
+                .send_to(connection, &ServerMessage::LineScore { request_id, total });
         }
         Ok(())
     }

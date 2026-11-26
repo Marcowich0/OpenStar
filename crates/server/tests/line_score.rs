@@ -8,8 +8,8 @@ use openstar_protocol::library::{SongList, SongSummary};
 use openstar_protocol::mics::MicKey;
 use openstar_protocol::profile::{Avatar, AvatarKey, NewProfile, PaletteKey, Profile};
 use openstar_protocol::{
-    ClientMessage, JoinAs, JoinCode, LineUpEdit, PartyMemberId, PartySnapshot, PhoneId,
-    RequestId, SeatWho, ServerMessage, SongControl, UserMessage,
+    ClientMessage, JoinAs, JoinCode, LineUpEdit, PartyMemberId, PartySnapshot, PhoneId, RequestId,
+    SeatWho, ServerMessage, SongControl, UserMessage,
 };
 use openstar_test_harness::{TestApp, WsClient};
 
@@ -153,12 +153,7 @@ async fn a_line_end_total_reaches_only_the_phone_of_its_seat() {
         &sara,
     )
     .await;
-    let mut everyone = [
-        &mut stage,
-        &mut bo_phone,
-        &mut jonas_phone,
-        &mut sara_phone,
-    ];
+    let mut everyone = [&mut stage, &mut bo_phone, &mut jonas_phone, &mut sara_phone];
 
     // Bo's Request: Bo on Bo's Phone, Jonas on Jonas's Phone; Sara watches.
     everyone[1]
