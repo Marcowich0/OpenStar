@@ -46,7 +46,7 @@ test("the Stage and a Phone set the A/V offset by eye and ear", async ({
   await stage.getByRole("menuitem", { name: "Check A/V sync" }).click();
   const check = stage.getByRole("dialog", { name: "Check A/V sync" });
   await expect(check).toBeVisible();
-  const value = check.getByLabel("A/V offset");
+  const value = check.getByTestId("av-sync-value");
   // Start from 0, whatever an earlier run left.
   await check.getByRole("button", { name: "Reset to 0" }).click();
   await expect(value).toHaveText("0 ms");
