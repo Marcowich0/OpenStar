@@ -392,6 +392,18 @@ fn every_client_message() -> Vec<ClientMessage> {
             step: openstar_protocol::av_offset::AvSyncStep::Up,
         },
         ClientMessage::EndAvSync,
+        ClientMessage::OpenCalibration,
+        ClientMessage::ChooseCalibrationMic {
+            mic: openstar_protocol::mics::MicKey::Phone {
+                phone_id: "4b1d8f0e-0000-4000-8000-000000000001".into(),
+            },
+            chosen: true,
+        },
+        ClientMessage::StartCalibration,
+        ClientMessage::CalibrationListening,
+        ClientMessage::CalibrationGo,
+        ClientMessage::FinishCalibration { results: vec![] },
+        ClientMessage::EndCalibration,
         ClientMessage::LeaveParty,
         ClientMessage::RemoveMember {
             member_id: PartyMemberId(1),

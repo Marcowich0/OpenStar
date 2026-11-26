@@ -19,6 +19,7 @@
 
 mod av_sync;
 mod bridges;
+mod calibration;
 pub mod connection;
 pub mod hub;
 mod line_up;
@@ -347,6 +348,8 @@ struct Stage {
     progress: Option<(SongProgress, i64)>,
     /// Check A/V sync runs on the active Stage (`av_sync.rs`).
     av_sync: bool,
+    /// The open Calibrate mics run (`calibration.rs`).
+    calibration: Option<calibration::Calibration>,
 }
 
 /// Owned by the task alone.
@@ -409,6 +412,7 @@ impl LiveState {
                 output: None,
                 progress: None,
                 av_sync: false,
+                calibration: None,
             },
         );
         Ok(Self {
@@ -605,6 +609,7 @@ impl LiveState {
             // The new Stage reports its own output.
             self.stage_mut().output = None;
             self.av_sync_ended();
+            self.calibration_ended();
             if self.stage().party.is_none() {
                 started = self.start_party(now_ms).await;
             }
@@ -633,6 +638,7 @@ impl LiveState {
                 .send_to(id, &ServerMessage::SongProgress { progress });
         }
         self.tell_av_sync(id);
+        self.tell_calibration_to(id);
         if let Some(change) = started {
             self.party_changed(change);
         }
@@ -650,6 +656,7 @@ impl LiveState {
             stage.connection = None;
             stage.output = None;
             self.av_sync_ended();
+            self.calibration_ended();
             self.tell_mics_screen();
             self.present_browser_mics.clear();
             self.local_mics_changed();
@@ -687,6 +694,8 @@ impl LiveState {
                 let left = self.joined_connections();
                 match self.start_party(now_ms).await {
                     Some(change) => {
+                        // The run's Phones were the old Party's.
+                        self.calibration_ended();
                         for connection in left {
                             self.hub.send_to(connection, &ServerMessage::LeftParty);
                         }
@@ -814,6 +823,34 @@ impl LiveState {
                 let result = self.end_av_sync(id);
                 self.refuse_on_error(id, result);
             }
+            Ok(ClientMessage::OpenCalibration) => {
+                let result = self.open_calibration(id);
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::ChooseCalibrationMic { mic, chosen }) => {
+                let result = self.choose_calibration_mic(id, mic, chosen);
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::StartCalibration) => {
+                let result = self.start_calibration(id);
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::CalibrationListening) => {
+                let result = self.calibration_listening(id);
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::CalibrationGo) => {
+                let result = self.calibration_go(id);
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::FinishCalibration { results }) => {
+                let result = self.finish_calibration(id, results).await;
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::EndCalibration) => {
+                let result = self.end_calibration(id);
+                self.refuse_on_error(id, result);
+            }
             Ok(ClientMessage::Hello { phone_id }) => {
                 if !phone_id.is_valid() {
                     self.reject(id, UserMessage::InvalidMessage);
@@ -900,9 +937,10 @@ impl LiveState {
                 control,
             }) => {
                 let controlled = self.control_song(id, request_id, control).await;
-                // A Song that starts ends Check A/V sync.
+                // A Song that starts ends Check A/V sync and Calibrate mics.
                 if control == SongControl::Start && controlled.is_ok() {
                     self.av_sync_ended();
+                    self.calibration_ended();
                 }
                 self.refuse_on_error(id, controlled);
             }
