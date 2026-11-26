@@ -110,6 +110,22 @@ const waiting: PartySnapshot = {
   },
 };
 
+/** Bo and Jonas sing Valerie (Request 1); `paused` after a Pause. */
+const playing = (paused = false): PartySnapshot => ({
+  ...waiting,
+  lineUp: {
+    requestId: 1,
+    duet: false,
+    seats: [
+      { memberId: 1, mic: null, voice: "p1", difficulty: "medium" },
+      { memberId: 2, mic: null, voice: "p1", difficulty: "hard" },
+    ],
+    canStart: false,
+    warnings: [],
+  },
+  playing: { requestId: 1, songId: 40, paused },
+});
+
 const summary = (
   id: number,
   title: string,
@@ -292,6 +308,50 @@ describe("the Remote frame", () => {
       "true",
     );
     expect(screen.queryByText("Waiting for Start")).toBeNull();
+  });
+
+  it("shows the playing Song and its Players in the strip, and opens the Stage tab on a tap", async () => {
+    renderRemote(playing());
+    // A playing Song opens the Remote on Songs, where the strip shows.
+    expect(selected()).toBe("songs");
+    const strip = await screen.findByRole("button", {
+      name: /^Valerie.*Bo, Jonas/,
+    });
+    expect(within(strip).getByTestId("cover")).toBeInTheDocument();
+    expect(screen.queryByText("Waiting for Start")).toBeNull();
+
+    fireEvent.click(strip);
+    expect(selected()).toBe("stage");
+    expect(
+      screen.queryByRole("button", { name: /^Valerie.*Bo, Jonas/ }),
+    ).toBeNull();
+  });
+
+  it("pauses and resumes the Stage from the strip's round button with a plain tap", async () => {
+    const { sent, server } = renderRemote(playing());
+    fireEvent.click(await screen.findByRole("button", { name: "Pause" }));
+    expect(sent).toEqual([
+      { type: "controlSong", requestId: 1, control: "pause" },
+    ]);
+    expect(selected()).toBe("songs");
+
+    server({
+      type: "partyChanged",
+      party: playing(true),
+      change: {
+        actor: { kind: "member", memberId: 1 },
+        event: {
+          code: "songPaused",
+          params: { requestId: 1, songId: 40, title: "Valerie" },
+        },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    expect(sent.at(-1)).toEqual({
+      type: "controlSong",
+      requestId: 1,
+      control: "resume",
+    });
   });
 
   it("hides the strip while no Line-up waits", () => {

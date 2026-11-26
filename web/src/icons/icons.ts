@@ -10,10 +10,16 @@ export const ICON_NAMES = [
   "list",
   "lock",
   "mic-off",
+  "minus",
   "music",
+  "pause",
   "people",
+  "play",
   "plus",
+  "restart",
   "search",
+  "skip",
+  "stop",
   "tv",
 ] as const;
 

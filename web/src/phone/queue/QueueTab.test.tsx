@@ -112,7 +112,11 @@ async function openQueue(snapshot = PARTY) {
   return phone;
 }
 
-const card = (title: RegExp) => screen.getByRole("button", { name: title });
+/** A Request card in the Queue's list (not the status strip's Song). */
+const card = (title: RegExp) =>
+  within(screen.getByRole("list", { name: "Queue" })).getByRole("button", {
+    name: title,
+  });
 
 /** Opens a card's sheet and waits for it to have slid in. */
 async function openSheet(title: RegExp) {
