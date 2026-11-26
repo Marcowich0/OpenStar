@@ -5,10 +5,11 @@
 //
 // Opening it asks for the Pitch track (a cached track is there at once;
 // otherwise the job's progress shows until it is ready) and applies nothing:
-// the edit model starts with no edits. Needs no PIN. Gestures (#219), playback
-// (#220), Auto-fit (#221) and saving (#188) attach here.
+// the edit model starts with no edits. Needs no PIN. The side panel types
+// `#GAP` and `#BPM`, lists the edits with undo and redo, previews the save and
+// saves (`TimingPanel.tsx`); playback (#220) and Auto-fit (#221) attach here.
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   useEffect,
@@ -18,7 +19,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type RefObject,
 } from "react";
-import { Label, Meter } from "react-aria-components";
 
 import { songQuery } from "../../api/queries";
 import { createMatcher, fitNotesOf } from "../../fit/fit";
@@ -30,10 +30,20 @@ import { t } from "../../i18n/t";
 import { liveStore } from "../../live/useLive";
 import type { LiveStore } from "../../live/liveStore";
 import { readToken } from "../../theme/tokens";
+import { typeBpm, typeGap } from "../../timing/songEdits";
 import {
+  applyOperations,
+  backToTheFile,
+  commit,
   currentTiming,
+  editList,
   noteTimes,
   openTimingModel,
+  operationsOf,
+  redo,
+  undo,
+  type TimingEdit,
+  type TimingModel,
 } from "../../timing/timingModel";
 import { clockText, DETAIL, detailFrame } from "./detailFrame";
 import { createEditorPainter } from "./editorPainter";
@@ -45,6 +55,7 @@ import {
   type EditorView,
 } from "./editorView";
 import { overviewFrame, overviewTimeAt } from "./overviewFrame";
+import { EditList, SaveSection, ShareMeter, TypedValue } from "./TimingPanel";
 
 export interface TimingEditorProps {
   song: SongId;
@@ -152,8 +163,21 @@ function Editor({
   load: PitchTrackLoad;
 }) {
   // Opening applies nothing: the model starts as the file is.
-  const [model] = useState(() => openTimingModel(detail.song));
+  const [model, setModel] = useState(() => openTimingModel(detail.song));
   const timing = useMemo(() => currentTiming(model), [model]);
+  const fileTiming = useMemo(
+    () => currentTiming(openTimingModel(model.song)),
+    [model.song],
+  );
+  const operations = useMemo(() => operationsOf(model), [model]);
+  const apply = (gesture: (m: TimingModel) => TimingEdit | null) => {
+    setModel((m) => {
+      const edit = gesture(m);
+      return edit ? commit(m, edit, performance.now()) : m;
+    });
+  };
+  useUndoKeys(setModel);
+  const queryClient = useQueryClient();
   const [view, setView] = useState<EditorView>(openView);
   const [playhead, setPlayhead] = useState(0);
 
@@ -163,6 +187,13 @@ function Editor({
     () =>
       matcher ? matcher.share(fitNotesOf(timing.song), timing.grid) : null,
     [matcher, timing],
+  );
+  const fileShare = useMemo(
+    () =>
+      matcher
+        ? matcher.share(fitNotesOf(fileTiming.song), fileTiming.grid)
+        : null,
+    [matcher, fileTiming],
   );
   const duration = useMemo(
     () => songDuration(detail, timing, track?.pitch.length),
@@ -303,60 +334,95 @@ function Editor({
         />
         <p className="text-sm text-ink-2">{t("timing.view.help")}</p>
       </div>
-      <SidePanel
-        share={songShare}
-        pending={load.state !== "ready"}
-        playhead={playhead}
-      />
+      <aside className="flex w-full shrink-0 flex-col gap-5 rounded-[22px] bg-white p-5 shadow-ledge lg:w-96">
+        <div className="grid grid-cols-2 gap-3">
+          <TypedValue
+            label={t("timing.panel.gap")}
+            value={timing.gapMs}
+            fileValue={fileTiming.gapMs}
+            onCommit={(gapMs) => {
+              apply((m) => typeGap(m, gapMs));
+            }}
+          />
+          <TypedValue
+            label={t("timing.panel.bpm")}
+            value={timing.bpm}
+            fileValue={fileTiming.bpm}
+            onCommit={(bpm) => {
+              apply((m) => typeBpm(m, bpm));
+            }}
+          />
+        </div>
+        <ShareMeter
+          share={songShare}
+          fileShare={fileShare}
+          pending={load.state !== "ready"}
+        />
+        <p className="text-lg tabular-nums">
+          {t("timing.view.playhead", { time: clockText(playhead) })}
+        </p>
+        <EditList
+          entries={editList(model)}
+          canUndo={model.applied.length > 0}
+          canRedo={model.undone.length > 0}
+          onUndo={() => {
+            setModel(undo);
+          }}
+          onRedo={() => {
+            setModel(redo);
+          }}
+          onBackToTheFile={() => {
+            setModel(backToTheFile);
+          }}
+        />
+        <SaveSection
+          song={detail.id}
+          operations={operations}
+          onSaved={() => {
+            // The saved file is the new base, and the undo history starts
+            // again. Timing operations change lines in place, so the saved
+            // file parses to the loaded Song with the operations applied;
+            // the `library` notice refreshes the Song's detail as well.
+            setModel((m) =>
+              openTimingModel(applyOperations(m.song, operationsOf(m))),
+            );
+            void queryClient.invalidateQueries(songQuery(detail.id));
+          }}
+        />
+      </aside>
     </div>
   );
 }
 
-function SidePanel({
-  share,
-  pending,
-  playhead,
-}: {
-  share: number | null;
-  pending: boolean;
-  playhead: number;
-}) {
-  const percent = share === null ? null : Math.round(share * 100);
-  return (
-    <aside className="flex w-full shrink-0 flex-col gap-4 rounded-[22px] bg-white p-5 shadow-ledge lg:w-80">
-      {pending || percent === null ? (
-        <div className="flex flex-col gap-2">
-          <span className="text-lg font-semibold">
-            {t("timing.view.share")}
-          </span>
-          <span className="text-ink-2">
-            {t(pending ? "timing.view.sharePending" : "timing.view.shareNone")}
-          </span>
-        </div>
-      ) : (
-        <Meter value={percent} className="flex flex-col gap-2">
-          <Label className="text-lg font-semibold">
-            {t("timing.view.share")}
-          </Label>
-          <div className="flex items-center gap-3">
-            <div className="h-3.5 grow overflow-hidden rounded-full bg-passed ring-2 ring-ink">
-              <div
-                className="h-full rounded-full bg-green transition-[width]"
-                style={{ width: `${String(percent)}%` }}
-              />
-            </div>
-            <span className="min-w-14 text-right text-2xl font-bold tabular-nums">
-              {t("timing.view.sharePercent", { percent })}
-            </span>
-          </div>
-        </Meter>
-      )}
-      <p className="text-sm text-ink-2">{t("timing.view.shareWhat")}</p>
-      <p className="text-lg tabular-nums">
-        {t("timing.view.playhead", { time: clockText(playhead) })}
-      </p>
-    </aside>
-  );
+/**
+ * Undo with Ctrl/Cmd+Z, redo with Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y. Inside a
+ * text field the keys stay the field's own.
+ */
+function useUndoKeys(
+  setModel: (update: (m: TimingModel) => TimingModel) => void,
+) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      if (event.target instanceof HTMLInputElement) return;
+      const key = event.key.toLowerCase();
+      const step =
+        key === "z"
+          ? event.shiftKey
+            ? redo
+            : undo
+          : key === "y"
+            ? redo
+            : null;
+      if (!step) return;
+      event.preventDefault();
+      setModel(step);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [setModel]);
 }
 
 /** The Song's length: the index's, else the track's, else its last Note plus 5 s. */
