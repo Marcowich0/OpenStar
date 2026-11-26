@@ -164,11 +164,12 @@ async fn a_binary_whose_checksum_does_not_match_is_never_installed_or_run() {
         before,
         "the own copy was replaced"
     );
-    assert_eq!(
-        bin_files(&app),
-        ["yt-dlp", "yt-dlp.sha256"],
-        "nothing left behind"
-    );
+    // The next check may be downloading right now; a rejected download
+    // that stayed behind would never go away.
+    eventually("nothing is left behind", || {
+        bin_files(&app) == ["yt-dlp", "yt-dlp.sha256"]
+    })
+    .await;
 
     assert_eq!(
         details(&app, "https://example.invalid/v").await.status(),
