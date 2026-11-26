@@ -120,6 +120,7 @@ describe("the Phone page during a Calibration run", () => {
   const page = (state: LiveState) =>
     phonePage(state, {
       calibrating: (s) => isCalibrating(s, MY_PHONE),
+      avSync: () => false,
       micTakeover: (s) => isSeatedMic(s, MY_PHONE),
     });
 

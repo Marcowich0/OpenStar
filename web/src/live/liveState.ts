@@ -2,6 +2,7 @@ import type { CalibrationRun } from "../generated/CalibrationRun";
 import type { JoinCode } from "../generated/JoinCode";
 import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PartySnapshot } from "../generated/PartySnapshot";
+import type { PhoneId } from "../generated/PhoneId";
 import type { RequestId } from "../generated/RequestId";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { StageId } from "../generated/StageId";
@@ -74,11 +75,25 @@ export interface LiveState {
    */
   avSync: boolean;
   /**
+   * What the server told about the running Check A/V sync (#168): the Phone
+   * that started it (`null` for the Stage, or before it is told), whose page
+   * shows the −/+ and Done, and the Stage's A/V offset once reported.
+   */
+  avSyncCheck: AvSyncCheck;
+  /**
    * The open Calibrate mics run (#170), as the server told it, or `null`:
    * its checklist, each chosen Mic waiting or ready, the tones, the results.
    */
   calibration: CalibrationRun | null;
 }
+
+/** What is known about the running Check A/V sync. */
+export interface AvSyncCheck {
+  startedBy: PhoneId | null;
+  avOffsetMs: number | null;
+}
+
+const NO_AV_SYNC_CHECK: AvSyncCheck = { startedBy: null, avOffsetMs: null };
 
 /** A seat's running total at its last Line end, in Request `requestId`. */
 export interface LineScore {
@@ -100,6 +115,7 @@ export const initialLiveState: LiveState = {
   songProgress: null,
   lineScore: null,
   avSync: false,
+  avSyncCheck: NO_AV_SYNC_CHECK,
   calibration: null,
 };
 
@@ -131,6 +147,7 @@ export function receive(
         // whether Check A/V sync runs and the open Calibration run.
         songProgress: null,
         avSync: false,
+        avSyncCheck: NO_AV_SYNC_CHECK,
         calibration: null,
         stage: {
           stageId: message.stageId,
@@ -193,7 +210,15 @@ export function receive(
     case "avSync":
       return state.avSync === message.running
         ? state
-        : { ...state, avSync: message.running };
+        : { ...state, avSync: message.running, avSyncCheck: NO_AV_SYNC_CHECK };
+    case "avSyncCheck":
+      return {
+        ...state,
+        avSyncCheck: {
+          startedBy: message.startedBy,
+          avOffsetMs: message.avOffsetMs,
+        },
+      };
     case "calibration":
       return { ...state, calibration: message.run };
     case "stepAvSync":

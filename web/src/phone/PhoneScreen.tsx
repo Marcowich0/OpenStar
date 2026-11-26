@@ -16,7 +16,8 @@ import type { MeActions } from "./people/MeSheet";
 import { editMember } from "./people/memberRequests";
 import { phoneMicFor } from "./mic/browserPhoneMic";
 import type { PhoneMic } from "./mic/phoneMic";
-import { phoneMember, phonePage } from "./phonePage";
+import { AvSyncPage } from "./onStage/AvSyncCard";
+import { phoneMember, phonePage, startedAvSync } from "./phonePage";
 import { Remote } from "./Remote";
 import type { RequestId } from "../generated/RequestId";
 import { takeoverShows } from "./takeover/micTakeover";
@@ -60,6 +61,7 @@ export function PhonePageView({
     (state: LiveState) =>
       phonePage(state, {
         calibrating: (s) => isCalibrating(s, myPhoneId),
+        avSync: (s) => startedAvSync(s, myPhoneId),
         micTakeover: (s) => takeoverShows(s, myPhoneId, doneWith),
       }),
     [myPhoneId, doneWith],
@@ -118,6 +120,8 @@ export function PhonePageView({
       return (
         <CalibratingTakeover store={store} phoneId={myPhoneId} mic={mic} />
       );
+    case "avSync":
+      return <AvSyncPage store={store} />;
     case "micTakeover":
       if (takeover && !remoteOnTop)
         return (

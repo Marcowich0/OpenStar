@@ -54,6 +54,17 @@ fn running(running: bool) -> ServerMessage {
     ServerMessage::AvSync { running }
 }
 
+const BO: &str = "4b1d8f0e-0000-4000-8000-000000000001";
+
+/// What every browser knows about the running check: who started it (a
+/// Phone, or `None` for the Stage) and the Stage's value, once reported.
+fn check(started_by: Option<&str>, av_offset_ms: Option<i32>) -> ServerMessage {
+    ServerMessage::AvSyncCheck {
+        started_by: started_by.map(|id| PhoneId(id.into())),
+        av_offset_ms,
+    }
+}
+
 /// Opens the Stage, past its live state, and returns it with the Join code.
 async fn open_stage(app: &TestApp) -> (WsClient, JoinCode) {
     let mut stage = app.connect_stage().await;
@@ -83,7 +94,7 @@ async fn joined_phone(app: &TestApp, code: &JoinCode) -> WsClient {
     ));
     phone
         .send(&ClientMessage::Join {
-            phone_id: PhoneId("4b1d8f0e-0000-4000-8000-000000000001".into()),
+            phone_id: PhoneId(BO.into()),
             join_code: code.clone(),
             join_as: JoinAs::Guest(NewGuest {
                 name: "Bo".into(),
@@ -119,8 +130,11 @@ async fn a_remote_starts_steps_and_ends_it_and_every_browser_hears_while_it_runs
     );
 
     phone.send(&ClientMessage::StartAvSync).await;
+    // Every browser hears it runs, and that this Phone started it.
     assert_eq!(recv(&mut phone).await, running(true));
+    assert_eq!(recv(&mut phone).await, check(Some(BO), None));
     assert_eq!(recv(&mut stage).await, running(true));
+    assert_eq!(recv(&mut stage).await, check(Some(BO), None));
 
     // A browser that connects now is told after its live state.
     let mut late = app.connect_ws().await;
@@ -129,6 +143,7 @@ async fn a_remote_starts_steps_and_ends_it_and_every_browser_hears_while_it_runs
         ServerMessage::LiveState { .. }
     ));
     assert_eq!(recv(&mut late).await, running(true));
+    assert_eq!(recv(&mut late).await, check(Some(BO), None));
 
     // The Remote's −, + and Reset reach the Stage alone, in order.
     for step in [AvSyncStep::Down, AvSyncStep::Up, AvSyncStep::Reset] {
@@ -215,7 +230,9 @@ async fn it_is_refused_while_a_song_plays_and_ends_when_one_starts() {
     // The check runs over the waiting Line-up.
     phone.send(&ClientMessage::StartAvSync).await;
     assert_eq!(recv(&mut phone).await, running(true));
+    assert_eq!(recv(&mut phone).await, check(Some(BO), None));
     assert_eq!(recv(&mut stage).await, running(true));
+    assert_eq!(recv(&mut stage).await, check(Some(BO), None));
     // Starting the Song ends the check.
     phone
         .send(&ClientMessage::ControlSong {
@@ -242,4 +259,69 @@ async fn it_is_refused_while_a_song_plays_and_ends_when_one_starts() {
         refused(&mut stage, ClientMessage::StartAvSync).await,
         UserMessage::NotWhileSongPlays
     );
+}
+
+#[tokio::test]
+async fn the_stage_reports_its_value_and_every_remote_shows_it() {
+    let app = TestApp::start().await;
+    let (mut stage, code) = open_stage(&app).await;
+    let mut phone = joined_phone(&app, &code).await;
+
+    // Only while the check runs.
+    assert_eq!(
+        refused(
+            &mut stage,
+            ClientMessage::ReportAvSyncOffset { av_offset_ms: 120 }
+        )
+        .await,
+        UserMessage::AvSyncNotRunning
+    );
+
+    // Started from the Stage: nobody's Phone started it.
+    stage.send(&ClientMessage::StartAvSync).await;
+    assert_eq!(recv(&mut stage).await, running(true));
+    assert_eq!(recv(&mut phone).await, running(true));
+
+    stage
+        .send(&ClientMessage::ReportAvSyncOffset { av_offset_ms: 120 })
+        .await;
+    assert_eq!(recv(&mut stage).await, check(None, Some(120)));
+    assert_eq!(recv(&mut phone).await, check(None, Some(120)));
+
+    // A Phone starting it again changes nothing: the Stage started it.
+    phone.send(&ClientMessage::StartAvSync).await;
+    hears_nothing(&mut phone).await;
+
+    // A browser that connects now hears the value after its live state.
+    let mut late = app.connect_ws().await;
+    recv(&mut late).await; // the live state
+    assert_eq!(recv(&mut late).await, running(true));
+    assert_eq!(recv(&mut late).await, check(None, Some(120)));
+
+    // Only the Stage reports it, and only a value in range on the grid.
+    assert_eq!(
+        refused(
+            &mut phone,
+            ClientMessage::ReportAvSyncOffset { av_offset_ms: 10 }
+        )
+        .await,
+        UserMessage::NotTheStage
+    );
+    for av_offset_ms in [505, 510, -310] {
+        assert_eq!(
+            refused(
+                &mut stage,
+                ClientMessage::ReportAvSyncOffset { av_offset_ms }
+            )
+            .await,
+            UserMessage::InvalidMessage
+        );
+    }
+
+    // After Done, a new check starts with nothing known.
+    stage.send(&ClientMessage::EndAvSync).await;
+    assert_eq!(recv(&mut stage).await, running(false));
+    phone.send(&ClientMessage::StartAvSync).await;
+    assert_eq!(recv(&mut stage).await, running(true));
+    assert_eq!(recv(&mut stage).await, check(Some(BO), None));
 }

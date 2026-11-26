@@ -226,6 +226,47 @@ describe("Check A/V sync", () => {
   });
 });
 
+describe("what is known about the running Check A/V sync", () => {
+  const running = receive(synced(false), { type: "avSync", running: true });
+
+  it("is nothing until the server tells it", () => {
+    expect(initialLiveState.avSyncCheck).toEqual({
+      startedBy: null,
+      avOffsetMs: null,
+    });
+    expect(running.avSyncCheck).toEqual({ startedBy: null, avOffsetMs: null });
+  });
+
+  it("follows the server: who started it and the Stage's value", () => {
+    const told = receive(running, {
+      type: "avSyncCheck",
+      startedBy: "phone-a",
+      avOffsetMs: 120,
+    });
+    expect(told.avSyncCheck).toEqual({ startedBy: "phone-a", avOffsetMs: 120 });
+  });
+
+  it("is forgotten when the check ends and when the live state comes again", () => {
+    const told = receive(running, {
+      type: "avSyncCheck",
+      startedBy: "phone-a",
+      avOffsetMs: 120,
+    });
+    const none = { startedBy: null, avOffsetMs: null };
+    expect(
+      receive(told, { type: "avSync", running: false }).avSyncCheck,
+    ).toEqual(none);
+    expect(
+      receive(told, {
+        type: "liveState",
+        stageId: "main",
+        party,
+        isStage: false,
+      }).avSyncCheck,
+    ).toEqual(none);
+  });
+});
+
 describe("Calibrate mics", () => {
   const checklist: CalibrationRun = {
     phase: "choosing",

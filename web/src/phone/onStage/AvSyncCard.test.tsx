@@ -86,4 +86,16 @@ describe("Check A/V sync on the Stage tab", () => {
     expect(screen.queryByTestId("av-sync-card")).toBeNull();
     expect(startButton()).toBeInTheDocument();
   });
+
+  it("shows the Stage's current value large, as the Stage reports it", () => {
+    const { server } = renderTab(emptyQueue);
+    server({ type: "avSync", running: true });
+    const value = () => screen.getByTestId("av-sync-value").textContent;
+    // Not known until the Stage has reported it.
+    expect(value()).toBe("–");
+    server({ type: "avSyncCheck", startedBy: null, avOffsetMs: 120 });
+    expect(value()).toBe("+120 ms");
+    server({ type: "avSyncCheck", startedBy: null, avOffsetMs: -40 });
+    expect(value()).toBe("−40 ms");
+  });
 });

@@ -220,6 +220,22 @@ describe("Check A/V sync on the Stage", () => {
     });
   });
 
+  it("tells every Remote its value once loaded and after every change, never the 0 shown while loading", async () => {
+    const { sent, server } = renderStage({ keptMs: 120 });
+    const reports = () =>
+      sent.flatMap((m) =>
+        m.type === "reportAvSyncOffset" ? [m.avOffsetMs] : [],
+      );
+    server({ type: "avSync", running: true });
+    await waitFor(() => {
+      expect(reports()).toEqual([120]);
+    });
+    server({ type: "stepAvSync", step: "up" });
+    press("ArrowLeft");
+    press("ArrowLeft");
+    expect(reports()).toEqual([120, 130, 120, 110]);
+  });
+
   it("clicks on the Stage's gain chain while it runs, and stops when Done ends it", () => {
     const { sent, server } = renderStage();
     const before = fakeStageContext().oscillators.length;

@@ -1,8 +1,10 @@
 import type { PartyMember } from "../generated/PartyMember";
+import type { PhoneId } from "../generated/PhoneId";
 import type { LiveState } from "../live/liveState";
 
 /** What the Phone page shows (v1 spec #49, "States of the Phone page"). */
-export type PhonePage = "joinFlow" | "calibrating" | "micTakeover" | "remote";
+export type PhonePage =
+  "joinFlow" | "calibrating" | "avSync" | "micTakeover" | "remote";
 
 /**
  * The conditions later tickets fill in, each a pure function of the store:
@@ -12,14 +14,25 @@ export type PhonePage = "joinFlow" | "calibrating" | "micTakeover" | "remote";
  */
 export interface PhonePageConditions {
   calibrating: (state: LiveState) => boolean;
+  avSync: (state: LiveState) => boolean;
   micTakeover: (state: LiveState) => boolean;
 }
 
-/** Neither is modelled in the store yet. */
+/** None is known without this Phone's id. */
 const STORE_CONDITIONS: PhonePageConditions = {
   calibrating: () => false,
+  avSync: () => false,
   micTakeover: () => false,
 };
+
+/**
+ * Whether Phone `phoneId` started the running Check A/V sync (#168): its
+ * page is then the −/+ and Done; every other Remote has them on its Stage
+ * tab.
+ */
+export function startedAvSync(state: LiveState, phoneId: PhoneId): boolean {
+  return state.avSync && state.avSyncCheck.startedBy === phoneId;
+}
 
 /**
  * The Party member this Phone uses, or `null` while it has not joined the
@@ -42,7 +55,9 @@ export function phonePage(
   conditions: PhonePageConditions = STORE_CONDITIONS,
 ): PhonePage {
   if (phoneMember(state) === null) return "joinFlow";
+  // Calibrate mics and Check A/V sync never run together: one slot.
   if (conditions.calibrating(state)) return "calibrating";
+  if (conditions.avSync(state)) return "avSync";
   if (conditions.micTakeover(state)) return "micTakeover";
   return "remote";
 }
