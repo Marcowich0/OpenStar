@@ -12,8 +12,9 @@
 //!
 //! The task is also the Pitch reading relay: a browser's readings and clock
 //! pings go to the active Stage alone, tagged with the [`MicId`] they came
-//! from, and are dropped while there is no Stage; the Stage's pongs go back
-//! to the Mic that pinged. The relay never changes a reading, never scores
+//! from (a Phone's Mic is its Phone id, so a seat names it), and are dropped
+//! while there is no Stage or the browser presented no Phone id; the Stage's
+//! pongs go back to the connection that last spoke for that Mic. The relay never changes a reading, never scores
 //! and never touches SQLite.
 
 mod bridges;
@@ -325,9 +326,10 @@ struct LiveState {
     current_stage: StageId,
     stages: HashMap<StageId, Stage>,
     hub: Hub,
-    /// Connections that have sent a Pitch reading or a clock ping: Mics, so
-    /// their close is reported to the Stage.
-    mics: HashSet<ConnectionId>,
+    /// Phone Mics: each Phone whose connection has sent a Pitch reading or
+    /// a clock ping, with the connection that sent the latest one. Pongs go
+    /// to that connection, and its close is reported to the Stage.
+    mics: HashMap<PhoneId, ConnectionId>,
     /// The Phone id each connection presented. Kept for the connection's
     /// life, whether or not that Phone is in the Party, so a Phone told it
     /// left can join again on the same connection.
@@ -378,7 +380,7 @@ impl LiveState {
             current_stage: stage_id,
             stages,
             hub: Hub::default(),
-            mics: HashSet::new(),
+            mics: HashMap::new(),
             phones: HashMap::new(),
             songs,
             local_mics: Vec::new(),
@@ -500,8 +502,17 @@ impl LiveState {
             stage.output = None;
             self.tell_mics_screen();
         }
-        if self.mics.remove(&id) {
-            self.send_to_stage(&ServerMessage::MicClosed { mic: mic_id(id) });
+        let closed: Vec<PhoneId> = self
+            .mics
+            .iter()
+            .filter(|&(_, &connection)| connection == id)
+            .map(|(phone_id, _)| phone_id.clone())
+            .collect();
+        for phone_id in closed {
+            self.mics.remove(&phone_id);
+            self.send_to_stage(&ServerMessage::MicClosed {
+                mic: MicId::Phone { phone_id },
+            });
         }
         self.bridge_closed(id);
     }
@@ -533,27 +544,23 @@ impl LiveState {
                 }
             }
             Ok(ClientMessage::PitchReading { reading }) => {
-                self.mics.insert(id);
-                self.send_to_stage(&ServerMessage::PitchReading {
-                    mic: mic_id(id),
-                    reading,
-                });
+                if let Some(mic) = self.acting_mic(id) {
+                    self.send_to_stage(&ServerMessage::PitchReading { mic, reading });
+                }
             }
             Ok(ClientMessage::ClockPing { t0 }) => {
-                self.mics.insert(id);
-                self.send_to_stage(&ServerMessage::ClockPing {
-                    mic: mic_id(id),
-                    t0,
-                });
+                if let Some(mic) = self.acting_mic(id) {
+                    self.send_to_stage(&ServerMessage::ClockPing { mic, t0 });
+                }
             }
             Ok(ClientMessage::ClockPong { mic, t0, ts, epoch }) => {
                 if self.stage().connection != Some(id) {
                     self.reject(id, UserMessage::NotTheStage);
                     return;
                 }
-                let MicId::Phone { connection } = mic;
+                let MicId::Phone { phone_id } = mic;
                 // A pong for a Mic that has gone is dropped.
-                if self.mics.contains(&connection) {
+                if let Some(&connection) = self.mics.get(&phone_id) {
                     self.hub
                         .send_to(connection, &ServerMessage::ClockPong { t0, ts, epoch });
                 }
@@ -874,6 +881,16 @@ impl LiveState {
             .phones
             .iter()
             .find(|phone| &phone.phone_id == phone_id)
+    }
+
+    /// The Mic connection `id` sends readings and pings as: the Phone id it
+    /// presented in `hello`, now that connection's Mic (a reconnect or a
+    /// second tab of the same Phone takes it over). `None` for a connection
+    /// that presented no Phone id: its readings and pings are dropped.
+    fn acting_mic(&mut self, id: ConnectionId) -> Option<MicId> {
+        let phone_id = self.phones.get(&id)?.clone();
+        self.mics.insert(phone_id.clone(), id);
+        Some(MicId::Phone { phone_id })
     }
 
     /// Every connection whose Phone is in the current Party.
@@ -2384,8 +2401,6 @@ fn server_error(error: &anyhow::Error, doing: &str) -> UserMessage {
     UserMessage::ServerError
 }
 
-/// The Mic a connection's readings and pings come from. Until Phones join
-/// with a Phone id (#81), a Phone's Mic is named by its connection.
 /// Whether `local_mic_id` may be kept with `source`: a bridge Local mic's id
 /// is always the one [`bridge_local_mic_id`] makes from its source, so a
 /// Stage cannot store a bridge channel under another id. A browser Local
@@ -2400,10 +2415,6 @@ fn local_mic_id_fits(local_mic_id: &str, source: &LocalMicSource) -> bool {
         } => local_mic_id == bridge_local_mic_id(bridge_id, device_name, *channel),
         LocalMicSource::Browser { .. } => true,
     }
-}
-
-fn mic_id(id: ConnectionId) -> MicId {
-    MicId::Phone { connection: id }
 }
 
 #[cfg(test)]

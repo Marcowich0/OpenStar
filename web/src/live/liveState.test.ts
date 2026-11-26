@@ -133,7 +133,7 @@ describe("live state reducer", () => {
 
   it("leaves the state alone on relayed Pitch readings, clock sync and Mic-closed notices", () => {
     const state = synced(true);
-    const mic = { kind: "phone", connection: 4 } as const;
+    const mic = { kind: "phone", phoneId: "phone-4" } as const;
     const relayed: ServerMessage[] = [
       {
         type: "pitchReading",

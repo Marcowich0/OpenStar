@@ -118,12 +118,15 @@ describe("the pitch worklet in the build", () => {
     }
   });
 
-  it("is what the Stage route loads", () => {
-    const stage = chunks().find((c) =>
-      c.moduleIds.includes(path.join(src, "stage/StageScreen.tsx")),
+  it.each([
+    ["Stage", "stage/StageScreen.tsx"],
+    ["Phone", "phone/PhoneScreen.tsx"],
+  ])("is what the %s route loads", (_, screen) => {
+    const route = chunks().find((c) =>
+      c.moduleIds.includes(path.join(src, screen)),
     );
-    if (!stage) throw new Error("no Stage chunk");
-    expect(reachable(stage).some((c) => c.moduleIds.includes(LOADER))).toBe(
+    if (!route) throw new Error(`no chunk for ${screen}`);
+    expect(reachable(route).some((c) => c.moduleIds.includes(LOADER))).toBe(
       true,
     );
   });

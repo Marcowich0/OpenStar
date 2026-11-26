@@ -1,10 +1,14 @@
 //! The Pitch reading relay over real WebSockets: a Phone's readings and
 //! clock pings reach the current Stage, the Stage's pongs go back to the
 //! Phone that pinged, nothing is queued while there is no Stage, a closed
-//! Phone is reported to the Stage, and no reading touches SQLite.
+//! Phone is reported to the Stage, and no reading touches SQLite. A Phone's
+//! Mic is named by the Phone id it presented, so it stays the same Mic when
+//! the Phone reconnects.
+
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use futures_util::StreamExt;
-use openstar_protocol::{ClientMessage, MicId, PitchReading, ServerMessage, UserMessage};
+use openstar_protocol::{ClientMessage, MicId, PhoneId, PitchReading, ServerMessage, UserMessage};
 use openstar_test_harness::{TestApp, WsClient};
 
 /// Closes a browser's WebSocket and waits until the server has closed its
@@ -40,9 +44,26 @@ async fn open_stage(app: &TestApp) -> WsClient {
     stage
 }
 
+/// A browser that presented a Phone id of its own.
 async fn open_phone(app: &TestApp) -> WsClient {
+    static NEXT: AtomicU32 = AtomicU32::new(1);
+    let phone_id = PhoneId(format!("phone-{}", NEXT.fetch_add(1, Ordering::Relaxed)));
+    open_phone_as(app, &phone_id).await
+}
+
+/// A browser that presented `phone_id`, after the server's answer to it.
+async fn open_phone_as(app: &TestApp, phone_id: &PhoneId) -> WsClient {
     let mut phone = app.connect_ws().await;
     skip_greeting(&mut phone).await;
+    phone
+        .send(&ClientMessage::Hello {
+            phone_id: phone_id.clone(),
+        })
+        .await;
+    assert!(matches!(
+        phone.recv().await,
+        ServerMessage::PhoneStatus { .. }
+    ));
     phone
 }
 
@@ -100,6 +121,7 @@ async fn a_phones_readings_reach_the_stage_one_by_one_with_their_values_unchange
         }
     );
     let (same_mic, second) = reading_at_stage(&mut stage).await;
+    assert!(matches!(&mic, MicId::Phone { phone_id } if phone_id.0.starts_with("phone-")));
     assert_eq!(same_mic, mic, "every reading names the Mic it came from");
     assert_eq!(
         second,
@@ -141,7 +163,7 @@ async fn readings_from_two_phones_name_different_mics() {
         .await;
     let (again, third) = reading_at_stage(&mut stage).await;
 
-    assert_ne!(alice_mic, bob_mic);
+    assert_ne!(alice_mic.clone(), bob_mic);
     assert_eq!((again, third), (alice_mic, reading(3.0)));
 }
 
@@ -162,7 +184,7 @@ async fn a_ping_reaches_the_stage_and_its_pong_goes_back_to_the_phone_that_pinge
     phone.send(&ClientMessage::ClockPing { t0: 5012.375 }).await;
     let (mic, t0) = ping_at_stage(&mut stage).await;
     assert_eq!(
-        (mic, t0),
+        (mic.clone(), t0),
         (reading_mic, 5012.375),
         "the ping names the same Mic as the Phone's readings"
     );
@@ -223,7 +245,10 @@ async fn a_pong_for_a_phone_that_has_gone_is_dropped() {
     phone.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
     let (mic, _) = ping_at_stage(&mut stage).await;
     drop(phone);
-    assert_eq!(stage.recv().await, ServerMessage::MicClosed { mic });
+    assert_eq!(
+        stage.recv().await,
+        ServerMessage::MicClosed { mic: mic.clone() }
+    );
 
     stage
         .send(&ClientMessage::ClockPong {
@@ -343,7 +368,7 @@ async fn relaying_readings_writes_nothing_to_sqlite() {
     let (mic, _) = ping_at_stage(&mut stage).await;
     stage
         .send(&ClientMessage::ClockPong {
-            mic,
+            mic: mic.clone(),
             t0: 1.0,
             ts: 2.0,
             epoch: 3.0,
@@ -358,4 +383,132 @@ async fn relaying_readings_writes_nothing_to_sqlite() {
 
     // `data_version` changes whenever another connection commits a write.
     assert_eq!(data_version(), before, "the relay wrote to SQLite");
+}
+
+#[tokio::test]
+async fn a_phones_mic_is_the_phone_id_it_presented() {
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let phone_id = PhoneId("bo-phone".into());
+    let mut phone = open_phone_as(&app, &phone_id).await;
+
+    phone
+        .send(&ClientMessage::PitchReading {
+            reading: reading(1.0),
+        })
+        .await;
+    phone.send(&ClientMessage::ClockPing { t0: 4.0 }).await;
+    let mic = MicId::Phone {
+        phone_id: phone_id.clone(),
+    };
+    assert_eq!(
+        reading_at_stage(&mut stage).await,
+        (mic.clone(), reading(1.0))
+    );
+    assert_eq!(ping_at_stage(&mut stage).await, (mic, 4.0));
+}
+
+#[tokio::test]
+async fn a_browser_that_presented_no_phone_id_is_not_relayed() {
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let mut anonymous = app.connect_ws().await;
+    skip_greeting(&mut anonymous).await;
+
+    anonymous
+        .send(&ClientMessage::PitchReading {
+            reading: reading(1.0),
+        })
+        .await;
+    anonymous.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    heard_nothing(&mut anonymous).await;
+    heard_nothing(&mut stage).await;
+    close(anonymous).await;
+    heard_nothing(&mut stage).await;
+}
+
+#[tokio::test]
+async fn a_reconnected_phone_is_the_same_mic_and_its_pongs_go_to_the_new_connection() {
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let phone_id = PhoneId("mia-phone".into());
+    let mic = MicId::Phone {
+        phone_id: phone_id.clone(),
+    };
+
+    let mut first = open_phone_as(&app, &phone_id).await;
+    first.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    assert_eq!(ping_at_stage(&mut stage).await, (mic.clone(), 1.0));
+    close(first).await;
+    assert_eq!(
+        stage.recv().await,
+        ServerMessage::MicClosed { mic: mic.clone() }
+    );
+
+    let mut again = open_phone_as(&app, &phone_id).await;
+    again
+        .send(&ClientMessage::PitchReading {
+            reading: reading(2.0),
+        })
+        .await;
+    assert_eq!(
+        reading_at_stage(&mut stage).await,
+        (mic.clone(), reading(2.0))
+    );
+    again.send(&ClientMessage::ClockPing { t0: 3.0 }).await;
+    assert_eq!(ping_at_stage(&mut stage).await, (mic.clone(), 3.0));
+    stage
+        .send(&ClientMessage::ClockPong {
+            mic,
+            t0: 3.0,
+            ts: 9.0,
+            epoch: 7.0,
+        })
+        .await;
+    assert_eq!(
+        again.recv().await,
+        ServerMessage::ClockPong {
+            t0: 3.0,
+            ts: 9.0,
+            epoch: 7.0
+        }
+    );
+}
+
+#[tokio::test]
+async fn a_phone_on_this_path_hears_only_its_pongs() {
+    // No Song time, Beats, lyrics or Notes ever reach a Phone for its mic:
+    // all it hears back for its readings and pings are its pongs.
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let mut phone = open_phone(&app).await;
+    for i in 0..20 {
+        phone
+            .send(&ClientMessage::PitchReading {
+                reading: reading(f64::from(i)),
+            })
+            .await;
+    }
+    phone.send(&ClientMessage::ClockPing { t0: 1.0 }).await;
+    for _ in 0..20 {
+        reading_at_stage(&mut stage).await;
+    }
+    let (mic, _) = ping_at_stage(&mut stage).await;
+    stage
+        .send(&ClientMessage::ClockPong {
+            mic,
+            t0: 1.0,
+            ts: 2.0,
+            epoch: 3.0,
+        })
+        .await;
+    assert_eq!(
+        phone.recv().await,
+        ServerMessage::ClockPong {
+            t0: 1.0,
+            ts: 2.0,
+            epoch: 3.0
+        }
+    );
+    heard_nothing(&mut phone).await;
 }

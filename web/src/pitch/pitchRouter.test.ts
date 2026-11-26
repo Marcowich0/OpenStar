@@ -10,7 +10,10 @@ import {
   type Placement,
 } from "./pitchRouter";
 
-const phone = (connection: number): MicId => ({ kind: "phone", connection });
+const phone = (n: number): MicId => ({
+  kind: "phone",
+  phoneId: `phone-${String(n)}`,
+});
 
 function reading(captureMs: number, pitch: number | null = 60): PitchReading {
   return { captureMs, pitch, clarity: 0.9, loudness: -20 };

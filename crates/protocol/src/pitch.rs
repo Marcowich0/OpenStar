@@ -13,6 +13,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::PhoneId;
+
 /// One measurement of what a Mic heard at one moment.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -32,7 +34,7 @@ pub struct PitchReading {
 
 /// Names the Mic a relayed message came from. The Stage uses it to tell
 /// Mics apart and to address a [`crate::ClientMessage::ClockPong`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(
     tag = "kind",
     rename_all = "camelCase",
@@ -40,13 +42,11 @@ pub struct PitchReading {
 )]
 #[ts(export)]
 pub enum MicId {
-    /// A Phone, named by the server for as long as its WebSocket is open.
-    /// It changes when the Phone reconnects; Phone ids (#81) are the
-    /// lasting key.
-    Phone {
-        #[ts(type = "number")]
-        connection: u64,
-    },
+    /// A Phone, named by the Phone id its connection presented in
+    /// [`crate::ClientMessage::Hello`]: the same id a Line-up seat names
+    /// (`MicKey::Phone`), so the Stage can match readings to their seat,
+    /// and the same Mic again after the Phone reconnects.
+    Phone { phone_id: PhoneId },
 }
 
 #[cfg(test)]
@@ -76,7 +76,7 @@ mod tests {
                 panic!("not a reading");
             };
             let relayed = serde_json::to_string(&ServerMessage::PitchReading {
-                mic: MicId::Phone { connection: 1 },
+                mic: MicId::Phone { phone_id: PhoneId("p1".into()) },
                 reading,
             })
             .unwrap();
@@ -102,11 +102,13 @@ mod tests {
         };
         assert_eq!(
             serde_json::to_string(&ServerMessage::PitchReading {
-                mic: MicId::Phone { connection: 3 },
+                mic: MicId::Phone {
+                    phone_id: PhoneId("phone-3".into())
+                },
                 reading,
             })
             .unwrap(),
-            r#"{"type":"pitchReading","mic":{"kind":"phone","connection":3},"reading":{"captureMs":1.5,"pitch":null,"clarity":0.25,"loudness":-120.0}}"#
+            r#"{"type":"pitchReading","mic":{"kind":"phone","phoneId":"phone-3"},"reading":{"captureMs":1.5,"pitch":null,"clarity":0.25,"loudness":-120.0}}"#
         );
     }
 }

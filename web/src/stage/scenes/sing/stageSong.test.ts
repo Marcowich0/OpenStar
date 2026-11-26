@@ -17,7 +17,7 @@ import { PROFILES, testDetail, testParty } from "./testSong";
 const PLAYING = { requestId: 5, songId: 7, paused: false };
 
 /** Mia's Phone as relayed readings name it. */
-const MIA_MIC: MicId = { kind: "phone", connection: 1 };
+const MIA_MIC: MicId = { kind: "phone", phoneId: "phone-1" };
 
 /**
  * Mia sings Beats `first`–`last` of the test Song (#GAP 1 s, 250 ms Beats)
