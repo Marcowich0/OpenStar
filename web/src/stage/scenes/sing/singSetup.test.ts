@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { PitchBuffer } from "../../../pitch/pitchBuffer";
-import { MIC_THRESHOLD } from "../../../mics/micSettings";
+import {
+  MIC_THRESHOLD,
+  type StoredMicSettings,
+} from "../../../mics/micSettings";
+import { stageMicSettings } from "../../../mics/stageMicSettings";
 import { singSetup } from "./singSetup";
 import {
   LEO_SEAT,
@@ -65,8 +69,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
 
     expect(state.lanes[0]?.trace?.readings).toBe(buffers[0]);
     expect(state.lanes[1]?.trace?.readings).toBe(buffers[1]);
-    // Nothing stored yet (#169 applies the stored values): the defaults at
-    // the reference volume.
+    // Nothing stored: the defaults at the reference volume.
     expect(state.lanes[0]?.trace?.micThresholdDbfs).toBe(
       MIC_THRESHOLD.phoneFallbackDbfs,
     );
@@ -122,6 +125,74 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     });
     expect(setup.players.map((p) => p.micKind)).toEqual(["phone", "localMic"]);
     expect(setup.capacity).toBeGreaterThan(0);
+  });
+
+  it("sings uncalibrated Mics on the defaults: a Phone 100 ms and −30 dBFS, a Local mic 0 ms and −40 dBFS at volume 80", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT, LEO_SEAT], true) });
+    const setup = singSetup({
+      detail: testDetail({ duet: true }),
+      party,
+      profiles: PROFILES,
+      storedFor: () => undefined,
+      volume: 80,
+    });
+    expect(
+      setup.players.map((p) => [p.micDelayMs, p.micThresholdDbfs]),
+    ).toEqual([
+      [100, -30],
+      [0, -40],
+    ]);
+  });
+
+  it("gives each seated Mic its values stored at the current Stage output, at the volume of Start", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT, LEO_SEAT], true) });
+    const setup = singSetup({
+      detail: testDetail({ duet: true }),
+      party,
+      profiles: PROFILES,
+      storedFor: (mic): StoredMicSettings | undefined =>
+        mic.kind === "phone"
+          ? { calibration: { micDelayMs: 180, bleedLevelDbfs: -42 } }
+          : {
+              calibration: { micDelayMs: 12, bleedLevelDbfs: -60 },
+              micThreshold: { referenceDbfs: -54, setBy: "calibration" },
+            },
+      volume: 40,
+    });
+    const level = 40 * Math.log10(40 / 80);
+    expect(setup.players[0]?.micDelayMs).toBe(180);
+    expect(setup.players[0]?.micThresholdDbfs).toBeCloseTo(-36 + level);
+    expect(setup.players[1]?.micDelayMs).toBe(12);
+    expect(setup.players[1]?.micThresholdDbfs).toBeCloseTo(-54 + level);
+    // The trace colours its hits by the same threshold the scorer gets.
+    const state = setup.state(setup.players.map(() => new PitchBuffer(8)));
+    expect(state.lanes.map((lane) => lane.trace?.micThresholdDbfs)).toEqual(
+      setup.players.map((p) => p.micThresholdDbfs),
+    );
+  });
+
+  it("reads the Stage's loaded Mic settings by default", () => {
+    stageMicSettings().set({
+      stageOutput: "Speakers",
+      mics: [
+        {
+          mic: { kind: "phone", phoneId: "phone-mia" },
+          settings: { calibration: { micDelayMs: 150, bleedLevelDbfs: -50 } },
+        },
+      ],
+    });
+    try {
+      const setup = singSetup({
+        detail: testDetail(),
+        party: testParty(),
+        profiles: PROFILES,
+        volume: 80,
+      });
+      expect(setup.players[0]?.micDelayMs).toBe(150);
+      expect(setup.players[0]?.micThresholdDbfs).toBe(-44);
+    } finally {
+      stageMicSettings().set(null);
+    }
   });
 
   it("refuses a Party with no Line-up", () => {
