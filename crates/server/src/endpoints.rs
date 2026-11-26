@@ -100,6 +100,7 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::CalibrationGo
         | ClientMessage::FinishCalibration { .. }
         | ClientMessage::EndCalibration
+        | ClientMessage::CalibrateLocalMicNow { .. }
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
         | ClientMessage::Join { .. }
@@ -142,8 +143,10 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // levels are a meter, from approved bridges only.
         | ClientMessage::SetMicsScreenOpen { .. }
         // Which Local mics are plugged in only says what the Line-up may
-        // offer; nothing is kept.
+        // offer, and which capture only which are ready to calibrate;
+        // nothing is kept.
         | ClientMessage::ReportPresentLocalMics { .. }
+        | ClientMessage::ReportCapturingLocalMics { .. }
         // Which Local mics send digital silence only adds a seat warning.
         | ClientMessage::ReportSilentLocalMics { .. }
         | ClientMessage::BridgeLevels { .. }

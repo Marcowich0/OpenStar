@@ -144,6 +144,53 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     ]);
   });
 
+  it("gives an uncalibrated Local mic its reported input delay as its Mic delay until it is calibrated", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT, LEO_SEAT], true) });
+    const reportedInputDelayFor = (localMicId: string) =>
+      localMicId === "browser:s:dongle:0" ? 9.5 : null;
+    const uncalibrated = singSetup({
+      detail: testDetail({ duet: true }),
+      party,
+      profiles: PROFILES,
+      storedFor: () => undefined,
+      reportedInputDelayFor,
+      volume: 80,
+    });
+    // A Phone has no reported input delay; it keeps its 100 ms default.
+    expect(uncalibrated.players.map((p) => p.micDelayMs)).toEqual([100, 9.5]);
+    const calibrated = singSetup({
+      detail: testDetail({ duet: true }),
+      party,
+      profiles: PROFILES,
+      storedFor: (mic): StoredMicSettings | undefined =>
+        mic.kind === "localMic"
+          ? { calibration: { micDelayMs: 14, bleedLevelDbfs: -60 } }
+          : undefined,
+      reportedInputDelayFor,
+      volume: 80,
+    });
+    expect(calibrated.players[1]?.micDelayMs).toBe(14);
+  });
+
+  it("reads the Local mics' reported input delays the Stage holds by default", () => {
+    const party = testParty({ lineUp: testLineUp([LEO_SEAT]) });
+    stageMicSettings().setReportedInputDelays(
+      new Map([["browser:s:dongle:0", 7]]),
+    );
+    try {
+      const setup = singSetup({
+        detail: testDetail(),
+        party,
+        profiles: PROFILES,
+        storedFor: () => undefined,
+        volume: 80,
+      });
+      expect(setup.players[0]?.micDelayMs).toBe(7);
+    } finally {
+      stageMicSettings().setReportedInputDelays(new Map());
+    }
+  });
+
   it("gives each seated Mic its values stored at the current Stage output, at the volume of Start", () => {
     const party = testParty({ lineUp: testLineUp([MIA_SEAT, LEO_SEAT], true) });
     const setup = singSetup({

@@ -18,8 +18,12 @@
 // open. Each live meter carries the Local mic's Mic threshold line (#172):
 // dragged, or moved 1 dB with ←/→ while focused, it sets the threshold by
 // hand for the current Stage output, and the row says what set it.
+// Switching a Local mic on offers "Calibrate this mic now" under its row
+// (#210): the normal run with that Local mic alone, past the checklist. It
+// is a suggestion; on a bridge with an interface not in Pro Audio it waits
+// until the profile message is gone.
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import type { BridgeRequest } from "../generated/BridgeRequest";
 import type { LocalMic } from "../generated/LocalMic";
@@ -277,6 +281,45 @@ function ChannelRow({
   );
 }
 
+/** "Calibrate this mic now" for a Local mic just switched on (#210). */
+export interface CalibrateOffer {
+  /** The Local mic it is for. */
+  localMicId: string;
+  onAccept: () => void;
+  onDecline: () => void;
+}
+
+/**
+ * The offer under a Local mic just switched on: the normal Calibrate mics
+ * run with that Local mic alone. A suggestion: Not now leaves it switched on.
+ */
+function OfferRow({ offer, name }: { offer: CalibrateOffer; name: string }) {
+  return (
+    <li
+      className="flex items-center gap-6 rounded-card bg-cream px-8 py-5"
+      data-testid="mics-calibrate-offer"
+    >
+      <p className="min-w-0 flex-1 text-2xl font-semibold">
+        {t("mics.calibrateOffer", { name })}
+      </p>
+      <button
+        type="button"
+        onClick={offer.onDecline}
+        className="inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-8 text-2xl font-bold shadow-ledge-sm"
+      >
+        {t("mics.calibrateOffer.notNow")}
+      </button>
+      <button
+        type="button"
+        onClick={offer.onAccept}
+        className="inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-green px-10 text-2xl font-bold text-white shadow-ledge-green transition"
+      >
+        {t("mics.calibrateOffer.calibrate")}
+      </button>
+    </li>
+  );
+}
+
 /** The command that sets a card to Pro Audio by hand (not for translation). */
 const pactlLine = (cardName: string) =>
   `pactl set-card-profile ${cardName} pro-audio`;
@@ -341,6 +384,7 @@ function BridgeGroup({
   onRelink,
   levelDbfs,
   thresholds,
+  offer,
 }: {
   bridge: MicBridge;
   kept: readonly LocalMic[];
@@ -354,9 +398,15 @@ function BridgeGroup({
   /** A Local mic's latest level from its bridge. */
   levelDbfs: (localMicId: string) => number | null;
   thresholds: MicThresholds;
+  /** "Calibrate this mic now", if offered (for any Local mic). */
+  offer: CalibrateOffer | null;
 }) {
   const keptById = new Map(kept.map((m) => [m.localMicId, m]));
   const channels = bridgeGroupChannels(bridge, kept);
+  // Pro Audio is a setup step before calibrating: while an interface it
+  // sees is in another profile, the offer waits behind the profile message
+  // (a later switch could change the Stage output).
+  const offerHeld = (bridge.notProAudio ?? []).length > 0;
   const notes = bridgeGroupNotes(bridge, browserDevices);
   const match = matchBridgeLocalMics(bridge, kept);
   const heading = `mics-bridge-${bridge.bridgeId}`;
@@ -400,23 +450,30 @@ function BridgeGroup({
         {channels.map((channel) => {
           const stored = keptById.get(channel.localMicId);
           return (
-            <ChannelRow
-              key={channel.localMicId}
-              channel={channel}
-              stored={stored?.name ?? ""}
-              switchedOn={stored?.switchedOn ?? false}
-              // A closed bridge sends nothing: its rows have no meter.
-              read={
-                bridge.open ? () => levelDbfs(channel.localMicId) : undefined
-              }
-              thresholds={thresholds}
-              onSwitch={(on) => {
-                onSwitch(channel, on);
-              }}
-              onRename={(name) => {
-                onRename(channel, name);
-              }}
-            />
+            <Fragment key={channel.localMicId}>
+              <ChannelRow
+                channel={channel}
+                stored={stored?.name ?? ""}
+                switchedOn={stored?.switchedOn ?? false}
+                // A closed bridge sends nothing: its rows have no meter.
+                read={
+                  bridge.open ? () => levelDbfs(channel.localMicId) : undefined
+                }
+                thresholds={thresholds}
+                onSwitch={(on) => {
+                  onSwitch(channel, on);
+                }}
+                onRename={(name) => {
+                  onRename(channel, name);
+                }}
+              />
+              {offer?.localMicId === channel.localMicId && !offerHeld && (
+                <OfferRow
+                  offer={offer}
+                  name={localMicName(channel.source, stored?.name ?? "")}
+                />
+              )}
+            </Fragment>
           );
         })}
         {match.notFound.map((localMic) => (
@@ -558,6 +615,26 @@ export function MicsScreen() {
 
   const { store } = useStageFrame();
   const thresholds = useMicThresholds(store);
+  // The Local mic last switched on here is offered "Calibrate this mic now".
+  const [offered, setOffered] = useState<string | null>(null);
+  const switchChannel = (channel: LocalMicChannel, on: boolean) => {
+    setSwitchedOn(channel, on);
+    if (on) setOffered(channel.localMicId);
+    else if (offered === channel.localMicId) setOffered(null);
+  };
+  const offer: CalibrateOffer | null =
+    offered === null
+      ? null
+      : {
+          localMicId: offered,
+          onAccept: () => {
+            setOffered(null);
+            store.send({ type: "calibrateLocalMicNow", localMicId: offered });
+          },
+          onDecline: () => {
+            setOffered(null);
+          },
+        };
   // ←/→ on a focused threshold line move it 1 dB; elsewhere they move the focus.
   const nudge = (stepDb: number) => {
     const active = document.activeElement;
@@ -616,20 +693,27 @@ export function MicsScreen() {
             const stored = keptById.get(channel.localMicId);
             const { deviceId, channel: number } = channel.source;
             return (
-              <ChannelRow
-                key={channel.localMicId}
-                channel={channel}
-                stored={stored?.name ?? ""}
-                switchedOn={stored?.switchedOn ?? false}
-                read={() => capture?.levelDbfs(deviceId, number) ?? null}
-                thresholds={thresholds}
-                onSwitch={(on) => {
-                  setSwitchedOn(channel, on);
-                }}
-                onRename={(name) => {
-                  rename(channel, name);
-                }}
-              />
+              <Fragment key={channel.localMicId}>
+                <ChannelRow
+                  channel={channel}
+                  stored={stored?.name ?? ""}
+                  switchedOn={stored?.switchedOn ?? false}
+                  read={() => capture?.levelDbfs(deviceId, number) ?? null}
+                  thresholds={thresholds}
+                  onSwitch={(on) => {
+                    switchChannel(channel, on);
+                  }}
+                  onRename={(name) => {
+                    rename(channel, name);
+                  }}
+                />
+                {offer?.localMicId === channel.localMicId && (
+                  <OfferRow
+                    offer={offer}
+                    name={localMicName(channel.source, stored?.name ?? "")}
+                  />
+                )}
+              </Fragment>
             );
           })}
           {match.notFound.map((localMic) => (
@@ -653,11 +737,12 @@ export function MicsScreen() {
           onSwitchProfile={(deviceName) => {
             switchBridgeToProAudio(bridge.bridgeId, deviceName);
           }}
-          onSwitch={setSwitchedOn}
+          onSwitch={switchChannel}
           onRename={rename}
           onRelink={relink}
           levelDbfs={bridgeLevelDbfs}
           thresholds={thresholds}
+          offer={offer}
         />
       ))}
       {bridges.requests.length > 0 && (

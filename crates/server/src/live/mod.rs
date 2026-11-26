@@ -404,6 +404,9 @@ struct LiveState {
     kept_local_mics: Vec<LocalMic>,
     /// The Stage-browser Local mics the active Stage last reported present.
     present_browser_mics: HashSet<String>,
+    /// The Stage-browser Local mics whose device the active Stage last
+    /// reported open: ready for a Calibration run (#210).
+    capturing_browser_mics: HashSet<String>,
     /// The Local mics the active Stage last reported in digital silence
     /// (exact zeros for more than 2 s), for the seat warnings.
     silent_local_mics: HashSet<String>,
@@ -470,6 +473,7 @@ impl LiveState {
             local_mics: Vec::new(),
             kept_local_mics,
             present_browser_mics: HashSet::new(),
+            capturing_browser_mics: HashSet::new(),
             silent_local_mics: HashSet::new(),
             blocked_phones: HashSet::new(),
             calibrated_mics: None,
@@ -568,6 +572,8 @@ impl LiveState {
             actor: Actor::Stage,
             event: PartyEvent::LocalMicsChanged,
         });
+        // A bridge Local mic of a waiting Calibration is ready while present.
+        self.refresh_calibration_ready();
     }
 
     /// Reads the kept Local mics again after the Stage wrote one.
@@ -590,6 +596,20 @@ impl LiveState {
         }
         self.present_browser_mics = local_mic_ids.into_iter().collect();
         self.local_mics_changed();
+        Ok(())
+    }
+
+    /// The active Stage reports which of its own Local mics capture now.
+    fn report_capturing_local_mics(
+        &mut self,
+        id: ConnectionId,
+        local_mic_ids: Vec<String>,
+    ) -> Result<(), UserMessage> {
+        if self.stage().connection != Some(id) {
+            return Err(UserMessage::NotTheStage);
+        }
+        self.capturing_browser_mics = local_mic_ids.into_iter().collect();
+        self.refresh_calibration_ready();
         Ok(())
     }
 
@@ -725,6 +745,7 @@ impl LiveState {
             // Local mics until the new Stage reports its own.
             self.tell_mics_screen();
             self.present_browser_mics.clear();
+            self.capturing_browser_mics.clear();
             self.silent_local_mics.clear();
         }
         let live_state = ServerMessage::LiveState {
@@ -771,6 +792,7 @@ impl LiveState {
             self.calibration_ended();
             self.tell_mics_screen();
             self.present_browser_mics.clear();
+            self.capturing_browser_mics.clear();
             self.silent_local_mics.clear();
             self.local_mics_changed();
         }
@@ -982,6 +1004,10 @@ impl LiveState {
                 let result = self.finish_calibration(id, results).await;
                 self.refuse_on_error(id, result);
             }
+            Ok(ClientMessage::CalibrateLocalMicNow { local_mic_id }) => {
+                let result = self.calibrate_local_mic_now(id, local_mic_id);
+                self.refuse_on_error(id, result);
+            }
             Ok(ClientMessage::EndCalibration) => {
                 let result = self.end_calibration(id);
                 self.refuse_on_error(id, result);
@@ -1122,6 +1148,10 @@ impl LiveState {
             }
             Ok(ClientMessage::ReportPresentLocalMics { local_mic_ids }) => {
                 let reported = self.report_present_local_mics(id, local_mic_ids);
+                self.refuse_on_error(id, reported);
+            }
+            Ok(ClientMessage::ReportCapturingLocalMics { local_mic_ids }) => {
+                let reported = self.report_capturing_local_mics(id, local_mic_ids);
                 self.refuse_on_error(id, reported);
             }
             Ok(ClientMessage::ReportSilentLocalMics { local_mic_ids }) => {

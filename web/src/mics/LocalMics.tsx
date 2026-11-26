@@ -5,7 +5,9 @@
 // `StageScreen` wraps the Stage frame in `<LocalMicsProvider>`; the Mics
 // screen reads it with `useLocalMics()` and says while it is open. While a
 // Song plays, the detectors of its seated Local mics run and their readings
-// go into the Stage's Pitch router (`localMicPitch.ts`).
+// go into the Stage's Pitch router (`localMicPitch.ts`); during a
+// Calibration run the run's Local mics detect too, and the Stage reports
+// which of its Local mics capture, so the server can mark them ready (#210).
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,12 +25,14 @@ import {
 import { localMicsQuery, micBridgesQuery } from "../api/queries";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridges } from "../generated/MicBridges";
+import type { PitchReading } from "../generated/PitchReading";
 import { stagePitch } from "../live/browserLive";
 import type { LiveState } from "../live/liveState";
 import type { PitchRouter } from "../pitch/pitchRouter";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
 import { createBridgeLevels } from "./bridgeLevels";
+import { stageMicSettings } from "./stageMicSettings";
 import { createSilentLocalMics } from "./silentLocalMics";
 import {
   createLocalMicCapture,
@@ -41,9 +45,12 @@ import {
   routeLocalMicReadings,
 } from "./localMicPitch";
 import {
+  browserLocalMicId,
+  capturingLocalMics,
   devicesToOpen,
   matchLocalMics,
   presentLocalMics,
+  reportedInputDelays,
   stageBrowserId,
   type LocalMicChannel,
   type LocalMicMatch,
@@ -85,6 +92,14 @@ export interface LocalMicsApi {
    * once its mic is on (`null`: none lately). Read by the seat meters.
    */
   phoneLevelDbfs: (phoneId: string) => number | null;
+  /**
+   * Every Pitch reading of this Stage browser's detecting Local mics, under
+   * its Local mic id: what a Calibration run hears from them (#210).
+   * Returns the unsubscribe.
+   */
+  subscribeLocalMicReadings: (
+    listener: (localMicId: string, reading: PitchReading) => void,
+  ) => () => void;
 }
 
 const NO_BRIDGES: MicBridges = { bridges: [], requests: [] };
@@ -110,6 +125,7 @@ export const NO_LOCAL_MICS: LocalMicsApi = {
   switchBridgeToProAudio: () => {},
   bridgeLevelDbfs: () => null,
   phoneLevelDbfs: () => null,
+  subscribeLocalMicReadings: () => () => {},
   match: NO_MATCH,
   rename: () => {},
   relink: () => {},
@@ -124,6 +140,7 @@ export function useLocalMics(): LocalMicsApi {
 const selectIsStage = (live: LiveState) => live.stage?.isStage ?? false;
 const selectConnected = (live: LiveState) => live.connection === "open";
 const selectParty = (live: LiveState) => live.stage?.party ?? null;
+const selectCalibration = (live: LiveState) => live.calibration;
 /** How often the Stage looks for Local mics in digital silence, ms. */
 const SILENCE_LOOK_MS = 250;
 
@@ -257,9 +274,10 @@ export function LocalMicsProvider({
   // Detectors run only for the Local mics seated in the Song that plays;
   // every open device keeps its meters either way.
   const party = useLive(selectParty, store);
+  const calibration = useLive(selectCalibration, store);
   const detecting = useMemo(
-    () => [...detectingLocalMics(party)].sort().join("\n"),
-    [party],
+    () => [...detectingLocalMics(party, calibration)].sort().join("\n"),
+    [party, calibration],
   );
   useEffect(() => {
     made.setDetecting(
@@ -297,6 +315,52 @@ export function LocalMicsProvider({
       localMicIds: present === "" ? [] : present.split("\n"),
     });
   }, [store, isStage, connected, keptQuery.isSuccess, present]);
+
+  // Which of this browser's Local mics capture (device open): a chosen one
+  // of a Calibration run is ready while it does. Said whenever that changes
+  // and on every connect.
+  const capturing = useMemo(
+    () =>
+      capturingLocalMics({ stageBrowser, open: snapshot.open, kept }).join(
+        "\n",
+      ),
+    [stageBrowser, snapshot.open, kept],
+  );
+  useEffect(() => {
+    if (!isStage || !connected || !keptQuery.isSuccess) return;
+    store.send({
+      type: "reportCapturingLocalMics",
+      localMicIds: capturing === "" ? [] : capturing.split("\n"),
+    });
+  }, [store, isStage, connected, keptQuery.isSuccess, capturing]);
+
+  // Each Local mic's reported input delay, held for Start: an uncalibrated
+  // Local mic's default Mic delay.
+  useEffect(() => {
+    stageMicSettings().setReportedInputDelays(
+      isStage
+        ? reportedInputDelays({
+            stageBrowser,
+            open: snapshot.open,
+            inputDelaysMs: snapshot.inputDelaysMs ?? new Map(),
+            bridges,
+          })
+        : new Map(),
+    );
+  }, [isStage, stageBrowser, snapshot, bridges]);
+
+  const subscribeLocalMicReadings = useCallback(
+    (listener: (localMicId: string, reading: PitchReading) => void) =>
+      capture
+        ? capture.subscribeReadings((deviceId, channel, reading) => {
+            listener(
+              browserLocalMicId(stageBrowser, deviceId, channel),
+              reading,
+            );
+          })
+        : () => {},
+    [capture, stageBrowser],
+  );
 
   // Exact digital silence for more than 2 s, on either path, is the "sends
   // no sound" seat warning: looked at four times a second and reported
@@ -450,6 +514,7 @@ export function LocalMicsProvider({
       relink,
       bridgeLevelDbfs,
       phoneLevelDbfs,
+      subscribeLocalMicReadings,
     }),
     [
       capture,
@@ -465,6 +530,7 @@ export function LocalMicsProvider({
       relink,
       bridgeLevelDbfs,
       phoneLevelDbfs,
+      subscribeLocalMicReadings,
     ],
   );
   return <LocalMicsContext value={api}>{children}</LocalMicsContext>;

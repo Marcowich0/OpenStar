@@ -267,6 +267,107 @@ describe("Calibrate mics on the Stage", () => {
     expect(dialog()).toBeNull();
   });
 
+  it("names a Local mic by its name: unticked after the Phones, waiting or ready, and on its result row", () => {
+    const RED = { kind: "localMic", localMicId: "browser:s:red:0" } as const;
+    const BLUE = { kind: "localMic", localMicId: "bridge:b:card:1" } as const;
+    const { server, tell } = renderStage();
+    server({
+      type: "liveState",
+      stageId: "main",
+      isStage: true,
+      party: {
+        ...PARTY,
+        localMics: [
+          {
+            localMicId: RED.localMicId,
+            source: {
+              kind: "browser",
+              stageBrowser: "s",
+              deviceId: "red",
+              label: "USB Audio",
+              channel: 0,
+              stereo: false,
+            },
+            name: "Red mic",
+            present: true,
+          },
+          {
+            localMicId: BLUE.localMicId,
+            source: {
+              kind: "bridge",
+              bridgeId: "b",
+              deviceName: "card",
+              label: "Scarlett 4i4",
+              channel: 1,
+            },
+            name: "",
+            present: true,
+          },
+        ],
+      },
+    });
+    tell({
+      phase: "choosing",
+      mics: [
+        { mic: BO, chosen: true, ready: false },
+        { mic: RED, chosen: false, ready: false },
+        { mic: BLUE, chosen: false, ready: false },
+      ],
+    });
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes.map((box) => box.textContent)).toEqual([
+      "Bo",
+      "Red mic",
+      "Scarlett 4i4 · Input 2",
+    ]);
+    expect(screen.getByRole("checkbox", { name: "Red mic" })).not.toBeChecked();
+
+    tell({
+      phase: "waiting",
+      mics: [
+        { mic: RED, chosen: true, ready: true },
+        { mic: BLUE, chosen: true, ready: false },
+      ],
+    });
+    const row = (name: string) =>
+      within(screen.getByTestId("calibration-mics")).getByText(name)
+        .parentElement as HTMLElement;
+    expect(row("Red mic")).toHaveTextContent("ready");
+    expect(row("Scarlett 4i4 · Input 2")).toHaveTextContent("waiting");
+
+    tell({
+      phase: "results",
+      mics: [
+        {
+          mic: RED,
+          chosen: true,
+          ready: true,
+          outcome: { result: "calibrated", micDelayMs: 12 },
+        },
+        {
+          mic: BLUE,
+          chosen: true,
+          ready: true,
+          outcome: { result: "failed" },
+        },
+      ],
+    });
+    expect(screen.getByText("Red mic · 12 ms ✓")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Scarlett 4i4 · Input 2 couldn't hear the Stage: move closer or turn the sound up",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says when there is no Mic to calibrate", () => {
+    const { tell } = renderStage();
+    tell({ phase: "choosing", mics: [] });
+    expect(
+      screen.getByText("No Phone has joined and no Local mic is switched on."),
+    ).toBeInTheDocument();
+  });
+
   it("closes when the server ends the run, without ending it again", () => {
     const { sent, tell } = renderStage();
     tell(CHECKLIST);

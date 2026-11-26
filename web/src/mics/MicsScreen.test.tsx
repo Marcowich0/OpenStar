@@ -33,6 +33,8 @@ vi.mock("../stage/playback/stageAudio", () => ({
 /** What the last `setup` sent to the server. */
 let sent: ClientMessage[] = [];
 let toStage: Pick<LiveClientOptions, "onMessage"> | null = null;
+/** Shows the last `setup` again with the Mic bridges `next`. */
+let withBridges: (next: MicBridges) => void = () => {};
 
 function wavChannel(bridgeId: string, channel: number) {
   return {
@@ -124,14 +126,20 @@ function setup({
     relink: vi.fn(),
     bridgeLevelDbfs,
     phoneLevelDbfs: () => null,
+    subscribeLocalMicReadings: () => () => {},
   };
-  render(
-    <QueryClientProvider client={createQueryClient()}>
-      <LocalMicsContext value={api}>
+  const client = createQueryClient();
+  const view = (value: LocalMicsApi) => (
+    <QueryClientProvider client={client}>
+      <LocalMicsContext value={value}>
         <StageFrame store={store} scenes={NO_BROWSER} />
       </LocalMicsContext>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const rendered = render(view(api));
+  withBridges = (next) => {
+    rendered.rerender(view({ ...api, bridges: next }));
+  };
   act(() => {
     handlers?.onConnection("open");
     handlers?.onMessage({
@@ -987,3 +995,104 @@ function press(key: string) {
     fireEvent.keyDown(document.activeElement ?? document.body, { key });
   });
 }
+
+describe("Calibrate this mic now", () => {
+  const offer = () =>
+    screen.queryByRole("button", { name: "Calibrate this mic now" });
+  const switchOn = (name: string) => {
+    act(() => {
+      fireEvent.click(screen.getByRole("switch", { name }));
+    });
+  };
+
+  it("is offered when a Local mic is switched on, and starts the run with only that Local mic", () => {
+    setup();
+    openMicsScreen();
+    expect(offer()).toBeNull();
+    switchOn("USB Audio · Left switched on");
+    act(() => {
+      fireEvent.click(offer() as HTMLElement);
+    });
+    expect(sent.at(-1)).toEqual({
+      type: "calibrateLocalMicNow",
+      localMicId: dongleLeft.localMicId,
+    });
+  });
+
+  it("is a suggestion: Not now leaves the Local mic switched on and sends nothing", () => {
+    const api = setup();
+    openMicsScreen();
+    switchOn("USB Audio · Left switched on");
+    const before = sent.length;
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "Not now" }));
+    });
+    expect(offer()).toBeNull();
+    expect(sent.length).toBe(before);
+    expect(api.setSwitchedOn).toHaveBeenCalledTimes(1);
+    expect(api.setSwitchedOn).toHaveBeenCalledWith(dongleLeft, true);
+  });
+
+  it("is not offered when a Local mic is switched off", () => {
+    setup({
+      kept: [
+        {
+          localMicId: dongleLeft.localMicId,
+          source: dongleLeft.source,
+          name: "",
+          switchedOn: true,
+        },
+      ],
+    });
+    openMicsScreen();
+    switchOn("USB Audio · Left switched on");
+    expect(offer()).toBeNull();
+  });
+
+  it("on a Mic bridge with an interface not in Pro Audio, comes after the profile message", () => {
+    const channel = wavChannel("zeus", 0);
+    const bridge = (notProAudio: boolean): MicBridges => ({
+      bridges: [
+        {
+          bridgeId: "zeus",
+          hostName: "zeus",
+          open: true,
+          channels: [channel],
+          interfaces: [],
+          ...(notProAudio
+            ? {
+                notProAudio: [
+                  {
+                    deviceName: "scarlett",
+                    cardName: "scarlett",
+                    label: "Scarlett 4i4",
+                    profile: "Analog Surround 2.1",
+                    switchRefused: false,
+                  },
+                ],
+              }
+            : {}),
+        },
+      ],
+      requests: [],
+    });
+    setup({ bridges: bridge(true) });
+    openMicsScreen();
+    switchOn("mics.wav · Input 1 switched on");
+    // The profile message asks to switch first; the offer waits for it.
+    expect(
+      screen.getByText(
+        "Scarlett 4i4 is in Analog Surround 2.1: only some inputs reach OpenStar",
+      ),
+    ).toBeInTheDocument();
+    expect(offer()).toBeNull();
+    withBridges(bridge(false));
+    act(() => {
+      fireEvent.click(offer() as HTMLElement);
+    });
+    expect(sent.at(-1)).toEqual({
+      type: "calibrateLocalMicNow",
+      localMicId: channel.localMicId,
+    });
+  });
+});

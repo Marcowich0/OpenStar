@@ -75,7 +75,7 @@ export function CalibrationCard({
         <>
           <p className="text-white/70">
             {run.mics.length === 0
-              ? t("calibration.noPhones")
+              ? t("calibration.noMics")
               : t("calibration.checklistHint")}
           </p>
           <ul className="flex flex-col gap-2">

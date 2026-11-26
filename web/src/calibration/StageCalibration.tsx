@@ -16,6 +16,7 @@ import { t } from "../i18n/t";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
+import { useLocalMics } from "../mics/LocalMics";
 import { useStageFrame } from "../stage/frame/stageFrameContext";
 import { stageAudio } from "../stage/playback/stageAudio";
 import { Button } from "../ui/Button";
@@ -37,12 +38,14 @@ function tonesKey(run: CalibrationRun | null): string | null {
 /** Plays the tones and reports the analysis while the run is in its tones. */
 function useCalibrationTones(store: LiveStore, run: CalibrationRun | null) {
   const key = tonesKey(run);
+  const { subscribeLocalMicReadings } = useLocalMics();
   useEffect(() => {
     if (key === null) return;
     const mics = JSON.parse(key) as MicKey[];
     const ended = new AbortController();
     void runCalibrationTones({
       store,
+      localMicReadings: subscribeLocalMicReadings,
       mics,
       playTones: async (options) => {
         const audio = stageAudio();
@@ -54,7 +57,7 @@ function useCalibrationTones(store: LiveStore, run: CalibrationRun | null) {
     return () => {
       ended.abort();
     };
-  }, [store, key]);
+  }, [store, key, subscribeLocalMicReadings]);
 }
 
 export function StageCalibration() {
@@ -73,7 +76,7 @@ export function StageCalibration() {
         <div className="flex flex-col gap-8">
           <p className="text-3xl text-ink-2">
             {run.mics.length === 0
-              ? t("calibration.noPhones")
+              ? t("calibration.noMics")
               : t("calibration.checklistHint")}
           </p>
           <ul className="flex flex-col gap-4">

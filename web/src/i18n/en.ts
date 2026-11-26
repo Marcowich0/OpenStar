@@ -325,14 +325,14 @@ export const en = {
     "Watch the ball on the Stage. Press − or + until the click and the landing match.",
   // Calibrate mics (#170), on the Stage.
   "calibration.checklistHint":
-    "Every ticked Phone is asked to listen. Ask its Player to hold it still and stay quiet.",
-  "calibration.noPhones": "No Phone has joined the Party yet.",
+    "Every ticked Mic listens to a few tones. Ask each Phone's Player to hold it still and stay quiet.",
+  "calibration.noMics": "No Phone has joined and no Local mic is switched on.",
   "calibration.continue": "Continue",
   "calibration.cancel": "Cancel",
   "calibration.go": "Go",
   "calibration.done": "Done",
   "calibration.waitingHint":
-    "Each chosen Phone taps “I'm listening”. The tones start when every Mic is ready, or on Go.",
+    "Each chosen Phone taps “I'm listening”; a Local mic is ready once it captures. The tones start when every Mic is ready, or on Go.",
   "calibration.waiting": "waiting",
   "calibration.ready": "ready",
   "calibration.tones": "Listening to the tones. Please stay quiet.",
@@ -340,6 +340,11 @@ export const en = {
   "calibration.failed":
     "{name} couldn't hear the Stage: move closer or turn the sound up",
   "calibration.aPhone": "A Phone",
+  // "Calibrate this mic now" on the Mics screen (#210).
+  "mics.calibrateOffer":
+    "{name} is on. Calibrate it now for a real Mic delay and Mic threshold?",
+  "mics.calibrateOffer.calibrate": "Calibrate this mic now",
+  "mics.calibrateOffer.notNow": "Not now",
   // The Phone's Calibrating takeover (#173).
   "phoneCalibrating.label": "Calibrating",
   "phoneCalibrating.title": "Calibrating",

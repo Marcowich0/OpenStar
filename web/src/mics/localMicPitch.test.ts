@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { CalibrationRun } from "../generated/CalibrationRun";
 import type { PartyLocalMic } from "../generated/PartyLocalMic";
 import type { Seat } from "../generated/Seat";
 import {
@@ -69,6 +70,37 @@ describe("which Local mics' detectors run", () => {
       localMics: [switchedOn(left)],
     });
     expect(detectingLocalMics(party).size).toBe(0);
+  });
+});
+
+describe("a Calibration run's Local mics detect", () => {
+  const run = (
+    phase: CalibrationRun["phase"],
+    ...channels: BrowserChannel[]
+  ): CalibrationRun => ({
+    phase,
+    mics: channels.map((channel) => ({
+      mic: { kind: "localMic", localMicId: channel.localMicId },
+      chosen: true,
+      ready: false,
+    })),
+  });
+  const waiting = testParty({
+    localMics: [switchedOn(left), switchedOn(right)],
+  });
+
+  it("seated or not, while the run waits or plays its tones", () => {
+    expect([...detectingLocalMics(waiting, run("waiting", left))]).toEqual([
+      left.localMicId,
+    ]);
+    expect([...detectingLocalMics(waiting, run("tones", right))]).toEqual([
+      right.localMicId,
+    ]);
+  });
+
+  it("not on the checklist or the results", () => {
+    expect(detectingLocalMics(waiting, run("choosing", left)).size).toBe(0);
+    expect(detectingLocalMics(waiting, run("results", left)).size).toBe(0);
   });
 });
 

@@ -12,6 +12,8 @@ interface FakeDevice {
   deviceId: string;
   label: string;
   channels: number;
+  /** The track's reported `latency`, seconds, if any. */
+  latency?: number;
 }
 
 /** A browser's `mediaDevices` and `AudioContext`, with devices to open. */
@@ -42,10 +44,12 @@ function fakeBrowser(devices: FakeDevice[], { granted = true } = {}) {
         typeof audio === "object"
           ? (audio.deviceId as { exact: string }).exact
           : "any";
-      const channelCount =
-        devices.find((d) => d.deviceId === id)?.channels ?? 1;
+      const device = devices.find((d) => d.deviceId === id);
+      const channelCount = device?.channels ?? 1;
+      const latency = device?.latency;
       const track = {
-        getSettings: () => ({ channelCount }),
+        getSettings: () =>
+          latency === undefined ? { channelCount } : { channelCount, latency },
         stop: () => stopped.push(id),
       };
       return Promise.resolve({
@@ -189,6 +193,16 @@ describe("the Stage browser's capture", () => {
       [pitchNodes[1]?.node, 1],
     ]);
     expect(capture.levelDbfs("webcam", 1)).toBeNull();
+  });
+
+  it("keeps each open device's reported input delay, in ms, while it is open", async () => {
+    const { capture } = fakeBrowser([{ ...DONGLE, latency: 0.0125 }, WEBCAM]);
+    await capture.setOpen(new Set(["dongle", "webcam"]));
+    expect(capture.getSnapshot().inputDelaysMs).toEqual(
+      new Map([["dongle", 12.5]]),
+    );
+    await capture.setOpen(new Set(["webcam"]));
+    expect(capture.getSnapshot().inputDelaysMs).toEqual(new Map());
   });
 
   it("closes a closed device's pitch nodes", async () => {

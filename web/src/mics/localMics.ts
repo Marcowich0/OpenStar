@@ -11,6 +11,7 @@
 import type { LocalMic } from "../generated/LocalMic";
 import type { LocalMicSource } from "../generated/LocalMicSource";
 import type { MicBridge } from "../generated/MicBridge";
+import type { MicBridges } from "../generated/MicBridges";
 import { t } from "../i18n/t";
 
 /** An input device the Stage browser can open. */
@@ -250,6 +251,63 @@ export function presentLocalMics({
       return channels === undefined || source.channel < channels;
     })
     .map((m) => m.localMicId);
+}
+
+/**
+ * The ids of this Stage browser's kept Local mics whose capture runs now:
+ * their device is open and has their channel. A chosen one of a Calibration
+ * run is ready while it is listed (#210).
+ */
+export function capturingLocalMics({
+  stageBrowser,
+  open,
+  kept,
+}: {
+  stageBrowser: string;
+  /** Channel count of each open device. */
+  open: ReadonlyMap<string, number>;
+  kept: readonly LocalMic[];
+}): string[] {
+  return kept
+    .filter(isBrowserLocalMic)
+    .filter(({ source }) => {
+      if (source.stageBrowser !== stageBrowser) return false;
+      const channels = open.get(source.deviceId);
+      return channels !== undefined && source.channel < channels;
+    })
+    .map((m) => m.localMicId);
+}
+
+/**
+ * Every Local mic's reported input delay now, by Local mic id: each channel
+ * of an open device of this Stage browser that reports one, and each
+ * channel a Mic bridge reports one for. An uncalibrated Local mic's default
+ * Mic delay at Start (#210).
+ */
+export function reportedInputDelays({
+  stageBrowser,
+  open,
+  inputDelaysMs,
+  bridges,
+}: {
+  stageBrowser: string;
+  /** Channel count of each open device. */
+  open: ReadonlyMap<string, number>;
+  /** Each open device's reported input delay, ms. */
+  inputDelaysMs: ReadonlyMap<string, number>;
+  bridges: MicBridges;
+}): Map<string, number> {
+  const delays = new Map<string, number>();
+  for (const [deviceId, delayMs] of inputDelaysMs) {
+    const channels = open.get(deviceId) ?? 0;
+    for (let channel = 0; channel < channels; channel++)
+      delays.set(browserLocalMicId(stageBrowser, deviceId, channel), delayMs);
+  }
+  for (const bridge of bridges.bridges)
+    for (const channel of bridge.channels)
+      if (channel.reportedInputDelayMs !== undefined)
+        delays.set(channel.localMicId, channel.reportedInputDelayMs);
+  return delays;
 }
 
 /**

@@ -71,6 +71,11 @@ export interface SingSetupInput {
    * `stageMicSettings()`, as they are now.
    */
   storedFor?: (mic: MicKey) => StoredMicSettings | undefined;
+  /**
+   * A seated Local mic's reported input delay (`null`: none), its Mic delay
+   * while it is not calibrated. By default what the Stage holds now.
+   */
+  reportedInputDelayFor?: (localMicId: string) => number | null;
 }
 
 export interface SingSetup {
@@ -103,6 +108,10 @@ export function singSetup(input: SingSetupInput): SingSetup {
   const volume = input.volume ?? OPENSTAR_VOLUME.default;
   const storedFor =
     input.storedFor ?? ((mic: MicKey) => stageMicSettings().storedFor(mic));
+  const reportedInputDelayFor =
+    input.reportedInputDelayFor ??
+    ((localMicId: string) =>
+      stageMicSettings().reportedInputDelayMs(localMicId));
   const lastVoice = Math.max(song.voices.length - 1, 0);
 
   const players: SingPlayer[] = lineUp.seats.map((seat) => {
@@ -114,6 +123,9 @@ export function singSetup(input: SingSetupInput): SingSetup {
       seat.mic,
       seat.mic ? storedFor(seat.mic) : undefined,
       volume,
+      seat.mic?.kind === "localMic"
+        ? reportedInputDelayFor(seat.mic.localMicId)
+        : null,
     );
     return {
       memberId: seat.memberId,
