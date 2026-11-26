@@ -115,6 +115,25 @@ describe("the Calibrating takeover", () => {
     expect(screen.getByRole("button", { name: "I'm listening" })).toBeTruthy();
   });
 
+  it("covers the Remote that started the run from its Stage tab once its Phone is chosen", () => {
+    const { calibration, sent } = renderPage({
+      ...BROWSING,
+      queue: [],
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Stage" }));
+    fireEvent.click(screen.getByRole("button", { name: "Calibrate mics" }));
+    expect(sent.at(-1)).toEqual({ type: "openCalibration" });
+
+    calibration(run("choosing"));
+    expect(queryTakeover()).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(sent.at(-1)).toEqual({ type: "startCalibration" });
+
+    calibration(run("waiting"));
+    expect(takeover()).toBeTruthy();
+    expect(screen.getByRole("button", { name: "I'm listening" })).toBeTruthy();
+  });
+
   it("covers the mic takeover of a seated Phone", async () => {
     const { calibration } = renderPage(PARTY);
     expect(
