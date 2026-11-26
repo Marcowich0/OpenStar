@@ -150,6 +150,11 @@ describe("the Stage tab while a Song plays", () => {
   });
 
   it("moves the progress on between reports while the Song plays", async () => {
+    // The page's clock and the card's tick are the test's: a loaded machine
+    // cannot let 1:59.8 pass before the first look.
+    vi.useFakeTimers({
+      toFake: ["setInterval", "clearInterval", "performance"],
+    });
     const { server } = renderTab(playing());
     await screen.findByTestId("playing-card");
     // Reported 2 s ago at 1:57.8: it is 1:59.8 now, and 2:00 a moment later.
@@ -164,7 +169,10 @@ describe("the Stage tab while a Song plays", () => {
       },
     });
     expect(screen.getByText("1:59")).toBeInTheDocument();
-    expect(await screen.findByText("2:00")).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(screen.getByText("2:00")).toBeInTheDocument();
   });
 });
 

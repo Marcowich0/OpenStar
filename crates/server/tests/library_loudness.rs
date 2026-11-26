@@ -279,8 +279,14 @@ async fn a_queued_unmeasured_song_is_measured_before_the_others() {
     assert!(states.iter().all(|s| *s == JobState::Done), "{states:?}");
     let order = calls(&ffmpeg);
     assert_eq!(order.len(), 5, "{order:?}");
+    // Once the gate opens, both slots of the lane start a measurement at
+    // once: the queued Song is claimed first, but the two ffmpeg starts may
+    // reach the call log in either order. By path it would be the last of
+    // all five.
     assert!(
-        order[2].ends_with(&format!("/{last}/song.mp3")),
+        order[2..4]
+            .iter()
+            .any(|call| call.ends_with(&format!("/{last}/song.mp3"))),
         "the queued Song {last} goes next: {order:?}"
     );
     for title in ["A", "B", "C", "D", "E"] {
