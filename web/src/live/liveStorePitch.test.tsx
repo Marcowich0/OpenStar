@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { ClientMessage } from "../generated/ClientMessage";
 import type { ServerMessage } from "../generated/ServerMessage";
 import { createPitchRouter } from "../pitch/pitchRouter";
 import type { LiveClientOptions } from "./liveClient";
@@ -51,7 +52,7 @@ const pitchReading = (
   captureMs: number,
 ): ServerMessage => ({
   type: "pitchReading",
-  mic: { kind: "phone", connection },
+  mic: { kind: "phone", phoneId: `phone-${String(connection)}` },
   reading: { captureMs, pitch: 60, clarity: 0.9, loudness: -20 },
 });
 
@@ -60,7 +61,7 @@ describe("Pitch readings in the live store", () => {
     const { store, router, server } = start();
     const buffers = router.start({
       players: 2,
-      mics: [[{ kind: "phone", connection: 4 }, 1]],
+      mics: [[{ kind: "phone", phoneId: "phone-4" }, 1]],
       capacity: 16,
       place: (reading) => reading.captureMs / 1000,
     });
@@ -85,7 +86,7 @@ describe("Pitch readings in the live store", () => {
     const { router, server } = start();
     const buffers = router.start({
       players: 1,
-      mics: [[{ kind: "phone", connection: 1 }, 0]],
+      mics: [[{ kind: "phone", phoneId: "phone-1" }, 0]],
       capacity: 16,
       place: (reading) => reading.captureMs / 1000,
     });
@@ -101,9 +102,9 @@ describe("Pitch readings in the live store", () => {
     const { server, router } = start();
     const signal = vi.spyOn(router, "signal");
     vi.mocked(receive).mockClear();
-    server({ type: "micClosed", mic: { kind: "phone", connection: 1 } });
+    server({ type: "micClosed", mic: { kind: "phone", phoneId: "phone-1" } });
     expect(signal).toHaveBeenCalledWith(
-      { kind: "phone", connection: 1 },
+      { kind: "phone", phoneId: "phone-1" },
       "connectionClosed",
     );
     expect(receive).not.toHaveBeenCalled();
@@ -112,8 +113,69 @@ describe("Pitch readings in the live store", () => {
   it("leave every other message to the reducer", () => {
     const { server } = start();
     vi.mocked(receive).mockClear();
-    server({ type: "clockPing", mic: { kind: "phone", connection: 1 }, t0: 5 });
+    server({ type: "pong", nonce: 5 });
     expect(receive).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("clock sync in the live store", () => {
+  function withClock(now: () => number) {
+    let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
+      null;
+    const sent: ClientMessage[] = [];
+    const store = createLiveStore(
+      (given) => {
+        handlers = given;
+        return {
+          send: (message) => {
+            sent.push(message);
+            return true;
+          },
+          close: () => {},
+        };
+      },
+      undefined,
+      createPitchRouter(),
+      { now, epoch: () => 1_764_000_000_123.5 },
+    );
+    const server = (message: ServerMessage) => {
+      act(() => handlers?.onMessage(message));
+    };
+    return { store, sent, server };
+  }
+
+  it("answers each relayed ping at once with t0, the page's clock and its epoch", () => {
+    let now = 4000.25;
+    const { sent, server } = withClock(() => now);
+    vi.mocked(receive).mockClear();
+    const mic = { kind: "phone", phoneId: "phone-1" } as const;
+    server({ type: "clockPing", mic, t0: 17.5 });
+    now = 4100;
+    server({ type: "clockPing", mic, t0: 18 });
+    expect(sent).toEqual([
+      {
+        type: "clockPong",
+        mic,
+        t0: 17.5,
+        ts: 4000.25,
+        epoch: 1_764_000_000_123.5,
+      },
+      { type: "clockPong", mic, t0: 18, ts: 4100, epoch: 1_764_000_000_123.5 },
+    ]);
+    expect(receive).not.toHaveBeenCalled();
+  });
+
+  it("hands each pong to its listeners, not the reducer", () => {
+    const { store, server } = withClock(() => 0);
+    const heard = vi.fn();
+    const stop = store.onClockPong(heard);
+    vi.mocked(receive).mockClear();
+    server({ type: "clockPong", t0: 1, ts: 2, epoch: 3 });
+    expect(heard).toHaveBeenCalledWith({ t0: 1, ts: 2, epoch: 3 });
+    expect(receive).not.toHaveBeenCalled();
+    stop();
+    server({ type: "clockPong", t0: 4, ts: 5, epoch: 6 });
+    expect(heard).toHaveBeenCalledTimes(1);
   });
 });
 

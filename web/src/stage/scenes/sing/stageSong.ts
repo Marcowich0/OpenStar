@@ -153,7 +153,7 @@ export interface StageSongOptions {
   cancelFrame?: (handle: number) => void;
   /**
    * The relayed Mic id each seated Mic's readings arrive with
-   * (`SingSetupInput.micIdFor`); none can be named yet (the #164 note).
+   * (`SingSetupInput.micIdFor`); by default a Phone's Phone id.
    */
   micIdFor?: (mic: MicKey) => MicId | null;
 }

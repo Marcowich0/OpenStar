@@ -66,6 +66,19 @@ export const en = {
   },
   "remote.lineUpFor": "Line-up for {song}",
   "remote.waitingForStart": "Waiting for Start",
+  // The Phone's mic strip while this Phone is a seat's Mic (#128; the mic
+  // takeover, #167, replaces it).
+  "phoneMic.seated": "This phone is your mic",
+  "phoneMic.turnOn": "Turn on my mic",
+  "phoneMic.opening": "Opening the mic…",
+  "phoneMic.on": "Mic is on",
+  "phoneMic.failed": "The mic did not open",
+  "phoneMic.tryAgain": "Try again",
+  "phoneMic.diagnostics": "Mic diagnostics",
+  "phoneMic.readingsPerSecond": "{count, number} readings/s",
+  "phoneMic.detectorCost":
+    "Detector {p50, number} ms p50, {p95, number} ms p95",
+  "phoneMic.detectorMeasuring": "Detector: measuring",
   // The Remote's Stage tab and its seat sheet.
   "stageTab.title": "On the Stage",
   "stageTab.upNext": "Up next: who sings?",

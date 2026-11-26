@@ -13,6 +13,9 @@ import { Avatar } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
 import { TopBar } from "./Logo";
 import { memberLook } from "./memberLook";
+import { phoneMicFor } from "./mic/browserPhoneMic";
+import type { PhoneMic } from "./mic/phoneMic";
+import { PhoneMicCard } from "./mic/PhoneMicCard";
 import { MeButton, type MeActions } from "./people/MeSheet";
 import { PeopleTab } from "./people/PeopleTab";
 import { phoneMember } from "./phonePage";
@@ -50,17 +53,21 @@ function isRemoteTab(key: unknown): key is RemoteTab {
  * opens on the Stage tab while a Line-up waits, on Songs otherwise. The
  * Songs tab is `SongsTab`, the Queue tab `QueueTab`, the Stage tab
  * `StageTab`, the People tab `PeopleTab`, and the avatar opens the Me sheet
- * (`MeButton`).
+ * (`MeButton`). While this Phone is a seat's Mic, the mic strip
+ * (`PhoneMicCard`) sits under the top bar on every tab.
  */
 export function Remote({
   store,
   phoneId,
   me,
+  mic,
 }: {
   store: LiveStore;
   /** This Phone's own id: its Mic is "This phone" on the Stage tab. */
   phoneId: PhoneId;
   me?: MeActions;
+  /** This Phone's mic (tests pass a fake); the browser's by default. */
+  mic?: PhoneMic;
 }) {
   const member = useLive(phoneMember, store);
   const party = useLive(selectParty, store);
@@ -94,6 +101,11 @@ export function Remote({
           />
         ) : null}
       </TopBar>
+      <PhoneMicCard
+        store={store}
+        myPhoneId={phoneId}
+        mic={mic ?? phoneMicFor(store)}
+      />
       {REMOTE_TABS.map((id) => (
         <TabPanel key={id} id={id} className="grow px-5 pb-4 outline-none">
           {id === "songs" && <SongsTab store={store} />}

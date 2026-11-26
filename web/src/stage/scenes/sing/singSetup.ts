@@ -53,8 +53,7 @@ export interface SingSetupInput {
   profiles: readonly Profile[] | undefined;
   /**
    * The relayed Mic id a seated Mic's readings arrive with, or `null` when
-   * the Stage cannot tell. Today relayed readings name a Phone's connection,
-   * not its Phone id, so the default can name none (see the #164 note).
+   * none arrive. The default, `relayedMicId`, names a Phone by its Phone id.
    */
   micIdFor?: (mic: MicKey) => MicId | null;
   /** The OpenStar volume the Mic thresholds are fixed at. */
@@ -71,7 +70,14 @@ export interface SingSetup {
   state: (buffers: readonly PitchBuffer[]) => SingState;
 }
 
-const noMicId = (): MicId | null => null;
+/**
+ * The Mic id a seated Mic's relayed readings carry: a Phone's is its Phone
+ * id. Local mics relay none yet (#130 delivers the Stage browser's on the
+ * page, #151 the Mic bridge's), so they get `null`.
+ */
+export function relayedMicId(mic: MicKey): MicId | null {
+  return mic.kind === "phone" ? { kind: "phone", phoneId: mic.phoneId } : null;
+}
 
 function micKind(mic: MicKey | null): MicKind {
   return mic?.kind === "localMic" ? "localMic" : "phone";
@@ -114,7 +120,7 @@ export function singSetup(input: SingSetupInput): SingSetup {
     };
   });
 
-  const micIdFor = input.micIdFor ?? noMicId;
+  const micIdFor = input.micIdFor ?? relayedMicId;
   const mics: [MicId, number][] = [];
   players.forEach((player, index) => {
     const id = player.mic && micIdFor(player.mic);

@@ -292,7 +292,9 @@ fn every_client_message() -> Vec<ClientMessage> {
         },
         ClientMessage::ClockPing { t0: 0.0 },
         ClientMessage::ClockPong {
-            mic: MicId::Phone { connection: 0 },
+            mic: MicId::Phone {
+                phone_id: PhoneId("phone".into()),
+            },
             t0: 0.0,
             ts: 0.0,
             epoch: 0.0,

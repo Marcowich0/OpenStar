@@ -2,6 +2,7 @@ import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ClientMessage } from "../generated/ClientMessage";
 import type { LocalMicLevel } from "../generated/LocalMicLevel";
 import type { ServerMessage } from "../generated/ServerMessage";
+import type { ClockPongFields } from "../pitch/clock/senderSession";
 import type { PitchRouter } from "../pitch/pitchRouter";
 import type { LiveClient, LiveClientOptions } from "./liveClient";
 import {
@@ -44,12 +45,28 @@ export interface LiveStore {
   onLocalMicLevels: (
     listener: (levels: readonly LocalMicLevel[]) => void,
   ) => () => void;
+  /**
+   * Calls `listener` with every `clockPong` the Stage sent this browser's
+   * Mic (a Phone's capture pipeline); they never reach the reducer.
+   */
+  onClockPong: (listener: (pong: ClockPongFields) => void) => () => void;
   /** Drops a toast the screen has finished showing (`toasts.ts`). */
   dismissToast: (id: number) => void;
   /** Shows a toast the Stage raises itself ("Mia is back on the mic"). */
   showStageToast: (event: StageToastEvent) => void;
   close: () => void;
 }
+
+/** This page's clock, as the Stage's pong reports it. */
+export interface PageClock {
+  now: () => number;
+  epoch: () => number;
+}
+
+const performancePageClock: PageClock = {
+  now: () => performance.now(),
+  epoch: () => performance.timeOrigin,
+};
 
 /**
  * `hello`, when given, makes the message the store sends each time the socket
@@ -59,6 +76,9 @@ export interface LiveStore {
  * `pitch`, when given, takes every Pitch reading instead of the reducer: about
  * 100 a second per Mic go straight into their Player's ring buffer and never
  * cause a React render. Without it, readings are dropped.
+ *
+ * `pageClock` is what the Stage answers a relayed `clockPing` with: this
+ * page's `performance.now()` and its epoch, `performance.timeOrigin`.
  */
 export function createLiveStore(
   connect: (
@@ -66,12 +86,14 @@ export function createLiveStore(
   ) => LiveClient,
   hello?: () => ClientMessage,
   pitch?: Pick<PitchRouter, "receive" | "signal">,
+  pageClock: PageClock = performancePageClock,
 ): LiveStore {
   let state = initialLiveState;
   const listeners = new Set<() => void>();
   const topicListeners = new Map<ChangeTopic, Set<() => void>>();
   const songControlListeners = new Set<(control: SongControlMessage) => void>();
   const levelListeners = new Set<(levels: readonly LocalMicLevel[]) => void>();
+  const pongListeners = new Set<(pong: ClockPongFields) => void>();
 
   function update(next: LiveState) {
     if (next === state) return;
@@ -85,6 +107,23 @@ export function createLiveStore(
       // those go to their Player's ring buffer, so they never cause a render.
       if (message.type === "pitchReading") {
         pitch?.receive(message.mic, message.reading);
+        return;
+      }
+      // Clock sync (v1 spec #50): the Stage answers a Mic's ping at once,
+      // waiting on nothing; a Phone's Mic takes the pong.
+      if (message.type === "clockPing") {
+        client.send({
+          type: "clockPong",
+          mic: message.mic,
+          t0: message.t0,
+          ts: pageClock.now(),
+          epoch: pageClock.epoch(),
+        });
+        return;
+      }
+      if (message.type === "clockPong") {
+        const pong = { t0: message.t0, ts: message.ts, epoch: message.epoch };
+        for (const listener of pongListeners) listener(pong);
         return;
       }
       // A closed Mic is a lost-Mic signal for the playing Song (#213).
@@ -140,6 +179,12 @@ export function createLiveStore(
       levelListeners.add(listener);
       return () => {
         levelListeners.delete(listener);
+      };
+    },
+    onClockPong(listener) {
+      pongListeners.add(listener);
+      return () => {
+        pongListeners.delete(listener);
       };
     },
     dismissToast(id) {
