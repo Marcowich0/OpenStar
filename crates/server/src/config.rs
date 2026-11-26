@@ -23,6 +23,10 @@ pub struct Config {
     pub usdb_base_url: String,
     /// `OPENSTAR_YTDLP_AUTOUPDATE`: `false` never updates the copy in `appdata/bin`.
     pub ytdlp_autoupdate: bool,
+    /// `OPENSTAR_YTDLP_RELEASES_URL`: yt-dlp's releases, without a trailing
+    /// slash. Only tests change it (to a fake); default
+    /// `https://github.com/yt-dlp/yt-dlp/releases`.
+    pub ytdlp_releases_url: String,
     /// `OPENSTAR_LOG`: the log filter in `RUST_LOG` syntax.
     pub log: String,
     /// `OPENSTAR_SONGS_DIR`: the Library.
@@ -65,6 +69,7 @@ impl fmt::Debug for Secret {
 
 const DEFAULT_PORT: u16 = 8080;
 const DEFAULT_USDB_BASE_URL: &str = "https://usdb.animux.de";
+const DEFAULT_YTDLP_RELEASES_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases";
 
 impl Config {
     /// Reads the settings from the process environment.
@@ -72,8 +77,9 @@ impl Config {
         Self::from_vars(|name| std::env::var(name).ok())
     }
 
-    /// Settings for tests: the given folders, a fixed Admin PIN, port 0 and
-    /// every other setting at its default.
+    /// Settings for tests: the given folders, a fixed Admin PIN, port 0,
+    /// the yt-dlp self-update off (so no test reaches GitHub) and every other
+    /// setting at its default.
     pub fn for_tests(appdata_dir: &Path, songs_dir: &Path) -> Self {
         Self {
             admin_pin: Secret("1234".to_owned()),
@@ -81,7 +87,8 @@ impl Config {
             public_url: None,
             usdb: None,
             usdb_base_url: DEFAULT_USDB_BASE_URL.to_owned(),
-            ytdlp_autoupdate: true,
+            ytdlp_autoupdate: false,
+            ytdlp_releases_url: DEFAULT_YTDLP_RELEASES_URL.to_owned(),
             log: "info".to_owned(),
             songs_dir: songs_dir.to_path_buf(),
             appdata_dir: appdata_dir.to_path_buf(),
@@ -157,6 +164,19 @@ impl Config {
             },
         };
 
+        let ytdlp_releases_url = match var("OPENSTAR_YTDLP_RELEASES_URL") {
+            None => DEFAULT_YTDLP_RELEASES_URL.to_owned(),
+            Some(url) => {
+                let url = url.trim().trim_end_matches('/').to_owned();
+                if !(url.starts_with("http://") || url.starts_with("https://")) {
+                    bail!(
+                        "OPENSTAR_YTDLP_RELEASES_URL must be an http:// or https:// address, got {url:?}"
+                    );
+                }
+                url
+            }
+        };
+
         let log = var("OPENSTAR_LOG").unwrap_or_else(|| "info".to_owned());
         if let Err(error) = tracing_subscriber::EnvFilter::try_new(&log) {
             bail!(
@@ -175,6 +195,7 @@ impl Config {
             usdb,
             usdb_base_url,
             ytdlp_autoupdate,
+            ytdlp_releases_url,
             log,
             songs_dir: dir("OPENSTAR_SONGS_DIR", "/songs"),
             appdata_dir: dir("OPENSTAR_APPDATA_DIR", "/appdata"),
@@ -270,6 +291,26 @@ mod tests {
     fn a_usdb_base_url_that_is_not_http_is_refused() {
         let message = error(&[PIN, ("OPENSTAR_USDB_BASE_URL", "usdb.example")]);
         assert!(message.contains("OPENSTAR_USDB_BASE_URL"), "{message}");
+    }
+
+    #[test]
+    fn ytdlp_updates_come_from_the_official_releases_unless_a_url_is_given() {
+        let config = Config::from_vars(vars(&[PIN])).unwrap();
+        assert_eq!(
+            config.ytdlp_releases_url,
+            "https://github.com/yt-dlp/yt-dlp/releases"
+        );
+        let config = Config::from_vars(vars(&[
+            PIN,
+            (
+                "OPENSTAR_YTDLP_RELEASES_URL",
+                "http://127.0.0.1:4321/releases/",
+            ),
+        ]))
+        .unwrap();
+        assert_eq!(config.ytdlp_releases_url, "http://127.0.0.1:4321/releases");
+        let message = error(&[PIN, ("OPENSTAR_YTDLP_RELEASES_URL", "github.com")]);
+        assert!(message.contains("OPENSTAR_YTDLP_RELEASES_URL"), "{message}");
     }
 
     #[test]

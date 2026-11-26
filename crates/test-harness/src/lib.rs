@@ -13,6 +13,9 @@
 //!   generated from its own Notes ([`AppFolders::with_fixture_library`]), and
 //!   [`fake_mic`] writes the fake microphone WAVs described in `fixtures/mic/`.
 //!
+//! - [`FakeYtDlpReleases`] stands in for yt-dlp's releases on GitHub, for the
+//!   self-update; the app is pointed at it or at a closed local port.
+//!
 //! The fake USDB and the stub also run as standalone processes, and the
 //! fixture Library and the fake mic WAVs are written, for `just e2e`: see the
 //! `openstar-harness` binary.
@@ -29,12 +32,14 @@ pub mod fixture_library;
 mod media;
 mod usdb;
 mod ytdlp;
+mod ytdlp_releases;
 
 pub use app::{AppFolders, DEFAULT_ADMIN_PIN, TestApp, TestAppBuilder, WsClient, WsRefusal};
 pub use executable::write_executable;
 pub use media::{Media, Signal, placeholder_media};
 pub use usdb::{FakeSong, FakeUsdb, RecordedRequest, Scripted};
-pub use ytdlp::{YtDlpStub, YtDlpStubBehaviour, read_calls as read_ytdlp_calls};
+pub use ytdlp::{STUB_SCRIPT, YtDlpStub, YtDlpStubBehaviour, read_calls as read_ytdlp_calls};
+pub use ytdlp_releases::{FakeYtDlpReleases, RELEASE_BINARY, RELEASE_SUMS};
 
 /// The settings variable the USDB client (#47) reads its base URL from. The
 /// harness always sets it, so the app under test never talks to the real USDB.
@@ -45,3 +50,8 @@ pub const USDB_BASE_URL_VAR: &str = "OPENSTAR_USDB_BASE_URL";
 pub const FAKE_USDB_USERNAME: &str = "fake-usdb-user";
 /// See [`FAKE_USDB_USERNAME`].
 pub const FAKE_USDB_PASSWORD: &str = "fake-usdb-password";
+
+/// The settings variable the yt-dlp self-update (#198) reads the releases URL
+/// from. The harness always sets it (to a [`FakeYtDlpReleases`] or a closed
+/// local port), so the app under test never talks to GitHub.
+pub const YTDLP_RELEASES_URL_VAR: &str = "OPENSTAR_YTDLP_RELEASES_URL";
