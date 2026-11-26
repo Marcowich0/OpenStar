@@ -137,7 +137,8 @@ async fn progress_and_completion_reach_every_connected_browser() {
         vec![Job {
             id,
             kind: JobKind::Test,
-            state: JobState::Done
+            state: JobState::Done,
+            download: None,
         }]
     );
 }
@@ -348,7 +349,8 @@ async fn a_kind_that_does_not_run_again_fails_when_a_restart_interrupts_it() {
             kind: JobKind::Test,
             state: JobState::Failed {
                 reason: UserMessage::JobInterrupted
-            }
+            },
+            download: None,
         }]
     );
 }

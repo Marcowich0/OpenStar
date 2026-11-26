@@ -12,7 +12,7 @@ import { createQueryClient } from "../api/queryClient";
 import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ServerMessage } from "../generated/ServerMessage";
 import { createLiveClient, type LiveSocket } from "../live/liveClient";
-import { createLiveStore } from "../live/liveStore";
+import { createLiveStore, type LiveStore } from "../live/liveStore";
 
 class FakeSocket implements LiveSocket {
   readyState = 0;
@@ -87,8 +87,13 @@ export function fakeLibraryServer(
   return server;
 }
 
-/** Renders `ui` with a query client kept current by a fake WebSocket. */
-export async function renderLive(ui: ReactNode) {
+/**
+ * Renders `ui` with a query client kept current by a fake WebSocket; `ui`
+ * may be made from the live store, for a section that listens to it.
+ */
+export async function renderLive(
+  ui: ReactNode | ((store: LiveStore) => ReactNode),
+) {
   const queryClient = createQueryClient();
   const socket = new FakeSocket();
   const store = createLiveStore((handlers) =>
@@ -100,10 +105,21 @@ export async function renderLive(ui: ReactNode) {
   );
   const stop = invalidateOnChange(store, queryClient);
   socket.open();
-  render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  render(
+    <QueryClientProvider client={queryClient}>
+      {typeof ui === "function" ? ui(store) : ui}
+    </QueryClientProvider>,
+  );
   await settle();
   return {
     stop,
+    /** Delivers any server message. */
+    async receive(message: ServerMessage) {
+      act(() => {
+        socket.receive(message);
+      });
+      await settle();
+    },
     /** Delivers `Changed { topics }`, as the server sends it. */
     async changed(...topics: ChangeTopic[]) {
       act(() => {

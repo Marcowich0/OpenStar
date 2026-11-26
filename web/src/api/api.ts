@@ -110,6 +110,8 @@ export interface Endpoints {
   };
   /** Guarded, and refused on a read-only Library. */
   "POST /api/downloads": { body: StartDownload; response: DownloadStarted };
+  /** Not guarded: stops a waiting or running Download; `204`, no body. */
+  "POST /api/downloads/{id}/cancel": { response: null };
   "GET /api/usdb/songs/{id}/version": { response: UsdbTextVersion };
 }
 

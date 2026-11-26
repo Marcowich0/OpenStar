@@ -25,16 +25,17 @@ mod test_kind;
 
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU8, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use openstar_protocol::jobs::{Job, JobId, JobKind, JobState};
+use openstar_protocol::jobs::{DownloadDetails, DownloadRate, Job, JobId, JobKind, JobState};
 use openstar_protocol::{ChangeTopic, ServerMessage, UserMessage};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 
-pub use child::{Slot, ToolCommand};
+pub use child::{Slot, ToolCommand, ToolFailure};
 use store::StoredState;
 pub use test_kind::TestJob;
 
@@ -152,6 +153,14 @@ impl JobParams {
         }
     }
 
+    /// What a browser is told about a Download besides its state.
+    fn download_details(&self) -> Option<DownloadDetails> {
+        match self {
+            Self::Download(job) => Some(job.details()),
+            _ => None,
+        }
+    }
+
     async fn run(self, ctx: &mut JobContext) -> Result<(), UserMessage> {
         match self {
             Self::Test(job) => job.run(ctx).await,
@@ -220,9 +229,14 @@ pub struct Progress {
     commands: mpsc::Sender<Command>,
     /// The last percentage sent, or [`NO_PERCENT`].
     last: AtomicU8,
+    /// When a Download's rate was last sent.
+    last_rate: Mutex<Option<Instant>>,
 }
 
 const NO_PERCENT: u8 = u8::MAX;
+
+/// How often a Download's rate is sent at most while its percentage stays.
+const RATE_EVERY: Duration = Duration::from_secs(1);
 
 impl Progress {
     /// Reports how far the job is, from 0 to 100. Only a changed percentage
@@ -236,6 +250,31 @@ impl Progress {
         let _ = self.commands.try_send(Command::Progress {
             id: self.id,
             percent,
+            rate: None,
+        });
+    }
+
+    /// Reports how far a Download is and how fast yt-dlp is fetching. Sent
+    /// when the percentage changed, else at most once every [`RATE_EVERY`].
+    pub(crate) fn report_rate(&self, percent: u8, rate: DownloadRate) {
+        let percent = percent.min(100);
+        let changed = self.last.swap(percent, Ordering::Relaxed) != percent;
+        let now = Instant::now();
+        {
+            let mut last_rate = self
+                .last_rate
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let due = last_rate.is_none_or(|at| now.duration_since(at) >= RATE_EVERY);
+            if !changed && !due {
+                return;
+            }
+            *last_rate = Some(now);
+        }
+        let _ = self.commands.try_send(Command::Progress {
+            id: self.id,
+            percent,
+            rate: Some(rate),
         });
     }
 
@@ -246,6 +285,7 @@ impl Progress {
             id: self.id,
             commands: self.commands.clone(),
             last: AtomicU8::new(self.last.load(Ordering::Relaxed)),
+            last_rate: Mutex::new(None),
         }
     }
 }
@@ -259,6 +299,8 @@ enum Command {
     Progress {
         id: JobId,
         percent: u8,
+        /// A Download's rate, when yt-dlp reported one.
+        rate: Option<DownloadRate>,
     },
     Finished {
         id: JobId,
@@ -395,6 +437,7 @@ impl Runner {
                 })
                 .ok();
             let kind = params.as_ref().map_or(JobKind::Test, JobParams::kind);
+            let download = params.as_ref().and_then(JobParams::download_details);
             let mut state = match row.state {
                 StoredState::Queued => JobState::Queued,
                 StoredState::Running => JobState::Running { percent: None },
@@ -454,6 +497,7 @@ impl Runner {
                         id: row.id,
                         kind,
                         state,
+                        download,
                     },
                 },
             );
@@ -470,8 +514,11 @@ impl Runner {
                 Command::Enqueue { params, reply } => {
                     let _ = reply.send(self.enqueue(params).await);
                 }
-                Command::Progress { id, percent } => {
+                Command::Progress { id, percent, rate } => {
                     if self.running.contains_key(&id) {
+                        if rate.is_some() {
+                            self.set_rate(id, rate);
+                        }
                         if let Err(error) = store::set_percent(&self.db, id, Some(percent)).await {
                             tracing::error!(?error, job = id.0, "storing a job's progress");
                         }
@@ -507,6 +554,7 @@ impl Runner {
             id,
             kind: params.kind(),
             state: JobState::Queued,
+            download: params.download_details(),
         };
         self.broadcast(&job).await;
         self.jobs.insert(
@@ -536,6 +584,7 @@ impl Runner {
             if let Err(error) = store::set_percent(&self.db, id, None).await {
                 tracing::error!(?error, job = id.0, "storing a job's start");
             }
+            self.set_rate(id, None);
             self.set_state(id, JobState::Running { percent: None })
                 .await;
             let (cancel, cancelled) = watch::channel(false);
@@ -544,6 +593,7 @@ impl Runner {
                     id,
                     commands: self.commands.clone(),
                     last: AtomicU8::new(NO_PERCENT),
+                    last_rate: Mutex::new(None),
                 },
                 slot: Slot {
                     lane,
@@ -577,6 +627,7 @@ impl Runner {
         if let Err(error) = store::set_state(&self.db, id, stored, reason).await {
             tracing::error!(?error, job = id.0, "storing a job's end");
         }
+        self.set_rate(id, None);
         self.set_state(id, state).await;
         self.start_next(running.lane).await;
     }
@@ -622,6 +673,20 @@ impl Runner {
                 job.task.abort();
                 let _ = job.task.await;
             }
+        }
+    }
+
+    /// Keeps a Download's rate for its next [`JobChanged`]; nothing for
+    /// other kinds.
+    ///
+    /// [`JobChanged`]: ServerMessage::JobChanged
+    fn set_rate(&mut self, id: JobId, rate: Option<DownloadRate>) {
+        if let Some(download) = self
+            .jobs
+            .get_mut(&id)
+            .and_then(|entry| entry.job.download.as_mut())
+        {
+            download.rate = rate;
         }
     }
 

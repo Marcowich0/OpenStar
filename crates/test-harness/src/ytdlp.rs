@@ -83,6 +83,21 @@ impl YtDlpStub {
         read_calls(self.dir())
     }
 
+    /// The process id of every call so far, in call order (a hanging
+    /// call's is its `sleep`'s).
+    pub fn call_pids(&self) -> Vec<Option<u32>> {
+        let count = self.calls().len();
+        (1..=count)
+            .map(|call| {
+                fs::read_to_string(self.dir().join(format!("calls/{call:06}.pid")))
+                    .ok()?
+                    .trim()
+                    .parse()
+                    .ok()
+            })
+            .collect()
+    }
+
     /// When each call so far ran, in call order: its start and end in Unix
     /// seconds, or `None` while it runs (or when it was killed).
     pub fn call_spans(&self) -> Vec<Option<(f64, f64)>> {
