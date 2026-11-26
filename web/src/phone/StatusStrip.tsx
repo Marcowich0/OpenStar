@@ -5,12 +5,13 @@ import { t } from "../i18n/t";
 import type { LiveStore } from "../live/liveStore";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
-import { controlSong, usePlayerNames } from "./playing/playing";
+import { controlSong, usePlayerNames } from "./onStage/playing";
 import type { StatusStrip as Strip } from "./remoteFrame";
 
 const STRIP =
   "mx-2.5 mb-2 flex items-center gap-2.5 rounded-[22px] bg-ink py-2 pr-2 pl-3 text-white";
-const FOCUS = "outline-none focus-visible:outline-4 focus-visible:outline-yellow";
+const FOCUS =
+  "outline-none focus-visible:outline-4 focus-visible:outline-yellow";
 
 /**
  * The status strip above the tabs (v1 spec #49, "The Remote frame"). While a
