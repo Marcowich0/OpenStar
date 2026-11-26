@@ -104,6 +104,11 @@ export interface MicThresholds {
   setByHand: (localMicId: string, effectiveDbfs: number) => void;
   /** Moves a Local mic's line by `stepDb` (±1 for the arrow keys). */
   nudge: (localMicId: string, stepDb: number) => void;
+  /**
+   * Whether a Stage output's stored values have loaded: until then a hand
+   * setting has no output to be kept for, so the lines cannot be moved.
+   */
+  ready: boolean;
 }
 
 /**
@@ -118,7 +123,7 @@ export function useMicThresholds(
 ): MicThresholds {
   // The default volume until the server tells it.
   const volume = useLive(selectVolume, store) ?? OPENSTAR_VOLUME.default;
-  useSyncExternalStore(settings.subscribe, settings.values);
+  const loaded = useSyncExternalStore(settings.subscribe, settings.values);
   const resolved = (mic: MicKey | null) =>
     seatMicSettings(mic, mic ? settings.storedFor(mic) : undefined, volume);
   const effectiveDbfs = (mic: MicKey | null) =>
@@ -143,6 +148,7 @@ export function useMicThresholds(
   return {
     effectiveDbfs,
     source: (mic) => resolved(mic).thresholdSource,
+    ready: loaded !== null,
     setByHand,
     nudge: (localMicId, stepDb) => {
       setByHand(

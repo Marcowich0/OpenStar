@@ -939,6 +939,25 @@ describe("a Local mic's Mic threshold on its row", () => {
     });
   });
 
+  it("cannot be set before the Stage output's stored values have loaded, then can", () => {
+    setup({ kept: [redMic] });
+    openMicsScreen();
+    expect(slider()).toHaveAttribute("aria-disabled", "true");
+    act(() => {
+      slider().focus();
+    });
+    press("ArrowLeft");
+    expect(thresholdsSent()).toEqual([]);
+
+    load("calibration");
+    expect(slider()).not.toHaveAttribute("aria-disabled");
+    act(() => {
+      slider().focus();
+    });
+    press("ArrowLeft");
+    expect(thresholdsSent().map((m) => m.referenceDbfs)).toEqual([-45]);
+  });
+
   it("drags the line, storing it at the reference volume", () => {
     setup({ kept: [redMic] });
     load("calibration");

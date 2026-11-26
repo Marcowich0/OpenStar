@@ -62,6 +62,8 @@ interface ThresholdLine {
   dbfs: number;
   /** Sets it by hand (dragging), as an effective dBFS. */
   onSet: (dbfs: number) => void;
+  /** It cannot be moved yet (the Stage output's values have not loaded). */
+  disabled: boolean;
 }
 
 /**
@@ -106,13 +108,14 @@ function LevelMeter({
     return Math.round(METER_FLOOR_DBFS * (1 - fraction));
   };
   const drag = (clientX: number) => {
+    if (threshold.disabled) return;
     const dbfs = dbfsAt(clientX);
     if (dbfs !== null && dbfs !== Math.round(threshold.dbfs))
       threshold.onSet(dbfs);
   };
   return (
     <div
-      className="relative w-[420px] shrink-0 cursor-ew-resize touch-none py-2"
+      className={`relative w-[420px] shrink-0 touch-none py-2 ${threshold.disabled ? "cursor-not-allowed" : "cursor-ew-resize"}`}
       onPointerDown={(event) => {
         dragging.current = event.pointerId;
         // Follows the pointer off the meter too (jsdom has no capture).
@@ -153,7 +156,8 @@ function LevelMeter({
         aria-valuemin={METER_FLOOR_DBFS}
         aria-valuemax={0}
         aria-valuenow={Math.round(threshold.dbfs)}
-        className="absolute top-0 bottom-0 w-2 -translate-x-1/2 rounded-full bg-ink"
+        {...(threshold.disabled ? { "aria-disabled": true } : {})}
+        className={`absolute top-0 bottom-0 w-2 -translate-x-1/2 rounded-full ${threshold.disabled ? "bg-mute" : "bg-ink"}`}
         style={{ left: `${String(fractionOf(threshold.dbfs) * 100)}%` }}
       />
     </div>
@@ -256,6 +260,7 @@ function ChannelRow({
               onSet: (dbfs) => {
                 thresholds.setByHand(channel.localMicId, dbfs);
               },
+              disabled: !thresholds.ready,
             }}
           />
           <p className="h-7 text-xl font-medium text-ink-2">{source}</p>
@@ -641,7 +646,7 @@ export function MicsScreen() {
     const localMicId =
       active instanceof HTMLElement ? active.dataset.thresholdMic : undefined;
     if (localMicId === undefined) return false;
-    thresholds.nudge(localMicId, stepDb);
+    if (thresholds.ready) thresholds.nudge(localMicId, stepDb);
     return true;
   };
   useStageKeys({
