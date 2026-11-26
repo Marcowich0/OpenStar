@@ -60,6 +60,9 @@ export async function runCalibrationTones({
 }: CalibrationTones): Promise<void> {
   const readings = mics.map(() => [] as PitchReading[]);
   const stop = store.onPitchReading((from, reading) => {
+    // Only Phones are Mics of a run so far; a Mic bridge's Local mics join
+    // with #210.
+    if (from.kind !== "phone") return;
     const index = mics.findIndex((mic) => sameMic(mic, from.phoneId));
     if (index >= 0) readings[index]?.push(reading);
   });
