@@ -262,6 +262,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
                 Guarded(Writes),
                 test_done,
             )
+            // A new Song folder (#77), until Downloads (#47) call it.
+            .add(
+                Method::POST,
+                "/api/test/library/new-song",
+                Guarded(Writes),
+                library::new_song_test,
+            )
             // The Profile delete through the Party (#89), until #199 mounts
             // it at `DELETE /api/profiles/{id}`. Deletes kept data.
             .add(
