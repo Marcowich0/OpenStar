@@ -1,6 +1,7 @@
-import { act, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { songsQuery } from "../../api/queries";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import { partyOf } from "../../phone/people/testPhone";
 import { click, press, renderOverlays, request, summary } from "./testOverlay";
@@ -83,5 +84,34 @@ describe("the Songs overlay", () => {
     expect(
       within(dialog()).getByText("No Songs in the Library yet"),
     ).toBeVisible();
+  });
+});
+
+describe("search in the Songs overlay", () => {
+  const box = () =>
+    within(dialog()).getByRole("searchbox", {
+      name: "Search songs or artists",
+    });
+
+  it("opens on /, narrows the overlay's carousel, and Esc clears it before closing", () => {
+    const { queries } = openSongs();
+    queries.setQueryData(songsQuery({ search: "moon" }).queryKey, {
+      songs: [SONGS[2]],
+      filters: queries.getQueryData(songsQuery().queryKey)?.filters,
+    });
+    press("/");
+    expect(document.activeElement).toBe(box());
+    act(() => {
+      fireEvent.change(box(), { target: { value: "moon" } });
+    });
+    expect(selected()).toHaveAccessibleName(/Moon/);
+    expect(within(dialog()).queryByTestId("carousel-cover-1")).toBeNull();
+    press("Escape");
+    expect(within(dialog()).queryByRole("searchbox")).toBeNull();
+    expect(
+      within(dialog()).getByTestId("carousel-cover-1"),
+    ).toBeInTheDocument();
+    press("Escape");
+    expect(screen.queryByRole("dialog", { name: "Songs" })).toBeNull();
   });
 });

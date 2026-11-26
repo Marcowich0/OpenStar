@@ -17,6 +17,7 @@ import { Icon } from "../../ui/Icon";
 import { RequestSheet } from "./RequestSheet";
 import {
   chipActive,
+  chipLabel,
   filterChips,
   noFilter,
   songListQuery,
@@ -25,21 +26,6 @@ import {
   type SongFilterQuery,
 } from "./songChips";
 import { SongTags } from "./SongTags";
-
-function chipLabel(chip: FilterChip): string {
-  switch (chip.field) {
-    case "duet":
-      return t("songs.duets");
-    case "hasVideo":
-      return t("songs.withVideo");
-    case "year":
-      return String(chip.value);
-    case "language":
-    case "genre":
-    case "edition":
-      return chip.value;
-  }
-}
 
 const CHIP =
   "shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow";

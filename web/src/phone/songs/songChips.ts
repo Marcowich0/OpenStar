@@ -7,6 +7,7 @@
 
 import type { SongFilters } from "../../generated/SongFilters";
 import type { SongQuery } from "../../generated/SongQuery";
+import { t } from "../../i18n/t";
 
 /** The filter part of a `SongQuery`: everything but the search text. */
 export type SongFilterQuery = Omit<SongQuery, "search">;
@@ -62,4 +63,20 @@ export function songListQuery(
 ): SongQuery {
   const words = search.trim();
   return words === "" ? filters : { ...filters, search: words };
+}
+
+/** What a chip says. */
+export function chipLabel(chip: FilterChip): string {
+  switch (chip.field) {
+    case "duet":
+      return t("songs.duets");
+    case "hasVideo":
+      return t("songs.withVideo");
+    case "year":
+      return String(chip.value);
+    case "language":
+    case "genre":
+    case "edition":
+      return chip.value;
+  }
 }
