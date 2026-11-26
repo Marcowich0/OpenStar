@@ -184,6 +184,12 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             profiles::edit_profile,
         )
+        .add(
+            Method::DELETE,
+            "/api/profiles/{id}",
+            Guarded(Untouched),
+            profiles::delete_profile,
+        )
         // Storing a round adds kept data and deletes nothing.
         .add(Method::POST, "/api/rounds", NotGuarded, scores::store_round)
         .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
@@ -313,14 +319,6 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
                 "/api/test/library/new-song",
                 Guarded(Writes),
                 library::new_song_test,
-            )
-            // The Profile delete through the Party (#89), until #199 mounts
-            // it at `DELETE /api/profiles/{id}`. Deletes kept data.
-            .add(
-                Method::DELETE,
-                "/api/test/profiles/{id}",
-                Guarded(Untouched),
-                profiles::delete_profile,
             )
             // Stores a round as it comes (no Party checks), for tests of
             // Score records and High scores; keeps data, deletes none.
