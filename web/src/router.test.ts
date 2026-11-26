@@ -24,11 +24,16 @@ describe("the app's routes", () => {
     ["/admin", "/admin/"],
     ["/admin/downloads", "/admin/downloads"],
     ["/admin/songs", "/admin/songs"],
+    ["/admin/songs/7/timing", "/admin/songs/$song/timing"],
     ["/admin/library-problems", "/admin/library-problems"],
     ["/admin/profiles", "/admin/profiles"],
     ["/bridge", "/bridge"],
   ])("%s is served by route %s", (url, routeId) => {
     expect(leafMatch(url)?.routeId).toBe(routeId);
+  });
+
+  it("hands the Song's id to the Timing editor", () => {
+    expect(leafMatch("/admin/songs/7/timing")?.params).toEqual({ song: 7 });
   });
 
   it("hands a well-formed Join code from the QR link to the Phone route", () => {

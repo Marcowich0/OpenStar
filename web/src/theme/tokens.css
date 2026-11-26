@@ -68,6 +68,10 @@
   --color-lyric-ledge: rgba(43, 45, 66, 0.2);
   /* The "mic lost" pill on a lane (#55): its ledge. */
   --color-mic-lost-ledge: rgba(0, 0, 0, 0.25);
+  /* The Timing editor's share colours (#57): a Line's bar runs from red at
+     share 0 to green, by hue only, so the painter mixes the two in HSL. */
+  --color-fit-low: hsl(0 75% 55%);
+  --color-fit-high: hsl(120 75% 55%);
 
   /* Radii: buttons, chips and pills use `rounded-full`; cards 36–52 px. */
   --radius-card-sm: 36px;

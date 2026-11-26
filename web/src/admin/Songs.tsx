@@ -2,20 +2,22 @@
 // title, artist) with a search box over artist and title, on the Library
 // index's search (`GET /api/songs?search=`). It refreshes from the `library`
 // change notice, like every Song list. Each row is where the Song's admin
-// actions attach: Restore Original (#188), Delete (#190), the Timing editor
+// actions attach: Restore Original (#188, on a Song with an Original), Delete (#190), the Timing editor
 // (#218) and Fit to the singing (#223), passed as the row's `children`.
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useState, type ReactNode } from "react";
 import { Input, SearchField } from "react-aria-components";
 
-import { songsQuery } from "../api/queries";
+import { originalsQuery, songsQuery } from "../api/queries";
 import type { SongQuery } from "../generated/SongQuery";
 import type { SongSummary } from "../generated/SongSummary";
 import { t } from "../i18n/t";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
+import { RestoreOriginal } from "./RestoreOriginal";
+import { TimingEditorLink } from "./timing/TimingEditorLink";
 
 function searchQuery(search: string): SongQuery {
   const words = search.trim();
@@ -29,6 +31,7 @@ export function Songs() {
     ...songsQuery(query),
     placeholderData: keepPreviousData,
   });
+  const originals = new Set(useQuery(originalsQuery).data ?? []);
 
   return (
     <AdminSection title={t("admin.songs")} writesLibrary>
@@ -62,7 +65,12 @@ export function Songs() {
               className="flex flex-col gap-3"
             >
               {list.data.songs.map((song) => (
-                <AdminSongRow key={song.id} song={song} />
+                <AdminSongRow key={song.id} song={song}>
+                  <TimingEditorLink song={song} />
+                  {originals.has(song.id) ? (
+                    <RestoreOriginal songId={song.id} />
+                  ) : undefined}
+                </AdminSongRow>
               ))}
             </ul>
           )

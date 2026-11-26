@@ -18,11 +18,16 @@ import type { ScanStatus } from "../generated/ScanStatus";
 import type { ServerInfo } from "../generated/ServerInfo";
 import type { SongDetail } from "../generated/SongDetail";
 import type { SongHighScores } from "../generated/SongHighScores";
+import type { SongId } from "../generated/SongId";
 import type { SongList } from "../generated/SongList";
 import type { SongQuery } from "../generated/SongQuery";
 import type { RoundStored } from "../generated/RoundStored";
 import type { StageTrustRequest } from "../generated/StageTrustRequest";
 import type { StageTrustStatus } from "../generated/StageTrustStatus";
+import type { TimingEdit } from "../generated/TimingEdit";
+import type { TimingPreview } from "../generated/TimingPreview";
+import type { TimingSave } from "../generated/TimingSave";
+import type { TxtVersion } from "../generated/TxtVersion";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
 import type { UsdbMirrorStatus } from "../generated/UsdbMirrorStatus";
@@ -51,11 +56,20 @@ export interface Endpoints {
   "POST /api/profiles": { body: NewProfile; response: Profile };
   "GET /api/profiles/{id}": { response: Profile };
   "PATCH /api/profiles/{id}": { body: ProfileEdit; response: Profile };
+  /** Guarded: deletes the Profile and its Score records; `204`, no body. */
+  "DELETE /api/profiles/{id}": { response: null };
   "GET /api/jobs": { response: JobList };
   "GET /api/songs": { query: SongQuery; response: SongList };
   "GET /api/songs/{id}": { response: SongDetail };
   "GET /api/songs/{id}/high-scores": { response: SongHighScores };
   "POST /api/songs/{id}/pitch-track": { response: PitchTrackStart };
+  "POST /api/songs/{id}/timing/preview": {
+    body: TimingEdit;
+    response: TimingPreview;
+  };
+  "POST /api/songs/{id}/timing": { body: TimingSave; response: TimingPreview };
+  "POST /api/songs/{id}/restore-original": { response: TxtVersion };
+  "GET /api/library/originals": { response: SongId[] };
   "GET /api/library/problems": { response: LibraryProblem[] };
   "GET /api/library/scan": { response: ScanStatus };
   "POST /api/library/rescan": { response: ScanStatus };
@@ -190,6 +204,9 @@ const REFUSAL_CODES = {
   usdbGaveUp: true,
   usdbUnexpectedStatus: true,
   pitchTrackFailed: true,
+  songFileChanged: true,
+  songPlaying: true,
+  noOriginal: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */
@@ -252,6 +269,8 @@ export async function api<R extends Route>(
   // The call site is checked against `Endpoints`; from here on the options
   // are handled the same for every route.
   const response = await send(route, "application/json", options);
+  // `204 No Content` has no body: such routes declare `response: null`.
+  if (response.status === 204) return null;
   return (await response.json()) as ResponseOf<R>;
 }
 

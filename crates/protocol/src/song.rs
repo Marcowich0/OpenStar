@@ -193,6 +193,62 @@ pub enum TimingOperation {
     SetLineEnd { line: u32, beat: i32 },
 }
 
+/// The body of `POST /api/songs/{id}/timing/preview`: the Timing edit to
+/// preview.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct TimingEdit {
+    pub operations: Vec<TimingOperation>,
+}
+
+/// The body of `POST /api/songs/{id}/timing`: the Timing edit to save, and
+/// the version of the `.txt` its preview was computed from.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct TimingSave {
+    /// [`TimingPreview::base`] of the preview the admin confirmed. The save
+    /// is refused (`409 songFileChanged`) when the file is no longer that
+    /// version.
+    pub base: TxtVersion,
+    pub operations: Vec<TimingOperation>,
+}
+
+/// The version of a `.txt` as OpenStar loaded it: the SHA-256 of its bytes,
+/// in lower-case hex.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct TxtVersion(pub String);
+
+/// What a Timing edit changes in the `.txt`, computed by the patcher that
+/// writes. The answer of the preview, and of a save (what was written).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct TimingPreview {
+    /// The file the lines are counted in: the file previewed, or after a
+    /// save the file written (the base of the next edit).
+    pub base: TxtVersion,
+    /// The lines whose text changes, in file order; every other line stays
+    /// byte for byte. Empty: the file would stay as it is.
+    pub changed: Vec<ChangedLine>,
+}
+
+/// One line a Timing edit changes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ChangedLine {
+    /// The 1-based line number in the new file; a deleted line's number in
+    /// the old one.
+    pub line: u32,
+    /// The old text without its line ending; `null` for an inserted line.
+    pub old: Option<String>,
+    /// The new text without its line ending; `null` for a deleted line.
+    pub new: Option<String>,
+}
+
 /// A header line OpenStar keeps without interpreting it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

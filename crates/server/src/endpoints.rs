@@ -184,6 +184,12 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             profiles::edit_profile,
         )
+        .add(
+            Method::DELETE,
+            "/api/profiles/{id}",
+            Guarded(Untouched),
+            profiles::delete_profile,
+        )
         // Storing a round adds kept data and deletes nothing.
         .add(Method::POST, "/api/rounds", NotGuarded, scores::store_round)
         .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
@@ -202,6 +208,26 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/songs/{id}/pitch-track",
             NotGuarded,
             library::pitch_track::download,
+        )
+        // A Timing edit's preview writes nothing; saving it and Restore
+        // Original change the Song's `.txt` (docs/agents/guard-rule.md).
+        .add(
+            Method::POST,
+            "/api/songs/{id}/timing/preview",
+            NotGuarded,
+            library::timing::preview,
+        )
+        .add(
+            Method::POST,
+            "/api/songs/{id}/timing",
+            Guarded(Writes),
+            library::timing::save,
+        )
+        .add(
+            Method::POST,
+            "/api/songs/{id}/restore-original",
+            Guarded(Writes),
+            library::timing::restore_original,
         )
         .add(
             Method::GET,
@@ -226,6 +252,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/library/scan",
             NotGuarded,
             library::scan_status,
+        )
+        // Which Songs have an Original, for Restore Original's button.
+        .add(
+            Method::GET,
+            "/api/library/originals",
+            NotGuarded,
+            library::timing::originals,
         )
         // Rescan and the Library problems need no PIN (docs/agents/guard-rule.md).
         .add(
@@ -313,14 +346,6 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
                 "/api/test/library/new-song",
                 Guarded(Writes),
                 library::new_song_test,
-            )
-            // The Profile delete through the Party (#89), until #199 mounts
-            // it at `DELETE /api/profiles/{id}`. Deletes kept data.
-            .add(
-                Method::DELETE,
-                "/api/test/profiles/{id}",
-                Guarded(Untouched),
-                profiles::delete_profile,
             )
             // Stores a round as it comes (no Party checks), for tests of
             // Score records and High scores; keeps data, deletes none.

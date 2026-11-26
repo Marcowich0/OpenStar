@@ -578,13 +578,15 @@ async fn deleting_a_profile_removes_its_entries_from_every_table() {
     )
     .await;
 
-    // No delete endpoint yet (#45); delete the row as it will.
-    let conn =
-        rusqlite::Connection::open(app.appdata_dir().join(openstar::db::DATABASE_FILE)).unwrap();
-    conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;")
+    let cookie = app.unlock().await;
+    let response = app
+        .http()
+        .delete(app.url(&format!("/api/profiles/{}", ada.id.0)))
+        .header("cookie", cookie)
+        .send()
+        .await
         .unwrap();
-    conn.execute("DELETE FROM profiles WHERE id = ?1", [ada.id.0])
-        .unwrap();
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
 
     assert_eq!(hard_table(&app, &song).await, vec![(1, "Bo".into(), 6000)]);
     assert_eq!(

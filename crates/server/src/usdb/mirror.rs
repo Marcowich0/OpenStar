@@ -155,10 +155,9 @@ impl Mirror {
 
     /// Where the mirror stands.
     pub(crate) async fn status(&self) -> anyhow::Result<UsdbMirrorStatus> {
-        let (facts, songs) = self
-            .db
-            .call(|conn| Ok((store::facts(conn)?, store::count(conn)?)))
-            .await?;
+        // The jobs are read before the stored facts. The other way round, a
+        // run that ends between the two reads shows as neither running nor
+        // refreshed: a mirror that was just refreshed would read as stale.
         let latest = self
             .jobs
             .list()
@@ -167,6 +166,10 @@ impl Mirror {
             .into_iter()
             .filter(|job| is_mirror_kind(job.kind))
             .max_by_key(|job| job.id);
+        let (facts, songs) = self
+            .db
+            .call(|conn| Ok((store::facts(conn)?, store::count(conn)?)))
+            .await?;
         let last_failure = match &latest {
             Some(job) => match &job.state {
                 JobState::Failed { reason } => Some(reason.clone()),

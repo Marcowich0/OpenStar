@@ -561,6 +561,16 @@ pub enum UserMessage {
     /// be decoded, the job failed, or it ran past its 2-minute timeout
     /// ("Couldn't listen to this Song"). The drag tools still work.
     PitchTrackFailed,
+    /// The Song's `.txt` changed on disk (its mtime or content) since
+    /// OpenStar loaded it, so a Timing edit is not saved over it. Sent
+    /// with `409`; reload the Song and edit again.
+    SongFileChanged,
+    /// The Song plays on the Stage now, so its timing cannot be saved or
+    /// restored. Sent with `409`.
+    SongPlaying,
+    /// The Song has no Original (`<name>.txt.orig`) to restore. Sent with
+    /// `404`.
+    NoOriginal,
 }
 
 #[cfg(test)]

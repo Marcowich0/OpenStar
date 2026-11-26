@@ -99,6 +99,9 @@ export const userMessageText = byCode<UserMessage>({
   usdbUnexpectedStatus: ({ params }) =>
     t("userMessage.usdbUnexpectedStatus", params),
   pitchTrackFailed: () => t("userMessage.pitchTrackFailed"),
+  songFileChanged: () => t("userMessage.songFileChanged"),
+  songPlaying: () => t("userMessage.songPlaying"),
+  noOriginal: () => t("userMessage.noOriginal"),
 });
 
 /** An accepted change to the Party, as a toast. */
@@ -199,6 +202,20 @@ export const apiErrorText = byCode<ApiError>({
   libraryReadOnly: () => t("apiError.libraryReadOnly"),
   stagePinRequired: () => t("apiError.stagePinRequired"),
 });
+
+const API_ERROR_CODES = {
+  wrongPin: true,
+  unlockRequired: true,
+  libraryReadOnly: true,
+  stagePinRequired: true,
+} as const satisfies Record<ApiError["code"], true>;
+
+/** Why an HTTP request was refused, whichever kind of code it carries. */
+export function refusalText(refusal: ApiError | UserMessage): string {
+  return Object.hasOwn(API_ERROR_CODES, refusal.code)
+    ? apiErrorText(refusal as ApiError)
+    : userMessageText(refusal as UserMessage);
+}
 
 /** Why the Library is read-only. */
 export const libraryReadOnlyText = byCode<LibraryReadOnly>({

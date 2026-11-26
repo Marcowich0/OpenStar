@@ -20,7 +20,8 @@ The runtime image holds:
 - `/usr/local/bin/yt-dlp`, the official `yt-dlp_linux` standalone binary, and
   `/usr/local/bin/deno`, the official Deno release binary, as yt-dlp's JavaScript
   runtime. Both are pinned by the `YTDLP_VERSION` / `DENO_VERSION` build arguments, and
-  the build fails when a download does not match `YTDLP_SHA256` / `DENO_SHA256`;
+  the build fails when a download does not match `YTDLP_SHA256` / `DENO_SHA256`.
+  Renovate bumps each version together with its checksum (`docs/renovate.md`);
 - `ca-certificates`, for the TLS connection to USDB;
 - `/usr/share/openstar/bridge/`, the Mic bridge files served under `/bridge/`.
 
