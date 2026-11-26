@@ -548,6 +548,12 @@ pub enum ServerMessage {
     /// reported it ([`ClientMessage::ReportLineScore`]). The mic takeover's
     /// Score; never sent continuously.
     LineScore { request_id: RequestId, total: u32 },
+    /// To a Mic bridge whose hello named another build than the server's
+    /// (newer or older): the server's `build`. The bridge is neither
+    /// connected nor asked to wait for approval; it updates itself to this
+    /// build from `/bridge/openstar-mic-bridge` and says hello again. Kept
+    /// this small on purpose: every build must read it.
+    BridgeUpdate { build: String },
     /// To a Mic bridge without a valid token: it waits for approval on the
     /// Stage, which shows the same 4-digit `code`.
     BridgeWaiting { code: String },

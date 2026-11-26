@@ -207,7 +207,8 @@ fn detecting_local_mics(party: Option<&PartySnapshot>) -> HashSet<String> {
 
 impl LiveState {
     /// A bridge said hello: straight in with a valid token, otherwise it
-    /// waits for approval with a new code.
+    /// waits for approval with a new code. A bridge of another build is
+    /// only told the server's build, so it updates itself first.
     pub(super) async fn bridge_hello(
         &mut self,
         id: ConnectionId,
@@ -220,11 +221,19 @@ impl LiveState {
             self.reject(id, UserMessage::NotABridge);
             return;
         }
-        let host_name = mic_bridges::clean_host_name(&host_name);
         if build != crate::BUILD_ID {
-            // #209 makes the bridge update itself to the server's build.
-            tracing::info!(%build, server = crate::BUILD_ID, "a Mic bridge of another build said hello");
+            // Only the exact build connects: the bridge updates itself and
+            // says hello again (no protocol version, no compatible range).
+            tracing::info!(%build, server = crate::BUILD_ID, "a Mic bridge of another build said hello: it updates");
+            self.hub.send_to(
+                id,
+                &ServerMessage::BridgeUpdate {
+                    build: crate::BUILD_ID.to_owned(),
+                },
+            );
+            return;
         }
+        let host_name = mic_bridges::clean_host_name(&host_name);
         // A second hello replaces the first.
         self.bridges.waiting.retain(|w| w.connection != id);
         self.bridges.open.remove(&id);

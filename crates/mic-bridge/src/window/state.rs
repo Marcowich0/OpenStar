@@ -9,6 +9,7 @@ use openstar_protocol::ServerMessage;
 use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInterface};
 
 use crate::client::{Event, default_name};
+use crate::update::Mismatch;
 
 /// The connection status line.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +20,12 @@ pub enum Status {
     Waiting { code: String },
     /// Approved and connected.
     Connected,
+    /// The server is of another build: the bridge is downloading it and
+    /// restarts into it.
+    Updating { build: String },
+    /// The server is of another build the bridge cannot install itself:
+    /// it does not connect.
+    BuildMismatch(Mismatch),
     /// The bridge cannot connect at all (no server address, for example).
     Stopped { problem: String },
 }
@@ -99,6 +106,16 @@ impl WindowState {
                 self.levels.clear();
             }
             Event::Received(message) => self.received(message),
+            Event::Updating { build } => {
+                self.status = Status::Updating {
+                    build: build.to_owned(),
+                };
+                self.levels.clear();
+            }
+            Event::BuildMismatch(mismatch) => {
+                self.status = Status::BuildMismatch(mismatch.clone());
+                self.levels.clear();
+            }
             Event::InterfaceOpen { device_name, open } => {
                 if open {
                     self.levels.entry(device_name.to_owned()).or_default();
@@ -306,5 +323,24 @@ mod tests {
         );
         state.apply(Event::Disconnected);
         assert_eq!(state.status(), &Status::Connecting { problem: None });
+    }
+
+    #[test]
+    fn another_server_build_shows_the_update_or_the_mismatch() {
+        let mut state = scarlett();
+        state.apply(Event::Updating { build: "1.4.0" });
+        assert_eq!(
+            state.status(),
+            &Status::Updating {
+                build: "1.4.0".into()
+            }
+        );
+        let crate::update::Plan::Mismatch(mismatch) =
+            crate::update::plan("1.3.2", "1.4.0", "http://openstar.lan:8080", false)
+        else {
+            panic!("a mismatch");
+        };
+        state.apply(Event::BuildMismatch(&mismatch));
+        assert_eq!(state.status(), &Status::BuildMismatch(mismatch));
     }
 }

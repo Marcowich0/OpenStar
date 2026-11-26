@@ -12,12 +12,17 @@
 //! WebSocket and connects again whenever the connection ends; it tells a
 //! [`Report`] what happens (headless prints lines, the window keeps
 //! [`Event`]s).
+//!
+//! A server of another build answers the hello with its build alone; the
+//! bridge then updates itself ([`crate::update`]) and [`run`] ends with
+//! [`Ended::Updated`] for its caller to restart into the new build.
 
 use std::time::Duration;
 
 use crate::detecting::Detecting;
 use crate::levels::{LEVEL_INTERVAL, Metering, channel_levels_dbfs};
 use crate::sender::MonotonicClock;
+use crate::update::{self, Mismatch, Plan, SelfFile};
 use anyhow::Context as _;
 use futures_util::{SinkExt as _, StreamExt as _};
 use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInputDelay, BridgeInterface};
@@ -62,17 +67,27 @@ pub enum Effect {
 /// The joining state of one connection.
 pub struct Joining {
     interfaces: Vec<BridgeInterface>,
+    build: String,
 }
 
 impl Joining {
     pub fn new(interfaces: Vec<BridgeInterface>) -> Self {
-        Self { interfaces }
+        Self {
+            interfaces,
+            build: crate::BUILD_ID.to_owned(),
+        }
+    }
+
+    /// Says hello as `build` (the bridge's own, see [`SelfFile::build`]).
+    pub fn with_build(mut self, build: String) -> Self {
+        self.build = build;
+        self
     }
 
     /// The first message on the socket.
     pub fn hello(&self, host_name: &str, token: Option<String>) -> ClientMessage {
         ClientMessage::BridgeHello {
-            build: crate::BUILD_ID.to_owned(),
+            build: self.build.clone(),
             host_name: host_name.to_owned(),
             token,
             interfaces: self.interfaces.clone(),
@@ -153,6 +168,12 @@ pub enum Event<'a> {
     Disconnected,
     /// A message from the server.
     Received(&'a ServerMessage),
+    /// The server is of another build: the bridge downloads it and
+    /// restarts into it.
+    Updating { build: &'a str },
+    /// The server is of another build and the bridge cannot replace its
+    /// own file: it does not connect.
+    BuildMismatch(&'a Mismatch),
     /// An interface was opened or closed.
     InterfaceOpen { device_name: &'a str, open: bool },
     /// The level of each channel of an open interface (index = hardware
@@ -217,9 +238,20 @@ pub fn input_delays(input: &dyn Input) -> Option<ClientMessage> {
     (!delays.is_empty()).then_some(ClientMessage::BridgeInputDelays { delays })
 }
 
+/// Why [`run`] stopped connecting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Ended {
+    /// The bridge's file at this path is now the server's build: restart
+    /// into it ([`update::restart`]).
+    Updated(std::path::PathBuf),
+    /// The server is of another build and the bridge cannot replace itself.
+    BuildMismatch(Mismatch),
+}
+
 /// Connects to the server in `config` and stays connected, connecting again
-/// whenever the connection ends. Returns only on an error no retry fixes.
-pub async fn run(config: ConfigDir, inputs: Vec<Box<dyn Input>>) -> anyhow::Result<()> {
+/// whenever the connection ends. Returns when the bridge must restart or
+/// cannot run the server's build ([`Ended`]), or on an error no retry fixes.
+pub async fn run(config: ConfigDir, inputs: Vec<Box<dyn Input>>) -> anyhow::Result<Ended> {
     run_reporting(config, inputs, &mut PrintLines).await
 }
 
@@ -228,11 +260,13 @@ pub async fn run_reporting(
     config: ConfigDir,
     mut inputs: Vec<Box<dyn Input>>,
     report: &mut dyn Report,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Ended> {
     let server = config.server()?;
     let url = bridge_socket_url(&server)?;
     let interfaces = inputs.iter().map(|i| i.interface().clone()).collect();
-    let joining = Joining::new(interfaces);
+    let me = SelfFile::current()?;
+    let build = me.build();
+    let joining = Joining::new(interfaces).with_build(build.clone());
     let host_name = host_name();
     let clock = MonotonicClock::new();
     let mut attempt = 0;
@@ -249,6 +283,39 @@ pub async fn run_reporting(
             report,
         )
         .await;
+        let ran = match ran {
+            Ok(Session::UpdateTo(server_build)) => {
+                match update::plan(&build, &server_build, &server, me.can_replace()) {
+                    // Told to update to its own build: try again.
+                    Plan::Connect => Ok(()),
+                    Plan::Update { build } => {
+                        report.event(Event::Updating { build: &build });
+                        report.line(&update::updating_line(&build));
+                        let updated = match update::download(&server).await {
+                            Ok((binary, published)) => me.replace(&binary, &published),
+                            Err(error) => Err(error),
+                        };
+                        match updated {
+                            Ok(()) => return Ok(Ended::Updated(me.path().to_owned())),
+                            // A bad copy is discarded: not connected, and
+                            // the next hello tries again.
+                            Err(error) => Err(error),
+                        }
+                    }
+                    Plan::Mismatch(mismatch) => {
+                        report.event(Event::BuildMismatch(&mismatch));
+                        report.line(&mismatch.message());
+                        report.line(&format!(
+                            "To update it, run this on this computer: {}",
+                            mismatch.install_command
+                        ));
+                        return Ok(Ended::BuildMismatch(mismatch));
+                    }
+                }
+            }
+            Ok(Session::Closed) => Ok(()),
+            Err(error) => Err(error),
+        };
         match ran {
             Ok(()) => {
                 report.event(Event::Disconnected);
@@ -280,6 +347,26 @@ where
     Ok(())
 }
 
+/// How one connection ended.
+enum Session {
+    /// The connection closed.
+    Closed,
+    /// The server is of this other build.
+    UpdateTo(String),
+}
+
+/// The server's build, if `text` is its answer to a hello of another build
+/// ([`ServerMessage::BridgeUpdate`]). Read as plain JSON, not as the whole
+/// [`ServerMessage`], so a bridge of any build understands it however much
+/// the other messages changed.
+pub fn update_notice(text: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(text).ok()?;
+    if value.get("type")?.as_str()? != "bridgeUpdate" {
+        return None;
+    }
+    Some(value.get("build")?.as_str()?.to_owned())
+}
+
 /// One connection, until it ends.
 async fn session(
     config: &ConfigDir,
@@ -289,7 +376,7 @@ async fn session(
     inputs: &mut [Box<dyn Input>],
     clock: &MonotonicClock,
     report: &mut dyn Report,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Session> {
     let (mut socket, _) = tokio_tungstenite::connect_async(url)
         .await
         .with_context(|| format!("connecting to {url}"))?;
@@ -307,10 +394,13 @@ async fn session(
     loop {
         tokio::select! {
             message = socket.next() => {
-                let Some(message) = message else { return Ok(()) };
+                let Some(message) = message else { return Ok(Session::Closed) };
                 let Message::Text(text) = message? else {
                     continue;
                 };
+                if let Some(build) = update_notice(&text) {
+                    return Ok(Session::UpdateTo(build));
+                }
                 // Same build as the server, so every message parses; anything
                 // else is not for the bridge.
                 let Ok(message) = serde_json::from_str::<ServerMessage>(&text) else {
@@ -585,6 +675,25 @@ mod tests {
             }),
             vec![Effect::Show("Detecting 2 channel(s)".into())]
         );
+    }
+
+    #[test]
+    fn the_update_notice_is_read_as_plain_json_so_any_build_reads_it() {
+        let sent = serde_json::to_string(&ServerMessage::BridgeUpdate {
+            build: "1.4.0".into(),
+        })
+        .unwrap();
+        assert_eq!(update_notice(&sent).as_deref(), Some("1.4.0"));
+        assert_eq!(
+            update_notice(r#"{"type":"bridgeUpdate","build":"0.9.0","fromLater":1}"#).as_deref(),
+            Some("0.9.0")
+        );
+        let waiting = serde_json::to_string(&ServerMessage::BridgeWaiting {
+            code: "4821".into(),
+        })
+        .unwrap();
+        assert_eq!(update_notice(&waiting), None);
+        assert_eq!(update_notice("not json"), None);
     }
 
     #[test]

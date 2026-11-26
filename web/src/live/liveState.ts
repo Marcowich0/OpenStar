@@ -240,6 +240,7 @@ export function receive(
       // Stage only: the Stage's playback acts on it (#164); the Party's
       // 'playing' state comes with the `partyChanged` before it.
       return state;
+    case "bridgeUpdate":
     case "bridgeWaiting":
     case "bridgeApproved":
     case "bridgeConnected":
