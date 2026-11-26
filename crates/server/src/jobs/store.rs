@@ -6,7 +6,7 @@ use rusqlite::params;
 
 use crate::db::Database;
 
-/// The stored state of a job; progress is not stored.
+/// The stored state of a job (its progress is stored apart, [`set_percent`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StoredState {
     Queued,
@@ -88,6 +88,18 @@ pub async fn set_state(
         conn.execute(
             "UPDATE jobs SET state = ?2, error = ?3 WHERE id = ?1",
             params![id.0, state.as_str(), error],
+        )?;
+        Ok(())
+    })
+    .await
+}
+
+/// Stores how far a running job is (`None` once it starts again).
+pub async fn set_percent(db: &Database, id: JobId, percent: Option<u8>) -> anyhow::Result<()> {
+    db.call(move |conn| {
+        conn.execute(
+            "UPDATE jobs SET percent = ?2 WHERE id = ?1",
+            params![id.0, percent],
         )?;
         Ok(())
     })

@@ -392,6 +392,18 @@ const MIGRATIONS: &[&str] = &[
     // folds rows stored before this migration first.
     "ALTER TABLE usdb_songs ADD COLUMN artist_key TEXT;
     ALTER TABLE usdb_songs ADD COLUMN title_key TEXT;",
+    // 27: Downloads (#195). A job's progress (percent while it runs; NULL
+    // before it reports one), and, per USDB id, the USDB version a
+    // Download wrote: USDB's `lastchange` then (NULL when the mirror did
+    // not hold the song) and the SHA-256 of `song.txt` as written, in hex.
+    // A Library Song with a USDB id and no row here is "unknown version".
+    "ALTER TABLE jobs ADD COLUMN percent INTEGER;
+    CREATE TABLE usdb_downloads (
+        usdb_id       INTEGER PRIMARY KEY NOT NULL,
+        last_change   INTEGER,
+        txt_sha256    TEXT NOT NULL,
+        downloaded_ms INTEGER NOT NULL
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.
