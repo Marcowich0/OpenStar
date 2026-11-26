@@ -22,7 +22,6 @@ import {
   noFilter,
   songListQuery,
   toggleChip,
-  type FilterChip,
   type SongFilterQuery,
 } from "./songChips";
 import { SongTags } from "./SongTags";

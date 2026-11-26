@@ -95,9 +95,11 @@ describe("search in the Songs overlay", () => {
 
   it("opens on /, narrows the overlay's carousel, and Esc clears it before closing", () => {
     const { queries } = openSongs();
+    const all = queries.getQueryData(songsQuery().queryKey);
+    if (!all) throw new Error("no Song list");
     queries.setQueryData(songsQuery({ search: "moon" }).queryKey, {
-      songs: [SONGS[2]],
-      filters: queries.getQueryData(songsQuery().queryKey)?.filters,
+      ...all,
+      songs: all.songs.filter((song) => song.title === "Moon"),
     });
     press("/");
     expect(document.activeElement).toBe(box());

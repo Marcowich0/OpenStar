@@ -3,7 +3,7 @@
 // Remote's Songs tab's. ↓ moves from the box to the chips and on to the
 // carousel, ↑ back; Esc clears the search and closes the box.
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 import { t } from "../../i18n/t";
 import {
@@ -39,7 +39,8 @@ export function StageSongSearch({
   const rootRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLInputElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
-  const [focusAsk, setFocusAsk] = useState<FocusAsk>(null);
+  // Asked by a key, done once the box has rendered (or closed).
+  const focusAsk = useRef<FocusAsk>(null);
 
   const layer = () => rootRef.current?.closest("[data-stage-layer]") ?? null;
   const inChips = () => {
@@ -47,21 +48,27 @@ export function StageSongSearch({
     return active instanceof Node && !!chipsRef.current?.contains(active);
   };
 
+  const focusCarousel = () => {
+    const root = layer();
+    if (root) focusDefault(root);
+  };
+
   useLayoutEffect(() => {
-    if (focusAsk === null) return;
-    setFocusAsk(null);
-    if (focusAsk === "box") boxRef.current?.focus({ preventScroll: true });
-    else {
-      const root = layer();
-      if (root) focusDefault(root);
-    }
-  }, [focusAsk]);
+    const ask = focusAsk.current;
+    if (ask === null) return;
+    focusAsk.current = null;
+    if (ask === "box") boxRef.current?.focus({ preventScroll: true });
+    else focusCarousel();
+  });
 
   useStageKeys({
     "/": () => {
       if (isTextField(document.activeElement)) return false;
-      search.openBox();
-      setFocusAsk("box");
+      if (boxRef.current) boxRef.current.focus({ preventScroll: true });
+      else {
+        focusAsk.current = "box";
+        search.openBox();
+      }
       return true;
     },
     ArrowDown: () => {
@@ -73,7 +80,7 @@ export function StageSongSearch({
         return true;
       }
       if (inChips()) {
-        setFocusAsk("carousel");
+        focusCarousel();
         return true;
       }
       return false;
@@ -85,8 +92,8 @@ export function StageSongSearch({
     },
     Escape: () => {
       if (!search.open) return false;
+      focusAsk.current = "carousel";
       search.close();
-      setFocusAsk("carousel");
       return true;
     },
   });
@@ -162,7 +169,10 @@ function FilterButton({
       onClick={onPress}
       onFocus={(event) => {
         // A chip the arrows reach scrolls into the row's view.
-        event.currentTarget.scrollIntoView?.({
+        // (jsdom has no scrollIntoView.)
+        const chip: Partial<Pick<HTMLElement, "scrollIntoView">> =
+          event.currentTarget;
+        chip.scrollIntoView?.({
           block: "nearest",
           inline: "nearest",
         });
