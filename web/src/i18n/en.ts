@@ -66,6 +66,8 @@ export const en = {
   },
   "remote.lineUpFor": "Line-up for {song}",
   "remote.waitingForStart": "Waiting for Start",
+  "remote.pause": "Pause",
+  "remote.resume": "Resume",
   // The Phone's mic strip while this Phone is a seat's Mic (#128; the mic
   // takeover, #167, replaces it).
   "phoneMic.seated": "This phone is your mic",

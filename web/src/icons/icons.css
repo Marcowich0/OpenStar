@@ -18,9 +18,15 @@
   --icon-list: url("./list.svg");
   --icon-lock: url("./lock.svg");
   --icon-mic-off: url("./mic-off.svg");
+  --icon-minus: url("./minus.svg");
   --icon-music: url("./music.svg");
+  --icon-pause: url("./pause.svg");
   --icon-people: url("./people.svg");
+  --icon-play: url("./play.svg");
   --icon-plus: url("./plus.svg");
+  --icon-restart: url("./restart.svg");
   --icon-search: url("./search.svg");
+  --icon-skip: url("./skip.svg");
+  --icon-stop: url("./stop.svg");
   --icon-tv: url("./tv.svg");
 }
