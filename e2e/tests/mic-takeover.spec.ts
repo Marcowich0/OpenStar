@@ -120,20 +120,22 @@ test("a blocked mic shows a full-screen card with the reason; the seat warns eve
   await expect(card.getByText("Permission refused")).toBeVisible();
 
   const warning = `${profile.name}'s mic is blocked`;
-  await expect(stage.getByText(warning)).toBeVisible();
+  // On the seat's card (a toast says it too).
+  const seatWarning = stage.getByRole("group").getByText(warning);
+  await expect(seatWarning).toBeVisible();
   // Every Remote: here this Phone's own, under Queue & controls.
   await phone.getByRole("button", { name: "Queue & controls" }).click();
   await phone.getByRole("tab", { name: "Stage" }).click();
-  await expect(phone.getByText(warning)).toBeVisible();
+  await expect(phone.getByText(warning).first()).toBeVisible();
   await phone.getByRole("button", { name: "Back to my mic" }).click();
 
   await phone.evaluate(() => {
     (window as unknown as { refuseMic: boolean }).refuseMic = false;
   });
   await card.getByRole("button", { name: "Try again" }).click();
-  await expect(phone.getByText("Mic is on")).toBeVisible();
+  await expect(phone.getByRole("heading", { name: "Mic is on" })).toBeVisible();
   await expect(card).toHaveCount(0);
-  await expect(stage.getByText(warning)).toHaveCount(0);
+  await expect(seatWarning).toHaveCount(0);
 });
 
 test("a mic lost during the Song comes back with Sing again on the same seat, and a Phone back after the Song shows its own result until Done", async ({
@@ -200,7 +202,10 @@ test("a mic lost during the Song comes back with Sing again on the same seat, an
     await expect(frame).toHaveAttribute("data-scene", "sing");
 
     const locksBefore = await wakeLocks();
-    await phone.getByRole("button", { name: "Sing again" }).click();
+    await phone
+      .getByRole("button", { name: "Sing again" })
+      // It breathes: a pointer click would wait for it to stand still.
+      .click({ force: true });
     await expect(
       phone.getByRole("heading", { name: "Sing it!" }),
     ).toBeVisible();

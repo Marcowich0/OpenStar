@@ -283,7 +283,7 @@ function Step({
           <Button
             fill="green"
             size="big"
-            className="mt-auto min-h-24 w-full text-3xl"
+            className="mt-auto w-full px-6!"
             breathing
             onPress={() => {
               mic.singAgain();
@@ -339,7 +339,7 @@ function BlockedCard({
         <Button
           fill="green"
           size="big"
-          className="mt-auto w-full"
+          className="mt-auto w-full px-6!"
           onPress={() => {
             mic.turnOn();
           }}
@@ -406,7 +406,7 @@ function AfterTheSongScreen({
       <Button
         fill="white"
         size="big"
-        className="mt-auto w-full"
+        className="mt-auto w-full px-6!"
         onPress={() => {
           onDone(after.requestId);
         }}
