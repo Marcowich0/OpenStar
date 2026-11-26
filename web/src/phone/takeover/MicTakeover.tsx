@@ -6,6 +6,10 @@
 // The step comes from `micTakeover`. There are no lyrics, no Notes and no
 // Song time here: the progress is the Stage's position reports and the Score
 // is the seat's running total at each Line end.
+//
+// Mic blocked is a full-screen card naming the reason, with Try again; mic
+// lost says the Song kept going, with a big Sing again (#176). After the Song
+// (#176) is the Player's own result until Done.
 
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -24,6 +28,9 @@ import {
 } from "react-aria-components";
 
 import { profilesQuery, songQuery } from "../../api/queries";
+import { rankTitle } from "../../i18n/rankTitles";
+import type { RequestId } from "../../generated/RequestId";
+import { Icon } from "../../ui/Icon";
 import type { Difficulty } from "../../generated/Difficulty";
 import { difficultyName, voiceNumber } from "../../i18n/seatNames";
 import { t, type MessageKey } from "../../i18n/t";
@@ -40,12 +47,24 @@ import { Progress } from "../onStage/PlayingCard";
 import { setMyDifficulty } from "../people/memberRequests";
 import { PhoneToasts } from "../PhoneToasts";
 import { editLineUp, startSong } from "../stage/lineUpCommands";
-import { levelOf, type MicTakeover as Takeover } from "./micTakeover";
+import {
+  levelOf,
+  type AfterTheSong,
+  type MicTakeover as AnyTakeover,
+  type SeatTakeover as Takeover,
+} from "./micTakeover";
 
 const BLOCKED_TEXT = {
   permissionRefused: "phoneMic.blocked.permissionRefused",
   noHttps: "phoneMic.blocked.noHttps",
   notOpened: "phoneMic.blocked.notOpened",
+} as const satisfies Record<MicBlockedReason, MessageKey>;
+
+/** The card's headline: the reason in a few words. */
+const BLOCKED_REASON = {
+  permissionRefused: "phoneTakeover.blockedReason.permissionRefused",
+  noHttps: "phoneTakeover.blockedReason.noHttps",
+  notOpened: "phoneTakeover.blockedReason.notOpened",
 } as const satisfies Record<MicBlockedReason, MessageKey>;
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "medium", "hard"];
@@ -54,21 +73,46 @@ function isDifficulty(key: unknown): key is Difficulty {
   return DIFFICULTIES.some((d) => d === key);
 }
 
-export function MicTakeover({
-  store,
-  takeover,
-  mic,
-  myMemberId,
-  onOpenRemote,
-}: {
+export interface MicTakeoverProps {
   store: LiveStore;
-  takeover: Takeover;
+  takeover: AnyTakeover;
   mic: PhoneMic;
   /** This Phone's own Party member: the Difficulty chip sets theirs like the Me sheet. */
   myMemberId: number | null;
   /** "Queue & controls": the Remote on top. */
   onOpenRemote: () => void;
-}) {
+  /** Done on the After the Song screen, for the Request sung. */
+  onDone: (requestId: RequestId) => void;
+}
+
+export function MicTakeover({ takeover, ...props }: MicTakeoverProps) {
+  if (takeover.step === "after")
+    return (
+      <AfterTheSongScreen
+        store={props.store}
+        after={takeover}
+        onDone={props.onDone}
+      />
+    );
+  if (takeover.step === "blocked")
+    return (
+      <BlockedCard
+        store={props.store}
+        takeover={takeover}
+        mic={props.mic}
+        onOpenRemote={props.onOpenRemote}
+      />
+    );
+  return <SeatScreen takeover={takeover} {...props} />;
+}
+
+function SeatScreen({
+  store,
+  takeover,
+  mic,
+  myMemberId,
+  onOpenRemote,
+}: Omit<MicTakeoverProps, "takeover" | "onDone"> & { takeover: Takeover }) {
   const profiles = useQuery(profilesQuery).data;
   const song = useQuery(songQuery(takeover.songId)).data;
   const state = useLiveState(store);
@@ -167,7 +211,9 @@ function Step({
             className="mt-auto w-full"
             isDisabled={takeover.step === "opening"}
             onPress={() => {
-              mic.turnOn();
+              // A mic lost before Start reopens like Sing again.
+              if (mic.getSnapshot().state === "lost") mic.singAgain();
+              else mic.turnOn();
             }}
           >
             {takeover.step === "opening"
@@ -226,38 +272,19 @@ function Step({
         </>
       );
     case "blocked":
-      return (
-        <section
-          aria-label={t("phoneMic.failed")}
-          className="flex w-full grow flex-col items-center gap-4 rounded-card bg-ink p-5"
-        >
-          <h1 className="text-3xl font-bold">{t("phoneMic.failed")}</h1>
-          {takeover.blocked && (
-            <p className="text-lg text-white/80">
-              {t(BLOCKED_TEXT[takeover.blocked])}
-            </p>
-          )}
-          <Button
-            fill="green"
-            size="big"
-            className="mt-auto w-full"
-            onPress={() => {
-              mic.turnOn();
-            }}
-          >
-            {t("phoneMic.tryAgain")}
-          </Button>
-        </section>
-      );
+      // The full-screen card (`BlockedCard`) shows instead.
+      return null;
     case "lost":
       return (
         <>
+          <Icon name="mic-off" className="size-12" />
           <h1 className="text-4xl font-bold">{t("phoneMic.stopped")}</h1>
           <p className="text-xl">{t("phoneMic.stoppedBody")}</p>
           <Button
             fill="green"
             size="big"
-            className="mt-auto w-full"
+            className="mt-auto w-full px-6!"
+            breathing
             onPress={() => {
               mic.singAgain();
             }}
@@ -267,6 +294,127 @@ function Step({
         </>
       );
   }
+}
+
+/**
+ * Mic blocked: a full-screen card naming the reason, with Try again (the same
+ * open path as the first tap). Meanwhile the mic reports the seat blocked, so
+ * the Stage and every Remote warn "<name>'s mic is blocked".
+ */
+function BlockedCard({
+  store,
+  takeover,
+  mic,
+  onOpenRemote,
+}: {
+  store: LiveStore;
+  takeover: Takeover;
+  mic: PhoneMic;
+  onOpenRemote: () => void;
+}) {
+  const reason = takeover.blocked ?? "notOpened";
+  return (
+    <main
+      aria-label={t("phoneTakeover.label")}
+      data-testid="mic-takeover"
+      data-step="blocked"
+      className="flex min-h-dvh flex-col gap-3 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] text-white"
+      style={{ backgroundColor: tokenVar(takeover.colour) }}
+    >
+      <PhoneToasts store={store} />
+      <section
+        aria-labelledby="mic-blocked-title"
+        className="flex grow flex-col items-center gap-5 rounded-card bg-ink px-5 pt-10 pb-5 text-center shadow-ledge"
+      >
+        <span className="grid size-24 place-items-center rounded-full bg-white/10">
+          <Icon name="mic-off" className="size-12" />
+        </span>
+        <h1 id="mic-blocked-title" className="text-3xl font-bold">
+          {t("phoneTakeover.blocked")}
+        </h1>
+        <p className="text-2xl font-semibold text-yellow">
+          {t(BLOCKED_REASON[reason])}
+        </p>
+        <p className="text-lg text-white/80">{t(BLOCKED_TEXT[reason])}</p>
+        <Button
+          fill="green"
+          size="big"
+          className="mt-auto w-full px-6!"
+          onPress={() => {
+            mic.turnOn();
+          }}
+        >
+          {t("phoneMic.tryAgain")}
+        </Button>
+      </section>
+      <Button fill="white" className="w-full" onPress={onOpenRemote}>
+        {t("phoneTakeover.queueAndControls")}
+      </Button>
+    </main>
+  );
+}
+
+/**
+ * After the Song: the Player's own Score, Rank title and "New high score!"
+ * badge, or "Ended early" when this Player did not finish, until Done.
+ */
+function AfterTheSongScreen({
+  store,
+  after,
+  onDone,
+}: {
+  store: LiveStore;
+  after: AfterTheSong;
+  onDone: (requestId: RequestId) => void;
+}) {
+  const song = useQuery(songQuery(after.songId)).data;
+  const { result } = after;
+  return (
+    <main
+      aria-label={t("phoneTakeover.after")}
+      data-testid="mic-takeover"
+      data-step="after"
+      className="flex min-h-dvh flex-col items-center gap-5 px-5 pt-8 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] text-center text-white"
+      style={{ backgroundColor: tokenVar(after.colour) }}
+    >
+      <PhoneToasts store={store} />
+      <p className="text-xl font-semibold">{song?.song.headers.title ?? ""}</p>
+      <Avatar
+        name={result.name}
+        avatar={result.avatar}
+        colour={result.colour}
+        size={144}
+      />
+      <h1 className="text-2xl font-semibold">{t("phoneTakeover.yourScore")}</h1>
+      <span data-testid="after-score">
+        <Score
+          value={result.total}
+          className="text-7xl leading-none font-bold"
+        />
+      </span>
+      <p className="text-3xl font-bold">{rankTitle(result.rankTitleBand)}</p>
+      {result.newHighScore && (
+        <p className="rounded-full bg-yellow px-5 py-2 text-xl font-bold text-ink shadow-ledge-sm">
+          {t("stageTab.newHighScore")}
+        </p>
+      )}
+      {result.unfinished && (
+        <p className="rounded-full bg-ink/40 px-5 py-2 text-xl font-semibold">
+          {t("stageTab.endedEarly")}
+        </p>
+      )}
+      <Button
+        fill="white"
+        size="big"
+        className="mt-auto w-full px-6!"
+        onPress={() => {
+          onDone(after.requestId);
+        }}
+      >
+        {t("phoneTakeover.done")}
+      </Button>
+    </main>
+  );
 }
 
 /**

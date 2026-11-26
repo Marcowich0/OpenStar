@@ -104,6 +104,14 @@ export const en = {
   "phoneTakeover.screenOn": "Screen stays on while you sing",
   "phoneTakeover.queueAndControls": "Queue & controls",
   "phoneTakeover.backToMic": "Back to my mic",
+  // Mic blocked, mic lost and After the Song (#176).
+  "phoneTakeover.blocked": "Your mic is blocked",
+  "phoneTakeover.blockedReason.permissionRefused": "Permission refused",
+  "phoneTakeover.blockedReason.noHttps": "This address isn't HTTPS",
+  "phoneTakeover.blockedReason.notOpened": "The mic did not open",
+  "phoneTakeover.after": "After the Song",
+  "phoneTakeover.yourScore": "Your Score",
+  "phoneTakeover.done": "Done",
   // The Remote's Stage tab and its seat sheet.
   "stageTab.title": "On the Stage",
   "stageTab.upNext": "Up next: who sings?",
