@@ -15,6 +15,16 @@ export const serverInfoQuery = queryOptions({
   queryFn: ({ signal }) => api("GET /api/server-info", { signal }),
 });
 
+/**
+ * `GET /api/unlock`: whether this browser holds an Unlock. The guarded-action
+ * flow (`guarded/`) keeps it current from every guarded answer, the
+ * heartbeat and Lock; it is only a display hint, the server decides.
+ */
+export const unlockQuery = queryOptions({
+  queryKey: ["unlock"],
+  queryFn: ({ signal }) => api("GET /api/unlock", { signal }),
+});
+
 /** `GET /api/profiles`: every Profile, in "Who's singing?" order. */
 export const profilesQuery = queryOptions({
   queryKey: ["profiles"],

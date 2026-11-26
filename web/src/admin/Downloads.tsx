@@ -1,6 +1,11 @@
 import { t } from "../i18n/t";
+import { AdminSection } from "./AdminSection";
 
-/** A placeholder for the Admin area's Downloads section. */
+/** The Admin area's Downloads section. #47 fills it: USDB search and the Download jobs. */
 export function Downloads() {
-  return <h2>{t("admin.downloads")}</h2>;
+  return (
+    <AdminSection title={t("admin.downloads")} writesLibrary>
+      {t("admin.downloads.placeholder")}
+    </AdminSection>
+  );
 }

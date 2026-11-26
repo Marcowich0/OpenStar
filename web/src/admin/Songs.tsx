@@ -1,6 +1,11 @@
 import { t } from "../i18n/t";
+import { AdminSection } from "./AdminSection";
 
-/** A placeholder for the Admin area's Songs section. */
+/** The Admin area's Songs section. #46 and #57 fill it: timing, Restore Original, delete and restore. */
 export function Songs() {
-  return <h2>{t("admin.songs")}</h2>;
+  return (
+    <AdminSection title={t("admin.songs")} writesLibrary>
+      {t("admin.songs.placeholder")}
+    </AdminSection>
+  );
 }
