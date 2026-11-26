@@ -3,9 +3,10 @@
 // media element (the video under the lanes, or an `<audio>`), shows the
 // pause and the 3-2-1 countdown over the frozen frame, and sends Space or Esc
 // as Pause (or Resume while paused) through the server like any Remote.
-// The pause menu's look is #217's; the results are #175/#182's.
+// The pause menu's look is #217's; the results are #175/#182's. Each
+// Player's running Score goes straight into their lane header (#165).
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { t } from "../../../i18n/t";
 import type { LiveState } from "../../../live/liveState";
@@ -16,6 +17,7 @@ import { ResumeCountdown } from "../../playback/ResumeCountdown";
 import { SingBackdrop } from "../../sing/SingBackdrop";
 import { SingScreen } from "../../sing/SingScreen";
 import type { StageSong, StageSongView } from "./stageSong";
+import { writeLaneScore } from "./laneScore";
 import { useStageSong, useStageSongView } from "./useStageSong";
 
 const selectPlaying = (live: LiveState) => live.stage?.party?.playing ?? null;
@@ -73,6 +75,16 @@ function Singing({
   view: Extract<StageSongView, { kind: "singing" }>;
   song: StageSong;
 }) {
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(
+    () =>
+      song.onScoring((change) => {
+        if (root.current) {
+          writeLaneScore(root.current, change.player, change.score.total);
+        }
+      }),
+    [song],
+  );
   const attach = useCallback(
     (element: HTMLMediaElement | null) => {
       song.attach(element);
@@ -82,6 +94,7 @@ function Singing({
   const video = view.plan.element === "video";
   return (
     <div
+      ref={root}
       data-sing-scene="singing"
       data-ended={view.ended ?? undefined}
       className="h-full"
