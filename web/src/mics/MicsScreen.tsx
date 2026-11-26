@@ -10,7 +10,9 @@
 // it and approving need no Admin PIN and are saved at once; Forget on a
 // bridge group deletes kept data, so it is a guarded press and hold. Every device,
 // and every interface of every open bridge, is open while the screen is
-// open. The Mic threshold line (#172) comes later.
+// open. Each live meter carries the Local mic's Mic threshold line (#172):
+// dragged, or moved 1 dB with ←/→ while focused, it sets the threshold by
+// hand for the current Stage output, and the row says what set it.
 
 import { useEffect, useRef, useState } from "react";
 
@@ -20,8 +22,11 @@ import type { MicBridge } from "../generated/MicBridge";
 import { t } from "../i18n/t";
 import { AddMicBridge } from "./AddMicBridge";
 import { ForgetBridge } from "./ForgetBridge";
+import { useStageFrame, useStageKeys } from "../stage/frame/stageFrameContext";
 import { useLocalMics } from "./LocalMics";
 import { SILENCE_DBFS } from "./localMicCapture";
+import type { ThresholdSource } from "./micSettings";
+import { useMicThresholds, type MicThresholds } from "./StageMicSettings";
 import {
   bridgeGroupChannels,
   browserChannels,
@@ -34,23 +39,45 @@ import {
 /** The meter's range, in dBFS. */
 const METER_FLOOR_DBFS = -60;
 
-/** A channel's live level: redrawn every frame, no React render. */
+const fractionOf = (dbfs: number) =>
+  (Math.max(METER_FLOOR_DBFS, Math.min(0, dbfs)) - METER_FLOOR_DBFS) /
+  -METER_FLOOR_DBFS;
+
+/** A Local mic's Mic threshold line on its meter. */
+interface ThresholdLine {
+  localMicId: string;
+  /** The effective Mic threshold now, dBFS. */
+  dbfs: number;
+  /** Sets it by hand (dragging), as an effective dBFS. */
+  onSet: (dbfs: number) => void;
+}
+
+/**
+ * A channel's live level, redrawn every frame with no React render, and its
+ * Mic threshold line: no number on it; dragging anywhere on the meter moves
+ * it, and the line holds the focus for ←/→ (bound by `MicsScreen`).
+ */
 function LevelMeter({
   read,
   label,
+  threshold,
+  thresholdLabel,
 }: {
   read: () => number | null;
   label: string;
+  threshold: ThresholdLine;
+  thresholdLabel: string;
 }) {
   const meter = useRef<HTMLDivElement>(null);
   const fill = useRef<HTMLDivElement>(null);
+  const dragging = useRef<number | null>(null);
   useEffect(() => {
     let frame = 0;
     const draw = () => {
       const dbfs = read() ?? SILENCE_DBFS;
       const shown = Math.max(METER_FLOOR_DBFS, Math.min(0, dbfs));
-      const fraction = (shown - METER_FLOOR_DBFS) / -METER_FLOOR_DBFS;
-      if (fill.current) fill.current.style.width = `${String(fraction * 100)}%`;
+      if (fill.current)
+        fill.current.style.width = `${String(fractionOf(shown) * 100)}%`;
       meter.current?.setAttribute("aria-valuenow", String(Math.round(shown)));
       frame = requestAnimationFrame(draw);
     };
@@ -59,19 +86,73 @@ function LevelMeter({
       cancelAnimationFrame(frame);
     };
   }, [read]);
+  // Whole dB under the pointer, as the arrows step.
+  const dbfsAt = (clientX: number): number | null => {
+    const box = meter.current?.getBoundingClientRect();
+    if (!box || box.width <= 0) return null;
+    const fraction = Math.max(0, Math.min(1, (clientX - box.left) / box.width));
+    return Math.round(METER_FLOOR_DBFS * (1 - fraction));
+  };
+  const drag = (clientX: number) => {
+    const dbfs = dbfsAt(clientX);
+    if (dbfs !== null && dbfs !== Math.round(threshold.dbfs))
+      threshold.onSet(dbfs);
+  };
   return (
     <div
-      ref={meter}
-      role="meter"
-      aria-label={label}
-      aria-valuemin={METER_FLOOR_DBFS}
-      aria-valuemax={0}
-      aria-valuenow={METER_FLOOR_DBFS}
-      className="relative h-6 w-[420px] shrink-0 overflow-hidden rounded-full bg-white shadow-ledge-sm"
+      className="relative w-[420px] shrink-0 cursor-ew-resize touch-none py-2"
+      onPointerDown={(event) => {
+        dragging.current = event.pointerId;
+        // Follows the pointer off the meter too (jsdom has no capture).
+        const target = event.currentTarget;
+        if ("setPointerCapture" in target)
+          target.setPointerCapture(event.pointerId);
+        drag(event.clientX);
+      }}
+      onPointerMove={(event) => {
+        if (dragging.current === event.pointerId) drag(event.clientX);
+      }}
+      onPointerUp={() => {
+        dragging.current = null;
+      }}
+      onPointerCancel={() => {
+        dragging.current = null;
+      }}
     >
-      <div ref={fill} className="h-full w-0 rounded-full bg-green" />
+      <div
+        ref={meter}
+        role="meter"
+        aria-label={label}
+        aria-valuemin={METER_FLOOR_DBFS}
+        aria-valuemax={0}
+        aria-valuenow={METER_FLOOR_DBFS}
+        className="relative h-6 overflow-hidden rounded-full bg-cream shadow-ledge-sm"
+      >
+        <div ref={fill} className="h-full w-0 rounded-full bg-green" />
+      </div>
+      <span
+        role="slider"
+        tabIndex={-1}
+        data-stage-focus
+        data-threshold-mic={threshold.localMicId}
+        data-threshold-dbfs={threshold.dbfs}
+        aria-label={thresholdLabel}
+        aria-orientation="horizontal"
+        aria-valuemin={METER_FLOOR_DBFS}
+        aria-valuemax={0}
+        aria-valuenow={Math.round(threshold.dbfs)}
+        className="absolute top-0 bottom-0 w-2 -translate-x-1/2 rounded-full bg-ink"
+        style={{ left: `${String(fractionOf(threshold.dbfs) * 100)}%` }}
+      />
     </div>
   );
+}
+
+/** "set by Calibration" / "set by hand"; nothing for the default. */
+function sourceText(source: ThresholdSource): string | null {
+  if (source === "calibration") return t("mics.threshold.byCalibration");
+  if (source === "hand") return t("mics.threshold.byHand");
+  return null;
 }
 
 /**
@@ -124,6 +205,7 @@ function ChannelRow({
   stored,
   switchedOn,
   read,
+  thresholds,
   onSwitch,
   onRename,
 }: {
@@ -132,11 +214,14 @@ function ChannelRow({
   switchedOn: boolean;
   /** The live level; a row without one has no meter (a closed bridge). */
   read?: (() => number | null) | undefined;
+  thresholds: MicThresholds;
   onSwitch: (on: boolean) => void;
   onRename: (name: string) => void;
 }) {
   const defaultName = localMicName(channel.source, "");
   const name = localMicName(channel.source, stored);
+  const mic = { kind: "localMic" as const, localMicId: channel.localMicId };
+  const source = read ? sourceText(thresholds.source(mic)) : null;
   return (
     <li
       className="flex items-center gap-8 rounded-card bg-white px-8 py-5"
@@ -147,7 +232,23 @@ function ChannelRow({
         defaultName={defaultName}
         onRename={onRename}
       />
-      {read && <LevelMeter read={read} label={t("mics.meter", { name })} />}
+      {read && (
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <LevelMeter
+            read={read}
+            label={t("mics.meter", { name })}
+            thresholdLabel={t("mics.threshold", { name })}
+            threshold={{
+              localMicId: channel.localMicId,
+              dbfs: thresholds.effectiveDbfs(mic),
+              onSet: (dbfs) => {
+                thresholds.setByHand(channel.localMicId, dbfs);
+              },
+            }}
+          />
+          <p className="h-7 text-xl font-medium text-ink-2">{source}</p>
+        </div>
+      )}
       <button
         type="button"
         role="switch"
@@ -175,6 +276,7 @@ function BridgeGroup({
   onSwitch,
   onRename,
   levelDbfs,
+  thresholds,
 }: {
   bridge: MicBridge;
   kept: readonly LocalMic[];
@@ -182,6 +284,7 @@ function BridgeGroup({
   onRename: (channel: LocalMicChannel, name: string) => void;
   /** A Local mic's latest level from its bridge. */
   levelDbfs: (localMicId: string) => number | null;
+  thresholds: MicThresholds;
 }) {
   const keptById = new Map(kept.map((m) => [m.localMicId, m]));
   const channels = bridgeGroupChannels(bridge, kept);
@@ -220,6 +323,7 @@ function BridgeGroup({
               read={
                 bridge.open ? () => levelDbfs(channel.localMicId) : undefined
               }
+              thresholds={thresholds}
               onSwitch={(on) => {
                 onSwitch(channel, on);
               }}
@@ -355,6 +459,22 @@ export function MicsScreen() {
     bridgeLevelDbfs,
   } = useLocalMics();
 
+  const { store } = useStageFrame();
+  const thresholds = useMicThresholds(store);
+  // ←/→ on a focused threshold line move it 1 dB; elsewhere they move the focus.
+  const nudge = (stepDb: number) => {
+    const active = document.activeElement;
+    const localMicId =
+      active instanceof HTMLElement ? active.dataset.thresholdMic : undefined;
+    if (localMicId === undefined) return false;
+    thresholds.nudge(localMicId, stepDb);
+    return true;
+  };
+  useStageKeys({
+    ArrowLeft: () => nudge(-1),
+    ArrowRight: () => nudge(1),
+  });
+
   useEffect(() => {
     setMicsScreenOpen(true);
     return () => {
@@ -405,6 +525,7 @@ export function MicsScreen() {
                 stored={stored?.name ?? ""}
                 switchedOn={stored?.switchedOn ?? false}
                 read={() => capture?.levelDbfs(deviceId, number) ?? null}
+                thresholds={thresholds}
                 onSwitch={(on) => {
                   setSwitchedOn(channel, on);
                 }}
@@ -434,6 +555,7 @@ export function MicsScreen() {
           onSwitch={setSwitchedOn}
           onRename={rename}
           levelDbfs={bridgeLevelDbfs}
+          thresholds={thresholds}
         />
       ))}
       {bridges.requests.length > 0 && (

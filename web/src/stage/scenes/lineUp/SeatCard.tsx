@@ -34,17 +34,26 @@ function fieldColours(bad: boolean): string {
 /**
  * A Mic's live level with its Mic threshold line, redrawn every frame from
  * `read` (dBFS, `null` for silence) without a React render. The line is the
- * effective Mic threshold at the current volume (`useMicThresholdDbfs`);
- * #172 adds the adjust mode.
+ * effective Mic threshold at the current volume (`useMicThresholds`) and
+ * shows no number. A Local mic's meter holds the focus: Enter starts the
+ * adjust mode (the line turns yellow; ←/→ move it), bound by the scene.
  */
 function SeatMeter({
   threshold,
+  adjustable,
+  adjusting,
+  seatIndex,
   label,
   read,
+  onBlur,
 }: {
   threshold: number;
+  adjustable: boolean;
+  adjusting: boolean;
+  seatIndex: number;
   label: string;
   read: () => number | null;
+  onBlur: () => void;
 }) {
   const at = (dbfs: number) =>
     `${String(((dbfs - METER_FLOOR_DBFS) / -METER_FLOOR_DBFS) * 100)}%`;
@@ -77,13 +86,22 @@ function SeatMeter({
       aria-valuemin={METER_FLOOR_DBFS}
       aria-valuemax={0}
       aria-valuenow={METER_FLOOR_DBFS}
-      className="relative block h-3 w-full rounded-full bg-white"
+      tabIndex={adjustable ? -1 : undefined}
+      data-stage-focus={adjustable || undefined}
+      data-seat-meter={adjustable ? seatIndex : undefined}
+      onBlur={onBlur}
+      className={`relative block w-full rounded-full bg-white ${adjustable ? "h-5 cursor-pointer" : "h-3"}`}
     >
       <span ref={fill} className="block h-full w-0 rounded-full bg-green" />
       <span
         aria-hidden="true"
         data-threshold-dbfs={threshold}
-        className="absolute -top-1.5 -bottom-1.5 w-1 -translate-x-1/2 rounded-full bg-ink"
+        data-adjusting={adjusting || undefined}
+        className={`absolute -top-1.5 -bottom-1.5 -translate-x-1/2 rounded-full ${
+          adjusting
+            ? "w-2 bg-yellow shadow-[0_0_0_2px_var(--color-ink)]"
+            : "w-1 bg-ink"
+        }`}
         style={{ left: at(Math.max(METER_FLOOR_DBFS, Math.min(0, threshold))) }}
       />
     </span>
@@ -109,6 +127,12 @@ export interface SeatCardProps {
   readLevel: () => number | null;
   /** The seat Mic's effective Mic threshold now, dBFS (its meter's line). */
   micThresholdDbfs: number;
+  /** A Local mic seat: its meter holds the focus and has the adjust mode. */
+  thresholdAdjustable: boolean;
+  /** The adjust mode is on (the line is yellow). */
+  adjustingThreshold: boolean;
+  /** The meter lost the focus: the adjust mode ends. */
+  onMeterBlur: () => void;
   duet: boolean;
   /** The member's name and avatar; empty and `null` while a Profile loads. */
   name: string;
@@ -137,6 +161,9 @@ export function SeatCard({
   seat,
   readLevel,
   micThresholdDbfs,
+  thresholdAdjustable,
+  adjustingThreshold,
+  onMeterBlur,
   duet,
   name,
   avatar,
@@ -187,25 +214,29 @@ export function SeatCard({
         {whoList}
       </span>
       <span className="text-[44px] leading-none font-bold">{name}</span>
-      <span className="relative w-full">
+      <span
+        className={`relative flex w-full flex-col gap-2 rounded-[32px] px-[22px] pt-1 pb-4 ${fieldColours(micBad)}`}
+      >
         <button
           type="button"
           aria-haspopup="menu"
           onClick={onMic}
-          className={`${FIELD} flex-col items-stretch gap-2 rounded-[32px] ${fieldColours(micBad)}`}
+          className="-mx-[22px] flex min-h-14 cursor-pointer items-center justify-between gap-2.5 rounded-full px-[22px] text-[26px] font-semibold"
         >
-          <span className="flex items-center justify-between gap-2.5">
-            <span className={micBad ? FIELD_LABEL : `${FIELD_LABEL} text-mute`}>
-              {t("stage.lineUp.mic")}
-            </span>
-            <span className="truncate">{micText}</span>
+          <span className={micBad ? FIELD_LABEL : `${FIELD_LABEL} text-mute`}>
+            {t("stage.lineUp.mic")}
           </span>
-          <SeatMeter
-            threshold={micThresholdDbfs}
-            read={readLevel}
-            label={t("stage.lineUp.micLevel", { name })}
-          />
+          <span className="truncate">{micText}</span>
         </button>
+        <SeatMeter
+          threshold={micThresholdDbfs}
+          adjustable={thresholdAdjustable}
+          adjusting={adjustingThreshold}
+          seatIndex={order}
+          read={readLevel}
+          label={t("stage.lineUp.micLevel", { name })}
+          onBlur={onMeterBlur}
+        />
         {micList}
       </span>
       {duet && (

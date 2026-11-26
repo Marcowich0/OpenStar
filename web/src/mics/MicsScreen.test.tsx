@@ -1,6 +1,8 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { ClientMessage } from "../generated/ClientMessage";
 
 import { createQueryClient } from "../api/queryClient";
 import type { LocalMic } from "../generated/LocalMic";
@@ -10,6 +12,7 @@ import { createLiveStore } from "../live/liveStore";
 import { SCENES } from "../stage/frame/sceneComponents";
 import { StageFrame } from "../stage/frame/StageFrame";
 import type { CaptureSnapshot } from "./localMicCapture";
+import { stageMicSettings } from "./stageMicSettings";
 import { LocalMicsContext, type LocalMicsApi } from "./LocalMics";
 import {
   browserChannels,
@@ -21,6 +24,15 @@ import {
 const NO_BROWSER = { ...SCENES, songBrowser: { component: () => null } };
 
 const NO_BRIDGES: MicBridges = { bridges: [], requests: [] };
+
+// The Stage applies the OpenStar volume to its audio chain; jsdom has none.
+vi.mock("../stage/playback/stageAudio", () => ({
+  stageAudio: () => ({ chain: () => ({ setVolume: () => {} }) }),
+}));
+
+/** What the last `setup` sent to the server. */
+let sent: ClientMessage[] = [];
+let toStage: Pick<LiveClientOptions, "onMessage"> | null = null;
 
 function wavChannel(bridgeId: string, channel: number) {
   return {
@@ -65,9 +77,17 @@ function setup({
 } = {}) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
+  sent = [];
   const store = createLiveStore((given) => {
     handlers = given;
-    return { send: () => true, close: () => {} };
+    toStage = given;
+    return {
+      send: (message) => {
+        sent.push(message);
+        return true;
+      },
+      close: () => {},
+    };
   });
   const snapshot: CaptureSnapshot = {
     status: "ready",
@@ -565,3 +585,162 @@ describe("the Mics screen", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("a Local mic's Mic threshold on its row", () => {
+  afterEach(() => {
+    act(() => {
+      stageMicSettings().set(null);
+    });
+  });
+
+  const redMic: LocalMic = {
+    localMicId: dongleRight.localMicId,
+    source: dongleRight.source,
+    name: "Red mic",
+    switchedOn: true,
+  };
+  const red = { kind: "localMic" as const, localMicId: redMic.localMicId };
+  const load = (setBy: "calibration" | "hand" | null) => {
+    act(() => {
+      stageMicSettings().set({
+        stageOutput: "Speakers",
+        mics:
+          setBy === null
+            ? []
+            : [
+                {
+                  mic: red,
+                  settings: {
+                    micThreshold: { referenceDbfs: -44, setBy },
+                  },
+                },
+              ],
+      });
+    });
+  };
+  const volume = (v: number) => {
+    act(() => {
+      toStage?.onMessage({ type: "volume", volume: v, stepped: true });
+    });
+  };
+  const thresholdsSent = () =>
+    sent.flatMap((m) => (m.type === "setMicThreshold" ? [m] : []));
+  const row = () =>
+    screen
+      .getByRole("switch", { name: "Red mic switched on" })
+      .closest("li") as HTMLElement;
+  const slider = () =>
+    within(row()).getByRole("slider", { name: "Red mic threshold" });
+  const lineAt = () => Number(slider().dataset.thresholdDbfs);
+
+  it("draws a line on each live meter at the effective Mic threshold, with no number", () => {
+    setup({ kept: [redMic] });
+    load("calibration");
+    volume(40);
+    openMicsScreen();
+    const level = 40 * Math.log10(40 / 80);
+    expect(lineAt()).toBeCloseTo(-44 + level);
+    // A channel with nothing stored: the Local mic default.
+    const webcamRow = screen
+      .getByRole("switch", { name: "Webcam Mic switched on" })
+      .closest("li") as HTMLElement;
+    expect(
+      Number(within(webcamRow).getByRole("slider").dataset.thresholdDbfs),
+    ).toBeCloseTo(-40 + level);
+    expect(slider().textContent).toBe("");
+  });
+
+  it("says what set the current value: Calibration, a hand, or nothing for the default", () => {
+    setup({ kept: [redMic] });
+    load("calibration");
+    openMicsScreen();
+    expect(within(row()).getByText("set by Calibration")).toBeVisible();
+    load("hand");
+    expect(within(row()).getByText("set by hand")).toBeVisible();
+    load(null);
+    expect(within(row()).queryByText(/^set by/)).toBeNull();
+  });
+
+  it("moves the line 1 dB with ←/→ while focused, saving each step at once for the current Stage output, marked set by hand", () => {
+    setup({ kept: [redMic] });
+    load("calibration");
+    openMicsScreen();
+    act(() => {
+      slider().focus();
+    });
+    press("ArrowLeft");
+    press("ArrowLeft");
+    press("ArrowRight");
+    expect(thresholdsSent().map((m) => m.referenceDbfs)).toEqual([
+      -45, -46, -45,
+    ]);
+    expect(thresholdsSent()[0]).toEqual({
+      type: "setMicThreshold",
+      stageOutput: "Speakers",
+      localMicId: redMic.localMicId,
+      referenceDbfs: -45,
+    });
+    expect(lineAt()).toBe(-45);
+    expect(within(row()).getByText("set by hand")).toBeVisible();
+    // The one stored value the Line-up seat reads too.
+    expect(stageMicSettings().storedFor(red)).toEqual({
+      micThreshold: { referenceDbfs: -45, setBy: "hand" },
+    });
+  });
+
+  it("drags the line, storing it at the reference volume", () => {
+    setup({ kept: [redMic] });
+    load("calibration");
+    volume(40);
+    openMicsScreen();
+    const meter = within(row()).getByRole("meter");
+    // jsdom has no layout: a 600 px meter, 10 px per dB from −60 to 0.
+    vi.spyOn(meter, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 100, y: 0, width: 600, height: 24 }),
+    );
+    act(() => {
+      fireEvent.pointerDown(meter, { clientX: 400, pointerId: 1 });
+    });
+    act(() => {
+      fireEvent.pointerMove(meter, { clientX: 250, pointerId: 1 });
+    });
+    act(() => {
+      fireEvent.pointerUp(meter, { clientX: 250, pointerId: 1 });
+    });
+    act(() => {
+      fireEvent.pointerMove(meter, { clientX: 600, pointerId: 1 });
+    });
+    // −30 then −45 dBFS on the meter, at volume 40 (≈ −12.04 dB).
+    expect(thresholdsSent().map((m) => m.referenceDbfs)).toEqual([
+      -17.96, -32.96,
+    ]);
+    expect(lineAt()).toBeCloseTo(-45);
+  });
+
+  it("shows a hand setting made elsewhere (the Line-up seat) at once", () => {
+    setup({ kept: [redMic] });
+    load("calibration");
+    openMicsScreen();
+    act(() => {
+      stageMicSettings().setByHand(redMic.localMicId, -50);
+    });
+    expect(lineAt()).toBe(-50);
+    expect(within(row()).getByText("set by hand")).toBeVisible();
+  });
+
+  it("sets nothing while no Stage output's values are loaded", () => {
+    setup({ kept: [redMic] });
+    openMicsScreen();
+    act(() => {
+      slider().focus();
+    });
+    press("ArrowLeft");
+    expect(thresholdsSent()).toEqual([]);
+  });
+});
+
+function press(key: string) {
+  act(() => {
+    fireEvent.keyDown(document.activeElement ?? document.body, { key });
+  });
+}
