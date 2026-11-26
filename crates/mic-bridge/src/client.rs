@@ -6,7 +6,9 @@
 //! [`Joining`] and [`crate::levels::Metering`] are the pure parts: what the
 //! bridge shows and keeps for each [`ServerMessage`], and which interfaces
 //! are open and which channels metered. [`run`] drives them over a
-//! WebSocket and connects again whenever the connection ends.
+//! WebSocket and connects again whenever the connection ends; it tells a
+//! [`Report`] what happens (headless prints lines, the window keeps
+//! [`Event`]s).
 
 use std::time::Duration;
 
@@ -118,6 +120,44 @@ pub fn host_name() -> String {
         .unwrap_or_else(|| "mic bridge".to_owned())
 }
 
+/// What the connection loop did, for the window.
+#[derive(Debug, Clone, Copy)]
+pub enum Event<'a> {
+    /// A connection attempt to `server` starts.
+    Connecting { server: &'a str },
+    /// The attempt or the connection failed; another follows.
+    NotConnected { error: &'a anyhow::Error },
+    /// The connection ended; another attempt follows.
+    Disconnected,
+    /// A message from the server.
+    Received(&'a ServerMessage),
+    /// An interface was opened or closed.
+    InterfaceOpen { device_name: &'a str, open: bool },
+    /// The level of each channel of an open interface (index = hardware
+    /// channel) over the last [`LEVEL_INTERVAL`], in dBFS.
+    Levels {
+        device_name: &'a str,
+        levels_dbfs: &'a [f64],
+    },
+}
+
+/// Whoever shows what the bridge is doing.
+pub trait Report: Send {
+    /// Something happened.
+    fn event(&mut self, _event: Event<'_>) {}
+    /// The same, as an English status line (headless prints these).
+    fn line(&mut self, _line: &str) {}
+}
+
+/// Headless: prints every status line to stdout.
+pub struct PrintLines;
+
+impl Report for PrintLines {
+    fn line(&mut self, line: &str) {
+        println!("{line}");
+    }
+}
+
 /// One interface the bridge reads (for `--wav`, a WAV file).
 pub trait Input: Send {
     /// What the bridge offers the server.
@@ -132,7 +172,16 @@ pub trait Input: Send {
 
 /// Connects to the server in `config` and stays connected, connecting again
 /// whenever the connection ends. Returns only on an error no retry fixes.
-pub async fn run(config: ConfigDir, mut inputs: Vec<Box<dyn Input>>) -> anyhow::Result<()> {
+pub async fn run(config: ConfigDir, inputs: Vec<Box<dyn Input>>) -> anyhow::Result<()> {
+    run_reporting(config, inputs, &mut PrintLines).await
+}
+
+/// [`run`], telling `report` what happens.
+pub async fn run_reporting(
+    config: ConfigDir,
+    mut inputs: Vec<Box<dyn Input>>,
+    report: &mut dyn Report,
+) -> anyhow::Result<()> {
     let server = config.server()?;
     let url = bridge_socket_url(&server)?;
     let interfaces = inputs.iter().map(|i| i.interface().clone()).collect();
@@ -140,13 +189,18 @@ pub async fn run(config: ConfigDir, mut inputs: Vec<Box<dyn Input>>) -> anyhow::
     let host_name = host_name();
     let mut attempt = 0;
     loop {
-        println!("Connecting to {server}");
-        match session(&config, &url, &joining, &host_name, &mut inputs).await {
+        report.event(Event::Connecting { server: &server });
+        report.line(&format!("Connecting to {server}"));
+        match session(&config, &url, &joining, &host_name, &mut inputs, report).await {
             Ok(()) => {
-                println!("Disconnected");
+                report.event(Event::Disconnected);
+                report.line("Disconnected");
                 attempt = 0;
             }
-            Err(error) => println!("Not connected: {error:#}"),
+            Err(error) => {
+                report.event(Event::NotConnected { error: &error });
+                report.line(&format!("Not connected: {error:#}"));
+            }
         }
         // Not connected, so nothing is needed.
         for input in &mut inputs {
@@ -164,6 +218,7 @@ async fn session(
     joining: &Joining,
     host_name: &str,
     inputs: &mut [Box<dyn Input>],
+    report: &mut dyn Report,
 ) -> anyhow::Result<()> {
     let (mut socket, _) = tokio_tungstenite::connect_async(url)
         .await
@@ -193,12 +248,16 @@ async fn session(
                     ServerMessage::BridgeMicsScreen { open } => metering.set_mics_screen_open(*open),
                     _ => {}
                 }
+                report.event(Event::Received(&message));
                 for effect in joining.received(message) {
                     match effect {
-                        Effect::Show(line) => println!("{line}"),
+                        Effect::Show(line) => report.line(&line),
                         Effect::KeepToken(token) => {
                             config.save_token(&token)?;
-                            println!("Approved: the token is kept in {}", config.path().display());
+                            report.line(&format!(
+                                "Approved: the token is kept in {}",
+                                config.path().display()
+                            ));
                         }
                     }
                 }
@@ -212,14 +271,20 @@ async fn session(
                     let open = metering.is_open(input.interface());
                     if open != *was_open {
                         *was_open = open;
+                        let device_name = &input.interface().device_name;
+                        report.event(Event::InterfaceOpen { device_name, open });
                         let state = if open { "open" } else { "closed" };
-                        println!("Interface {}: {state}", input.interface().device_name);
+                        report.line(&format!("Interface {device_name}: {state}"));
                         if !open {
                             input.close();
                         }
                     }
                     if open {
                         let read = input.read_levels();
+                        report.event(Event::Levels {
+                            device_name: &input.interface().device_name,
+                            levels_dbfs: &read,
+                        });
                         levels.extend(metering.levels_to_send(input.interface(), &read));
                     }
                 }

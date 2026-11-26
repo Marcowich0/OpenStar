@@ -1,11 +1,14 @@
-//! The command line: `--version` prints the build, `--wav <file>` runs
-//! headless on a WAV file. (`--uninstall` is #207's.)
+//! The command line: no argument opens the window, `--version` prints the
+//! build, `--wav <file>` runs headless on a WAV file. (`--uninstall` is
+//! #207's.)
 
 use std::path::PathBuf;
 
 /// What the bridge was asked to do.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
+    /// Open the window and connect while it is open.
+    Window,
     Version,
     Help,
     /// Run headless, reading the WAV file's channels as one interface.
@@ -14,6 +17,8 @@ pub enum Action {
 
 pub const USAGE: &str = "\
 Usage: openstar-mic-bridge [--wav <file>] [--version]
+
+  (no option)   open the window; the bridge is connected while it is open
 
   --wav <file>  run without a window, reading each channel of a WAV file
                 as one input channel
@@ -30,8 +35,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Action, String> {
             _ => return Err("--wav needs a file".into()),
         },
         Some(other) => return Err(format!("unknown argument {other:?}")),
-        // The window and real capture come with #204 and #205.
-        None => return Err("this build runs only headless: use --wav <file>".into()),
+        None => Action::Window,
     };
     match args.next() {
         None => Ok(action),
@@ -61,6 +65,10 @@ mod tests {
         assert!(parse_strs(&["--wav"]).is_err());
         assert!(parse_strs(&["--version", "x"]).is_err());
         assert!(parse_strs(&["--loud"]).is_err());
-        assert!(parse_strs(&[]).is_err());
+    }
+
+    #[test]
+    fn without_arguments_it_opens_the_window() {
+        assert_eq!(parse_strs(&[]), Ok(Action::Window));
     }
 }
