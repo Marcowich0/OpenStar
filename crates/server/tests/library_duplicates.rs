@@ -9,8 +9,7 @@ use std::path::Path;
 use std::time::{Duration, SystemTime};
 
 use openstar_protocol::library::{
-    FileProblem, LibraryProblem, ProblemReason, ProblemSeverity, ScanStatus, SongList,
-    SongSummary,
+    FileProblem, LibraryProblem, ProblemReason, ProblemSeverity, ScanStatus, SongList, SongSummary,
 };
 use openstar_test_harness::{AppFolders, Media, TestApp, placeholder_media};
 
@@ -71,7 +70,12 @@ async fn duplicates(app: &TestApp) -> Vec<LibraryProblem> {
     problems(app)
         .await
         .into_iter()
-        .filter(|p| matches!(p.reason, ProblemReason::File(FileProblem::HiddenDuplicate { .. })))
+        .filter(|p| {
+            matches!(
+                p.reason,
+                ProblemReason::File(FileProblem::HiddenDuplicate { .. })
+            )
+        })
         .collect()
 }
 

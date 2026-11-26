@@ -61,7 +61,10 @@ describe("the Library problems section", () => {
         {
           path: "Copy/song.txt",
           severity: "hidden",
-          reason: { code: "hiddenDuplicate", preferred: "Band - Song/song.txt" },
+          reason: {
+            code: "hiddenDuplicate",
+            preferred: "Band - Song/song.txt",
+          },
         },
       ] satisfies LibraryProblem[],
       "GET /api/library/scan": idle(1),

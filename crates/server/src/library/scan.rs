@@ -116,8 +116,12 @@ pub(crate) async fn run(
             batch
                 .into_iter()
                 .map(|(candidate, references)| {
-                    let media =
-                        resolve(&mut resolver, &candidate.path, &candidate.folder, references);
+                    let media = resolve(
+                        &mut resolver,
+                        &candidate.path,
+                        &candidate.folder,
+                        references,
+                    );
                     (candidate.path, media)
                 })
                 .collect::<Vec<_>>()
@@ -372,12 +376,7 @@ pub(crate) fn references(headers: &SongHeaders) -> Vec<Reference> {
 /// Resolves the references of the parsed `.txt` at `txt` (relative to the
 /// Library) in `folder`. No audio reference, or audio not found, is a
 /// rejection; a video, cover or background not found is a warning.
-fn resolve(
-    resolver: &mut Resolver,
-    txt: &str,
-    folder: &Path,
-    references: Vec<Reference>,
-) -> Media {
+fn resolve(resolver: &mut Resolver, txt: &str, folder: &Path, references: Vec<Reference>) -> Media {
     let mut media = Media {
         has_original: resolver.root().join(format!("{txt}.orig")).is_file(),
         ..Media::default()
