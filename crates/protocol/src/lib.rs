@@ -226,6 +226,12 @@ pub enum ClientMessage {
     /// [`UserMessage::NoStage`] with no Stage open. Opening it while a run
     /// is open changes nothing.
     OpenCalibration,
+    /// Calibrate mics from a "Not calibrated" seat (#171): like
+    /// [`ClientMessage::OpenCalibration`], with `mic` also ticked (added to
+    /// the checklist when it does not list it). On a checklist already open
+    /// it ticks `mic`; once the run is past the checklist it changes
+    /// nothing. Refused like [`ClientMessage::OpenCalibration`].
+    OpenCalibrationFor { mic: mics::MicKey },
     /// Ticks or unticks a Mic on the open checklist. Refused with
     /// [`UserMessage::CalibrationNotRunning`] outside the checklist and
     /// [`UserMessage::InvalidMessage`] for a Mic it does not list.

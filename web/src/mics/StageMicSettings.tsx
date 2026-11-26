@@ -6,7 +6,7 @@
 // `StageOutputProvider`. It renders nothing.
 
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { api } from "../api/api";
 import type { MicKey } from "../generated/MicKey";
@@ -34,11 +34,18 @@ export function stageOutputMicSettingsQuery(stageOutput: string) {
 export function StageMicSettingsLoader({
   outputKey: givenKey,
   settings = stageMicSettings(),
+  onUncalibratedOutput,
 }: {
   /** Tests only: the output key (by default the Stage output's). */
   outputKey?: string | null;
   /** Tests only: the holder to fill. */
   settings?: StageMicSettings;
+  /**
+   * The output key changed to one at which no Mic has values stored: the
+   * Stage shows "Sound output changed: calibrate mics". Never for the
+   * first output read, nor for a refetch at the same output.
+   */
+  onUncalibratedOutput?: () => void;
 }) {
   const stageOutput = useStageOutput();
   const outputKey = givenKey === undefined ? stageOutput.outputKey : givenKey;
@@ -53,6 +60,18 @@ export function StageMicSettingsLoader({
   useEffect(() => {
     settings.set(values);
   }, [settings, values]);
+  // The output whose values were last loaded; `undefined` before the first.
+  const loadedOutput = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (values === null || values.stageOutput === "") return;
+    const previous = loadedOutput.current;
+    if (previous === values.stageOutput) return;
+    loadedOutput.current = values.stageOutput;
+    if (previous !== undefined && values.mics.length === 0) {
+      onUncalibratedOutput?.();
+    }
+    // A new callback alone raises nothing: the output is the same.
+  }, [values, onUncalibratedOutput]);
   // Values for an output no Stage shows any more are not kept.
   useEffect(
     () => () => {

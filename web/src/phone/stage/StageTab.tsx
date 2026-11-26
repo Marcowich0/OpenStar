@@ -96,6 +96,11 @@ export function StageTab({
     return parts.filter((part) => part !== "").join(" · ");
   }
 
+  // "Not calibrated" shows in its seat's row (with its button), not again
+  // in the list under the seats.
+  const listed =
+    lineUp?.warnings.filter((w) => w.code !== "notCalibrated") ?? [];
+
   const mine = myResult(party?.results ?? null, myPhoneId);
   const state = stageState(party);
   const avSync = useAvSyncRunning(store);
@@ -163,36 +168,69 @@ export function StageTab({
 
           {lineUp.seats.map((seat) => {
             const look = lookOf(seat.memberId);
+            const mic = seat.mic;
+            const uncalibrated =
+              mic === null
+                ? undefined
+                : lineUp.warnings.find(
+                    (w) =>
+                      w.code === "notCalibrated" &&
+                      w.params.memberId === seat.memberId,
+                  );
             return (
-              <button
+              <div
                 key={seat.memberId}
-                type="button"
-                onClick={() => {
-                  setOpen(seat.memberId);
-                }}
-                className="flex min-h-15 w-full cursor-pointer items-center gap-2.5 rounded-[20px] bg-white/10 p-2.5 text-left outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+                role="group"
+                aria-label={nameOf(seat.memberId)}
+                className="flex flex-col rounded-[20px] bg-white/10"
               >
-                {look && (
-                  <span aria-hidden="true">
-                    <Avatar
-                      name={look.name}
-                      avatar={look.avatar}
-                      colour={memberOf(seat.memberId)?.colour ?? "cherry"}
-                      size={42}
-                    />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(seat.memberId);
+                  }}
+                  className="flex min-h-15 w-full cursor-pointer items-center gap-2.5 rounded-[20px] p-2.5 text-left outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+                >
+                  {look && (
+                    <span aria-hidden="true">
+                      <Avatar
+                        name={look.name}
+                        avatar={look.avatar}
+                        colour={memberOf(seat.memberId)?.colour ?? "cherry"}
+                        size={42}
+                      />
+                    </span>
+                  )}
+                  <span className="flex min-w-0 grow flex-col">
+                    <span className="truncate text-lg font-semibold">
+                      {nameOf(seat.memberId)}
+                    </span>
+                    <span className="truncate text-sm text-white/70">
+                      {seatDetails(seat)}
+                    </span>
                   </span>
+                  {seat.mic === null && <Tag warn>{t("stageTab.noMic")}</Tag>}
+                  <Icon name="chevron" className="size-6 shrink-0" />
+                </button>
+                {uncalibrated && mic && (
+                  // "Not calibrated": the seat sings on defaults; the button
+                  // opens the usual checklist with this seat's Mic ticked.
+                  <div className="flex items-center gap-2.5 px-2.5 pb-2.5">
+                    <p className="grow font-semibold text-yellow">
+                      {lineUpWarningText(uncalibrated, nameOf)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        store.send({ type: "openCalibrationFor", mic });
+                      }}
+                      className="min-h-11 shrink-0 cursor-pointer rounded-full bg-white px-4 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+                    >
+                      {t("stage.overlay.calibrateMics")}
+                    </button>
+                  </div>
                 )}
-                <span className="flex min-w-0 grow flex-col">
-                  <span className="truncate text-lg font-semibold">
-                    {nameOf(seat.memberId)}
-                  </span>
-                  <span className="truncate text-sm text-white/70">
-                    {seatDetails(seat)}
-                  </span>
-                </span>
-                {seat.mic === null && <Tag warn>{t("stageTab.noMic")}</Tag>}
-                <Icon name="chevron" className="size-6 shrink-0" />
-              </button>
+              </div>
             );
           })}
 
@@ -208,9 +246,9 @@ export function StageTab({
             </button>
           )}
 
-          {lineUp.warnings.length > 0 && (
+          {listed.length > 0 && (
             <ul className="flex flex-col gap-1 py-1 font-semibold text-yellow">
-              {lineUp.warnings.map((warning) => {
+              {listed.map((warning) => {
                 const text = lineUpWarningText(warning, nameOf);
                 return <li key={text}>{text}</li>;
               })}

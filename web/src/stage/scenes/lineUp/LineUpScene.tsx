@@ -269,7 +269,18 @@ function LineUpBody({
                     : micLabel(party, seat.mic, localMics),
                 )}
                 micBad={micHasProblem(warnings)}
-                warnings={warnings.map((w) => lineUpWarningText(w, nameOf))}
+                warnings={warnings.map((w) => {
+                  const text = lineUpWarningText(w, nameOf);
+                  const mic = seat.mic;
+                  if (w.code !== "notCalibrated" || mic === null) return text;
+                  // The usual checklist, with this seat's Mic ticked.
+                  return {
+                    text,
+                    onCalibrate: () => {
+                      store.send({ type: "openCalibrationFor", mic });
+                    },
+                  };
+                })}
                 order={index}
                 isDefault={index === 0}
                 onWho={() => {

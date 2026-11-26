@@ -398,6 +398,11 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::EndAvSync,
         ClientMessage::ReportAvSyncOffset { av_offset_ms: 120 },
         ClientMessage::OpenCalibration,
+        ClientMessage::OpenCalibrationFor {
+            mic: openstar_protocol::mics::MicKey::Phone {
+                phone_id: "4b1d8f0e-0000-4000-8000-000000000001".into(),
+            },
+        },
         ClientMessage::ChooseCalibrationMic {
             mic: openstar_protocol::mics::MicKey::Phone {
                 phone_id: "4b1d8f0e-0000-4000-8000-000000000001".into(),

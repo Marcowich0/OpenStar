@@ -407,6 +407,10 @@ struct LiveState {
     /// Phones that reported their mic could not open. Kept while the
     /// server runs; a Phone reports again after a restart.
     blocked_phones: HashSet<PhoneId>,
+    /// The Mics with a Mic delay stored at the Stage output last reported
+    /// (`None` until one is): a seated Mic not in it is "Not calibrated".
+    /// Kept when the Stage closes, so the warnings do not flicker.
+    calibrated_mics: Option<HashSet<MicKey>>,
     /// Mic bridges: approved (open or closed) and waiting for approval.
     bridges: bridges::Bridges,
     /// When each Song last started on the Stage (server time, ms), while
@@ -429,7 +433,7 @@ impl LiveState {
             None => HashMap::new(),
         };
         if let Some(party) = party.as_mut() {
-            refresh_computed(party, &HashSet::new());
+            refresh_computed(party, &HashSet::new(), None);
         }
         let bridges = bridges::Bridges::new(crate::mic_bridges::load(&db).await?);
         let kept_local_mics = crate::local_mics::all(&db).await?;
@@ -459,6 +463,7 @@ impl LiveState {
             kept_local_mics,
             present_browser_mics: HashSet::new(),
             blocked_phones: HashSet::new(),
+            calibrated_mics: None,
             bridges,
             last_started_ms: HashMap::new(),
         }
@@ -884,6 +889,10 @@ impl LiveState {
                 let result = self.open_calibration(id);
                 self.refuse_on_error(id, result);
             }
+            Ok(ClientMessage::OpenCalibrationFor { mic }) => {
+                let result = self.open_calibration_for(id, mic);
+                self.refuse_on_error(id, result);
+            }
             Ok(ClientMessage::ChooseCalibrationMic { mic, chosen }) => {
                 let result = self.choose_calibration_mic(id, mic, chosen);
                 self.refuse_on_error(id, result);
@@ -1119,6 +1128,8 @@ impl LiveState {
                 self.hub.send_all(&ServerMessage::Changed {
                     topics: vec![ChangeTopic::MicSettings],
                 });
+                // A Calibration stored here may end a "Not calibrated".
+                self.refresh_calibrated().await;
                 // Open bridges show each channel's switch and name.
                 self.send_bridge_channels(None).await;
                 // The Line-up lists the switched-on Local mics by name.
@@ -1155,7 +1166,46 @@ impl LiveState {
             volume,
             stepped: false,
         });
+        // Another output may hold other Mics' values.
+        self.refresh_calibrated().await;
         Ok(())
+    }
+
+    /// Reads which Mics have a Mic delay stored at the Stage's current
+    /// output, and tells everyone the Party when that changes the Line-up's
+    /// "Not calibrated" warnings. With no output known it keeps the last.
+    pub(super) async fn refresh_calibrated(&mut self) {
+        let Some((output, _)) = self.stage().output.clone() else {
+            return;
+        };
+        let stored = match crate::mic_settings::at_stage_output(&self.db, output.stage_output).await
+        {
+            Ok(stored) => stored,
+            Err(error) => {
+                tracing::error!(?error, "reading Mic settings");
+                return;
+            }
+        };
+        let calibrated: HashSet<MicKey> = stored
+            .into_iter()
+            .filter(|entry| entry.settings.calibration.is_some())
+            .map(|entry| entry.mic)
+            .collect();
+        if self.calibrated_mics.as_ref() == Some(&calibrated) {
+            return;
+        }
+        self.calibrated_mics = Some(calibrated);
+        let waiting = self
+            .stage()
+            .party
+            .as_ref()
+            .is_some_and(|party| party.line_up.is_some());
+        if waiting {
+            self.party_changed(ChangeEvent {
+                actor: Actor::Stage,
+                event: PartyEvent::CalibrationChanged,
+            });
+        }
     }
 
     /// One step of the OpenStar volume from the Stage or a joined Phone,
@@ -2222,7 +2272,11 @@ impl LiveState {
             .clone()
             .filter(|line_up| line_up.request_id == request_id && party.playing.is_none())
             .ok_or(UserMessage::LineUpNotWaiting)?;
-        line_up::check(&mut line_up, &self.blocked_phones);
+        line_up::check(
+            &mut line_up,
+            &self.blocked_phones,
+            self.calibrated_mics.as_ref(),
+        );
         if !line_up.can_start {
             return Err(UserMessage::LineUpNotReady);
         }
@@ -2658,10 +2712,11 @@ impl LiveState {
 
     fn party_changed(&mut self, change: ChangeEvent) {
         let blocked = self.blocked_phones.clone();
+        let calibrated = self.calibrated_mics.clone();
         let Some(party) = self.stage_mut().party.as_mut() else {
             return;
         };
-        refresh_computed(party, &blocked);
+        refresh_computed(party, &blocked, calibrated.as_ref());
         let party = party.clone();
         self.hub
             .send_all(&ServerMessage::PartyChanged { party, change });
@@ -2779,10 +2834,14 @@ fn player_results(
 
 /// Recomputes what the server derives in a snapshot: the Line-up's Start
 /// availability and warnings, and which members are singing.
-fn refresh_computed(party: &mut PartySnapshot, blocked_phones: &HashSet<PhoneId>) {
+fn refresh_computed(
+    party: &mut PartySnapshot,
+    blocked_phones: &HashSet<PhoneId>,
+    calibrated: Option<&HashSet<MicKey>>,
+) {
     let playing = party.playing.is_some();
     if let Some(line_up) = party.line_up.as_mut() {
-        line_up::check(line_up, blocked_phones);
+        line_up::check(line_up, blocked_phones, calibrated);
         // A Line-up whose Song plays cannot start again.
         line_up.can_start &= !playing;
     }

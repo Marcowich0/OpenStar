@@ -845,6 +845,7 @@ export const en = {
   "partyEvent.micOpened": "{name}'s mic is on",
   "partyEvent.lineUpChanged": "The Line-up changed",
   "partyEvent.localMicsChanged": "The Local mics changed",
+  "partyEvent.calibrationChanged": "The mic calibrations changed",
   "partyEvent.seatMoved": "{name} moved to another seat",
   "partyEvent.seatVoice": "{name} is on Voice {voice, number}",
   "partyEvent.seatDifficulty": "{name} sings on {difficulty}",
@@ -860,6 +861,7 @@ export const en = {
   "partyEvent.autoFitAccepted": "The Auto-fit of {song} was accepted",
   // Line-up warnings: the screen resolves the member's name.
   "lineUpWarning.noMic": "{name} has no mic",
+  "lineUpWarning.notCalibrated": "Not calibrated",
   "lineUpWarning.micBlocked": "{name}'s mic is blocked",
   "lineUpWarning.duetNeedsVoice":
     "A duet needs someone on Voice {voice, number}",

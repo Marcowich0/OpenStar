@@ -438,6 +438,17 @@ describe("a toast the Stage raises itself", () => {
     expect(text(gone)).toBe("Kim is back on the mic");
     expect(toastContent(gone, party, profiles).actor).toBeNull();
   });
+
+  it("asks for calibration when the Stage's sound output changed, with no actor and no word of the A/V offset", () => {
+    const toast: Toast = {
+      id: 0,
+      actor: { kind: "stage" },
+      event: { code: "soundOutputChanged" },
+    };
+    expect(text(toast)).toBe("Sound output changed: calibrate mics");
+    expect(text(toast)).not.toMatch(/offset/i);
+    expect(toastContent(toast, party, profiles).actor).toBeNull();
+  });
 });
 
 // Synthetic events for the toasts whose server side is not built yet: the

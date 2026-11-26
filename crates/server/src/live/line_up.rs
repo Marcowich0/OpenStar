@@ -306,7 +306,15 @@ pub fn refresh_singing(party: &mut PartySnapshot) {
 /// constraint), and in a duet someone on each Voice. A blocked Phone mic
 /// warns but never blocks Start. An empty Line-up shows no warning: its
 /// screens offer Add a singer instead.
-pub fn check(line_up: &mut LineUp, blocked_phones: &HashSet<PhoneId>) {
+///
+/// `calibrated` holds the Mics with a Mic delay stored at the Stage's
+/// current output; a seated Mic not in it is "Not calibrated", which warns
+/// but never blocks Start. `None` while no output is known: no such warning.
+pub fn check(
+    line_up: &mut LineUp,
+    blocked_phones: &HashSet<PhoneId>,
+    calibrated: Option<&HashSet<MicKey>>,
+) {
     let mut warnings = Vec::new();
     for seat in &line_up.seats {
         match &seat.mic {
@@ -321,6 +329,13 @@ pub fn check(line_up: &mut LineUp, blocked_phones: &HashSet<PhoneId>) {
                 });
             }
             Some(_) => {}
+        }
+        if let (Some(mic), Some(calibrated)) = (&seat.mic, calibrated)
+            && !calibrated.contains(mic)
+        {
+            warnings.push(LineUpWarning::NotCalibrated {
+                member_id: seat.member_id,
+            });
         }
     }
     let missing_voices: Vec<SeatVoice> = if line_up.duet && !line_up.seats.is_empty() {
@@ -614,7 +629,7 @@ mod tests {
             }],
         };
         let blocked: HashSet<PhoneId> = blocked.iter().map(|id| PhoneId((*id).into())).collect();
-        check(&mut line_up, &blocked);
+        check(&mut line_up, &blocked, None);
         line_up
     }
 

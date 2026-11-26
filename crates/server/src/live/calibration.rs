@@ -66,6 +66,37 @@ impl LiveState {
         Ok(())
     }
 
+    /// Calibrate mics from a "Not calibrated" seat: opens (or joins) the
+    /// run, and on its checklist ticks `mic`, adding it when not listed.
+    pub(super) fn open_calibration_for(
+        &mut self,
+        id: ConnectionId,
+        mic: MicKey,
+    ) -> Result<(), UserMessage> {
+        let opened = !self.calibration_open();
+        self.open_calibration(id)?;
+        let Ok(run) = self.calibration_at(CalibrationPhase::Choosing) else {
+            return Ok(());
+        };
+        let changed = match run.mics.iter_mut().find(|entry| entry.mic == mic) {
+            Some(entry) => !std::mem::replace(&mut entry.chosen, true),
+            None => {
+                run.mics.push(CalibrationMic {
+                    mic,
+                    chosen: true,
+                    ready: false,
+                    outcome: None,
+                });
+                true
+            }
+        };
+        // A run just opened was told already; tell the tick only if needed.
+        if changed || opened {
+            self.tell_calibration();
+        }
+        Ok(())
+    }
+
     /// Ticks or unticks a Mic on the checklist.
     pub(super) fn choose_calibration_mic(
         &mut self,
@@ -203,6 +234,7 @@ impl LiveState {
             topics: vec![ChangeTopic::MicSettings],
         });
         self.tell_calibration();
+        self.refresh_calibrated().await;
         Ok(())
     }
 

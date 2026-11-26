@@ -407,6 +407,10 @@ pub enum LineUpWarning {
     /// "A duet needs someone on Voice <voice>": nobody sits on that Voice
     /// of a duet. Blocks Start.
     DuetNeedsVoice { voice: SeatVoice },
+    /// "Not calibrated": no Mic delay is stored for the seat's Mic at the
+    /// Stage's current output, so it sings on the default. Shown with a
+    /// Calibrate mics button. Does not block Start.
+    NotCalibrated { member_id: PartyMemberId },
 }
 
 /// Who to put in a Line-up seat: a Party member, a Profile (which enters
@@ -642,6 +646,10 @@ pub enum PartyEvent {
     /// The switched-on Local mics changed: one was switched on or off,
     /// renamed, plugged in or out, or its bridge opened or closed. No toast.
     LocalMicsChanged,
+    /// Which seated Mics are calibrated at the Stage's output changed (a
+    /// Calibration was stored, or the output changed), so the Line-up's
+    /// "Not calibrated" warnings may have. No toast.
+    CalibrationChanged,
     /// A Party member who sat in one seat of the Line-up was chosen for
     /// another: it moved there and its old seat was taken off.
     SeatMoved {

@@ -70,6 +70,19 @@ describe("Party changes as toast entries", () => {
     expect(receive(stage, localMics).toasts).toEqual([]);
   });
 
+  it("gives no toast anywhere when only the calibrations changed", () => {
+    const calibration: ServerMessage = {
+      type: "partyChanged",
+      party,
+      change: {
+        actor: { kind: "stage" },
+        event: { code: "calibrationChanged" },
+      },
+    };
+    expect(receive(phone, calibration).toasts).toEqual([]);
+    expect(receive(stage, calibration).toasts).toEqual([]);
+  });
+
   it("gives no toast on the Stage for a change made on the Stage", () => {
     expect(receive(stage, change({ kind: "stage" })).toasts).toEqual([]);
   });
