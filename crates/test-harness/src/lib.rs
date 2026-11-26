@@ -13,6 +13,9 @@
 //!   generated from its own Notes ([`AppFolders::with_fixture_library`]), and
 //!   [`fake_mic`] writes the fake microphone WAVs described in `fixtures/mic/`.
 //!
+//! - [`BridgeLauncher`] starts and stops Mic bridge processes on this machine
+//!   over HTTP, for a Playwright spec that cannot run the bridge itself.
+//!
 //! The fake USDB and the stub also run as standalone processes, and the
 //! fixture Library and the fake mic WAVs are written, for `just e2e`: see the
 //! `openstar-harness` binary.
@@ -23,6 +26,7 @@
 //! local port.
 
 mod app;
+mod bridge_launcher;
 mod executable;
 pub mod fake_mic;
 pub mod fixture_library;
@@ -31,6 +35,7 @@ mod usdb;
 mod ytdlp;
 
 pub use app::{AppFolders, DEFAULT_ADMIN_PIN, TestApp, TestAppBuilder, WsClient, WsRefusal};
+pub use bridge_launcher::{BridgeLauncher, LaunchSettings};
 pub use executable::write_executable;
 pub use media::{Media, Signal, placeholder_media};
 pub use usdb::{FakeSong, FakeUsdb, RecordedRequest, Scripted};

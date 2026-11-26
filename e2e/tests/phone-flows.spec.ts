@@ -1,18 +1,14 @@
-import type {
-  APIRequestContext,
-  Browser,
-  BrowserContext,
-  Page,
-} from "@playwright/test";
+import type { Page } from "@playwright/test";
 
+import { expect, FAKE_MIC, newParty, test } from "../fixtures";
 import {
-  becomeStageWithPin,
-  expect,
-  FAKE_MIC,
-  newParty,
-  STAGE_VIEWPORT,
-  test,
-} from "../fixtures";
+  createProfile,
+  joinByPad,
+  liveParty,
+  sendFromPhone,
+  stageWithPin,
+  startSong,
+} from "../flows";
 import { writeSungWav } from "../wav";
 
 // The two Phone flows of the end-to-end suite (spec #58, ticket #229). Each
@@ -42,109 +38,6 @@ import { writeSungWav } from "../wav";
  * The ceiling catches a scorer that counts every Beat as hit.
  */
 const SUNG_BAND = { min: 6000, max: 9500 } as const;
-
-/** How long the Steady Tone Song takes to its results, with a slow machine's margin. */
-const SONG_TO_RESULTS_MS = 60_000;
-
-/** Makes a desktop browser the Stage through the Admin PIN pad. */
-async function stageWithPin(
-  browser: Browser,
-  baseURL: string | undefined,
-): Promise<{ context: BrowserContext; stage: Page }> {
-  const context = await browser.newContext({
-    viewport: STAGE_VIEWPORT,
-    ...(baseURL === undefined ? {} : { baseURL }),
-  });
-  const stage = await context.newPage();
-  await becomeStageWithPin(stage);
-  return { context, stage };
-}
-
-/** A Profile with a name no other test uses (Profiles outlive a test). */
-async function createProfile(
-  request: APIRequestContext,
-  prefix: string,
-  favouriteColour: string,
-): Promise<string> {
-  const name = `${prefix} ${String(Date.now() % 100000)}`;
-  const response = await request.post("/api/profiles", {
-    data: { name, avatar: { kind: "builtIn", key: "star" }, favouriteColour },
-  });
-  expect(response.ok()).toBe(true);
-  return name;
-}
-
-/** Joins on `/` by typing the Join code on the pad, as the Profile `name`. */
-async function joinByPad(phone: Page, code: string, name: string) {
-  await phone.goto("/");
-  await expect(
-    phone.getByRole("heading", { name: "Join the Party" }),
-  ).toBeVisible();
-  for (const digit of code)
-    await phone.getByRole("button", { name: digit, exact: true }).click();
-  await expect(
-    phone.getByRole("heading", { name: "Who's singing?" }),
-  ).toBeVisible();
-  await phone.getByRole("button", { name, exact: true }).click();
-  await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();
-}
-
-interface Member {
-  memberId: number;
-  colour: string;
-  identity: {
-    kind: string;
-    name?: string;
-    avatar?: { kind: string; key: string };
-  };
-}
-
-/** The Party as a new connection of `page` is told it (`liveState`). */
-async function liveParty(
-  page: Page,
-): Promise<{ members: Member[]; queue: { requestId: number }[] }> {
-  return page.evaluate(
-    () =>
-      new Promise((resolve) => {
-        const socket = new WebSocket(`ws://${location.host}/ws`);
-        socket.onmessage = (event) => {
-          const message = JSON.parse(String(event.data)) as {
-            type: string;
-            party?: { members: Member[]; queue: { requestId: number }[] };
-          };
-          if (message.type === "liveState" && message.party) {
-            socket.close();
-            resolve(message.party);
-          }
-        };
-      }),
-  );
-}
-
-/** Sends `message` as the Phone, over a second socket of its page (clean-up only). */
-async function sendFromPhone(phone: Page, message: object): Promise<void> {
-  await phone.evaluate(
-    (message) =>
-      new Promise<void>((resolve, reject) => {
-        const phoneId = localStorage.getItem("openstar.phoneId");
-        const socket = new WebSocket(`ws://${location.host}/ws`);
-        socket.onopen = () => {
-          socket.send(JSON.stringify({ type: "hello", phoneId }));
-        };
-        socket.onmessage = (event) => {
-          const reply = JSON.parse(String(event.data)) as { type: string };
-          if (reply.type === "phoneStatus")
-            socket.send(JSON.stringify(message));
-          if (reply.type === "rejected") reject(new Error(String(event.data)));
-          if (reply.type === "partyChanged") {
-            socket.close();
-            resolve();
-          }
-        };
-      }),
-    message,
-  );
-}
 
 /**
  * Picks the form's radio named `name` from the keyboard: the swatch and the
@@ -219,27 +112,15 @@ test("flow 1: two Phones join by code, sing Steady Tone together, and the result
     await turnOnMic(singing);
     await turnOnMic(silent);
 
-    const start = stage.getByRole("button", { name: "Start" });
-    await expect(start).not.toHaveAttribute("aria-disabled", "true");
-    const round = stage.waitForResponse(
-      (r) => r.url().endsWith("/api/rounds") && r.request().method() === "POST",
-      { timeout: SONG_TO_RESULTS_MS },
-    );
     // Space presses Start (the Line-up's key).
-    await stage.keyboard.press(" ");
     playing = true;
-    await expect(frame).toHaveAttribute("data-scene", "sing");
+    const { stored: ended } = await startSong(stage);
     await expect(
       singing.getByRole("heading", { name: "Sing it!" }),
     ).toBeVisible();
 
-    const response = await round;
+    const stored = await ended;
     playing = false;
-    expect(response.status()).toBe(201);
-    const stored = (await response.json()) as {
-      round: { ended: string };
-      results: { players: { name: string; total: number; place: number }[] };
-    };
     expect(stored.round.ended).toBe("played");
     const totals = new Map(
       stored.results.players.map((p) => [p.name, p.total]),
