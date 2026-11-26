@@ -115,6 +115,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // The Stage's position report only tells Remotes how far the Song
         // has got; it changes nothing kept.
         | ClientMessage::ReportSongPosition { .. }
+        // The Stage's Line-end totals only tell a seat's Phone its Score;
+        // the stored Score comes with the round.
+        | ClientMessage::ReportLineScore { .. }
         // A bridge asking to join changes nothing until the Stage approves
         // it; approving needs no Admin PIN (becoming the Stage needed it).
         | ClientMessage::BridgeHello { .. }

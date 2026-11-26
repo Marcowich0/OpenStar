@@ -1,6 +1,7 @@
 import type { JoinCode } from "../generated/JoinCode";
 import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PartySnapshot } from "../generated/PartySnapshot";
+import type { RequestId } from "../generated/RequestId";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { StageId } from "../generated/StageId";
 import type { UserMessage } from "../generated/UserMessage";
@@ -60,6 +61,18 @@ export interface LiveState {
    * has reported. `progressAt` (`songProgress.ts`) extrapolates from it.
    */
   songProgress: ProgressAnchor | null;
+  /**
+   * Phone only: the running total of the seat this Phone is the Mic of, as
+   * the Stage's scorer last reported it at a Line end (#167), with the
+   * Request it was sung in; `null` before the first report.
+   */
+  lineScore: LineScore | null;
+}
+
+/** A seat's running total at its last Line end, in Request `requestId`. */
+export interface LineScore {
+  requestId: RequestId;
+  total: number;
 }
 
 export const initialLiveState: LiveState = {
@@ -74,6 +87,7 @@ export const initialLiveState: LiveState = {
   volume: null,
   volumeSteps: 0,
   songProgress: null,
+  lineScore: null,
 };
 
 /** The progress, kept only while its Request is the one playing in `party`. */
@@ -155,6 +169,11 @@ export function receive(
       );
       return anchor === null ? state : { ...state, songProgress: anchor };
     }
+    case "lineScore":
+      return {
+        ...state,
+        lineScore: { requestId: message.requestId, total: message.total },
+      };
     case "changed":
       // Change notices invalidate HTTP data; they change no live state.
       return state;

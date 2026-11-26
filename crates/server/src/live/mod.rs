@@ -60,6 +60,9 @@ pub const MAIN_STAGE: &str = "main";
 /// How many commands may wait for the task.
 const COMMAND_CAPACITY: usize = 1024;
 
+/// The highest Score a Player can reach.
+const MAX_TOTAL: u32 = 10_000;
+
 /// What a WebSocket connection was opened as.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Role {
@@ -897,6 +900,14 @@ impl LiveState {
                         age_ms: 0,
                     },
                 );
+                self.refuse_on_error(id, reported);
+            }
+            Ok(ClientMessage::ReportLineScore {
+                request_id,
+                seat,
+                total,
+            }) => {
+                let reported = self.report_line_score(id, request_id, seat, total);
                 self.refuse_on_error(id, reported);
             }
             Ok(ClientMessage::CloseResults) => {
@@ -2338,6 +2349,48 @@ impl LiveState {
             progress: progress.clone(),
         });
         self.stage_mut().progress = Some((progress, now_ms));
+        Ok(())
+    }
+
+    /// Passes seat `seat`'s running total at a Line end to that seat's
+    /// Phone alone: every connection that presented its Phone id.
+    fn report_line_score(
+        &mut self,
+        id: ConnectionId,
+        request_id: RequestId,
+        seat: u32,
+        total: u32,
+    ) -> Result<(), UserMessage> {
+        if self.stage().connection != Some(id) {
+            return Err(UserMessage::NotTheStage);
+        }
+        let party = self.stage().party.as_ref();
+        let plays = party
+            .and_then(|party| party.playing.as_ref())
+            .is_some_and(|playing| playing.request_id == request_id);
+        if !plays {
+            return Err(UserMessage::NoSongPlaying);
+        }
+        if total > MAX_TOTAL {
+            return Err(UserMessage::InvalidMessage);
+        }
+        let seat = party
+            .and_then(|party| party.line_up.as_ref())
+            .and_then(|line_up| line_up.seats.get(seat as usize))
+            .ok_or(UserMessage::InvalidMessage)?;
+        let Some(MicKey::Phone { phone_id }) = &seat.mic else {
+            return Ok(());
+        };
+        let phones: Vec<ConnectionId> = self
+            .phones
+            .iter()
+            .filter(|(_, phone)| &phone.0 == phone_id)
+            .map(|(&connection, _)| connection)
+            .collect();
+        for connection in phones {
+            self.hub
+                .send_to(connection, &ServerMessage::LineScore { request_id, total });
+        }
         Ok(())
     }
 

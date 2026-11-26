@@ -134,6 +134,9 @@ test("the Queue tab reorders, changes singers and removes, and every Phone follo
         requestedPlayers: null,
       });
 
+    // The adder is seated on its own Phone for the first Song: its mic
+    // takeover shows (#167), with the Remote one tap away.
+    await mine.getByRole("button", { name: "Queue & controls" }).click();
     await openQueueTab(mine);
     await openQueueTab(theirs);
     await expect(cards(theirs)).toHaveText([
