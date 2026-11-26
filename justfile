@@ -6,7 +6,7 @@ default: check
 
 # Every fast check: Rust, dependency licences and advisories, TypeScript,
 # Prettier, the generated-types drift check and the fixture rules.
-check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check pins-check shell-check bridge-tarball-check
+check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check pins-check shell-check bridge-tarball-check compose-check
 
 # What CI runs: every fast check, then the browser end-to-end tests.
 ci: check e2e
@@ -159,6 +159,13 @@ bridge-release dir="target/bridge-release" build_id="dev":
 # schedule publish; pull requests never do.
 ci-meta-check:
     scripts/ci-image-meta.test.sh >/dev/null
+
+# The compose examples (compose.yaml, compose.caddy.yaml) pass
+# `docker compose config` and hold what docs/deployment.md promises, and the
+# docs' settings table names every setting the server reads
+# (scripts/compose-check.sh). Needs Docker with the compose plugin, and jq.
+compose-check:
+    scripts/compose-check.sh
 
 # Every version pin is one Renovate keeps current (scripts/check-pins.sh,
 # docs/renovate.md): base images by digest, actions by SHA, a `# renovate:`

@@ -15,6 +15,10 @@ see the ultrastar project for context on a similar project and for reference on 
 7. language should be chosen based on performance
 8. should have an edit mode where users may adjust the timing of the notes to the music if these are misalligned.
 
+## Installing
+
+OpenStar runs as one Docker image, `ghcr.io/marcowich0/openstar`, on a trusted local network. Start from [`compose.yaml`](compose.yaml), or [`compose.caddy.yaml`](compose.caddy.yaml) for the HTTPS that Phones need. [Running OpenStar](docs/deployment.md) explains every setting, the volumes, Unraid, HTTPS, upgrades and backups.
+
 ## Releases
 
 Before each `vX.Y.Z` tag, the [release checklist](docs/release-checklist.md) is worked through by hand. `:edge` builds from `main` need none.
