@@ -1,6 +1,7 @@
 //! The bridge's window (v1 spec #51): an egui/eframe window that shows the
-//! server address, the connection status and every channel with its name,
-//! whether it is on and its meter. The bridge captures only while the
+//! server address, the connection status, the profile message of every
+//! interface not in Pro Audio with Switch to Pro Audio, and every channel
+//! with its name, whether it is on and its meter. The bridge captures only while the
 //! window is open: the connection runs beside it and is dropped when it
 //! closes, so the Stage shows the bridge as closed and its Local mics stop.
 //!
@@ -16,8 +17,9 @@ use std::future::Future;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
-use crate::client::{self, Ended, Event, Input, Report};
+use crate::client::{self, Ended, Event, Offer, Report};
 use crate::config::ConfigDir;
+use crate::watch::Switcher;
 use state::WindowState;
 
 /// The window's title.
@@ -95,14 +97,14 @@ where
     shown
 }
 
-/// Opens the window and connects while it is open.
-pub fn run(config: ConfigDir, inputs: Vec<Box<dyn Input>>) -> anyhow::Result<()> {
-    let interfaces = inputs.iter().map(|i| i.interface().clone()).collect();
+/// Opens the window and connects while it is open, offering what `offer`
+/// offers; the window's Switch to Pro Audio presses `switcher`.
+pub fn run(config: ConfigDir, offer: Box<dyn Offer>, switcher: Switcher) -> anyhow::Result<()> {
     let (server, problem) = match config.server() {
         Ok(server) => (server, None),
         Err(error) => (String::new(), Some(format!("{error:#}"))),
     };
-    let mut state = WindowState::new(server, interfaces);
+    let mut state = WindowState::new(server, Vec::new());
     if let Some(problem) = &problem {
         state.stop(problem.clone());
     }
@@ -113,7 +115,7 @@ pub fn run(config: ConfigDir, inputs: Vec<Box<dyn Input>>) -> anyhow::Result<()>
             if problem.is_some() {
                 return;
             }
-            match client::run_reporting(config, inputs, &mut report).await {
+            match client::run_offered(config, offer, &mut report).await {
                 // The window goes with this process; the new build opens
                 // its own.
                 Ok(Ended::Updated(exe)) => {
@@ -126,10 +128,10 @@ pub fn run(config: ConfigDir, inputs: Vec<Box<dyn Input>>) -> anyhow::Result<()>
             }
         }
     };
-    while_open(connection, || open_window(shared))
+    while_open(connection, || open_window(shared, switcher))
 }
 
-fn open_window(shared: Shared) -> anyhow::Result<()> {
+fn open_window(shared: Shared, switcher: Switcher) -> anyhow::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title(TITLE)
@@ -144,7 +146,7 @@ fn open_window(shared: Shared) -> anyhow::Result<()> {
         Box::new(move |cc| {
             view::set_style(&cc.egui_ctx);
             let _ = shared.repaint.set(cc.egui_ctx.clone());
-            Ok(Box::new(App { shared }))
+            Ok(Box::new(App { shared, switcher }))
         }),
     )
     .map_err(|error| {
@@ -154,11 +156,17 @@ fn open_window(shared: Shared) -> anyhow::Result<()> {
 
 struct App {
     shared: Shared,
+    switcher: Switcher,
 }
 
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let state = self.shared.snapshot();
-        view::show(ui, &state);
+        match view::show(ui, &state) {
+            Some(view::Pressed::SwitchToProAudio(device_name)) => {
+                self.switcher.switch_to_pro_audio(&device_name);
+            }
+            None => {}
+        }
     }
 }

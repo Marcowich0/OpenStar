@@ -314,6 +314,8 @@ export const en = {
     "A ball bouncing once a second, with a click each time it lands",
   "avSync.stageHint":
     "Press ← or → until the click and the landing match. Every change is saved at once.",
+  "avSync.switchProfiles":
+    "A Mic bridge interface is not in Pro Audio: switch profiles before calibrating (Setup › Mics)",
   "avSync.down": "A/V offset down",
   "avSync.up": "A/V offset up",
   "avSync.reset": "Reset to 0",
@@ -375,6 +377,15 @@ export const en = {
   "mics.bridge.sameInterface":
     "This browser reads one of these interfaces too: use one or the other",
   "mics.bridge.noChannels": "No input channel kept yet",
+  "mics.bridge.notProAudio":
+    "{label} is in {profile}: only some inputs reach OpenStar",
+  "mics.bridge.notProAudioNoProfile":
+    "{label} is not in Pro Audio: only some inputs reach OpenStar",
+  "mics.bridge.switchToProAudio": "Switch to Pro Audio",
+  "mics.bridge.switchInterfaceToProAudio": "Switch {label} to Pro Audio",
+  "mics.bridge.switchRefused":
+    "Set its profile to Pro Audio in your sound settings, or run this on the bridge's computer:",
+  "mics.bridge.pactlLine": "Command to set {label} to Pro Audio",
   "mics.bridge.forget": "Forget the Mic bridge on {host}",
   "mics.bridge.forgetShort": "Forget",
   "mics.bridge.forgetFailed": "The Mic bridge could not be forgotten",

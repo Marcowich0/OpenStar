@@ -8,8 +8,8 @@ use std::collections::{HashMap, HashSet};
 
 use openstar_protocol::bridge::{
     BridgeChannel, BridgeChannelSettings, BridgeId, BridgeInputDelay, BridgeInterface, BridgeLevel,
-    BridgeRequest, BridgeRequestId, LocalMicLevel, MicBridge, MicBridges, bridge_local_mic_id,
-    loopback_number,
+    BridgeRequest, BridgeRequestId, LocalMicLevel, MicBridge, MicBridges, NotProAudio,
+    bridge_local_mic_id, loopback_number,
 };
 use openstar_protocol::mics::{LocalMicSource, MicKey};
 use openstar_protocol::{
@@ -48,11 +48,14 @@ pub(super) struct Waiting {
     pub host_name: String,
     pub code: String,
     pub interfaces: Vec<BridgeInterface>,
+    pub not_pro_audio: Vec<NotProAudio>,
 }
 
 pub(super) struct Open {
     pub bridge_id: BridgeId,
     pub interfaces: Vec<BridgeInterface>,
+    /// The interfaces it sees that are not in Pro Audio, as it last said.
+    pub not_pro_audio: Vec<NotProAudio>,
     /// The channels it was last told detect ([`ServerMessage::BridgeDetecting`]).
     pub told_detecting: Vec<BridgeInput>,
     /// The input delays it reported, by channel.
@@ -84,6 +87,9 @@ impl Bridges {
                     open: open.is_some(),
                     channels: open.map(channels_of).unwrap_or_default(),
                     interfaces: open.map(|open| open.interfaces.clone()).unwrap_or_default(),
+                    not_pro_audio: open
+                        .map(|open| open.not_pro_audio.clone())
+                        .unwrap_or_default(),
                 }
             })
             .collect();
@@ -258,7 +264,8 @@ impl LiveState {
                     }
                 }
                 let bridge_id = self.bridges.approved[index].bridge_id.clone();
-                self.bridge_opened(id, bridge_id, interfaces).await;
+                self.bridge_opened(id, bridge_id, interfaces, Vec::new())
+                    .await;
             }
             None => {
                 let taken: Vec<&str> = self
@@ -283,6 +290,7 @@ impl LiveState {
                     host_name,
                     code: code.clone(),
                     interfaces,
+                    not_pro_audio: Vec::new(),
                 });
                 self.hub.send_to(id, &ServerMessage::BridgeWaiting { code });
                 self.bridges_changed();
@@ -333,8 +341,13 @@ impl LiveState {
         tracing::info!(host = %approved.host_name, "a Mic bridge was approved");
         self.hub
             .send_to(waiting.connection, &ServerMessage::BridgeApproved { token });
-        self.bridge_opened(waiting.connection, approved.bridge_id, waiting.interfaces)
-            .await;
+        self.bridge_opened(
+            waiting.connection,
+            approved.bridge_id,
+            waiting.interfaces,
+            waiting.not_pro_audio,
+        )
+        .await;
     }
 
     /// An approved bridge is connected on `id`: it is told so and its
@@ -345,6 +358,7 @@ impl LiveState {
         id: ConnectionId,
         bridge_id: BridgeId,
         interfaces: Vec<BridgeInterface>,
+        not_pro_audio: Vec<NotProAudio>,
     ) {
         let older: Vec<ConnectionId> = self
             .bridges
@@ -368,6 +382,7 @@ impl LiveState {
             Open {
                 bridge_id,
                 interfaces,
+                not_pro_audio,
                 told_detecting: Vec::new(),
                 input_delays: HashMap::new(),
             },
@@ -380,6 +395,83 @@ impl LiveState {
         self.bridges_changed();
         // Its switched-on Local mics are present again.
         self.local_mics_changed();
+    }
+
+    /// A bridge says what it sees now: what it offers and its interfaces
+    /// not in Pro Audio, replacing what it said before. For an open bridge
+    /// the channels it no longer offers close (a profile switched away is
+    /// a lost Mic, like an unplugged interface), it is told its channels
+    /// with their kept names, and the Stage that bridges and Local mics
+    /// changed. Dropped from a socket that is not a bridge's.
+    pub(super) async fn bridge_interfaces(
+        &mut self,
+        id: ConnectionId,
+        interfaces: Vec<BridgeInterface>,
+        not_pro_audio: Vec<NotProAudio>,
+    ) {
+        if let Some(waiting) = self.bridges.waiting.iter_mut().find(|w| w.connection == id) {
+            waiting.interfaces = interfaces;
+            waiting.not_pro_audio = not_pro_audio;
+            return;
+        }
+        let Some(open) = self.bridges.open.get_mut(&id) else {
+            return;
+        };
+        let before: Vec<BridgeInput> = open.inputs().collect();
+        open.interfaces = interfaces;
+        open.not_pro_audio = not_pro_audio;
+        let gone: Vec<MicId> = before
+            .iter()
+            .filter(|input| !open.offers(input))
+            .map(|input| MicId::Bridge {
+                bridge_id: open.bridge_id.clone(),
+                local_mic_id: bridge_local_mic_id(
+                    &open.bridge_id,
+                    &input.device_name,
+                    input.channel,
+                ),
+            })
+            .collect();
+        let offered: Vec<BridgeInput> = open.inputs().collect();
+        open.input_delays.retain(|input, _| offered.contains(input));
+        let changed_inputs = before != offered;
+        for mic in gone {
+            self.send_to_stage(&ServerMessage::MicClosed { mic });
+        }
+        if changed_inputs {
+            self.send_bridge_channels(Some(id)).await;
+            self.tell_bridges_detecting();
+        }
+        self.bridges_changed();
+        if changed_inputs {
+            self.local_mics_changed();
+        }
+    }
+
+    /// Switch to Pro Audio on the Stage: passed to the open bridge, which
+    /// tries the switch itself.
+    pub(super) fn switch_bridge_to_pro_audio(
+        &mut self,
+        id: ConnectionId,
+        bridge_id: &BridgeId,
+        device_name: String,
+    ) {
+        if self.stage().connection != Some(id) {
+            self.reject(id, UserMessage::NotTheStage);
+            return;
+        }
+        let Some(&bridge) = self
+            .bridges
+            .open
+            .iter()
+            .find(|(_, open)| &open.bridge_id == bridge_id)
+            .map(|(connection, _)| connection)
+        else {
+            self.reject(id, UserMessage::BridgeNotFound);
+            return;
+        };
+        self.hub
+            .send_to(bridge, &ServerMessage::BridgeSwitchProfile { device_name });
     }
 
     /// The active Stage says its Mics screen opened or closed.

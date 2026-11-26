@@ -403,6 +403,24 @@ pub enum ClientMessage {
         /// Every interface it reads, each with its hardware channels.
         interfaces: Vec<bridge::BridgeInterface>,
     },
+    /// From a Mic bridge right after its hello, and whenever what it sees
+    /// changes (a profile changed, however it was changed; an interface
+    /// came or went; a Switch to Pro Audio was refused): every interface it
+    /// reads and every one not in Pro Audio, replacing what it said before.
+    /// Dropped from any socket that is not a bridge's.
+    BridgeInterfaces {
+        interfaces: Vec<bridge::BridgeInterface>,
+        not_pro_audio: Vec<bridge::NotProAudio>,
+    },
+    /// Switch to Pro Audio on the Stage's Mics screen: the server asks open
+    /// bridge `bridge_id` to switch its interface `device_name` to the Pro
+    /// Audio profile ([`ServerMessage::BridgeSwitchProfile`]). Accepted only
+    /// from the active Stage; no Admin PIN (it changes no kept data).
+    /// [`UserMessage::BridgeNotFound`] when that bridge is not open.
+    SwitchBridgeToProAudio {
+        bridge_id: bridge::BridgeId,
+        device_name: String,
+    },
     /// Approves a Mic bridge waiting for approval. Accepted only from the
     /// active Stage; needs no Admin PIN (becoming the Stage needed it).
     /// [`UserMessage::BridgeRequestNotFound`] when no bridge waits under
@@ -584,6 +602,11 @@ pub enum ServerMessage {
     /// included). Sent whenever that set changes (not on connect while it
     /// is empty). The bridge sends Pitch readings for exactly these.
     BridgeDetecting { channels: Vec<BridgeInput> },
+    /// To a connected Mic bridge: Switch to Pro Audio was pressed on the
+    /// Stage for its interface `device_name`. The bridge tries the switch
+    /// itself, as if its own button had been pressed; it never switches
+    /// otherwise.
+    BridgeSwitchProfile { device_name: String },
     /// Stage only: meter levels of a Mic bridge's Local mics, ten times a
     /// second each.
     LocalMicLevels { levels: Vec<bridge::LocalMicLevel> },

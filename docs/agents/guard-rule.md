@@ -67,6 +67,7 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - on the Mics screen: switching Local mics on and off, renaming a Local mic, Find it, and setting a Mic threshold;
 - Add a Mic bridge, the `/bridge` page and its download;
 - approving a new Mic bridge on the Stage's Mics screen (the Stage browser is already trusted through the PIN);
+- Switch to Pro Audio for a Mic bridge's interface, on the Mics screen or in the bridge window (it changes a sound card's profile on the bridge's computer, no Library file and no kept data);
 - Lock, the Unlock status and the PIN attempt itself;
 - the job list (`GET /api/jobs`) and the job updates on the WebSocket;
 - storing a round's outcome and its Score records (`POST /api/rounds`), which adds kept data and deletes none.

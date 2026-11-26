@@ -62,6 +62,11 @@ export interface LocalMicsApi {
   bridges: MicBridges;
   /** Approves a waiting Mic bridge (no Admin PIN: this is the Stage). */
   approveBridge: (requestId: number) => void;
+  /**
+   * Switch to Pro Audio for interface `deviceName` of open bridge
+   * `bridgeId`: the bridge tries the switch itself (no Admin PIN).
+   */
+  switchBridgeToProAudio: (bridgeId: string, deviceName: string) => void;
   /** Kept Local mics of this browser against the channels seen: not found, new channels. */
   match: LocalMicMatch;
   /** Names a channel (of this browser or a bridge; empty: its default); saved at once. */
@@ -101,6 +106,7 @@ export const NO_LOCAL_MICS: LocalMicsApi = {
   setSwitchedOn: () => {},
   bridges: NO_BRIDGES,
   approveBridge: () => {},
+  switchBridgeToProAudio: () => {},
   bridgeLevelDbfs: () => null,
   phoneLevelDbfs: () => null,
   match: NO_MATCH,
@@ -318,6 +324,13 @@ export function LocalMicsProvider({
     [store],
   );
 
+  const switchBridgeToProAudio = useCallback(
+    (bridgeId: string, deviceName: string) => {
+      store.send({ type: "switchBridgeToProAudio", bridgeId, deviceName });
+    },
+    [store],
+  );
+
   const rename = useCallback(
     (channel: LocalMicChannel, name: string) => {
       const trimmed = name.trim();
@@ -387,6 +400,7 @@ export function LocalMicsProvider({
       setSwitchedOn,
       bridges,
       approveBridge,
+      switchBridgeToProAudio,
       match,
       rename,
       relink,
@@ -401,6 +415,7 @@ export function LocalMicsProvider({
       setSwitchedOn,
       bridges,
       approveBridge,
+      switchBridgeToProAudio,
       match,
       rename,
       relink,

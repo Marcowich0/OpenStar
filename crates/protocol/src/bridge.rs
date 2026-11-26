@@ -56,6 +56,39 @@ pub struct BridgeInterface {
     pub twin: bool,
 }
 
+/// An interface a bridge sees that is not in the **Pro Audio** profile, so
+/// none of its channels reach OpenStar (v1 spec #51, "Interface profile").
+/// The bridge window and the bridge's group on the Mics screen say so,
+/// naming the profile ("Scarlett 4i4 is in Analog Surround 2.1: only some
+/// inputs reach OpenStar"), with **Switch to Pro Audio**.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct NotProAudio {
+    /// The card's `device.name`: what Switch to Pro Audio names.
+    pub device_name: String,
+    /// The card's name on the sound server, as `pactl set-card-profile`
+    /// takes it (usually the same as `device_name`).
+    pub card_name: String,
+    /// The interface's name for people.
+    pub label: String,
+    /// The active profile's name for people ("Analog Surround 2.1"), or its
+    /// name when it has no description; empty when the card has none
+    /// active ("Off").
+    pub profile: String,
+    /// The last Switch to Pro Audio was refused (in a sandbox, for
+    /// example): the message says to set the profile in the sound settings
+    /// instead, with the [`pactl_line`] to copy.
+    #[serde(default)]
+    pub switch_refused: bool,
+}
+
+/// The command that sets `card_name` to Pro Audio by hand, for a refused
+/// switch: `pactl set-card-profile <card> pro-audio`.
+pub fn pactl_line(card_name: &str) -> String {
+    format!("pactl set-card-profile {card_name} pro-audio")
+}
+
 /// The known-models table: for an interface with USB id `usb_id`, which
 /// loopback channel hardware channel `channel` (from 0) is, counting from
 /// one. Nothing marks a channel as loopback, so this small built-in table is
@@ -155,9 +188,15 @@ pub struct MicBridge {
     /// interface. Empty while closed (its kept Local mics are in
     /// `GET /api/local-mics`).
     pub channels: Vec<BridgeChannel>,
-    /// While open: the interfaces it offers, as it said in its hello.
-    /// Empty while closed.
+    /// While open: the interfaces it offers, as it last said (its hello or
+    /// a [`crate::ClientMessage::BridgeInterfaces`]). Empty while closed.
     pub interfaces: Vec<BridgeInterface>,
+    /// While open: the interfaces it sees that are not in Pro Audio, as it
+    /// last said. Shown ahead of everything else in its group. Empty while
+    /// closed, and then left out.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<NotProAudio>>", optional)]
+    pub not_pro_audio: Vec<NotProAudio>,
 }
 
 /// A bridge waiting for approval.
@@ -192,6 +231,28 @@ mod tests {
             bridge_local_mic_id(&BridgeId("ab12".into()), "alsa_card.usb-X-00", 3),
             "bridge:ab12:alsa_card.usb-X-00:3"
         );
+    }
+}
+
+#[cfg(test)]
+mod profile_tests {
+    use super::*;
+
+    #[test]
+    fn the_pactl_line_names_the_card_and_pro_audio() {
+        assert_eq!(
+            pactl_line("alsa_card.usb-Focusrite_Scarlett_4i4_4th_Gen_S46-00"),
+            "pactl set-card-profile alsa_card.usb-Focusrite_Scarlett_4i4_4th_Gen_S46-00 pro-audio"
+        );
+    }
+
+    #[test]
+    fn a_hello_or_listing_without_the_refused_flag_reads_as_not_refused() {
+        let read: NotProAudio = serde_json::from_str(
+            r#"{"deviceName":"d","cardName":"c","label":"Scarlett","profile":"Analog Surround 2.1"}"#,
+        )
+        .unwrap();
+        assert!(!read.switch_refused);
     }
 }
 

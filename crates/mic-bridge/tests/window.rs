@@ -1,6 +1,7 @@
 //! The bridge's window without a display: its states drawn by a software
 //! renderer and compared with the baselines in `tests/snapshots/` (only
-//! `just update-screenshots` writes those), the absence of any control, the
+//! `just update-screenshots` writes those), no control but Switch to Pro
+//! Audio and its Copy, the
 //! rule that the bridge is connected only while the window is open, and
 //! that the binary links no graphics library.
 
@@ -21,7 +22,9 @@ use openstar_mic_bridge::window::state::{Status, WindowState};
 use openstar_mic_bridge::window::{self, Shared, view};
 use openstar_protocol::ClientMessage;
 use openstar_protocol::ServerMessage;
-use openstar_protocol::bridge::{BridgeChannelSettings, BridgeId, BridgeInterface, MicBridges};
+use openstar_protocol::bridge::{
+    BridgeChannelSettings, BridgeId, BridgeInterface, MicBridges, NotProAudio,
+};
 use openstar_test_harness::{TestApp, fake_mic};
 
 const SERVER: &str = "http://openstar.lan:8080";
@@ -38,12 +41,22 @@ fn scarlett() -> Vec<BridgeInterface> {
 }
 
 fn harness(state: WindowState) -> Harness<'static> {
+    pressing(state, std::rc::Rc::default())
+}
+
+/// The window, keeping every press it reports in `presses`.
+fn pressing(
+    state: WindowState,
+    presses: std::rc::Rc<std::cell::RefCell<Vec<view::Pressed>>>,
+) -> Harness<'static> {
     let mut harness = Harness::builder()
         .with_size(egui::Vec2::from(view::WINDOW_SIZE))
         .renderer(cpu_renderer::CpuRenderer::default())
         .build_ui(move |ui| {
             view::set_style(ui.ctx());
-            view::show(ui, &state);
+            if let Some(pressed) = view::show(ui, &state) {
+                presses.borrow_mut().push(pressed);
+            }
         });
     harness.run();
     harness
@@ -161,18 +174,79 @@ fn a_bridge_that_cannot_update_itself_shows_both_builds_and_the_install_command(
     snapshot(&mut harness, "build-mismatch");
 }
 
+const OTHER: &str = "alsa_card.usb-BEHRINGER_UMC404HD_192k-00";
+
+fn umc_in_hifi(switch_refused: bool) -> NotProAudio {
+    NotProAudio {
+        device_name: OTHER.into(),
+        card_name: OTHER.into(),
+        label: "UMC404HD 192k".into(),
+        profile: "HiFi".into(),
+        switch_refused,
+    }
+}
+
+/// Connected, with the Scarlett in Pro Audio and the UMC404HD in UCM HiFi.
+fn not_pro_audio(switch_refused: bool) -> WindowState {
+    let mut state = connected();
+    state.apply(Event::Offered {
+        interfaces: &scarlett(),
+        not_pro_audio: &[umc_in_hifi(switch_refused)],
+    });
+    state
+}
+
 #[test]
-fn the_window_offers_no_controls() {
-    for state in [
-        WindowState::new(SERVER, scarlett()),
-        waiting(),
-        connected(),
-        updating(),
-        build_mismatch(),
+fn an_interface_not_in_pro_audio_says_so_with_switch_to_pro_audio_ahead_of_the_channels() {
+    let mut harness = harness(not_pro_audio(false));
+    let message = harness.get_by_label("UMC404HD 192k is in HiFi: only some inputs reach OpenStar");
+    let button = harness.get_by_label("Switch to Pro Audio");
+    let channel = harness.get_by_label("Red mic");
+    assert!(
+        message.rect().top() < channel.rect().top(),
+        "the message comes first"
+    );
+    assert!(button.rect().top() < channel.rect().top());
+    snapshot(&mut harness, "not-pro-audio");
+}
+
+#[test]
+fn pressing_switch_to_pro_audio_asks_for_that_interface() {
+    let presses = std::rc::Rc::default();
+    let mut harness = pressing(not_pro_audio(false), std::rc::Rc::clone(&presses));
+    harness.get_by_label("Switch to Pro Audio").click();
+    harness.run();
+    assert_eq!(
+        *presses.borrow(),
+        vec![view::Pressed::SwitchToProAudio(OTHER.into())]
+    );
+}
+
+#[test]
+fn a_refused_switch_says_to_use_the_sound_settings_with_the_pactl_line_to_copy() {
+    let mut harness = harness(not_pro_audio(true));
+    harness.get_by_label("UMC404HD 192k is in HiFi: only some inputs reach OpenStar");
+    harness.get_by_label("Set its profile to Pro Audio in your sound settings, or run:");
+    harness.get_by_label(&format!("pactl set-card-profile {OTHER} pro-audio"));
+    assert!(harness.query_by_label("Switch to Pro Audio").is_none());
+    harness.get_by_label("Copy");
+    snapshot(&mut harness, "switch-refused");
+}
+
+#[test]
+fn the_only_controls_are_switch_to_pro_audio_and_its_copy() {
+    for (state, buttons) in [
+        (WindowState::new(SERVER, scarlett()), 0),
+        (waiting(), 0),
+        (connected(), 0),
+        (updating(), 0),
+        (build_mismatch(), 0),
+        (not_pro_audio(false), 1),
+        (not_pro_audio(true), 1),
     ] {
         let harness = harness(state);
+        assert_eq!(harness.query_all_by_role(Role::Button).count(), buttons);
         for role in [
-            Role::Button,
             Role::CheckBox,
             Role::Switch,
             Role::Slider,
