@@ -143,4 +143,27 @@ describe("HoldButton", () => {
     const { button } = setup();
     expect(button.classList).toContain("min-h-16");
   });
+
+  it("never fills or fires while disabled, and shakes when pressed", () => {
+    const onHold = vi.fn();
+    render(
+      <HoldButton onHold={onHold} isDisabled>
+        Delete
+      </HoldButton>,
+    );
+    const button = screen.getByRole("button", { name: "Delete" });
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    act(() => {
+      fireEvent.pointerDown(button);
+    });
+    expect(button).not.toHaveAttribute("data-holding");
+    expect(screen.getByTestId("hold-fill").style.transform).toBe("scaleX(0)");
+    expect(button).toHaveAttribute("data-shaking", "true");
+    wait(HOLD_DURATION_MS * 2);
+    act(() => {
+      fireEvent.keyDown(button, { key: "Enter" });
+    });
+    wait(HOLD_DURATION_MS * 2);
+    expect(onHold).not.toHaveBeenCalled();
+  });
 });
