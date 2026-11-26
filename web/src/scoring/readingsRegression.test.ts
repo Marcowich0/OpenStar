@@ -64,7 +64,9 @@ function noteBeats(run: ReadingsRun): NoteBeat[] {
     const first = startMs / BEAT_MS;
     const length = (endMs - startMs) / BEAT_MS;
     if (!Number.isInteger(first) || !Number.isInteger(length)) {
-      throw new Error(`Note ${startMs}–${endMs} ms is off the 50 ms grid`);
+      throw new Error(
+        `Note ${String(startMs)}–${String(endMs)} ms is off the 50 ms grid`,
+      );
     }
     return Array.from({ length }, (_, i) => ({
       beat: first + i,
