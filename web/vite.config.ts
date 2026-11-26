@@ -43,5 +43,10 @@ export default defineConfig(({ mode }) => ({
     // Vitest turns CSS imports into "", even with `?raw`; process `?raw` CSS
     // so tests can read a stylesheet's text (the theme, the icons).
     css: { include: [/\.css\?raw$/] },
+    // Generous limits: a test waits for a condition, never for a time, so a
+    // long limit costs nothing when it passes. The 5 s default failed
+    // correct tests whenever the machine (or a CI runner) was busy.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
 }));
