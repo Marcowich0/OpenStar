@@ -35,7 +35,8 @@ export function Profiles() {
           ) : (
             <ul
               aria-label={t("admin.profiles.list")}
-              className="flex flex-col gap-3"
+              // Room under each row for the hold's "Hold for a moment" hint.
+              className="flex flex-col gap-8"
             >
               {list.data.map((profile) => (
                 <AdminProfileRow key={profile.id} profile={profile} />
@@ -119,7 +120,7 @@ function AdminProfileRow({ profile }: { profile: Profile }) {
           <span className="truncate text-lg leading-tight font-semibold text-ink">
             {profile.name}
           </span>
-          <span className="truncate text-sm text-ink-2">
+          <span className="text-sm text-ink-2">
             {profile.lastSungAt === null
               ? t("admin.profiles.neverSung")
               : t("admin.profiles.lastSung", {
@@ -132,7 +133,8 @@ function AdminProfileRow({ profile }: { profile: Profile }) {
           size="small"
           aria-label={t("admin.profiles.delete", { name: profile.name })}
           onHold={onHold}
-          className="shrink-0"
+          // As wide as the hint under it, so the hint stays on the row.
+          className="w-36 shrink-0"
         >
           {t("admin.profiles.deleteShort")}
         </HoldButton>
