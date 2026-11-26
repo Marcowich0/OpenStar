@@ -68,9 +68,9 @@ test("the Timing editor plays the Song, slows it and loops a Line", async ({
   const detail = page.getByRole("img", { name: /detail view/ });
   await expect(detail).toHaveAttribute("data-playing", "false");
   // No #VIDEOGAP field: this Song's video is no separate file.
-  await expect(page.getByRole("textbox", { name: "#VIDEOGAP (s)" })).toHaveCount(
-    0,
-  );
+  await expect(
+    page.getByRole("textbox", { name: "#VIDEOGAP (s)" }),
+  ).toHaveCount(0);
 
   await page.keyboard.press("Space");
   await expect(detail).toHaveAttribute("data-playing", "true");
@@ -114,9 +114,9 @@ test("the #VIDEOGAP field shows for a Song whose video is a separate file", asyn
   const page = await context.newPage();
   await page.goto("/admin/songs");
   await page.getByRole("link", { name: "Timing of Separate Video" }).click();
-  await expect(page.getByRole("textbox", { name: "#VIDEOGAP (s)" })).toHaveValue(
-    "-1.5",
-  );
+  await expect(
+    page.getByRole("textbox", { name: "#VIDEOGAP (s)" }),
+  ).toHaveValue("-1.5");
   // The muted video that follows the audio.
   await expect(page.locator("video")).toHaveJSProperty("muted", true);
   await context.close();
