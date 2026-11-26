@@ -1,6 +1,7 @@
 // A Song's way into its Timing editor, among the Song's actions in the Songs
-// section. The editor is a desktop view, so the link shows only at desktop
-// width; a Phone gets Fit to the singing instead (#223).
+// section. The editor is a desktop view: the Songs section shows the link
+// only with a fine pointer and room for it (`useFullTimingEditor`); any other
+// browser gets Fit to the singing instead (#223).
 
 import { Link } from "@tanstack/react-router";
 
@@ -13,7 +14,7 @@ export function TimingEditorLink({ song }: { song: SongSummary }) {
       to="/admin/songs/$song/timing"
       params={{ song: song.id }}
       aria-label={t("admin.songs.timingOf", { title: song.title })}
-      className="rounded-full bg-white px-4 py-1.5 text-lg font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow max-md:hidden"
+      className="rounded-full bg-white px-4 py-1.5 text-lg font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
     >
       {t("admin.songs.timing")}
     </Link>

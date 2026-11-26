@@ -14,6 +14,7 @@ import { PhoneMicCard } from "./PhoneMicCard";
 function fakeMic(): PhoneMic & { set: (s: Partial<PhoneMicSnapshot>) => void } {
   let snapshot: PhoneMicSnapshot = {
     state: "off",
+    blocked: null,
     readingsPerSecond: 0,
     detector: null,
   };
@@ -75,10 +76,35 @@ describe("the Phone's mic card", () => {
     renderWithParty(PARTY, (store) => (
       <PhoneMicCard store={store} myPhoneId={MY_PHONE} mic={mic} />
     ));
-    mic.set({ state: "failed" });
+    mic.set({ state: "failed", blocked: "notOpened" });
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(mic.turnOn).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    [
+      "permissionRefused",
+      "This phone said no to the mic. Allow the microphone for this page in the browser's settings, then try again.",
+    ],
+    [
+      "noHttps",
+      "This page is not on a secure (https) address, so the browser keeps the mic closed. Ask the host for the https address.",
+    ],
+    ["notOpened", "The browser could not open a microphone on this phone."],
+  ] as const)(
+    "names why the mic is blocked (%s) and offers Try again",
+    (blocked, reason) => {
+      const mic = fakeMic();
+      renderWithParty(PARTY, (store) => (
+        <PhoneMicCard store={store} myPhoneId={MY_PHONE} mic={mic} />
+      ));
+      mic.set({ state: "failed", blocked });
+      expect(screen.getByText("The mic did not open")).toBeInTheDocument();
+      expect(screen.getByText(reason)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+      expect(mic.turnOn).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("says the mic stopped and offers Sing again once the mic is lost", () => {
     const mic = fakeMic();

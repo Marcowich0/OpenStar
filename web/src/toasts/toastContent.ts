@@ -356,6 +356,29 @@ export function toastContent(
         actor,
         parts: tParts("partyEvent.resultsShown", { song: event.params.title }),
       };
+    case "autoFitAccepted":
+      // A Phone's Auto-fit, from the Admin area's Songs section.
+      if (mine)
+        return {
+          actor,
+          parts: tParts("toast.youAutoFitAccepted", {
+            song: event.params.title,
+          }),
+        };
+      return actor
+        ? {
+            actor,
+            parts: tParts("toast.autoFitAccepted", {
+              actor: actor.name,
+              song: event.params.title,
+            }),
+          }
+        : {
+            actor,
+            parts: tParts("partyEvent.autoFitAccepted", {
+              song: event.params.title,
+            }),
+          };
     case "resultsClosed":
       if (mine) return { actor, parts: tParts("toast.youResultsClosed") };
       return actor

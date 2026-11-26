@@ -485,6 +485,13 @@ pub(crate) async fn request(State(state): State<AppState>, UrlPath(id): UrlPath<
     answer(&state, SongId(id), TIMEOUT).await
 }
 
+/// `POST /api/songs/{id}/auto-fit`: a Phone starts Fit to the singing
+/// (#223). The same answer as the Pitch track request, but guarded: on a
+/// Phone, running the fit needs an Unlock (docs/agents/guard-rule.md).
+pub(crate) async fn auto_fit(State(state): State<AppState>, UrlPath(id): UrlPath<u32>) -> Response {
+    answer(&state, SongId(id), TIMEOUT).await
+}
+
 /// Query of the test-only `POST /api/test/songs/{id}/pitch-track`.
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

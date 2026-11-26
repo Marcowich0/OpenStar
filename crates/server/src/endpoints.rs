@@ -216,6 +216,15 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             library::pitch_track::download,
         )
+        // A Phone's Fit to the singing: running it is guarded, and refused
+        // at once while the Library is read-only, since its Accept is a
+        // Library write (docs/agents/guard-rule.md).
+        .add(
+            Method::POST,
+            "/api/songs/{id}/auto-fit",
+            Guarded(Writes),
+            library::pitch_track::auto_fit,
+        )
         // A Timing edit's preview writes nothing; saving it and Restore
         // Original change the Song's `.txt` (docs/agents/guard-rule.md).
         .add(

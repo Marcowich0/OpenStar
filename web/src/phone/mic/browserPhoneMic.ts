@@ -1,5 +1,6 @@
 // The browser's Phone mic: one per live store, on the real devices, with the
-// page's visibility and the screen Wake Lock, following the Line-up.
+// page's visibility and the screen Wake Lock, following the Line-up, and
+// resyncing after each reconnect.
 
 import type { LiveStore } from "../../live/liveStore";
 import { loadCaptureClock } from "../../pitch/clock/senderSession";
@@ -9,9 +10,11 @@ import {
   detectorWasm,
 } from "../../pitch/worklet/pitchWorklet";
 import type { PhoneId } from "../../generated/PhoneId";
+import { onReconnect } from "./reconnect";
 import { followLineUp } from "./micLineUp";
 import {
   createPhoneMic,
+  MediaDevicesMissingError,
   type PageVisibility,
   type PhoneMic,
   type WakeLockHold,
@@ -25,7 +28,7 @@ const COST_SAMPLE_RATE = 48000;
 function getUserMedia(constraints: MediaStreamConstraints) {
   // `navigator.mediaDevices` exists only on HTTPS (or localhost).
   if (typeof navigator === "undefined" || !("mediaDevices" in navigator))
-    return Promise.reject(new Error("navigator.mediaDevices is missing"));
+    return Promise.reject(new MediaDevicesMissingError());
   return navigator.mediaDevices.getUserMedia(constraints);
 }
 
@@ -54,7 +57,11 @@ export function phoneMicFor(store: LiveStore, phoneId: PhoneId): PhoneMic {
   let mic = mics.get(store);
   if (!mic) {
     mic = createPhoneMic({
-      store,
+      store: {
+        send: store.send,
+        onClockPong: store.onClockPong,
+        onReconnect: (listener) => onReconnect(store, listener),
+      },
       capture: {
         getUserMedia,
         createContext: () => new AudioContext({ latencyHint: "interactive" }),

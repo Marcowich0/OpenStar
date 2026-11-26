@@ -21,15 +21,20 @@ const HALF_WINDOW_MS = (1024 / RATE) * 1000;
 
 /**
  * A fake WebSocket between the Phone and a Stage: pings travel `oneWayMs`
- * each way, and the Stage answers at once on its own clock.
+ * each way, and the Stage answers at once on its own clock. `stage` is the
+ * Stage page (a reload gives it a new clock and epoch); while `up` is false
+ * the socket is down and pings and readings are lost.
  */
 function fakeSocket(time: ReturnType<typeof fakeTime>, oneWayMs = 4) {
   const sent: PitchReading[] = [];
   const pings: number[] = [];
+  const stage = { aheadMs: STAGE_AHEAD_MS, epoch: STAGE_EPOCH };
   let listener: ((pong: ClockPongFields) => void) | null = null;
-  return {
+  const socket = {
     sent,
     pings,
+    stage,
+    up: true,
     onPong: (l: (pong: ClockPongFields) => void) => {
       listener = l;
       return () => {
@@ -39,18 +44,25 @@ function fakeSocket(time: ReturnType<typeof fakeTime>, oneWayMs = 4) {
     get listening() {
       return listener !== null;
     },
+    /** Delivers a pong as if the Stage had sent it. */
+    pong: (pong: ClockPongFields) => {
+      listener?.(pong);
+    },
     sendPing: (t0: number) => {
+      if (!socket.up) return;
       pings.push(t0);
       const at = time.now();
-      const ts = at + oneWayMs + STAGE_AHEAD_MS;
+      const ts = at + oneWayMs + stage.aheadMs;
+      const { epoch } = stage;
       time.setTimer(() => {
-        listener?.({ t0, ts, epoch: STAGE_EPOCH });
+        listener?.({ t0, ts, epoch });
       }, 2 * oneWayMs);
     },
     deliver: (reading: PitchReading) => {
-      sent.push(reading);
+      if (socket.up) sent.push(reading);
     },
   };
+  return socket;
 }
 
 /** Frame of the k-th reading (a reading every 512 frames, after 2048). */
@@ -276,5 +288,109 @@ describe("the capture pipeline", () => {
     });
     await expect(startCapture(options)).rejects.toThrow("no");
     expect(context.closed).toBe(1);
+  });
+
+  describe("after a network drop or a Stage reload", () => {
+    async function syncedPipeline() {
+      const time = fakeTime(1000);
+      const nodes = fakePitchNodes();
+      const socket = fakeSocket(time);
+      const pipeline = await startCapture(
+        await pipelineOptions({
+          time,
+          createPitchNode: nodes.create,
+          sendPing: socket.sendPing,
+          onPong: socket.onPong,
+          deliver: socket.deliver,
+        }),
+      );
+      // Past the fast pings: one a second from here.
+      time.advanceTo(8000);
+      expect(pipeline.offsetMs()).toBeCloseTo(STAGE_AHEAD_MS, 6);
+      let k = 0;
+      const reading = () => {
+        nodes.emit({
+          pitch: 60,
+          clarity: 0.9,
+          loudness: -20,
+          endFrame: endFrame(k++),
+          sampleRate: RATE,
+        });
+      };
+      return { time, socket, pipeline, reading };
+    }
+
+    /** The gaps between the pings sent in (from, to]. */
+    function gaps(pings: number[], from: number, to: number) {
+      const inside = pings.filter((t0) => t0 > from && t0 <= to);
+      return inside.slice(1).map((t0, i) => t0 - (inside[i] ?? t0));
+    }
+
+    it("restarts sync with pings every 200 ms for 5 s after a reconnect, sending no reading until a new offset exists", async () => {
+      const { time, socket, pipeline, reading } = await syncedPipeline();
+      socket.up = false;
+      time.advanceTo(12_000);
+      socket.up = true;
+      pipeline.restartSync();
+      // No offset until the first pong after the reconnect.
+      expect(pipeline.offsetMs()).toBeNull();
+      reading();
+      expect(socket.sent).toHaveLength(0);
+      time.advanceTo(12_100);
+      expect(pipeline.offsetMs()).toBeCloseTo(STAGE_AHEAD_MS, 6);
+      reading();
+      expect(socket.sent).toHaveLength(1);
+      // Fast for 5 s, then slow again.
+      time.advanceTo(20_000);
+      const fast = gaps(socket.pings, 12_000, 17_000);
+      expect(fast.length).toBeGreaterThanOrEqual(23);
+      for (const gap of fast) expect(gap).toBeCloseTo(200, 6);
+      for (const gap of gaps(socket.pings, 17_400, 20_000))
+        expect(gap).toBeCloseTo(1000, 6);
+      pipeline.stop();
+    });
+
+    it("discards every sample on a pong with a new epoch and pings fast again", async () => {
+      const { time, socket, pipeline, reading } = await syncedPipeline();
+      // The Stage page reloads: a new clock, far from the old one.
+      const RELOADED_AHEAD_MS = 9_000.5;
+      socket.stage.aheadMs = RELOADED_AHEAD_MS;
+      socket.stage.epoch = STAGE_EPOCH + 600_000;
+      // The next slow ping brings the first pong of the new epoch.
+      time.advanceTo(9100);
+      // Only the new epoch's sample counts: the old ones, though their
+      // round trips were as short, are gone.
+      expect(pipeline.offsetMs()).toBeCloseTo(RELOADED_AHEAD_MS, 6);
+      reading();
+      expect(socket.sent.at(-1)?.captureMs).toBeLessThan(
+        time.now() + RELOADED_AHEAD_MS,
+      );
+      expect(socket.sent.at(-1)?.captureMs).toBeGreaterThan(
+        time.now() + RELOADED_AHEAD_MS - 1000,
+      );
+      time.advanceTo(13_000);
+      const fast = gaps(socket.pings, 9000, 13_000);
+      expect(fast.length).toBeGreaterThanOrEqual(18);
+      for (const gap of fast) expect(gap).toBeCloseTo(200, 6);
+      pipeline.stop();
+    });
+
+    it("ignores a late pong of the old epoch after the new one began", async () => {
+      const { time, socket, pipeline } = await syncedPipeline();
+      const oldEpoch = socket.stage.epoch;
+      const oldPing = socket.pings.at(-1) ?? 0;
+      socket.stage.aheadMs = 5000;
+      socket.stage.epoch = oldEpoch + 1;
+      time.advanceTo(9100);
+      expect(pipeline.offsetMs()).toBeCloseTo(5000, 6);
+      // A pong for a ping sent before the reload arrives late, on the old clock.
+      socket.pong({
+        t0: oldPing,
+        ts: oldPing + STAGE_AHEAD_MS,
+        epoch: oldEpoch,
+      });
+      expect(pipeline.offsetMs()).toBeCloseTo(5000, 6);
+      pipeline.stop();
+    });
   });
 });

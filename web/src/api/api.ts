@@ -72,6 +72,8 @@ export interface Endpoints {
   "GET /api/songs/{id}": { response: SongDetail };
   "GET /api/songs/{id}/high-scores": { response: SongHighScores };
   "POST /api/songs/{id}/pitch-track": { response: PitchTrackStart };
+  /** A Phone's Fit to the singing: the Pitch track request, guarded. */
+  "POST /api/songs/{id}/auto-fit": { response: PitchTrackStart };
   "POST /api/songs/{id}/timing/preview": {
     body: TimingEdit;
     response: TimingPreview;

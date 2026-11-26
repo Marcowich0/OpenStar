@@ -235,6 +235,29 @@ describe("a toast's content", () => {
     });
   });
 
+  it("names the Remote whose Auto-fit was accepted, and the Song", () => {
+    const fitted: PartyEvent = {
+      code: "autoFitAccepted",
+      params: { songId: 9, title: "Africa" },
+    };
+    const content = toastContent(byMember(1, fitted), party, profiles);
+    expect(content.parts).toEqual([
+      { text: "Bo", param: "actor" },
+      { text: " accepted the Auto-fit of " },
+      { text: "Africa", param: "song" },
+    ]);
+    expect(content.actor?.name).toBe("Bo");
+    expect(text(byMember(1, fitted), party, [])).toBe(
+      "The Auto-fit of Africa was accepted",
+    );
+    expect(toastContent(byMember(1, fitted), party, profiles, 1).parts).toEqual(
+      [
+        { text: "You accepted the Auto-fit of " },
+        { text: "Africa", param: "song" },
+      ],
+    );
+  });
+
   it("falls back to the text without the actor while their name is unknown", () => {
     const toast = byMember(1, { code: "requestRemoved", params: africa });
     expect(text(toast, party, [])).toBe("Africa was removed from the Queue");
