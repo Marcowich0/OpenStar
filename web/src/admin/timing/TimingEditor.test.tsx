@@ -15,6 +15,13 @@ import type { LibraryReadOnly } from "../../generated/LibraryReadOnly";
 import type { TimingOperation } from "../../generated/TimingOperation";
 import type { TimingSave } from "../../generated/TimingSave";
 import type { SongDetail } from "../../generated/SongDetail";
+import {
+  fitCases,
+  melody,
+  melodySong,
+  sungTrack,
+  type FitCase,
+} from "../../fit/fitFixtures";
 import { song as testSong } from "../../timing/testSong";
 import { TimingEditor } from "./TimingEditor";
 
@@ -73,6 +80,9 @@ interface ServerOptions {
   libraryReadOnly?: LibraryReadOnly | null;
   /** The file changed on disk: preview and save answer `409 songFileChanged`. */
   conflict?: boolean;
+  /** The Song and its Pitch track, when not the two-Note Song above. */
+  detail?: SongDetail;
+  track?: ArrayBuffer;
 }
 
 interface Server {
@@ -137,11 +147,13 @@ function fakeServer(start: unknown, options: ServerOptions = {}): Server {
         );
       switch (route) {
         case "GET /api/songs/7":
-          return json(200, detail());
+          return json(200, options.detail ?? detail());
         case "POST /api/songs/7/pitch-track":
           return json(200, start);
         case "GET /api/songs/7/pitch-track":
-          return Promise.resolve(new Response(trackBytes(), { status: 200 }));
+          return Promise.resolve(
+            new Response(options.track ?? trackBytes(), { status: 200 }),
+          );
         case "GET /api/server-info":
           return json(200, {
             version: "dev",
@@ -612,5 +624,161 @@ describe("saving a Timing edit", () => {
     press("Save");
     await settle();
     expect(server.calls).not.toContain("POST /api/songs/7/timing");
+  });
+});
+
+/** The detail of a fit case's Song (`fixtures/fit/`) and its Pitch track's bytes. */
+function fitCase(c: FitCase): ServerOptions {
+  const { pitch } = sungTrack(c);
+  const view = new DataView(new ArrayBuffer(pitch.length * 12));
+  pitch.forEach((hz, i) => {
+    view.setFloat32(i * 12, hz, true);
+    view.setFloat32(i * 12 + 8, hz > 0 ? 0.2 : 0, true);
+  });
+  return {
+    detail: { ...detail(), song: melodySong(c), lengthSeconds: c.seconds },
+    track: view.buffer,
+  };
+}
+
+const fitButton = () =>
+  screen.getByRole("button", { name: "Fit to the singing" });
+const offsetOnlyButton = () =>
+  screen.getByRole("button", { name: "offset only" });
+const fitResult = () => screen.getByRole("region", { name: "Auto-fit" });
+const linesStillOff = () =>
+  screen.getByRole("list", { name: "Lines still off" });
+
+describe("Auto-fit", () => {
+  it("is disabled until the Pitch track is ready", async () => {
+    const { feed } = await open(
+      { state: "computing", job: 3 },
+      fitCase(fitCases.gapAndBpmError),
+    );
+    expect(fitButton()).toBeDisabled();
+    expect(offsetOnlyButton()).toBeDisabled();
+
+    await feed.send({ type: "done" });
+    expect(fitButton()).toBeEnabled();
+    expect(offsetOnlyButton()).toBeEnabled();
+  });
+
+  it("Fit to the singing applies #GAP and #BPM as one undoable edit and says so in plain words", async () => {
+    await open({ state: "ready" }, fitCase(fitCases.gapAndBpmError));
+    press("Fit to the singing");
+    await settle();
+
+    const gap = Number(gapField().getAttribute("value"));
+    const bpm = Number(bpmField().getAttribute("value"));
+    expect(Math.abs(gap - 753)).toBeLessThanOrEqual(10);
+    expect(Math.abs(bpm - 216.26)).toBeLessThanOrEqual(0.01);
+    expect(entries()).toEqual([
+      {
+        text: `Fit to the singing: GAP 3,650 → ${String(gap)} ms, BPM 217.4 → ${String(bpm)}`,
+        undone: false,
+      },
+    ]);
+    expect(fitResult()).toHaveTextContent(
+      /notes 2\.9 s earlier \(GAP 3,650 → \d+ ms\), tempo 0\.53 % slower \(BPM 217\.4 → 216\.2\d\)/,
+    );
+    expect(fitResult()).toHaveTextContent(
+      /Notes on the singing \d+ % → \d+ %\. Play a few Lines to check, or Undo\./,
+    );
+
+    press("Undo");
+    await settle();
+    expect(gapField()).toHaveValue("3650");
+    expect(bpmField()).toHaveValue("217.4");
+  });
+
+  it("offset only changes #GAP and keeps #BPM", async () => {
+    await open({ state: "ready" }, fitCase(fitCases.gapAndBpmError));
+    press("offset only");
+    await settle();
+    expect(gapField()).not.toHaveValue("3650");
+    expect(bpmField()).toHaveValue("217.4");
+    expect(entries()).toHaveLength(1);
+    expect(entries()[0]?.text).toMatch(/^Fit, offset only: GAP 3,650 → /);
+    expect(fitResult()).not.toHaveTextContent("tempo");
+  });
+
+  it("applies nothing when the search returns the current values", async () => {
+    await open({ state: "ready" }, fitCase(fitCases.alreadyBest));
+    press("Fit to the singing");
+    await settle();
+    expect(fitResult()).toHaveTextContent(
+      "Already the best fit the editor can find.",
+    );
+    expect(entries()).toEqual([]);
+    expect(
+      screen.getByText("No single Line stands out after the fit."),
+    ).toBeInTheDocument();
+  });
+
+  it("after a fit alone, the save preview lists only the #GAP and #BPM lines", async () => {
+    const { server } = await open(
+      { state: "ready" },
+      fitCase(fitCases.gapAndBpmError),
+    );
+    press("Fit to the singing");
+    await settle();
+    const sent = server.bodies["POST /api/songs/7/timing/preview"]?.at(-1) as {
+      operations: TimingOperation[];
+    };
+    expect(sent.operations.map((o) => o.op)).toEqual(["setGap", "setBpm"]);
+    const rows = within(preview()).getAllByRole("row").slice(1);
+    expect(rows.map((r) => r.firstChild?.textContent)).toEqual(["3", "4"]);
+  });
+});
+
+describe("Lines still off", () => {
+  async function fitted() {
+    await open({ state: "ready" }, fitCase(fitCases.oneLineLate));
+    press("offset only");
+    await settle();
+  }
+  const item = () => within(linesStillOff()).getByRole("listitem");
+
+  it("lists each Line with its number, the start of its lyric, the Beats and the shares", async () => {
+    await fitted();
+    expect(within(linesStillOff()).getAllByRole("listitem")).toHaveLength(1);
+    expect(item()).toHaveTextContent(
+      /^Line 6 “la la la la la…” \+2 beats \(\d+ → \d+ %\)/,
+    );
+  });
+
+  it("Go seeks to 1.5 s before the Line and selects it", async () => {
+    await fitted();
+    act(() => {
+      fireEvent.click(within(item()).getByRole("button", { name: "Go" }));
+    });
+    await settle();
+    const gapSeconds = Number(gapField().getAttribute("value")) / 1000;
+    const bpm = Number(bpmField().getAttribute("value"));
+    const firstBeat = melody.find((n) => n.line === 5)?.start ?? 0;
+    const lineStart = gapSeconds + (firstBeat * 15) / bpm;
+    expect(Number(detailCanvas().getAttribute("data-playhead"))).toBeCloseTo(
+      lineStart - 1.5,
+      5,
+    );
+    expect(detailCanvas()).toHaveAttribute("data-selection", "0:5-5");
+  });
+
+  it("Apply shifts that Line by the suggested Beats as one undoable edit and takes it off the list", async () => {
+    await fitted();
+    const before = entries().length;
+    act(() => {
+      fireEvent.click(within(item()).getByRole("button", { name: "Apply" }));
+    });
+    await settle();
+    expect(entries()).toHaveLength(before + 1);
+    expect(entries().at(-1)?.text).toBe("Line 6: +2 beats");
+    expect(
+      screen.getByText("No single Line stands out after the fit."),
+    ).toBeInTheDocument();
+
+    press("Undo");
+    await settle();
+    expect(entries().at(-1)?.undone).toBe(true);
   });
 });

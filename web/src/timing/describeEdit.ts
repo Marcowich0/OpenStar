@@ -40,6 +40,20 @@ export type EditDescription =
       readonly toBpm: number;
     }
   | {
+      /** Fit to the singing: `#GAP` and `#BPM` from the fit search. */
+      readonly kind: "fitToTheSinging";
+      readonly fromGapMs: number;
+      readonly toGapMs: number;
+      readonly fromBpm: number;
+      readonly toBpm: number;
+    }
+  | {
+      /** Fit to the singing, offset only: `#GAP` alone. */
+      readonly kind: "fitOffsetOnly";
+      readonly fromGapMs: number;
+      readonly toGapMs: number;
+    }
+  | {
       /** A Line selection shifted (dragged, nudged or a Line suggestion). */
       readonly kind: "shiftLines";
       readonly voice: number;
@@ -114,6 +128,18 @@ export function describeEdit(d: EditDescription): string {
       return t(`timing.edit.${d.kind}`, {
         fromBpm: d.fromBpm,
         toBpm: d.toBpm,
+        fromGap: d.fromGapMs,
+        toGap: d.toGapMs,
+      });
+    case "fitToTheSinging":
+      return t("timing.edit.fitToTheSinging", {
+        fromGap: d.fromGapMs,
+        toGap: d.toGapMs,
+        fromBpm: d.fromBpm,
+        toBpm: d.toBpm,
+      });
+    case "fitOffsetOnly":
+      return t("timing.edit.fitOffsetOnly", {
         fromGap: d.fromGapMs,
         toGap: d.toGapMs,
       });

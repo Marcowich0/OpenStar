@@ -7,7 +7,9 @@
 // otherwise the job's progress shows until it is ready) and applies nothing:
 // the edit model starts with no edits. Needs no PIN. The side panel types
 // `#GAP` and `#BPM`, lists the edits with undo and redo, previews the save and
-// saves (`TimingPanel.tsx`); playback (#220) and Auto-fit (#221) attach here.
+// saves (`TimingPanel.tsx`), and runs Auto-fit (`AutoFitPanel.tsx`): Fit to
+// the singing, offset only and the Lines still off. Playback (#220) attaches
+// here.
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -21,7 +23,7 @@ import {
 } from "react";
 
 import { songQuery } from "../../api/queries";
-import { createMatcher, fitNotesOf } from "../../fit/fit";
+import { createMatcher, fitNotesOf, type LineSuggestion } from "../../fit/fit";
 import { loadPitchTrack, type PitchTrackLoad } from "../../fit/loadPitchTrack";
 import type { SongDetail } from "../../generated/SongDetail";
 import type { SongId } from "../../generated/SongId";
@@ -30,6 +32,9 @@ import { t } from "../../i18n/t";
 import { liveStore } from "../../live/useLive";
 import type { LiveStore } from "../../live/liveStore";
 import { readToken } from "../../theme/tokens";
+import { autoFit } from "../../timing/fitEdits";
+import { shiftLines } from "../../timing/lineEdits";
+import { selectLine, type LineSelection } from "../../timing/selection";
 import { typeBpm, typeGap } from "../../timing/songEdits";
 import {
   applyOperations,
@@ -55,6 +60,7 @@ import {
   type EditorView,
 } from "./editorView";
 import { overviewFrame, overviewTimeAt } from "./overviewFrame";
+import { AutoFitPanel, type FitOutcome } from "./AutoFitPanel";
 import { EditList, SaveSection, ShareMeter, TypedValue } from "./TimingPanel";
 
 export interface TimingEditorProps {
@@ -152,6 +158,8 @@ function PitchTrackStatus({ load }: { load: PitchTrackLoad }) {
 
 /** Seconds of the Song shown left of a time the overview strip seeks to. */
 const SEEK_LEAD_SECONDS = 3;
+/** Go on a Line still off seeks this many seconds before the Line. */
+const GO_LEAD_SECONDS = 1.5;
 const DETAIL_HEIGHT = 380;
 const OVERVIEW_HEIGHT = 64;
 
@@ -180,6 +188,9 @@ function Editor({
   const queryClient = useQueryClient();
   const [view, setView] = useState<EditorView>(openView);
   const [playhead, setPlayhead] = useState(0);
+  // The Line selection; Go selects a Line. #221 draws it and adds the clicks.
+  const [selection, setSelection] = useState<LineSelection | null>(null);
+  const [fitOutcome, setFitOutcome] = useState<FitOutcome | null>(null);
 
   const track = load.state === "ready" ? load.track : null;
   const matcher = useMemo(() => (track ? createMatcher(track) : null), [track]);
@@ -199,6 +210,41 @@ function Editor({
     () => songDuration(detail, timing, track?.pitch.length),
     [detail, timing, track],
   );
+
+  const runFit = ({ tempo }: { tempo: boolean }) => {
+    if (!matcher) return;
+    const fit = autoFit(model, matcher, { tempo });
+    if (fit.kind === "fitted") apply(() => fit.edit);
+    setFitOutcome({
+      description:
+        fit.kind === "fitted" ? fit.description : { kind: "alreadyBest" },
+      suggestions: fit.suggestions,
+    });
+  };
+  const goToLine = (s: LineSuggestion) => {
+    const first = timing.song.voices[s.voice]?.lines[s.line]?.notes[0];
+    if (!first) return;
+    const at = clampTime(
+      noteTimes(timing.grid, first).start - GO_LEAD_SECONDS,
+      duration,
+    );
+    setPlayhead(at);
+    setView((v) => ({ ...v, start: at - SEEK_LEAD_SECONDS }));
+    setSelection(selectLine(s));
+  };
+  const applySuggestion = (s: LineSuggestion) => {
+    apply((m) => shiftLines(m, selectLine(s), s.beats));
+    setFitOutcome((o) =>
+      o
+        ? {
+            ...o,
+            suggestions: o.suggestions.filter(
+              (other) => other.voice !== s.voice || other.line !== s.line,
+            ),
+          }
+        : o,
+    );
+  };
 
   const detailRef = useRef<HTMLCanvasElement>(null);
   const overviewRef = useRef<HTMLCanvasElement>(null);
@@ -325,6 +371,11 @@ function Editor({
           data-view-start={String(round6(view.start))}
           data-pixels-per-second={String(round6(view.pixelsPerSecond))}
           data-playhead={String(round6(playhead))}
+          data-selection={
+            selection
+              ? `${String(selection.voice)}:${String(selection.first)}-${String(selection.last)}`
+              : undefined
+          }
           onPointerDown={onDetailDown}
           onPointerMove={onDetailMove}
           onPointerUp={onDetailUp}
@@ -357,6 +408,14 @@ function Editor({
           share={songShare}
           fileShare={fileShare}
           pending={load.state !== "ready"}
+        />
+        <AutoFitPanel
+          ready={matcher !== null}
+          outcome={fitOutcome}
+          song={timing.song}
+          onFit={runFit}
+          onGo={goToLine}
+          onApply={applySuggestion}
         />
         <p className="text-lg tabular-nums">
           {t("timing.view.playhead", { time: clockText(playhead) })}
