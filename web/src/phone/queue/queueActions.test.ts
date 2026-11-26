@@ -83,7 +83,7 @@ describe("which actions a Request card offers", () => {
   it("lets the first Request move while the results show and there is no head", () => {
     const results = queueOf(3, {
       head: null,
-      results: { requestId: 9, songId: 90, ended: "played" },
+      results: { requestId: 9, songId: 90, ended: "played", players: [] },
     });
     expect(requestActions(results, 1)).toMatchObject({
       playNext: false,

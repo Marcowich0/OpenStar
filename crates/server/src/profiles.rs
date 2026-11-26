@@ -281,7 +281,7 @@ async fn record_sung(
         .await
 }
 
-fn get_in(conn: &Connection, id: ProfileId) -> rusqlite::Result<Option<Profile>> {
+pub(crate) fn get_in(conn: &Connection, id: ProfileId) -> rusqlite::Result<Option<Profile>> {
     conn.query_row(
         &format!("SELECT {COLUMNS} FROM profiles WHERE id = ?1"),
         [id.0],

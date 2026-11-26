@@ -158,3 +158,63 @@ describe("the Stage tab without a waiting Line-up", () => {
     expect(screen.queryByText("Up next: who sings?")).toBeNull();
   });
 });
+
+describe("the Stage tab while the results show", () => {
+  const bo = {
+    memberId: 1,
+    player: { kind: "profile" as const, profileId: 7 },
+    name: "Bo",
+    avatar: { kind: "builtIn" as const, key: "star" as const },
+    colour: "cherry" as const,
+    mic: BO_SEAT.mic,
+    voice: null,
+    difficulty: "medium" as const,
+    total: 6115,
+    notes: 5000,
+    golden: 504,
+    lineBonus: 611,
+    place: 1,
+    rankTitleBand: 4,
+    newHighScore: true,
+    micLost: false,
+    unfinished: false,
+  };
+
+  function renderResults(players: (typeof bo)[]) {
+    return renderWithParty(
+      {
+        ...PARTY,
+        head: null,
+        lineUp: null,
+        queue: [],
+        results: { requestId: 1, songId: 40, ended: "played", players },
+      },
+      (store) => <StageTab store={store} myPhoneId={MY_PHONE} />,
+    );
+  }
+
+  it("shows this Phone's own Player's Score and its new high score", async () => {
+    renderResults([
+      { ...bo, memberId: 2, mic: JONAS_SEAT.mic, total: 9000 },
+      bo,
+    ]);
+    const card = await screen.findByTestId("my-result");
+    expect(within(card).getByText("Results on the Stage")).toBeInTheDocument();
+    expect(within(card).getByText("Your Score: 6,115")).toBeInTheDocument();
+    expect(within(card).getByText("New high score!")).toBeInTheDocument();
+    expect(within(card).queryByText("Ended early")).toBeNull();
+  });
+
+  it("marks an unfinished Score as ended early, and shows nothing for a Phone that sang nothing", async () => {
+    renderResults([{ ...bo, unfinished: true, newHighScore: false }]);
+    const card = await screen.findByTestId("my-result");
+    expect(within(card).getByText("Ended early")).toBeInTheDocument();
+    expect(within(card).queryByText("New high score!")).toBeNull();
+  });
+
+  it("shows no result card for a Phone that was nobody's Mic", async () => {
+    renderResults([{ ...bo, mic: JONAS_SEAT.mic }]);
+    expect(await screen.findByText("On the Stage")).toBeInTheDocument();
+    expect(screen.queryByTestId("my-result")).toBeNull();
+  });
+});

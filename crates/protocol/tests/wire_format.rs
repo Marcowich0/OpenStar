@@ -3,7 +3,8 @@
 
 use openstar_protocol::library::SongId;
 use openstar_protocol::mics::MicKey;
-use openstar_protocol::profile::{Difficulty, PaletteKey, ProfileId};
+use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, PaletteKey, ProfileId};
+use openstar_protocol::scoring::{PlayerResult, ScorePlayer};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
     LineUp, LineUpWarning, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
@@ -86,10 +87,6 @@ fn play_messages_wire_format() {
             request_id: RequestId(3),
             control: SongControl::Start,
         },
-        ClientMessage::ReachedResults {
-            request_id: RequestId(3),
-            ended: SongEnd::Ended,
-        },
         ClientMessage::CloseResults,
     ]);
     insta::assert_json_snapshot!(vec![
@@ -106,6 +103,29 @@ fn play_messages_wire_format() {
         request_id: RequestId(3),
         song_id: SongId(12),
         ended: SongEnd::Played,
+        players: vec![PlayerResult {
+            member_id: PartyMemberId(4),
+            player: ScorePlayer::Guest { name: "Cy".into() },
+            name: "Cy".into(),
+            avatar: Avatar::BuiltIn {
+                key: AvatarKey::Star,
+            },
+            colour: PaletteKey::Grape,
+            mic: Some(MicKey::Phone {
+                phone_id: "phone-1".into(),
+            }),
+            voice: Some(1),
+            difficulty: Difficulty::Hard,
+            total: 6250,
+            notes: 5000,
+            golden: 250,
+            line_bonus: 1000,
+            place: 1,
+            rank_title_band: 5,
+            new_high_score: false,
+            mic_lost: true,
+            unfinished: false,
+        }],
     });
     insta::assert_json_snapshot!(PartyEvent::SongPaused(RequestChange {
         request_id: RequestId(3),

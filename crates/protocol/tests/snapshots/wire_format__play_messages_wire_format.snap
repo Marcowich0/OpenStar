@@ -1,17 +1,12 @@
 ---
 source: crates/protocol/tests/wire_format.rs
-expression: "vec![ClientMessage::ControlSong\n{ request_id: RequestId(3), control: SongControl::Start, },\nClientMessage::ReachedResults\n{ request_id: RequestId(3), ended: SongEnd::Ended, },\nClientMessage::CloseResults,]"
+expression: "vec![ClientMessage::ControlSong\n{ request_id: RequestId(3), control: SongControl::Start, },\nClientMessage::CloseResults,]"
 ---
 [
   {
     "type": "controlSong",
     "requestId": 3,
     "control": "start"
-  },
-  {
-    "type": "reachedResults",
-    "requestId": 3,
-    "ended": "ended"
   },
   {
     "type": "closeResults"

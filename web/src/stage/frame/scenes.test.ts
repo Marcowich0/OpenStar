@@ -72,7 +72,12 @@ describe("pickScene", () => {
   });
 
   it("shows the results once the Song ended, before any Line-up", () => {
-    const results = { requestId: 1, songId: 1, ended: "played" as const };
+    const results = {
+      requestId: 1,
+      songId: 1,
+      ended: "played" as const,
+      players: [],
+    };
     expect(pickScene(stage({ party: party({ results }) }))).toBe("results");
     expect(
       pickScene(

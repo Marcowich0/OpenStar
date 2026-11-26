@@ -5,13 +5,16 @@
 
 use std::path::Path;
 
-use openstar_protocol::library::{SongId, SongList, SongSummary};
+use openstar_protocol::library::{SongDetail, SongId, SongList, SongSummary};
 use openstar_protocol::profile::{Avatar, NewProfile};
 use openstar_protocol::profile::{AvatarKey, Difficulty, PaletteKey, Profile};
+use openstar_protocol::scoring::{
+    BeatRange, BeatValue, MicKind, PlayerScore, RoundEnd, RoundMode, RoundOutcome, ScorePlayer,
+};
 use openstar_protocol::{
-    Actor, ChangeEvent, ClientMessage, JoinAs, JoinCode, LineUpEdit, PartyEvent, PartyMemberId,
-    PartySnapshot, PhoneId, PlayingSong, RequestChange, RequestId, SeatWho, ServerMessage,
-    SongControl, SongEnd, SongResults, UserMessage,
+    Actor, ChangeEvent, ClientMessage, Identity, JoinAs, JoinCode, LineUpEdit, PartyEvent,
+    PartyMemberId, PartySnapshot, PhoneId, PlayingSong, RequestChange, RequestId, SeatWho,
+    ServerMessage, SongControl, SongEnd, UserMessage,
 };
 use openstar_test_harness::{TestApp, WsClient};
 
@@ -119,6 +122,69 @@ async fn create_profile(app: &TestApp, name: &str, favourite: PaletteKey) -> Pro
         .unwrap();
     assert!(response.status().is_success());
     response.json().await.unwrap()
+}
+
+/// What the Stage sends when `party`'s playing Song reaches its results:
+/// the round's outcome, a Score of 0 per seat (`POST /api/rounds`).
+async fn reach_results(app: &TestApp, party: &PartySnapshot, ended: RoundEnd) {
+    let playing = party.playing.clone().expect("a Song plays");
+    let song: SongDetail = app
+        .get_json(&format!("/api/songs/{}", playing.song_id.0))
+        .await;
+    let range = BeatRange {
+        first_beat: 0,
+        last_beat: 3,
+    };
+    let scores = party
+        .line_up
+        .as_ref()
+        .unwrap()
+        .seats
+        .iter()
+        .map(|seat| {
+            let member = party
+                .members
+                .iter()
+                .find(|member| member.member_id == seat.member_id)
+                .unwrap();
+            PlayerScore {
+                player: match &member.identity {
+                    Identity::Profile { profile_id } => ScorePlayer::Profile {
+                        profile_id: *profile_id,
+                    },
+                    Identity::Guest { name, .. } => ScorePlayer::Guest { name: name.clone() },
+                },
+                voice: 0,
+                difficulty: seat.difficulty,
+                total: 0,
+                notes: 0,
+                golden: 0,
+                line_bonus: 0,
+                mic_kind: MicKind::Phone,
+                unfinished: ended == RoundEnd::Ended,
+                mic_lost: false,
+                beat_range: range,
+                beat_values: vec![BeatValue::NoVoice; range.len()],
+            }
+        })
+        .collect();
+    let response = app
+        .http()
+        .post(app.url("/api/rounds"))
+        .json(&RoundOutcome {
+            song_id: playing.song_id,
+            request_id: playing.request_id,
+            note_fingerprint: song.note_fingerprint,
+            party_id: party.party_id.clone(),
+            mode: RoundMode::Normal,
+            started_at_ms: 1_700_000_000_000,
+            ended,
+            scores,
+        })
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 201);
 }
 
 async fn first_stage(app: &TestApp) -> (WsClient, JoinCode) {
@@ -423,24 +489,8 @@ async fn end_shows_results_until_next_brings_up_the_next_line_up() {
         (request, solo, SongControl::End)
     );
 
-    // Only the Stage reports results.
-    assert_eq!(
-        refused(
-            &mut bo_phone,
-            ClientMessage::ReachedResults {
-                request_id: request,
-                ended: SongEnd::Ended,
-            }
-        )
-        .await,
-        UserMessage::NotTheStage
-    );
-    stage
-        .send(&ClientMessage::ReachedResults {
-            request_id: request,
-            ended: SongEnd::Ended,
-        })
-        .await;
+    // The Stage reports its results with the round's outcome.
+    reach_results(&app, &party, RoundEnd::Ended).await;
     let (party, event) = all_hear(&mut [&mut stage, &mut bo_phone]).await;
     assert_eq!(
         event,
@@ -449,12 +499,13 @@ async fn end_shows_results_until_next_brings_up_the_next_line_up() {
             event: PartyEvent::ResultsShown(change(request, solo, "Solo")),
         }
     );
-    let results = Some(SongResults {
-        request_id: request,
-        song_id: solo,
-        ended: SongEnd::Ended,
-    });
-    assert_eq!(party.results, results);
+    let results = party.results.clone();
+    let shown = results.clone().unwrap();
+    assert_eq!(
+        (shown.request_id, shown.song_id, shown.ended),
+        (request, solo, SongEnd::Ended)
+    );
+    assert_eq!(shown.players.len(), 1);
     assert_eq!(party.playing, None);
     assert_eq!(party.head, None);
     assert_eq!(party.line_up, None);
@@ -501,16 +552,11 @@ async fn done_after_the_last_songs_results_leads_to_the_song_browser() {
     let (app, solo, _encore) = app_with_songs().await;
     let (mut stage, mut bo_phone, _bo_id, request, _code) = bo_with_a_request(&app, solo).await;
     bo_phone.send(&control(request, SongControl::Start)).await;
-    all_hear(&mut [&mut stage, &mut bo_phone]).await;
+    let (party, _) = all_hear(&mut [&mut stage, &mut bo_phone]).await;
     stage_told(&mut stage).await;
 
     // The Song plays to its end.
-    stage
-        .send(&ClientMessage::ReachedResults {
-            request_id: request,
-            ended: SongEnd::Played,
-        })
-        .await;
+    reach_results(&app, &party, RoundEnd::Played).await;
     let (party, _) = all_hear(&mut [&mut stage, &mut bo_phone]).await;
     assert_eq!(party.results.unwrap().ended, SongEnd::Played);
     assert!(party.queue.is_empty());
@@ -610,6 +656,7 @@ async fn a_phone_that_joins_during_a_song_is_a_remote_and_sings_in_the_next_line
     assert!(
         party
             .line_up
+            .as_ref()
             .unwrap()
             .seats
             .iter()
@@ -631,12 +678,7 @@ async fn a_phone_that_joins_during_a_song_is_a_remote_and_sings_in_the_next_line
     );
 
     // After the results, she takes a seat in the next Line-up.
-    stage
-        .send(&ClientMessage::ReachedResults {
-            request_id: request,
-            ended: SongEnd::Played,
-        })
-        .await;
+    reach_results(&app, &party, RoundEnd::Played).await;
     all_hear(&mut [&mut stage, &mut bo_phone, &mut ann_phone]).await;
     ann_phone.send(&ClientMessage::CloseResults).await;
     all_hear(&mut [&mut stage, &mut bo_phone, &mut ann_phone]).await;

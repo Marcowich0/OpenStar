@@ -11,7 +11,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use openstar_protocol::library::{SongId, SongIdentity};
-use openstar_protocol::party::PartyId;
+use openstar_protocol::party::{PartyId, RequestId};
 use openstar_protocol::profile::{Difficulty, PaletteKey, ProfileId};
 use openstar_protocol::scoring::{
     BeatRange, BeatValue, HighScoreEntry, HighScoreHolder, HighScoreTable, NoteFingerprint,
@@ -105,14 +105,16 @@ pub(crate) fn store_in(
     }
     let identity = library::identity_key(&song.identity);
     tx.execute(
-        "INSERT INTO rounds (song_identity, party_id, mode, started_at_ms, ended, game_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, NULL)",
+        "INSERT INTO rounds (song_identity, party_id, mode, started_at_ms, ended, game_id,
+             request_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6)",
         params![
             identity,
             outcome.party_id.0,
             key(&outcome.mode),
             outcome.started_at_ms,
             key(&outcome.ended),
+            outcome.request_id.0,
         ],
     )?;
     let round_id = RoundId(tx.last_insert_rowid());
@@ -213,6 +215,53 @@ pub fn move_identity_in(
         "UPDATE score_records SET song_identity = ?2 WHERE song_identity = ?1",
         params![from, to],
     )
+}
+
+/// The round stored for Request `request_id` of Party `party_id`, if one
+/// is: a Request is sung at most once, so this is how the Stage's retry of
+/// the same outcome finds what it already stored.
+pub fn round_for_request(
+    conn: &Connection,
+    party_id: &PartyId,
+    request_id: RequestId,
+) -> rusqlite::Result<Option<StoredRound>> {
+    let id: Option<i64> = conn
+        .query_row(
+            "SELECT id FROM rounds WHERE party_id = ?1 AND request_id = ?2",
+            params![party_id.0, request_id.0],
+            |row| row.get(0),
+        )
+        .optional()?;
+    match id {
+        Some(id) => round(conn, RoundId(id)),
+        None => Ok(None),
+    }
+}
+
+/// Points per Rank title band.
+pub const RANK_TITLE_BAND_POINTS: u32 = 1250;
+
+/// How many Rank titles there are; the last band runs to 10000.
+pub const RANK_TITLE_BANDS: u8 = 8;
+
+/// Which Rank title a total shows: `min(floor(total / 1250), 7)`.
+pub fn rank_title_band(total: u32) -> u8 {
+    u8::try_from(total / RANK_TITLE_BAND_POINTS)
+        .unwrap_or(u8::MAX)
+        .min(RANK_TITLE_BANDS - 1)
+}
+
+/// Each total's place, in the order given: 1 plus how many totals are
+/// strictly higher, so equal totals share a place and the next place skips
+/// (1, 1, 3).
+pub fn places(totals: &[u32]) -> Vec<u32> {
+    totals
+        .iter()
+        .map(|total| {
+            let higher = totals.iter().filter(|other| *other > total).count();
+            u32::try_from(higher + 1).unwrap_or(u32::MAX)
+        })
+        .collect()
 }
 
 /// Every stored round with its records, oldest first.
@@ -547,6 +596,9 @@ pub(crate) enum Refused {
     SongChanged,
     /// A record names a Profile that does not exist.
     ProfileNotFound,
+    /// The Song is not playing in the current Party (it was never started,
+    /// the Stage dropped, the server restarted, or another Party's outcome).
+    NotPlaying,
 }
 
 impl IntoResponse for Refused {
@@ -559,14 +611,51 @@ impl IntoResponse for Refused {
             Self::SongGone => (StatusCode::NOT_FOUND, UserMessage::SongNotInLibrary),
             Self::SongChanged => (StatusCode::CONFLICT, UserMessage::SongNotInLibrary),
             Self::ProfileNotFound => (StatusCode::NOT_FOUND, UserMessage::ProfileNotFound),
+            Self::NotPlaying => (StatusCode::CONFLICT, UserMessage::NoSongPlaying),
         };
         (status, Json(message)).into_response()
     }
 }
 
-/// `POST /api/rounds`: stores a round's outcome in one transaction and
-/// answers `201` with the round as stored.
+/// `POST /api/rounds`: the Stage's outcome of the Song that just ended.
+/// The live-state task checks it is the current Party's playing Song (any
+/// Song for a skip), stores it in one transaction and, unless it was a
+/// skip, shows its results to the Party. Answers `201` with the round as
+/// stored and the results. The same Request's outcome sent again (a retry
+/// after a lost response) is stored once: the answer is the same.
 pub(crate) async fn store_round(
+    State(state): State<AppState>,
+    Json(outcome): Json<RoundOutcome>,
+) -> Response {
+    let now = state.clock.now_millis();
+    match state.live.finish_round(outcome, now).await {
+        Ok(Ok(stored)) => {
+            if !stored.round.records.is_empty() {
+                // Song rows, High score tables and the Profiles' last sung
+                // may have changed.
+                state
+                    .live
+                    .changed(vec![ChangeTopic::Library, ChangeTopic::Profiles])
+                    .await;
+            }
+            (StatusCode::CREATED, Json(stored)).into_response()
+        }
+        Ok(Err(refused)) => refused.into_response(),
+        Err(error) => {
+            tracing::error!(?error, "storing a round");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(UserMessage::ServerError),
+            )
+                .into_response()
+        }
+    }
+}
+
+/// `POST /api/test/rounds` (test routes only): stores an outcome as it
+/// comes, with no Party, Song or seat checks, and answers `201` with the
+/// round as stored. For tests of storing and High scores.
+pub(crate) async fn store_round_test(
     State(state): State<AppState>,
     Json(outcome): Json<RoundOutcome>,
 ) -> Response {
@@ -585,7 +674,6 @@ pub(crate) async fn store_round(
     match stored {
         Ok(Ok(round)) => {
             if !round.records.is_empty() {
-                // Song rows and High score tables may have changed.
                 state.live.changed(vec![ChangeTopic::Library]).await;
             }
             (StatusCode::CREATED, Json(round)).into_response()
@@ -593,11 +681,7 @@ pub(crate) async fn store_round(
         Ok(Err(refused)) => refused.into_response(),
         Err(error) => {
             tracing::error!(?error, "storing a round");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(UserMessage::ServerError),
-            )
-                .into_response()
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }

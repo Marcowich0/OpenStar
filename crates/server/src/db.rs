@@ -338,6 +338,13 @@ const MIGRATIONS: &[&str] = &[
         volume        INTEGER NOT NULL CHECK (volume BETWEEN 0 AND 100),
         PRIMARY KEY (stage_browser, stage_output)
     ) STRICT, WITHOUT ROWID;",
+    // 22: the results flow (#175). A round names the Request it sang, so
+    // the Stage's retry of one outcome stores it once (rounds from before
+    // have none). The results a Party shows keep each Player's result as
+    // JSON (`PlayerResult`s, ranked).
+    "ALTER TABLE rounds ADD COLUMN request_id INTEGER;
+    CREATE UNIQUE INDEX rounds_request ON rounds (party_id, request_id);
+    ALTER TABLE party_results ADD COLUMN players TEXT NOT NULL DEFAULT '[]';",
 ];
 
 /// The schema version this build migrates to.

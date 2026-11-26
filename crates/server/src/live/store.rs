@@ -245,14 +245,22 @@ fn save_line_up_in(
 /// The results `party_id` shows, if any.
 fn load_results(conn: &Connection, party_id: &PartyId) -> rusqlite::Result<Option<SongResults>> {
     conn.query_row(
-        "SELECT request_id, song_id, ended FROM party_results WHERE party_id = ?1",
+        "SELECT request_id, song_id, ended, players FROM party_results WHERE party_id = ?1",
         [&party_id.0],
         |row| {
             let ended: String = row.get(2)?;
+            let players: String = row.get(3)?;
             Ok(SongResults {
                 request_id: RequestId(row.get(0)?),
                 song_id: SongId(row.get(1)?),
                 ended: SongEnd::from_key(&ended).ok_or_else(|| unknown(2, "Song end", &ended))?,
+                players: serde_json::from_str(&players).map_err(|error| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        3,
+                        rusqlite::types::Type::Text,
+                        error.into(),
+                    )
+                })?,
             })
         },
     )
@@ -272,13 +280,14 @@ fn save_results_in(
     )?;
     if let Some(results) = results {
         conn.execute(
-            "INSERT INTO party_results (party_id, request_id, song_id, ended)
-             VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO party_results (party_id, request_id, song_id, ended, players)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
             (
                 &party_id.0,
                 results.request_id.0,
                 results.song_id.0,
                 results.ended.as_str(),
+                serde_json::to_string(&results.players).unwrap_or_else(|_| "[]".to_owned()),
             ),
         )?;
     }
@@ -385,7 +394,7 @@ pub async fn save_queue(db: &Database, party: &PartySnapshot) -> anyhow::Result<
 }
 
 /// [`save_queue`] inside the caller's transaction; the caller commits.
-fn save_queue_in(conn: &Connection, party: &PartySnapshot) -> rusqlite::Result<()> {
+pub(crate) fn save_queue_in(conn: &Connection, party: &PartySnapshot) -> rusqlite::Result<()> {
     let party_id = &party.party_id;
     let kept: Vec<u32> = party.queue.iter().map(|r| r.request_id.0).collect();
     conn.execute(

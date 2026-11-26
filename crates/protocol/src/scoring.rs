@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::library::{SongId, SongIdentity};
-use crate::party::PartyId;
+use crate::mics::MicKey;
+use crate::party::{PartyId, PartyMemberId, RequestId};
 use crate::profile::{Avatar, Difficulty, PaletteKey, ProfileId};
 use crate::song::NoteKind;
 
@@ -192,6 +193,10 @@ pub struct PlayerScore {
 pub struct RoundOutcome {
     /// The Song as the Stage loaded it.
     pub song_id: SongId,
+    /// The Request that was sung. A round is stored once per Request, so
+    /// the Stage retrying the same outcome after a lost response stores it
+    /// once.
+    pub request_id: RequestId,
     /// The fingerprint the loaded Song carried.
     pub note_fingerprint: NoteFingerprint,
     pub party_id: PartyId,
@@ -201,8 +206,52 @@ pub struct RoundOutcome {
     #[ts(type = "number")]
     pub started_at_ms: i64,
     pub ended: RoundEnd,
-    /// Empty for a skipped round.
+    /// Empty for a skipped round. Otherwise one per seat of the Line-up
+    /// fixed at Start, in seat order.
     pub scores: Vec<PlayerScore>,
+}
+
+/// The answer to `POST /api/rounds`: the round as stored and, for a played
+/// or ended round, the results the Party now shows (`null` for a skip).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RoundStored {
+    pub round: StoredRound,
+    pub results: Option<crate::party::SongResults>,
+}
+
+/// One Player's result on the results screen (on the Stage, and on the
+/// Phone that was the Player's Mic).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct PlayerResult {
+    /// The Party member in the seat.
+    pub member_id: PartyMemberId,
+    /// A Profile (with its id) or a Guest.
+    pub player: ScorePlayer,
+    pub name: String,
+    pub avatar: Avatar,
+    /// The member's Party colour.
+    pub colour: PaletteKey,
+    /// The seat's Mic: a Phone finds its own result by it.
+    pub mic: Option<MicKey>,
+    /// The Voice sung (0 = `P1`), only in a duet.
+    pub voice: Option<u32>,
+    pub difficulty: Difficulty,
+    pub total: u32,
+    pub notes: u32,
+    pub golden: u32,
+    pub line_bonus: u32,
+    /// 1-based, by total across Difficulties. Equal totals share a place
+    /// and the next place skips (1, 1, 3).
+    pub place: u32,
+    /// `min(floor(total / 1250), 7)`: which of the eight Rank titles shows.
+    pub rank_title_band: u8,
+    pub new_high_score: bool,
+    pub mic_lost: bool,
+    pub unfinished: bool,
 }
 
 /// Names one stored round.

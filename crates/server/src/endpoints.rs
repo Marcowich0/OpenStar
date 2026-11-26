@@ -107,9 +107,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::EditLineUp { .. }
         | ClientMessage::SetMyDifficulty { .. }
         // Start, pause, Restart, End and Skip are for everyone in the room;
-        // results come from the Stage, and Next or Done from anyone.
+        // Next or Done from anyone (results come from the Stage over
+        // `POST /api/rounds`).
         | ClientMessage::ControlSong { .. }
-        | ClientMessage::ReachedResults { .. }
         | ClientMessage::CloseResults
         // A bridge asking to join changes nothing until the Stage approves
         // it; approving needs no Admin PIN (becoming the Stage needed it).
@@ -290,6 +290,14 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
                 "/api/test/profiles/{id}",
                 Guarded(Untouched),
                 profiles::delete_profile,
+            )
+            // Stores a round as it comes (no Party checks), for tests of
+            // Score records and High scores; keeps data, deletes none.
+            .add(
+                Method::POST,
+                "/api/test/rounds",
+                NotGuarded,
+                scores::store_round_test,
             )
             // Test jobs run a harmless child process and touch nothing kept.
             .add(

@@ -2,6 +2,7 @@
 import type { NoteFingerprint } from "./NoteFingerprint";
 import type { PartyId } from "./PartyId";
 import type { PlayerScore } from "./PlayerScore";
+import type { RequestId } from "./RequestId";
 import type { RoundEnd } from "./RoundEnd";
 import type { RoundMode } from "./RoundMode";
 import type { SongId } from "./SongId";
@@ -16,6 +17,12 @@ export type RoundOutcome = {
  */
 songId: SongId, 
 /**
+ * The Request that was sung. A round is stored once per Request, so
+ * the Stage retrying the same outcome after a lost response stores it
+ * once.
+ */
+requestId: RequestId, 
+/**
  * The fingerprint the loaded Song carried.
  */
 noteFingerprint: NoteFingerprint, partyId: PartyId, mode: RoundMode, 
@@ -25,6 +32,7 @@ noteFingerprint: NoteFingerprint, partyId: PartyId, mode: RoundMode,
  */
 startedAtMs: number, ended: RoundEnd, 
 /**
- * Empty for a skipped round.
+ * Empty for a skipped round. Otherwise one per seat of the Line-up
+ * fixed at Start, in seat order.
  */
 scores: Array<PlayerScore>, };
