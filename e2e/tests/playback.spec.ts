@@ -24,6 +24,23 @@ async function songTime(stage: Page): Promise<number> {
   );
 }
 
+/** The readout once it has stopped moving: the same in two looks 100 ms apart. */
+async function stoppedSongTime(stage: Page): Promise<number> {
+  let last = NaN;
+  await expect
+    .poll(
+      async () => {
+        const now = await songTime(stage);
+        const still = now === last;
+        last = now;
+        return still;
+      },
+      { intervals: [100] },
+    )
+    .toBe(true);
+  return last;
+}
+
 test("a fixture Song plays through one media element to its end", async ({
   stage,
   request,
@@ -51,8 +68,7 @@ test("a fixture Song plays through one media element to its end", async ({
 
   // Song time only moves forward while it plays.
   const before = await songTime(stage);
-  await stage.waitForTimeout(500);
-  expect(await songTime(stage)).toBeGreaterThan(before);
+  await expect.poll(() => songTime(stage)).toBeGreaterThan(before + 0.3);
 
   // The steady tone's audio ends after its last Note (about 10.6 s).
   await expect(stage.getByTestId("song-ended")).toHaveAttribute(
@@ -77,9 +93,9 @@ test("pause freezes the Song, resume counts 3-2-1 first, Restart goes back to th
   await stage.getByRole("button", { name: "Pause" }).click();
   await expect(stage.getByRole("status")).toHaveText("Paused");
   // The clock freezes on the element's `pause` event, a moment after the
-  // press; the readout follows on the next frame.
-  await stage.waitForTimeout(200);
-  const paused = await songTime(stage);
+  // press; the readout follows on the next frame. Then it stays: a clock
+  // standing still can only be shown by looking again a while later.
+  const paused = await stoppedSongTime(stage);
   await stage.waitForTimeout(700);
   expect(await songTime(stage)).toBe(paused);
   expect(

@@ -1,4 +1,5 @@
 import { expect, test } from "../fixtures";
+import { holdToConfirm } from "../flows";
 
 // The tracer: the built binary serves the app, and both kinds of screen
 // complete the WebSocket round trip: the Stage's page becomes the Stage and
@@ -31,10 +32,7 @@ test("the Stage and a Phone share one Party, and New party reaches both", async 
   await stage.keyboard.press("p");
   const people = stage.getByRole("dialog", { name: "Tonight's Party" });
   await expect(people).toBeVisible();
-  await people.getByRole("button", { name: "New party" }).focus();
-  await stage.keyboard.down("Enter");
-  await stage.waitForTimeout(900);
-  await stage.keyboard.up("Enter");
+  await holdToConfirm(people.getByRole("button", { name: "New party" }));
   await expect(people.getByTestId("party-join-code")).not.toHaveText(
     code ?? "",
   );

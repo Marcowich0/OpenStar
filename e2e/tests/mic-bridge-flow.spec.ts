@@ -105,12 +105,19 @@ test("flow 5: a Mic bridge in WAV-file mode is approved on the Mics screen, its 
     )?.bridgeId;
     expect(bridgeId).toBeDefined();
 
-    // The tone channel is switched on; the silent ones stay off.
-    const tone = switches.first();
+    // The tone channel is switched on (by its name: switching may reorder
+    // the rows); the silent ones stay off.
+    const tone = group.getByRole("switch", {
+      name: `${toneName} switched on`,
+    });
     await tone.click();
     await expect(tone).toHaveAttribute("aria-checked", "true");
-    for (const silent of (await switches.all()).slice(1))
-      await expect(silent).toHaveAttribute("aria-checked", "false");
+    for (const n of [2, 3, 4])
+      await expect(
+        group.getByRole("switch", {
+          name: `${WAV_NAME} · Input ${String(n)} switched on`,
+        }),
+      ).toHaveAttribute("aria-checked", "false");
     await stage.keyboard.press("Escape");
     await expect(mics).toHaveCount(0);
 

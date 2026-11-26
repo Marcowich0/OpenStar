@@ -103,49 +103,58 @@ test("a named Local mic keeps its name and switch across a reload that changes i
 
   await stage.goto("/stage");
   let group = await openMics();
-  const row = group.locator("li", { has: stage.getByRole("switch") }).first();
-  await expect(row).toBeVisible();
-  const before = (await row.getAttribute("data-local-mic")) ?? "";
-
-  // Named with no PIN; Enter saves it.
-  const name = row.getByRole("textbox");
-  await name.fill("Red mic");
-  await name.press("Enter");
-  await row.getByRole("switch").click();
-  await expect(row.getByRole("switch")).toHaveAttribute("aria-checked", "true");
-  await expect
-    .poll(kept)
-    .toContainEqual(
-      expect.objectContaining({ localMicId: before, name: "Red mic" }),
-    );
-
-  await stage.reload();
-  group = await openMics();
-  const redMic = group.getByRole("switch", { name: "Red mic switched on" });
-  await expect(redMic).toHaveAttribute("aria-checked", "true");
-  await expect(group.getByText("Red mic · not found")).toHaveCount(0);
-  // Re-keyed: the one Red mic now has the id of the channel as listed now.
-  const after =
-    (await group
-      .locator("li", {
-        has: stage.getByRole("switch", { name: "Red mic switched on" }),
-      })
-      .getAttribute("data-local-mic")) ?? "";
+  const first = group.locator("li", { has: stage.getByRole("switch") }).first();
+  await expect(first).toBeVisible();
+  const before = (await first.getAttribute("data-local-mic")) ?? "";
+  // That row from here on, wherever naming it moves it in the list.
+  const row = group.locator(`li[data-local-mic="${before}"]`);
   const ours = async () =>
     (await kept()).filter((m) => m.name === "Red mic").map((m) => m.localMicId);
-  await expect.poll(ours).toEqual([after]);
-  expect(after).not.toBe(before);
 
-  // Leave nothing on and nothing named for the tests after this one.
-  const again = group.locator(`li[data-local-mic="${after}"]`);
-  await again.getByRole("switch").click();
-  await expect(again.getByRole("switch")).toHaveAttribute(
-    "aria-checked",
-    "false",
-  );
-  await again.getByRole("textbox").fill("");
-  await again.getByRole("textbox").press("Enter");
-  await expect.poll(ours).toEqual([]);
+  try {
+    // Named with no PIN; Enter saves it.
+    const name = row.getByRole("textbox");
+    await name.fill("Red mic");
+    await name.press("Enter");
+    await row.getByRole("switch").click();
+    await expect(row.getByRole("switch")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect
+      .poll(kept)
+      .toContainEqual(
+        expect.objectContaining({ localMicId: before, name: "Red mic" }),
+      );
+
+    await stage.reload();
+    group = await openMics();
+    const redMic = group.getByRole("switch", { name: "Red mic switched on" });
+    await expect(redMic).toHaveAttribute("aria-checked", "true");
+    await expect(group.getByText("Red mic · not found")).toHaveCount(0);
+    // Re-keyed: the one Red mic now has the id of the channel as listed now.
+    const after =
+      (await group
+        .locator("li", {
+          has: stage.getByRole("switch", { name: "Red mic switched on" }),
+        })
+        .getAttribute("data-local-mic")) ?? "";
+    await expect.poll(ours).toEqual([after]);
+    expect(after).not.toBe(before);
+  } finally {
+    // Leave nothing on and nothing named for the tests after this one,
+    // whatever failed above.
+    for (const id of await ours()) {
+      const named = group.locator(`li[data-local-mic="${id}"]`);
+      const toggle = named.getByRole("switch");
+      if ((await toggle.getAttribute("aria-checked")) === "true")
+        await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", "false");
+      await named.getByRole("textbox").fill("");
+      await named.getByRole("textbox").press("Enter");
+    }
+    await expect.poll(ours).toEqual([]);
+  }
 });
 
 test("a Local mic's Mic threshold line moves 1 dB with the arrows, saved at once as set by hand", async ({

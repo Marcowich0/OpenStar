@@ -8,6 +8,7 @@ import {
   test,
   trustStageBrowser,
 } from "../fixtures";
+import { holdToConfirm } from "../flows";
 
 // Stage moved here (#201): two Stage browsers take the Stage from each other.
 // The `stage` page starts the Party; a second browser opens `/stage` and the
@@ -17,13 +18,10 @@ import {
 // the hold. A Phone stays in the Party throughout.
 
 async function holdTakeBack(page: Page) {
-  const button = page.getByRole("button", {
-    name: "Make this the Stage again",
-  });
-  await button.hover();
-  await page.mouse.down();
-  await page.waitForTimeout(900);
-  await page.mouse.up();
+  await holdToConfirm(
+    page.getByRole("button", { name: "Make this the Stage again" }),
+    { with: "pointer" },
+  );
 }
 
 function moved(page: Page): Locator {

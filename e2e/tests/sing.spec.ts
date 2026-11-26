@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
+import { holdToConfirm } from "../flows";
 
 // The Stage plays the head's Request (#164): Start on the Line-up switches
 // to the sing scene and the Song plays from its start; Pause, Resume,
@@ -145,8 +146,7 @@ test("Start plays the head's Song on the sing scene; Pause, Resume, Restart and 
       expect.objectContaining({ tag: "AUDIO", playing: true }),
     ]);
     const before = await mediaTime(stage);
-    await stage.waitForTimeout(500);
-    expect(await mediaTime(stage)).toBeGreaterThan(before);
+    await expect.poll(() => mediaTime(stage)).toBeGreaterThan(before + 0.3);
 
     // Pause from the Phone freezes it, and the Stage shows its pause menu.
     await sendFromPhone(phone, {
@@ -320,13 +320,6 @@ test("End stops the Song: the Stage stores the ended round and the Stage and the
   }
 });
 
-/** Holds Enter on the focused control a little past the 700 ms hold. */
-async function holdEnter(stage: Page) {
-  await stage.keyboard.down("Enter");
-  await stage.waitForTimeout(1000);
-  await stage.keyboard.up("Enter");
-}
-
 test("The Stage's pause menu: Space opens it, Esc resumes with the countdown, a held End shows the results", async ({
   stage,
   openPhone,
@@ -384,7 +377,7 @@ test("The Stage's pause menu: Space opens it, Esc resumes with the countdown, a 
     await end.focus();
     await stage.keyboard.press("Enter");
     await expect(menu).toBeVisible();
-    await holdEnter(stage);
+    await holdToConfirm(end);
     ended = true;
     await expect(frame).toHaveAttribute("data-scene", "results");
     expect(await media(stage)).toEqual([]);
@@ -424,8 +417,7 @@ test("A held Skip on the pause menu goes straight on with no results; a held Res
     await stage.keyboard.press(" ");
     await expect(menu).toBeVisible();
     const from = await mediaTime(stage);
-    await menu.getByRole("button", { name: "Restart" }).focus();
-    await holdEnter(stage);
+    await holdToConfirm(menu.getByRole("button", { name: "Restart" }));
     await expect(menu).toHaveCount(0);
     await expect.poll(() => mediaTime(stage)).toBeLessThan(from);
     await expect(stage.getByTestId("resume-countdown")).toHaveCount(0);
@@ -444,10 +436,7 @@ test("A held Skip on the pause menu goes straight on with no results; a held Res
     });
     await stage.keyboard.press(" ");
     const skip = menu.getByRole("button", { name: "Skip to the next Song" });
-    await skip.hover();
-    await stage.mouse.down();
-    await stage.waitForTimeout(1000);
-    await stage.mouse.up();
+    await holdToConfirm(skip, { with: "pointer" });
     skipped = true;
     // The Queue is empty: the song browser, with no results scene between.
     await expect(frame).toHaveAttribute("data-scene", "songBrowser");

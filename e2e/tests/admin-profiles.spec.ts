@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { ADMIN_PIN, expect, newParty, test } from "../fixtures";
+import { holdToConfirm } from "../flows";
 
 // The Admin area's Profiles section (#199) against the real server: a Profile
 // that is a Party member on a Phone is deleted with an Unlock plus a press
@@ -21,13 +22,9 @@ async function createProfile(
   return name;
 }
 
-/** Holds `button` down with the Enter key for longer than a hold needs. */
+/** Holds the button `name` down with the Enter key for longer than a hold needs. */
 async function hold(page: Page, name: string) {
-  const button = page.getByRole("button", { name });
-  await button.focus();
-  await page.keyboard.down("Enter");
-  await page.waitForTimeout(1000);
-  await page.keyboard.up("Enter");
+  await holdToConfirm(page.getByRole("button", { name }));
 }
 
 test("deleting a Party member's Profile needs the PIN and a hold, and the Party lets it go", async ({
