@@ -78,7 +78,7 @@ function fakeBrowser(devices: FakeDevice[], { granted = true } = {}) {
     /** Whether its detector runs: as made, then as commanded. */
     detecting: boolean;
     post: (reading: Partial<PitchWorkletReading>) => void;
-    postLevel: (loudness: number) => void;
+    postLevel: (loudness: number, zero?: boolean) => void;
   }[] = [];
   const capture = createLocalMicCapture({
     mediaDevices: mediaDevices as unknown as MediaDevices,
@@ -98,8 +98,8 @@ function fakeBrowser(devices: FakeDevice[], { granted = true } = {}) {
         },
         closed: false,
         detecting: options?.detect ?? true,
-        postLevel: (loudness: number) => {
-          options?.onLevel?.({ type: "level", loudness, endFrame: 2048 });
+        postLevel: (loudness: number, zero = false) => {
+          options?.onLevel?.({ type: "level", loudness, zero, endFrame: 2048 });
         },
         post: (reading: Partial<PitchWorkletReading>) => {
           onReading({
@@ -107,6 +107,7 @@ function fakeBrowser(devices: FakeDevice[], { granted = true } = {}) {
             pitch: null,
             clarity: 0,
             loudness: -120,
+            zero: false,
             endFrame: 2048,
             sampleRate: 48_000,
             ...reading,
@@ -228,6 +229,28 @@ describe("a channel's level", () => {
     expect(capture.levelDbfs("dongle", 0)).toBe(SILENCE_DBFS);
     pitchNodes[0]?.post({ loudness: -120 });
     expect(capture.levelDbfs("dongle", 0)).toBe(SILENCE_DBFS);
+  });
+});
+
+describe("a channel's digital silence", () => {
+  it("is unknown until the channel's first window, and for a closed device", async () => {
+    const { capture } = fakeBrowser([DONGLE]);
+    expect(capture.digitalZero("dongle", 0)).toBeNull();
+    await capture.setOpen(new Set(["dongle"]));
+    expect(capture.digitalZero("dongle", 0)).toBeNull();
+  });
+
+  it("follows the newest level or reading, per channel", async () => {
+    const { capture, pitchNodes } = fakeBrowser([DONGLE]);
+    await capture.setOpen(new Set(["dongle"]));
+    pitchNodes[0]?.postLevel(-120, true);
+    pitchNodes[1]?.postLevel(-120, false);
+    expect(capture.digitalZero("dongle", 0)).toBe(true);
+    expect(capture.digitalZero("dongle", 1)).toBe(false);
+    pitchNodes[0]?.post({ loudness: -40, zero: false });
+    expect(capture.digitalZero("dongle", 0)).toBe(false);
+    await capture.setOpen(new Set());
+    expect(capture.digitalZero("dongle", 0)).toBeNull();
   });
 });
 

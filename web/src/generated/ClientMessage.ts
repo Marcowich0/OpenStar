@@ -65,4 +65,4 @@ token: string | null,
 /**
  * Every interface it reads, each with its hardware channels.
  */
-interfaces: Array<BridgeInterface>, } | { "type": "approveBridge", requestId: BridgeRequestId, } | { "type": "setMicsScreenOpen", open: boolean, } | { "type": "reportPresentLocalMics", localMicIds: Array<string>, } | { "type": "bridgeLevels", levels: Array<BridgeLevel>, } | { "type": "bridgeInputDelays", delays: Array<BridgeInputDelay>, };
+interfaces: Array<BridgeInterface>, } | { "type": "approveBridge", requestId: BridgeRequestId, } | { "type": "setMicsScreenOpen", open: boolean, } | { "type": "reportPresentLocalMics", localMicIds: Array<string>, } | { "type": "reportSilentLocalMics", localMicIds: Array<string>, } | { "type": "bridgeLevels", levels: Array<BridgeLevel>, } | { "type": "bridgeInputDelays", delays: Array<BridgeInputDelay>, };

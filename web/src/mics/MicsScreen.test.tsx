@@ -101,6 +101,7 @@ function setup({
       refresh: () => Promise.resolve(),
       setOpen: () => Promise.resolve(),
       levelDbfs: () => -30,
+      digitalZero: () => null,
       setDetecting: () => {},
       subscribeReadings: () => () => {},
       dispose: () => {},

@@ -144,6 +144,8 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // Which Local mics are plugged in only says what the Line-up may
         // offer; nothing is kept.
         | ClientMessage::ReportPresentLocalMics { .. }
+        // Which Local mics send digital silence only adds a seat warning.
+        | ClientMessage::ReportSilentLocalMics { .. }
         | ClientMessage::BridgeLevels { .. }
         // A bridge's reported input delays are only a default Mic delay,
         // kept while it is open.

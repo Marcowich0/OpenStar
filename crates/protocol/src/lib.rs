@@ -419,6 +419,12 @@ pub enum ClientMessage {
     /// Party snapshot and offers the switched-on ones to the Line-up.
     /// Gone when that Stage closes or another browser becomes the Stage.
     ReportPresentLocalMics { local_mic_ids: Vec<String> },
+    /// From the active Stage, whenever it changes: which switched-on Local
+    /// mics (its own or a Mic bridge's) delivered exact digital silence,
+    /// every sample zero, for more than 2 s. Replaces the last report; the
+    /// server shows it as a seat warning. Gone when that Stage closes or
+    /// another browser becomes the Stage.
+    ReportSilentLocalMics { local_mic_ids: Vec<String> },
     /// From an open (approved, connected) Mic bridge, ten times a second:
     /// the meter level of each channel it meters. Relayed to the Stage as
     /// [`ServerMessage::LocalMicLevels`]; dropped from any other socket and

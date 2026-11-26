@@ -203,7 +203,9 @@ describe("Mic bridge levels in the live store", () => {
     const rendersBefore = rendered.mock.calls.length;
     vi.mocked(receive).mockClear();
 
-    const levels = [{ localMicId: "bridge:b:x.wav:0", levelDbfs: -12 }];
+    const levels = [
+      { localMicId: "bridge:b:x.wav:0", levelDbfs: -12, digitalSilence: false },
+    ];
     server({ type: "localMicLevels", levels });
 
     expect(heard).toHaveBeenCalledWith(levels);

@@ -270,7 +270,7 @@ function LineUpBody({
                 )}
                 micBad={micHasProblem(warnings)}
                 warnings={warnings.map((w) => {
-                  const text = lineUpWarningText(w, nameOf);
+                  const text = lineUpWarningText(w, nameOf, party.localMics);
                   const mic = seat.mic;
                   if (w.code !== "notCalibrated" || mic === null) return text;
                   // The usual checklist, with this seat's Mic ticked.
@@ -370,7 +370,7 @@ function LineUpBody({
             key={JSON.stringify(warning)}
             className="text-[28px] font-semibold text-warn-fg"
           >
-            {lineUpWarningText(warning, nameOf)}
+            {lineUpWarningText(warning, nameOf, party.localMics)}
           </p>
         ))}
         <div ref={startRef}>

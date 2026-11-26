@@ -8,12 +8,14 @@ import type { ApiError } from "../generated/ApiError";
 import type { FileProblem } from "../generated/FileProblem";
 import type { LibraryReadOnly } from "../generated/LibraryReadOnly";
 import type { LineUpWarning } from "../generated/LineUpWarning";
+import type { PartyLocalMic } from "../generated/PartyLocalMic";
 import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PartyEvent } from "../generated/PartyEvent";
 import type { ProblemReason } from "../generated/ProblemReason";
 import type { TxtRejection } from "../generated/TxtRejection";
 import type { TxtWarning } from "../generated/TxtWarning";
 import type { UserMessage } from "../generated/UserMessage";
+import { localMicName } from "../mics/localMics";
 import { colourName } from "./colourNames";
 import { difficultyName, voiceNumber } from "./seatNames";
 import { t } from "./t";
@@ -206,17 +208,30 @@ export const partyEventText = byCode<PartyEvent>({
 
 /**
  * A Line-up warning. The server names the seat's Party member by id;
- * `nameOf` gives that member's name (from the snapshot or the Profiles).
+ * `nameOf` gives that member's name (from the snapshot or the Profiles). A
+ * Mic warning names its Local mic by id, named from `localMics` (the
+ * snapshot's), by its default name when the host gave none.
  */
 export function lineUpWarningText(
   warning: LineUpWarning,
   nameOf: (memberId: PartyMemberId) => string,
+  localMics: readonly PartyLocalMic[] = [],
 ): string {
+  const micName = (localMicId: string) => {
+    const mic = localMics.find((m) => m.localMicId === localMicId);
+    return mic ? localMicName(mic.source, mic.name) : localMicId;
+  };
   return byCode<LineUpWarning>({
     noMic: ({ params }) =>
       t("lineUpWarning.noMic", { name: nameOf(params.memberId) }),
     micBlocked: ({ params }) =>
       t("lineUpWarning.micBlocked", { name: nameOf(params.memberId) }),
+    localMicUnplugged: ({ params }) =>
+      t("lineUpWarning.localMicUnplugged", { mic: micName(params.localMicId) }),
+    bridgeClosed: ({ params }) =>
+      t("lineUpWarning.bridgeClosed", { host: params.hostName }),
+    localMicSilent: ({ params }) =>
+      t("lineUpWarning.localMicSilent", { mic: micName(params.localMicId) }),
     duetNeedsVoice: ({ params }) =>
       t("lineUpWarning.duetNeedsVoice", {
         voice: voiceNumber(params.voice),

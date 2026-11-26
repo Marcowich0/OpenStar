@@ -454,6 +454,9 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::ReportPresentLocalMics {
             local_mic_ids: vec!["browser:stage:device:0".into()],
         },
+        ClientMessage::ReportSilentLocalMics {
+            local_mic_ids: vec!["browser:stage:device:0".into()],
+        },
         ClientMessage::BridgeLevels { levels: vec![] },
         ClientMessage::BridgeInputDelays { delays: vec![] },
     ]

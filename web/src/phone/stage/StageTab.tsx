@@ -249,7 +249,11 @@ export function StageTab({
           {listed.length > 0 && (
             <ul className="flex flex-col gap-1 py-1 font-semibold text-yellow">
               {listed.map((warning) => {
-                const text = lineUpWarningText(warning, nameOf);
+                const text = lineUpWarningText(
+                  warning,
+                  nameOf,
+                  party?.localMics,
+                );
                 return <li key={text}>{text}</li>;
               })}
             </ul>

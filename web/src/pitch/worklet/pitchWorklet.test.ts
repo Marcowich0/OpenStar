@@ -108,6 +108,7 @@ describe("createPitchNode", () => {
       pitch: null,
       clarity: 0.1,
       loudness: -120,
+      zero: true,
       endFrame: 2048,
       sampleRate: 48_000,
     };

@@ -435,6 +435,7 @@ impl LiveState {
                     level.channel,
                 ),
                 level_dbfs: level.level_dbfs.clamp(SILENCE_DBFS, 0.0),
+                digital_silence: level.digital_silence,
             })
             .collect();
         if !levels.is_empty() {

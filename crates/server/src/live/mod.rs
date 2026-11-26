@@ -33,7 +33,7 @@ mod store;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use openstar_protocol::bridge::bridge_local_mic_id;
+use openstar_protocol::bridge::{BridgeId, bridge_local_mic_id};
 use openstar_protocol::library::SongId;
 use openstar_protocol::mics::{LocalMic, LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
@@ -404,6 +404,9 @@ struct LiveState {
     kept_local_mics: Vec<LocalMic>,
     /// The Stage-browser Local mics the active Stage last reported present.
     present_browser_mics: HashSet<String>,
+    /// The Local mics the active Stage last reported in digital silence
+    /// (exact zeros for more than 2 s), for the seat warnings.
+    silent_local_mics: HashSet<String>,
     /// Phones that reported their mic could not open. Kept while the
     /// server runs; a Phone reports again after a restart.
     blocked_phones: HashSet<PhoneId>,
@@ -433,7 +436,12 @@ impl LiveState {
             None => HashMap::new(),
         };
         if let Some(party) = party.as_mut() {
-            refresh_computed(party, &HashSet::new(), None);
+            refresh_computed(
+                party,
+                &HashSet::new(),
+                &line_up::SeatMicState::default(),
+                None,
+            );
         }
         let bridges = bridges::Bridges::new(crate::mic_bridges::load(&db).await?);
         let kept_local_mics = crate::local_mics::all(&db).await?;
@@ -462,6 +470,7 @@ impl LiveState {
             local_mics: Vec::new(),
             kept_local_mics,
             present_browser_mics: HashSet::new(),
+            silent_local_mics: HashSet::new(),
             blocked_phones: HashSet::new(),
             calibrated_mics: None,
             bridges,
@@ -474,10 +483,62 @@ impl LiveState {
     fn with_local_mics(mut self) -> Self {
         let list = self.local_mic_list();
         self.local_mics = local_mic_list::present_ids(&list);
+        let blocked = self.blocked_phones.clone();
+        let mut mics = self.seat_mic_state();
+        mics.local_mics.clone_from(&list);
+        let calibrated = self.calibrated_mics.clone();
         if let Some(party) = self.stage_mut().party.as_mut() {
             party.local_mics = list;
+            refresh_computed(party, &blocked, &mics, calibrated.as_ref());
         }
         self
+    }
+
+    /// What the seat warnings about Local mics read now.
+    fn seat_mic_state(&self) -> line_up::SeatMicState {
+        let open: HashSet<&BridgeId> = self
+            .bridges
+            .open
+            .values()
+            .map(|open| &open.bridge_id)
+            .collect();
+        line_up::SeatMicState {
+            local_mics: self
+                .stage()
+                .party
+                .as_ref()
+                .map(|party| party.local_mics.clone())
+                .unwrap_or_default(),
+            silent: self.silent_local_mics.clone(),
+            closed_bridges: self
+                .bridges
+                .approved
+                .iter()
+                .filter(|approved| !open.contains(&approved.bridge_id))
+                .map(|approved| (approved.bridge_id.clone(), approved.host_name.clone()))
+                .collect(),
+        }
+    }
+
+    /// The active Stage reports which Local mics deliver exact digital
+    /// silence now (exact zeros for more than 2 s).
+    fn report_silent_local_mics(
+        &mut self,
+        id: ConnectionId,
+        local_mic_ids: Vec<String>,
+    ) -> Result<(), UserMessage> {
+        if self.stage().connection != Some(id) {
+            return Err(UserMessage::NotTheStage);
+        }
+        let silent: HashSet<String> = local_mic_ids.into_iter().collect();
+        if silent != self.silent_local_mics {
+            self.silent_local_mics = silent;
+            self.party_changed(ChangeEvent {
+                actor: Actor::Stage,
+                event: PartyEvent::LocalMicsChanged,
+            });
+        }
+        Ok(())
     }
 
     /// The switched-on Local mics in Mics-screen order, with whether each
@@ -664,6 +725,7 @@ impl LiveState {
             // Local mics until the new Stage reports its own.
             self.tell_mics_screen();
             self.present_browser_mics.clear();
+            self.silent_local_mics.clear();
         }
         let live_state = ServerMessage::LiveState {
             stage_id: self.current_stage.clone(),
@@ -709,6 +771,7 @@ impl LiveState {
             self.calibration_ended();
             self.tell_mics_screen();
             self.present_browser_mics.clear();
+            self.silent_local_mics.clear();
             self.local_mics_changed();
         }
         let closed: Vec<PhoneId> = self
@@ -1059,6 +1122,10 @@ impl LiveState {
             }
             Ok(ClientMessage::ReportPresentLocalMics { local_mic_ids }) => {
                 let reported = self.report_present_local_mics(id, local_mic_ids);
+                self.refuse_on_error(id, reported);
+            }
+            Ok(ClientMessage::ReportSilentLocalMics { local_mic_ids }) => {
+                let reported = self.report_silent_local_mics(id, local_mic_ids);
                 self.refuse_on_error(id, reported);
             }
             Ok(ClientMessage::SetMicsScreenOpen { open }) => {
@@ -2281,6 +2348,7 @@ impl LiveState {
         line_up::check(
             &mut line_up,
             &self.blocked_phones,
+            &self.seat_mic_state(),
             self.calibrated_mics.as_ref(),
         );
         if !line_up.can_start {
@@ -2335,13 +2403,14 @@ impl LiveState {
             .clone();
         let change = self.request_change(&request).await;
         let blocked = self.blocked_phones.clone();
+        let mics = self.seat_mic_state();
         let calibrated = self.calibrated_mics.clone();
         let stage = self.stage_mut();
         if let Some(party) = stage.party.as_mut() {
             party.playing = None;
             // A taking-over Stage hears the live state before the change:
             // it must say already that the Line-up can start again.
-            refresh_computed(party, &blocked, calibrated.as_ref());
+            refresh_computed(party, &blocked, &mics, calibrated.as_ref());
         }
         stage.progress = None;
         Some(ChangeEvent {
@@ -2745,11 +2814,12 @@ impl LiveState {
 
     fn party_changed(&mut self, change: ChangeEvent) {
         let blocked = self.blocked_phones.clone();
+        let mics = self.seat_mic_state();
         let calibrated = self.calibrated_mics.clone();
         let Some(party) = self.stage_mut().party.as_mut() else {
             return;
         };
-        refresh_computed(party, &blocked, calibrated.as_ref());
+        refresh_computed(party, &blocked, &mics, calibrated.as_ref());
         let party = party.clone();
         self.hub
             .send_all(&ServerMessage::PartyChanged { party, change });
@@ -2870,11 +2940,12 @@ fn player_results(
 fn refresh_computed(
     party: &mut PartySnapshot,
     blocked_phones: &HashSet<PhoneId>,
+    mics: &line_up::SeatMicState,
     calibrated: Option<&HashSet<MicKey>>,
 ) {
     let playing = party.playing.is_some();
     if let Some(line_up) = party.line_up.as_mut() {
-        line_up::check(line_up, blocked_phones, calibrated);
+        line_up::check(line_up, blocked_phones, mics, calibrated);
         // A Line-up whose Song plays cannot start again.
         line_up.can_start &= !playing;
     }
