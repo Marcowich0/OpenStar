@@ -89,7 +89,9 @@ async fn store_round(app: &TestApp, song: &SongDetail) {
         started_at_ms: 1_700_000_000_000,
         ended: RoundEnd::Played,
         scores: vec![PlayerScore {
-            player: ScorePlayer::Guest { name: "Zoë".into() },
+            player: ScorePlayer::Guest {
+                name: "Zoë".into()
+            },
             voice: 0,
             difficulty: Difficulty::Hard,
             total: 10,
@@ -165,7 +167,11 @@ async fn score_records_follow_an_own_edit_that_changes_the_identity_key() {
     assert_eq!(song.identity, artist_title("old title"));
     store_round(&app, &song).await;
     store_round(&app, &song).await;
-    store_round(&app, &detail(&app, song_id(&app, "Other Title").await).await).await;
+    store_round(
+        &app,
+        &detail(&app, song_id(&app, "Other Title").await).await,
+    )
+    .await;
 
     assert_eq!(restore(&app, id).await, StatusCode::OK);
 
@@ -205,7 +211,10 @@ async fn a_failed_move_leaves_the_index_and_the_records_as_they_were() {
     assert_eq!(restore(&app, id).await, StatusCode::INTERNAL_SERVER_ERROR);
 
     let song = detail(&app, id).await;
-    assert_eq!(song.song.headers.title, "Old Title", "the index update was not applied");
+    assert_eq!(
+        song.song.headers.title, "Old Title",
+        "the index update was not applied"
+    );
     assert_eq!(song.identity, artist_title("old title"));
     assert_eq!(
         stored_identities(&app),
@@ -247,10 +256,7 @@ async fn a_song_renamed_outside_openstar_is_not_matched() {
     std::fs::write(app.songs_dir().join("Song/song.txt"), txt("New Title")).unwrap();
     rescan(&app).await;
 
-    assert_eq!(
-        detail(&app, id).await.identity,
-        artist_title("new title")
-    );
+    assert_eq!(detail(&app, id).await.identity, artist_title("new title"));
     assert_eq!(
         stored_identities(&app),
         [artist_title("old title"), artist_title("old title")],
