@@ -12,6 +12,15 @@
 //!   [`UsdbMirrorStatus`] (not guarded: the mirror is a copy of USDB, not
 //!   kept data).
 //!
+//! - `GET /api/usdb/songs?<UsdbSearchQuery>`: the [`UsdbSearchResults`],
+//!   searched on the mirror alone, so a search never costs USDB a request
+//!   (not guarded). Answers from what is mirrored so far while the mirror
+//!   fills.
+//! - `GET /api/usdb/songs/{id}/cover`: the song's USDB cover, fetched from
+//!   USDB (through its paced queue) the first time it is asked for and served
+//!   from the cache in `/appdata/cache` after that; `404` when USDB has none
+//!   (not guarded).
+//!
 //! Progress and completion of a mirror run reach browsers as
 //! [`ServerMessage::JobChanged`](crate::ServerMessage::JobChanged) (kinds
 //! `usdbMirrorRefetch` and `usdbMirrorUpdate`) and as
@@ -21,6 +30,11 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::UserMessage;
+use crate::profile::PaletteKey;
+
+/// The most results `GET /api/usdb/songs` answers; `total` says how many
+/// matched.
+pub const USDB_SEARCH_LIMIT: u32 = 50;
 
 /// Body of `GET /api/usdb/status`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -100,6 +114,71 @@ pub enum UsdbMirrorState {
     Fresh,
     /// Filled, and last refreshed more than a day ago.
     Stale,
+}
+
+/// A search over the USDB mirror, sent as the URL query of
+/// `GET /api/usdb/songs` (`?search=queen&sort=rating`). Both fields are
+/// optional.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, optional_fields)]
+pub struct UsdbSearchQuery {
+    /// Words that must each appear in the song's artist or title, compared
+    /// as the Library's search compares them (Unicode case folding).
+    pub search: Option<String>,
+    /// The order of the results; `views` when absent.
+    pub sort: Option<UsdbSort>,
+}
+
+/// How USDB search results are sorted: most first, ties by the other value,
+/// then by USDB id.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum UsdbSort {
+    /// Highest rating first.
+    Rating,
+    /// Most views first.
+    #[default]
+    Views,
+}
+
+/// Body of `GET /api/usdb/songs`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct UsdbSearchResults {
+    /// The first [`USDB_SEARCH_LIMIT`] matches, in the asked order.
+    pub songs: Vec<UsdbSong>,
+    /// How many mirrored songs match in all.
+    pub total: u32,
+}
+
+/// One song of the USDB mirror, as a search result.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct UsdbSong {
+    pub usdb_id: u32,
+    pub artist: String,
+    pub title: String,
+    pub genre: String,
+    pub year: Option<u16>,
+    pub edition: String,
+    pub golden: bool,
+    pub language: String,
+    pub creator: String,
+    /// 0 to 5, in halves.
+    pub rating: f32,
+    pub views: u32,
+    /// A playable Song with this USDB id is in the Library now.
+    pub in_library: bool,
+    /// The cover's URL on this server (`/api/usdb/songs/{id}/cover`). It
+    /// answers `404` when USDB has no cover: show the tile then.
+    pub cover: String,
+    /// The tile's colour when there is no cover: the one the Library picks
+    /// for a Song with this USDB id.
+    pub tile_colour: PaletteKey,
 }
 
 #[cfg(test)]

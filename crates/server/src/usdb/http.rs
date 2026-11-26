@@ -1,12 +1,14 @@
 //! The USDB endpoints: `GET /api/usdb/status` (where the USDB login stands,
-//! as a code) and the mirror's `GET /api/usdb/mirror`,
-//! `POST /api/usdb/mirror/refresh` and `POST /api/usdb/mirror/refetch`.
+//! as a code), the mirror's `GET /api/usdb/mirror`,
+//! `POST /api/usdb/mirror/refresh` and `POST /api/usdb/mirror/refetch`, and
+//! the search over the mirror, `GET /api/usdb/songs`. (Covers are in
+//! `covers`.)
 
 use axum::Json;
-use axum::extract::State;
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use openstar_protocol::usdb::UsdbStatus;
+use openstar_protocol::usdb::{UsdbSearchQuery, UsdbStatus};
 
 use super::mirror::{Ask, Mirror};
 use crate::AppState;
@@ -15,6 +17,24 @@ pub(crate) async fn status(State(state): State<AppState>) -> Json<UsdbStatus> {
     Json(UsdbStatus {
         state: state.usdb.status(),
     })
+}
+
+/// `GET /api/usdb/songs?<UsdbSearchQuery>`: on the mirror alone.
+pub(crate) async fn search(
+    State(state): State<AppState>,
+    Query(query): Query<UsdbSearchQuery>,
+) -> Response {
+    match state
+        .db
+        .call(move |conn| Ok(super::search::search(conn, &query)?))
+        .await
+    {
+        Ok(results) => Json(results).into_response(),
+        Err(error) => {
+            tracing::error!(?error, "searching the USDB mirror");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
 
 /// `GET /api/usdb/mirror`.
