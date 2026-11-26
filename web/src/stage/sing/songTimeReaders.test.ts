@@ -72,4 +72,33 @@ describe("who reads the Song's position", () => {
     ).toBeGreaterThan(0);
     expect(offenders).toEqual([]);
   });
+
+  it("reads the A/V offset only to draw, never for readings, Beats, scoring or the video", () => {
+    // The getter is called only where the drawing time is computed (the
+    // render loop, through the sing screen that hands it on).
+    expect(filesMatching(/\bavOffset\s*\(\s*\)/)).toEqual([
+      "src/stage/sing/SingScreen.tsx",
+      "src/stage/sing/renderLoop.ts",
+    ]);
+    // The kept value is loaded only to be handed to that getter.
+    expect(filesMatching(/from "[^"]*\/(avOffset|use\w*AvOffset)"/)).toEqual([
+      "src/avOffset/useAvOffset.ts",
+      "src/stage/output/useStageAvOffset.ts",
+      "src/stage/scenes/sing/SingScene.tsx",
+    ]);
+    // No code (comments aside) of the Pitch readings, the Song clock and
+    // Beats, the scorer, the media playback or the video names it.
+    const kept =
+      /^\/src\/(pitch|clock|scoring|playback|phone\/mic)\/|\/SingBackdrop\.tsx$/;
+    const code = (text: string) =>
+      text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    const offenders = Object.entries(sources)
+      .filter(([path]) => kept.test(path))
+      .filter(([, text]) => /avOffset|AvOffset|\bAV_OFFSET\b/.test(code(text)))
+      .map(([path]) => path);
+    expect(
+      Object.keys(sources).filter((path) => kept.test(path)).length,
+    ).toBeGreaterThan(10);
+    expect(offenders).toEqual([]);
+  });
 });

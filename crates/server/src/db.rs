@@ -330,8 +330,7 @@ const MIGRATIONS: &[&str] = &[
     ) STRICT;",
     // 21: what is kept per (Stage browser, Stage output) (see
     // `stage_outputs`): the OpenStar volume, 0 to 100. Not linked to
-    // `parties`, so New party keeps it. The A/V offset (#161) belongs here
-    // too.
+    // `parties`, so New party keeps it. Migration 27 adds the A/V offset.
     "CREATE TABLE stage_outputs (
         stage_browser TEXT NOT NULL,
         stage_output  TEXT NOT NULL,
@@ -392,6 +391,11 @@ const MIGRATIONS: &[&str] = &[
     // folds rows stored before this migration first.
     "ALTER TABLE usdb_songs ADD COLUMN artist_key TEXT;
     ALTER TABLE usdb_songs ADD COLUMN title_key TEXT;",
+    // 27: the A/V offset per (browser, output key) (#161), next to the
+    // OpenStar volume in `stage_outputs`: -300 to 500 ms in 10 ms steps,
+    // 0 for an output nothing was stored for.
+    "ALTER TABLE stage_outputs ADD COLUMN av_offset_ms INTEGER NOT NULL DEFAULT 0
+        CHECK (av_offset_ms BETWEEN -300 AND 500 AND av_offset_ms % 10 = 0);",
 ];
 
 /// The schema version this build migrates to.

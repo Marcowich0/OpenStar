@@ -30,7 +30,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::{
     AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles,
-    scores, stage_trust, unlock, usdb,
+    scores, stage_outputs, stage_trust, unlock, usdb,
 };
 
 /// Whether an endpoint needs an Unlock.
@@ -289,6 +289,20 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/mic-settings",
             NotGuarded,
             mic_settings::read,
+        )
+        // Any browser reads and sets its own A/V offset at its output: Check
+        // A/V sync is harmless and reversible (docs/agents/guard-rule.md).
+        .add(
+            Method::GET,
+            "/api/av-offset",
+            NotGuarded,
+            stage_outputs::read_av_offset,
+        )
+        .add(
+            Method::PUT,
+            "/api/av-offset",
+            NotGuarded,
+            stage_outputs::write_av_offset,
         )
         // Anyone reads the kept Local mics; the Stage switches them over its
         // WebSocket.

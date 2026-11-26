@@ -5,6 +5,7 @@
 //! committed. `just check` fails when the committed files drift.
 
 pub mod admin;
+pub mod av_offset;
 pub mod bridge;
 pub mod jobs;
 pub mod library;
