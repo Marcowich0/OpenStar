@@ -99,6 +99,8 @@
   --animate-float: float 9s ease-in-out infinite;
   --animate-toast-out: toast-out 0.35s ease-in both;
   --animate-line-in: line-in 0.35s var(--ease-spring) both;
+  --animate-squish: squish 0.65s var(--ease-spring);
+  --animate-bob: bob 3s ease-in-out infinite;
 
   /* The breathing Sing / Start button: one breath, up to 6 % larger. */
   @keyframes breathe {
@@ -146,6 +148,24 @@
     40%,
     80% {
       translate: 12px;
+    }
+  }
+
+  /* The selected carousel cover on a change: squash, stretch, rest. */
+  @keyframes squish {
+    0% {
+      scale: 0.88 1.12;
+    }
+    45% {
+      scale: 1.08 0.92;
+    }
+  }
+
+  /* The logo's star bobbing gently. */
+  @keyframes bob {
+    50% {
+      rotate: 14deg;
+      scale: 1.1;
     }
   }
 

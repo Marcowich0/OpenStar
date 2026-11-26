@@ -271,9 +271,12 @@ export const en = {
   "stage.newParty": "New party",
 
   // The Stage's scenes (#120 placeholders; #124, #164, #182 fill them).
+  "stage.logo": "OpenStar",
   "stage.browser.pickFromPhone": "Pick a song from your phone",
   "stage.browser.joinCode": "Join code",
-  "stage.browser.browse": "Or browse songs here",
+  "stage.browser.carousel": "Songs",
+  "stage.browser.best": "Best {total, number} · {name}",
+  "stage.browser.empty": "No Songs in the Library yet",
   "stage.lineUp.artistDuet": "{artist} · duet",
   "stage.lineUp.thenOne": "Then {first}",
   "stage.lineUp.thenTwo": "Then {first}, {second}",

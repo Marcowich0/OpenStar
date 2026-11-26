@@ -5,9 +5,13 @@ import type { ClientMessage } from "../../generated/ClientMessage";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { LiveClientOptions } from "../../live/liveClient";
 import { createLiveStore } from "../../live/liveStore";
+import { SCENES } from "../frame/sceneComponents";
 import { StageFrame } from "../frame/StageFrame";
 import type { SceneId } from "../frame/scenes";
 import { VOLUME_PILL_MS } from "./volumePill";
+
+// The song browser needs the Library's Songs; this test is not about it.
+const NO_BROWSER = { ...SCENES, songBrowser: { component: () => null } };
 
 const setVolume = vi.fn();
 vi.mock("../playback/stageAudio", () => ({
@@ -52,6 +56,7 @@ function setup(scene?: SceneId) {
   render(
     <StageFrame
       store={store}
+      scenes={NO_BROWSER}
       {...(scene ? { chooseScene: () => scene } : {})}
     />,
   );
