@@ -328,6 +328,16 @@ export const en = {
   "calibration.failed":
     "{name} couldn't hear the Stage: move closer or turn the sound up",
   "calibration.aPhone": "A Phone",
+  // The Phone's Calibrating takeover (#173).
+  "phoneCalibrating.label": "Calibrating",
+  "phoneCalibrating.title": "Calibrating",
+  "phoneCalibrating.listenHint":
+    "Hold your phone like a mic, then tap. The Stage plays a few short beeps.",
+  "phoneCalibrating.listen": "I'm listening",
+  "phoneCalibrating.ready": "Ready. Waiting for the others…",
+  "phoneCalibrating.holdStill": "Hold your phone still and stay quiet",
+  "phoneCalibrating.tones": "Listening to the beeps",
+  "phoneCalibrating.stayQuiet": "Please stay quiet and hold still",
   // The Mics screen (Setup › Mics) and Local mic names.
   "mics.group.thisBrowser": "This browser",
   "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
