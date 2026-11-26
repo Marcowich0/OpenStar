@@ -21,6 +21,7 @@ mod publish;
 mod resolve;
 mod scan;
 mod search;
+pub(crate) mod timing;
 
 pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;

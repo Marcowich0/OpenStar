@@ -80,6 +80,15 @@ export function songHighScoresQuery(id: SongId) {
   });
 }
 
+/**
+ * `GET /api/library/originals`: the Songs with an Original to restore. Its
+ * key starts with `songsKey`, so the `library` notice refreshes it.
+ */
+export const originalsQuery = queryOptions({
+  queryKey: [...songsKey, "originals"],
+  queryFn: ({ signal }) => api("GET /api/library/originals", { signal }),
+});
+
 /** `GET /api/library/problems`: every Library problem. */
 export const libraryProblemsQuery = queryOptions({
   queryKey: ["library", "problems"],

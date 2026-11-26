@@ -65,6 +65,9 @@ const handlers: CodeHandlers<UserMessage> = {
   usdbUnexpectedStatus: ({ params }) =>
     t("userMessage.usdbUnexpectedStatus", params),
   pitchTrackFailed: () => t("userMessage.pitchTrackFailed"),
+  songFileChanged: () => t("userMessage.songFileChanged"),
+  songPlaying: () => t("userMessage.songPlaying"),
+  noOriginal: () => t("userMessage.noOriginal"),
 };
 
 // A code the Rust side adds (here `queueFull`) fails until it is mapped.

@@ -109,9 +109,8 @@ enum Command {
     /// deleted, and one gone at a Rescan plays on until it ends or is
     /// skipped.
     SongsLeft { songs: Vec<(SongId, String)> },
-    /// Whether Song `song_id` plays on the Stage now (a Song delete is
-    /// refused then).
-    #[cfg_attr(not(test), expect(dead_code))]
+    /// Whether Song `song_id` plays on the Stage now (a Timing edit's save,
+    /// Restore Original and a Song delete are refused then).
     SongPlaying {
         song_id: SongId,
         reply: oneshot::Sender<bool>,
@@ -239,8 +238,8 @@ impl LiveHandle {
     }
 
     /// Whether Song `song_id` plays on the Stage now; false once the task
-    /// has stopped. The seam #190's Song delete asks.
-    #[cfg_attr(not(test), expect(dead_code))]
+    /// has stopped. A Timing edit's save and Restore Original ask, and
+    /// #190's Song delete.
     pub async fn song_playing(&self, song_id: SongId) -> bool {
         let (reply, answer) = oneshot::channel();
         if self

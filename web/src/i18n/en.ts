@@ -353,6 +353,8 @@ export const en = {
   "admin.songs.empty": "The Library has no playable Songs yet",
   "admin.songs.loading": "Loading the Songs…",
   "admin.songs.failed": "The Songs could not be loaded",
+  "admin.songs.restoreOriginal": "Restore Original",
+  "admin.songs.restoreOriginal.failed": "The Original could not be restored",
   "admin.libraryProblems.intro":
     "Why a file does not show up as a Song. Rejected files are hidden from Players; Songs with warnings still play.",
   "admin.libraryProblems.rescan": "Rescan",
@@ -455,6 +457,10 @@ export const en = {
   "userMessage.usdbUnexpectedStatus":
     "USDB answered with HTTP {status, number}",
   "userMessage.pitchTrackFailed": "Couldn't listen to this Song",
+  "userMessage.songFileChanged":
+    "This Song's file changed on disk since it was opened. Open it again and redo the edit",
+  "userMessage.songPlaying": "This Song is playing on the Stage now",
+  "userMessage.noOriginal": "This Song has no Original to restore",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",
