@@ -259,6 +259,27 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             usdb::http::status,
         )
+        // The USDB mirror: its status, an update when the Downloads section
+        // opens, and a full refetch by hand. The mirror is a copy of USDB,
+        // not kept data, so dropping songs USDB no longer has is not guarded.
+        .add(
+            Method::GET,
+            "/api/usdb/mirror",
+            NotGuarded,
+            usdb::http::mirror,
+        )
+        .add(
+            Method::POST,
+            "/api/usdb/mirror/refresh",
+            NotGuarded,
+            usdb::http::refresh_mirror,
+        )
+        .add(
+            Method::POST,
+            "/api/usdb/mirror/refetch",
+            NotGuarded,
+            usdb::http::refetch_mirror,
+        )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage: the handler refuses a browser without Stage trust
         // (`stage_trust`), which is not an Unlock.
