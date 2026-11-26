@@ -534,8 +534,9 @@ pub struct Request {
     /// The Party members asked to sing it, in order; at most [`SEATS`], no
     /// member twice, possibly none.
     pub requested_players: Vec<PartyMemberId>,
-    /// The Party member who added it, or `null` when the Stage added it or
-    /// that member has left the Party.
+    /// The Party member who added it, or `null` when the Stage added it. A
+    /// member who left stays named here (no longer in `members`: the
+    /// Remotes then show no adder), and no new member takes that id.
     pub adder: Option<PartyMemberId>,
 }
 

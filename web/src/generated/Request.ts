@@ -14,7 +14,8 @@ export type Request = { requestId: RequestId, kind: RequestKind, songId: SongId,
  */
 requestedPlayers: Array<PartyMemberId>, 
 /**
- * The Party member who added it, or `null` when the Stage added it or
- * that member has left the Party.
+ * The Party member who added it, or `null` when the Stage added it. A
+ * member who left stays named here (no longer in `members`: the
+ * Remotes then show no adder), and no new member takes that id.
  */
 adder: PartyMemberId | null, };

@@ -93,6 +93,14 @@ describe("the Queue overlay", () => {
     expect(all[3]).toHaveTextContent("Kim · added by Kim");
   });
 
+  it("names no adder for a Request whose adder left the Party", () => {
+    openQueue(party({ queue: [request(15, 1, { adder: 9 })], head: 15 }));
+    const [only] = rows() as [HTMLElement];
+    expect(only).toHaveTextContent("Anyone");
+    expect(only).not.toHaveTextContent("from the Stage");
+    expect(only).not.toHaveTextContent("added by");
+  });
+
   it("rings the head in green and marks it up next", () => {
     openQueue();
     const [head, second] = rows() as [HTMLElement, HTMLElement];

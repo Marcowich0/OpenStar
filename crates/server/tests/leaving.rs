@@ -406,12 +406,13 @@ async fn a_singing_member_stays_and_a_leaving_member_drops_out_of_every_request(
     );
     heard_nothing(&mut stage).await;
 
-    // Ann leaves: Rosanna keeps Bo alone and no longer names Ann as adder.
+    // Ann leaves: Rosanna keeps Bo alone and still names Ann as adder (the
+    // Remotes show no adder for her, never "from the Stage").
     ann_phone.send(&ClientMessage::LeaveParty).await;
     assert_eq!(recv(&mut ann_phone).await, ServerMessage::LeftParty);
     let (party, _) = party_changed(&mut stage).await;
     assert_eq!(party.queue[1].requested_players, vec![bo_id]);
-    assert_eq!(party.queue[1].adder, None);
+    assert_eq!(party.queue[1].adder, Some(ann_id));
 
     // So it stays after a restart.
     drop((stage, bo_phone, ann_phone));
@@ -419,6 +420,6 @@ async fn a_singing_member_stays_and_a_leaving_member_drops_out_of_every_request(
     let mut socket = app.connect_ws().await;
     let party = live_party(&mut socket).await.unwrap();
     assert_eq!(party.queue[1].requested_players, vec![bo_id]);
-    assert_eq!(party.queue[1].adder, None);
+    assert_eq!(party.queue[1].adder, Some(ann_id));
     assert_eq!(colours(&party), vec![PaletteKey::Sky]);
 }

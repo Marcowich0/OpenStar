@@ -354,7 +354,7 @@ async fn deleting_a_profile_in_the_party_frees_its_colour_and_drops_it_from_the_
         .iter()
         .find(|r| r.request_id == bo_request)
         .unwrap();
-    assert_eq!(bo_req.adder, None);
+    assert_eq!(bo_req.adder, Some(bo_id));
     assert!(
         app.http()
             .get(app.url(&format!("/api/profiles/{}", bo.id.0)))
@@ -365,16 +365,13 @@ async fn deleting_a_profile_in_the_party_frees_its_colour_and_drops_it_from_the_
             == StatusCode::NOT_FOUND
     );
 
-    // Bo's Phone needs the Join code again.
+    // Bo's Phone needs the Join code again: it is told it left.
     sockets[2]
         .send(&ClientMessage::Hello {
             phone_id: phone_id(1),
         })
         .await;
-    assert_eq!(
-        recv(sockets[2]).await,
-        ServerMessage::PhoneStatus { member_id: None }
-    );
+    assert_eq!(recv(sockets[2]).await, ServerMessage::LeftParty);
 
     // Sky is free: a new Profile whose favourite is Sky gets it.
     let cy = create_profile(&app, "Cy", PaletteKey::Sky).await;
