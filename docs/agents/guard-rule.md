@@ -39,7 +39,7 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 - the USDB login status (`GET /api/usdb/status`);
 - a full USDB refetch started by hand;
 - cancelling a Download;
-- opening the desktop Timing editor on a Song, computing its Pitch track, and working in the editor up to saving;
+- opening the desktop Timing editor on a Song, computing its Pitch track (`POST /api/songs/{id}/pitch-track`, from a Phone too) and downloading it (`GET /api/songs/{id}/pitch-track`), and working in the editor up to saving;
 - Undo of a Phone's fit proposal, which writes nothing;
 - creating and editing Profiles;
 - checking a Join code and joining the Party (Join code plus identity), and a Phone's silent rejoin with its Phone id;
@@ -57,6 +57,6 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 - the job list (`GET /api/jobs`) and the job updates on the WebSocket;
 - storing a round's outcome and its Score records (`POST /api/rounds`), which adds kept data and deletes none.
 
-The test-only routes `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel` (mounted only by `Server::with_test_routes`) are not guarded: a test job runs a harmless child process and touches nothing kept. The test-only route `POST /api/test/library/new-song` publishes a new Song folder the way a Download does, so it is `Guarded(Library::Writes)`.
+The test-only routes `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel` (mounted only by `Server::with_test_routes`) are not guarded: a test job runs a harmless child process and touches nothing kept. The test-only route `POST /api/test/songs/{id}/pitch-track?timeoutMs=` is the Pitch track request with a short timeout, so it is not guarded either. The test-only route `POST /api/test/library/new-song` publishes a new Song folder the way a Download does, so it is `Guarded(Library::Writes)`.
 
 Source: the "What the Admin PIN guards" section of the area spec #45, decided in #34 and #37.

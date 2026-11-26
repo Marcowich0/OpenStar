@@ -189,6 +189,20 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
         .add(Method::GET, "/api/jobs", NotGuarded, jobs::http::list)
         .add(Method::GET, "/api/songs", NotGuarded, library::songs)
         .add(Method::GET, "/api/songs/{id}", NotGuarded, library::song)
+        // Computing and downloading a Pitch track change no file and delete
+        // no kept data: the Timing editor opens a Song without a PIN.
+        .add(
+            Method::POST,
+            "/api/songs/{id}/pitch-track",
+            NotGuarded,
+            library::pitch_track::request,
+        )
+        .add(
+            Method::GET,
+            "/api/songs/{id}/pitch-track",
+            NotGuarded,
+            library::pitch_track::download,
+        )
         .add(
             Method::GET,
             "/api/songs/{id}/high-scores",
@@ -293,6 +307,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
                 "/api/test/jobs",
                 NotGuarded,
                 jobs::http::enqueue_test,
+            )
+            // A Pitch track request with a short timeout, for its timeout path.
+            .add(
+                Method::POST,
+                "/api/test/songs/{id}/pitch-track",
+                NotGuarded,
+                library::pitch_track::request_test,
             )
             .add(
                 Method::POST,

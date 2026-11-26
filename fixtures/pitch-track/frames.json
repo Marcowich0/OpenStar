@@ -1,0 +1,11 @@
+{
+  "description": "Pitch track frames as the server stores and serves them: per 10 ms frame, little-endian f32 pitch (Hz, 0 = unvoiced), clarity, RMS envelope. The Rust writer must produce `bytes` (hex) from `frames`; the TypeScript reader must decode `bytes` back into `frames` (compared as f32).",
+  "frameSeconds": 0.01,
+  "frames": [
+    [220.0, 0.9, 0.125],
+    [0.0, 0.0, 0.001],
+    [440.5, 0.75, 0.25],
+    [87.31, 0.62, 0.0625]
+  ],
+  "bytes": "00005c436666663f0000003e00000000000000006f12833a0040dc430000403f0000803eb89eae4252b81e3f0000803d"
+}

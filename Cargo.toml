@@ -24,6 +24,7 @@ unsafe_code = "forbid"
 [workspace.dependencies]
 openstar = { path = "crates/server" }
 openstar-protocol = { path = "crates/protocol" }
+openstar-detector = { path = "crates/detector" }
 openstar-test-harness = { path = "crates/test-harness" }
 anyhow = "=1.0.105"
 axum = { version = "=0.8.9", features = ["ws"] }

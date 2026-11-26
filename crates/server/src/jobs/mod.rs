@@ -94,6 +94,7 @@ pub enum JobParams {
     Test(TestJob),
     Conversion(crate::library::Conversion),
     Loudness(crate::library::Measurement),
+    PitchTrack(crate::library::PitchTrackJob),
 }
 
 impl JobParams {
@@ -102,6 +103,7 @@ impl JobParams {
             Self::Test(_) => JobKind::Test,
             Self::Conversion(_) => JobKind::Conversion,
             Self::Loudness(_) => JobKind::Loudness,
+            Self::PitchTrack(_) => JobKind::PitchTrack,
         }
     }
 
@@ -109,6 +111,7 @@ impl JobParams {
         match self {
             Self::Test(job) => job.lane,
             Self::Conversion(_) | Self::Loudness(_) => Lane::Ffmpeg,
+            Self::PitchTrack(_) => Lane::PitchTrack,
         }
     }
 
@@ -120,6 +123,9 @@ impl JobParams {
             Self::Conversion(_) => AfterRestart::StartAgain,
             // It picks its file again when it starts.
             Self::Loudness(_) => AfterRestart::StartAgain,
+            // It overwrites what an interrupted run left, and finds the
+            // track cached when an earlier job already wrote it.
+            Self::PitchTrack(_) => AfterRestart::StartAgain,
         }
     }
 
@@ -128,6 +134,7 @@ impl JobParams {
             Self::Test(job) => job.run(ctx).await,
             Self::Conversion(job) => job.run(ctx).await,
             Self::Loudness(job) => job.run(ctx).await,
+            Self::PitchTrack(job) => job.run(ctx).await,
         }
     }
 }
@@ -172,6 +179,16 @@ impl Progress {
             id: self.id,
             percent,
         });
+    }
+
+    /// Another reporter for the same job, owned, for work the job hands to
+    /// a thread of its own (the Pitch track's detector).
+    pub(crate) fn detached(&self) -> Self {
+        Self {
+            id: self.id,
+            commands: self.commands.clone(),
+            last: AtomicU8::new(self.last.load(Ordering::Relaxed)),
+        }
     }
 }
 

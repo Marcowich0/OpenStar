@@ -25,6 +25,9 @@ pub enum JobKind {
     /// Measures a Song's loudness (EBU R128 integrated, in LUFS) over its
     /// original audio file.
     Loudness,
+    /// Computes a Song's Pitch track over its original audio file, one at a
+    /// time at low priority, for Auto-fit and the Timing editor.
+    PitchTrack,
 }
 
 /// Where a job stands.

@@ -1098,6 +1098,7 @@ dependencies = [
  "icu_normalizer",
  "insta",
  "mime_guess",
+ "openstar-detector",
  "openstar-protocol",
  "openstar-test-harness",
  "proptest",
