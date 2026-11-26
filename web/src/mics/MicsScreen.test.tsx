@@ -172,6 +172,15 @@ describe("the Mics screen", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers Add a Mic bridge after the groups", () => {
+    setup();
+    expect(
+      within(openMicsScreen()).getByRole("button", {
+        name: "Add a Mic bridge",
+      }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("shows a new channel switched off and a kept one as kept, with its stored name", () => {
     setup({
       kept: [
