@@ -28,6 +28,13 @@ export interface StageTrust {
   whenTrusted: () => Promise<void>;
   /** One Admin PIN attempt; the pad's `check`. Rejects with `ApiFailure`. */
   giveAdminPin: (pin: string) => Promise<void>;
+  /**
+   * Asks the server, without a PIN, whether this browser is a remembered
+   * Stage browser: `null` when the server cannot be reached. Unlike
+   * `whenTrusted` it never shows the pad (Stage moved here asks first and
+   * shows the pad only after the hold).
+   */
+  isRemembered: () => Promise<boolean | null>;
 }
 
 export function createStageTrust(): StageTrust {
@@ -77,6 +84,20 @@ export function createStageTrust(): StageTrust {
     async giveAdminPin(pin) {
       await api("POST /api/stage/trust", { body: { pin } });
       trusted();
+    },
+    async isRemembered() {
+      try {
+        await api("POST /api/stage/trust", { body: {} });
+        return true;
+      } catch (error) {
+        if (
+          error instanceof ApiFailure &&
+          error.failure.kind === "refused" &&
+          error.failure.error.code === "stagePinRequired"
+        )
+          return false;
+        return null;
+      }
     },
   };
 }
