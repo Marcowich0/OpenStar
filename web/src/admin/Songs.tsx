@@ -2,7 +2,8 @@
 // title, artist) with a search box over artist and title, on the Library
 // index's search (`GET /api/songs?search=`). It refreshes from the `library`
 // change notice, like every Song list. Each row is where the Song's admin
-// actions attach: Restore Original (#188, on a Song with an Original), Delete (#190), the Timing editor
+// actions attach: Restore Original (#188, on a Song with an Original), Delete (#190,
+// press and hold, to the trash), the Timing editor
 // (#218) and Fit to the singing (#223), passed as the row's `children`. The
 // editor's link shows only with a fine pointer and room for it
 // (`useFullTimingEditor`); any other browser gets Fit to the singing instead.
@@ -18,6 +19,7 @@ import { t } from "../i18n/t";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
+import { DeleteSong } from "./DeleteSong";
 import { RestoreOriginal } from "./RestoreOriginal";
 import { PhoneAutoFit } from "./timing/PhoneAutoFit";
 import { TimingEditorLink } from "./timing/TimingEditorLink";
@@ -77,6 +79,7 @@ export function Songs() {
                   <AdminSongRow key={song.id} song={song}>
                     <TimingEditorLink song={song} />
                     {restore}
+                    <DeleteSong song={song} />
                   </AdminSongRow>
                 ) : (
                   <PhoneAutoFit key={song.id} song={song}>
@@ -84,6 +87,7 @@ export function Songs() {
                       <AdminSongRow song={song} below={details}>
                         {control}
                         {restore}
+                        <DeleteSong song={song} />
                       </AdminSongRow>
                     )}
                   </PhoneAutoFit>

@@ -90,6 +90,8 @@ export interface Endpoints {
   };
   "POST /api/songs/{id}/timing": { body: TimingSave; response: TimingPreview };
   "POST /api/songs/{id}/restore-original": { response: TxtVersion };
+  /** Guarded, writes the Library: moves the Song's folder to the trash; `204`. */
+  "DELETE /api/songs/{id}": { response: null };
   "GET /api/library/originals": { response: SongId[] };
   "GET /api/library/problems": { response: LibraryProblem[] };
   "GET /api/library/scan": { response: ScanStatus };
@@ -247,6 +249,8 @@ const REFUSAL_CODES = {
   songFileChanged: true,
   songPlaying: true,
   noOriginal: true,
+  songFolderShared: true,
+  songInLibraryRoot: true,
   notWhileSongPlays: true,
   avSyncNotRunning: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
