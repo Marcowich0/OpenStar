@@ -459,6 +459,14 @@ fn every_client_message() -> Vec<ClientMessage> {
         },
         ClientMessage::BridgeLevels { levels: vec![] },
         ClientMessage::BridgeInputDelays { delays: vec![] },
+        ClientMessage::BridgeInterfaces {
+            interfaces: vec![],
+            not_pro_audio: vec![],
+        },
+        ClientMessage::SwitchBridgeToProAudio {
+            bridge_id: openstar_protocol::bridge::BridgeId("b".into()),
+            device_name: "alsa_card.usb-X-00".into(),
+        },
     ]
 }
 

@@ -4,7 +4,10 @@
 // Local mic of this browser whose id is not present as "<name> · not found"
 // with Find it), then each approved Mic bridge in order of approval (open or
 // closed, with its channels and their editable names, and while open a live
-// meter per channel fed by the levels the bridge sends, its kept Local mics
+// meter per channel fed by the levels the bridge sends, ahead of everything
+// else in it the profile message of each interface it sees that is not in
+// Pro Audio with Switch to Pro Audio (or, once refused, the `pactl` line to
+// copy), its kept Local mics
 // it no longer offers as "not found" with Find it, the twins note and "use
 // one or the other"; loopback channels last), then New bridges
 // waiting for approval with their code and Approve, then Add a Mic bridge
@@ -21,6 +24,7 @@ import { useEffect, useRef, useState } from "react";
 import type { BridgeRequest } from "../generated/BridgeRequest";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridge } from "../generated/MicBridge";
+import type { NotProAudio } from "../generated/NotProAudio";
 import { t } from "../i18n/t";
 import { AddMicBridge } from "./AddMicBridge";
 import { ForgetBridge } from "./ForgetBridge";
@@ -273,11 +277,65 @@ function ChannelRow({
   );
 }
 
+/** The command that sets a card to Pro Audio by hand (not for translation). */
+const pactlLine = (cardName: string) =>
+  `pactl set-card-profile ${cardName} pro-audio`;
+
+/**
+ * An interface of an open bridge not in Pro Audio: the profile message and
+ * Switch to Pro Audio, or after a refused switch the sound settings and
+ * the exact `pactl` line to copy. A setup step, so it comes first.
+ */
+function ProfileMessage({
+  card,
+  onSwitch,
+}: {
+  card: NotProAudio;
+  onSwitch: () => void;
+}) {
+  const { label, profile } = card;
+  return (
+    <div
+      className="flex flex-col gap-4 rounded-card bg-white px-8 py-6"
+      data-testid="mics-not-pro-audio"
+    >
+      <p role="alert" className="text-2xl font-semibold">
+        {profile === ""
+          ? t("mics.bridge.notProAudioNoProfile", { label })
+          : t("mics.bridge.notProAudio", { label, profile })}
+      </p>
+      {card.switchRefused ? (
+        <>
+          <p className="text-2xl text-ink-2">
+            {t("mics.bridge.switchRefused")}
+          </p>
+          <code
+            aria-label={t("mics.bridge.pactlLine", { label })}
+            className="block select-all overflow-x-auto rounded-card-sm bg-ink px-5 py-4 font-mono text-2xl whitespace-nowrap text-cream"
+          >
+            {pactlLine(card.cardName)}
+          </code>
+        </>
+      ) : (
+        <button
+          type="button"
+          aria-label={t("mics.bridge.switchInterfaceToProAudio", { label })}
+          onClick={onSwitch}
+          className="inline-flex min-h-14 cursor-pointer items-center justify-center self-start rounded-full bg-green px-10 text-2xl font-bold text-white shadow-ledge-green transition"
+        >
+          {t("mics.bridge.switchToProAudio")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** An approved bridge's group: open or closed, with its channels. */
 function BridgeGroup({
   bridge,
   kept,
   browserDevices,
+  onSwitchProfile,
   onSwitch,
   onRename,
   onRelink,
@@ -288,6 +346,8 @@ function BridgeGroup({
   kept: readonly LocalMic[];
   /** This browser's input devices, for "use one or the other". */
   browserDevices: readonly BrowserDevice[];
+  /** Switch to Pro Audio for one of its interfaces. */
+  onSwitchProfile: (deviceName: string) => void;
   onSwitch: (channel: LocalMicChannel, on: boolean) => void;
   onRename: (channel: LocalMicChannel, name: string) => void;
   onRelink: (localMicId: string, channel: LocalMicChannel) => void;
@@ -317,6 +377,15 @@ function BridgeGroup({
           {bridge.open ? t("mics.bridge.open") : t("mics.bridge.closed")}
         </p>
       </div>
+      {(bridge.notProAudio ?? []).map((card) => (
+        <ProfileMessage
+          key={card.deviceName}
+          card={card}
+          onSwitch={() => {
+            onSwitchProfile(card.deviceName);
+          }}
+        />
+      ))}
       <ForgetBridge bridge={bridge} />
       {notes.sameInterface && (
         <p className="text-2xl text-ink-2">{t("mics.bridge.sameInterface")}</p>
@@ -480,6 +549,7 @@ export function MicsScreen() {
     setSwitchedOn,
     bridges,
     approveBridge,
+    switchBridgeToProAudio,
     match,
     rename,
     relink,
@@ -580,6 +650,9 @@ export function MicsScreen() {
           bridge={bridge}
           kept={kept}
           browserDevices={snapshot.devices}
+          onSwitchProfile={(deviceName) => {
+            switchBridgeToProAudio(bridge.bridgeId, deviceName);
+          }}
           onSwitch={setSwitchedOn}
           onRename={rename}
           onRelink={relink}

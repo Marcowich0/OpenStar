@@ -10,7 +10,10 @@
 //! are seated in the Song that plays ([`detecting`]), Pitch readings that
 //! [`sender`] stamps on the Stage's clock. In the window it reads every
 //! interface in the Pro Audio profile ([`pulse`], [`discovery`]) with one
-//! PipeWire stream each ([`capture`]). It always runs its server's exact
+//! PipeWire stream each ([`capture`]), reads them again every 2 s so a
+//! profile change or a plugged interface is noticed by itself, and switches
+//! an interface to Pro Audio only when Switch to Pro Audio is pressed
+//! ([`watch`]). It always runs its server's exact
 //! build, replacing itself when the two differ ([`update`]).
 
 pub mod capture;
@@ -23,6 +26,7 @@ pub mod levels;
 pub mod pulse;
 pub mod sender;
 pub mod update;
+pub mod watch;
 pub mod wav;
 pub mod window;
 

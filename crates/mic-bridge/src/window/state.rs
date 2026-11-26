@@ -1,12 +1,14 @@
 //! What the window shows, kept from the connection loop's [`Event`]s: the
-//! server address, the status, and one row per interface and channel with
-//! its name, whether it is on, and its level while its interface is open.
+//! server address, the status, the profile message of every interface not
+//! in Pro Audio (ahead of everything else), and one row per interface and
+//! channel with its name, whether it is on, and its level while its
+//! interface is open.
 //! Pure, so every state the window can be in is built in tests.
 
 use std::collections::HashMap;
 
 use openstar_protocol::ServerMessage;
-use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInterface};
+use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInterface, NotProAudio};
 
 use crate::client::{Event, default_name};
 use crate::update::Mismatch;
@@ -54,6 +56,7 @@ pub struct WindowState {
     server: String,
     status: Status,
     interfaces: Vec<BridgeInterface>,
+    not_pro_audio: Vec<NotProAudio>,
     settings: Vec<BridgeChannelSettings>,
     levels: HashMap<String, Vec<f64>>,
 }
@@ -65,6 +68,7 @@ impl WindowState {
             server: server.into(),
             status: Status::Connecting { problem: None },
             interfaces,
+            not_pro_audio: Vec::new(),
             settings: Vec::new(),
             levels: HashMap::new(),
         }
@@ -84,6 +88,12 @@ impl WindowState {
 
     pub fn status(&self) -> &Status {
         &self.status
+    }
+
+    /// The interfaces not in Pro Audio, each a profile message with Switch
+    /// to Pro Audio (or, once refused, the `pactl` line).
+    pub fn not_pro_audio(&self) -> &[NotProAudio] {
+        &self.not_pro_audio
     }
 
     /// Takes in what the connection loop did.
@@ -115,6 +125,15 @@ impl WindowState {
             Event::BuildMismatch(mismatch) => {
                 self.status = Status::BuildMismatch(mismatch.clone());
                 self.levels.clear();
+            }
+            Event::Offered {
+                interfaces,
+                not_pro_audio,
+            } => {
+                interfaces.clone_into(&mut self.interfaces);
+                not_pro_audio.clone_into(&mut self.not_pro_audio);
+                self.levels
+                    .retain(|device, _| interfaces.iter().any(|i| &i.device_name == device));
             }
             Event::InterfaceOpen { device_name, open } => {
                 if open {
@@ -323,6 +342,44 @@ mod tests {
         );
         state.apply(Event::Disconnected);
         assert_eq!(state.status(), &Status::Connecting { problem: None });
+    }
+
+    #[test]
+    fn what_is_offered_replaces_the_rows_and_names_each_interface_not_in_pro_audio() {
+        let mut state = scarlett();
+        state.apply(Event::InterfaceOpen {
+            device_name: DEVICE,
+            open: true,
+        });
+        let surround = NotProAudio {
+            device_name: DEVICE.into(),
+            card_name: DEVICE.into(),
+            label: "Scarlett 4i4".into(),
+            profile: "Analog Surround 2.1".into(),
+            switch_refused: false,
+        };
+        // Switched away from Pro Audio: no rows, one profile message.
+        state.apply(Event::Offered {
+            interfaces: &[],
+            not_pro_audio: std::slice::from_ref(&surround),
+        });
+        assert_eq!(state.interfaces(), vec![]);
+        assert_eq!(state.not_pro_audio(), std::slice::from_ref(&surround));
+        // Back in Pro Audio: its rows again, closed until reopened.
+        let interface = BridgeInterface {
+            device_name: DEVICE.into(),
+            label: "Scarlett 4i4".into(),
+            channels: 2,
+            usb_id: None,
+            twin: false,
+        };
+        state.apply(Event::Offered {
+            interfaces: std::slice::from_ref(&interface),
+            not_pro_audio: &[],
+        });
+        assert_eq!(state.not_pro_audio(), &[]);
+        assert!(!state.interfaces()[0].open);
+        assert_eq!(rows(&state)[1].0, "Scarlett 4i4 · Input 2");
     }
 
     #[test]

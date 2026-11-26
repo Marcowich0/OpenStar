@@ -1,14 +1,26 @@
 //! How the window draws a [`WindowState`]: a light Bubble Pop look (cream
 //! page, ink text, white rounded cards, coloured pills; the colours are the
-//! Stage's tokens from `web/src/theme/tokens.css`). It only shows: there
-//! is nothing to click, because switching channels on, naming them and
-//! their Mic thresholds belong to the Stage.
+//! Stage's tokens from `web/src/theme/tokens.css`). It mostly only shows,
+//! because switching channels on, naming them and their Mic thresholds
+//! belong to the Stage. The one exception is an interface not in Pro Audio:
+//! its profile message, ahead of everything else, has **Switch to Pro
+//! Audio**, and once a switch was refused, the `pactl` line with **Copy**.
 
 use egui::{
     Align, Color32, CornerRadius, Frame, Layout, Margin, RichText, Sense, Stroke, Ui, vec2,
 };
 
+use openstar_protocol::bridge::{NotProAudio, pactl_line};
+
 use super::state::{ChannelRow, InterfaceRows, Status, WindowState};
+use crate::client::{SWITCH_REFUSED, profile_message};
+
+/// A press the window reports.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Pressed {
+    /// Switch to Pro Audio, for the interface with this `device_name`.
+    SwitchToProAudio(String),
+}
 
 /// The window's size in points, also the size of its snapshots.
 pub const WINDOW_SIZE: [f32; 2] = [480.0, 420.0];
@@ -44,8 +56,9 @@ pub fn set_style(ctx: &egui::Context) {
     });
 }
 
-/// Draws the whole window into `ui`.
-pub fn show(ui: &mut Ui, state: &WindowState) {
+/// Draws the whole window into `ui`; what was pressed, if anything.
+pub fn show(ui: &mut Ui, state: &WindowState) -> Option<Pressed> {
+    let mut pressed = None;
     let ctx = ui.ctx().clone();
     ctx.layer_painter(egui::LayerId::background()).rect_filled(
         ctx.content_rect(),
@@ -72,8 +85,12 @@ pub fn show(ui: &mut Ui, state: &WindowState) {
             egui::ScrollArea::vertical()
                 .auto_shrink(false)
                 .show(ui, |ui| {
+                    // A setup step: ahead of everything else.
+                    for card in state.not_pro_audio() {
+                        pressed = pressed.take().or(profile_card(ui, card));
+                    }
                     let interfaces = state.interfaces();
-                    if interfaces.is_empty() {
+                    if interfaces.is_empty() && state.not_pro_audio().is_empty() {
                         ui.label(
                             RichText::new("No audio interface found")
                                 .size(15.0)
@@ -85,6 +102,70 @@ pub fn show(ui: &mut Ui, state: &WindowState) {
                     }
                 });
         });
+    pressed
+}
+
+/// An interface not in Pro Audio: its profile message, then Switch to Pro
+/// Audio, or once that was refused the sound settings and the `pactl` line.
+fn profile_card(ui: &mut Ui, card_info: &NotProAudio) -> Option<Pressed> {
+    let mut pressed = None;
+    card(WARN_BG).show(ui, |ui| {
+        ui.set_width(ui.available_width());
+        ui.label(
+            RichText::new(profile_message(card_info))
+                .size(16.0)
+                .strong()
+                .color(WARN_FG),
+        );
+        if card_info.switch_refused {
+            ui.label(RichText::new(SWITCH_REFUSED).size(14.0).color(INK_2));
+            let line = pactl_line(&card_info.card_name);
+            ui.horizontal(|ui| {
+                let copy =
+                    egui::Button::new(RichText::new("Copy").size(14.0).strong().color(WHITE))
+                        .fill(INK)
+                        .corner_radius(CornerRadius::same(12));
+                // Right to left, so the line takes what the button leaves.
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    if ui.add(copy).clicked() {
+                        ui.ctx().copy_text(line.clone());
+                    }
+                    Frame::new()
+                        .fill(WHITE)
+                        .stroke(Stroke::new(1.5, LEDGE))
+                        .corner_radius(CornerRadius::same(10))
+                        .inner_margin(Margin::symmetric(10, 6))
+                        .show(ui, |ui| {
+                            ui.set_width(ui.available_width());
+                            ui.with_layout(Layout::top_down(Align::Min), |ui| {
+                                ui.add(
+                                    egui::Label::new(
+                                        RichText::new(&line).monospace().size(12.0).color(INK),
+                                    )
+                                    .wrap(),
+                                );
+                            });
+                        });
+                });
+            });
+        } else {
+            let switch = egui::Button::new(
+                RichText::new("Switch to Pro Audio")
+                    .size(15.0)
+                    .strong()
+                    .color(WHITE),
+            )
+            .fill(GREEN)
+            .stroke(Stroke::new(1.5, GREEN_LEDGE))
+            .corner_radius(CornerRadius::same(14))
+            .min_size(vec2(0.0, 32.0));
+            if ui.add(switch).clicked() {
+                pressed = Some(Pressed::SwitchToProAudio(card_info.device_name.clone()));
+            }
+        }
+    });
+    ui.add_space(4.0);
+    pressed
 }
 
 fn card(fill: Color32) -> Frame {

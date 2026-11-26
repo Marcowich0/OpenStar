@@ -25,7 +25,9 @@ use crate::sender::MonotonicClock;
 use crate::update::{self, Mismatch, Plan, SelfFile};
 use anyhow::Context as _;
 use futures_util::{SinkExt as _, StreamExt as _};
-use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInputDelay, BridgeInterface};
+use openstar_protocol::bridge::{
+    BridgeChannelSettings, BridgeInputDelay, BridgeInterface, NotProAudio, pactl_line,
+};
 use openstar_protocol::{ClientMessage, ServerMessage};
 use tokio_tungstenite::tungstenite::Message;
 
@@ -55,6 +57,42 @@ pub fn default_name(interface: &BridgeInterface, channel: u32) -> String {
     }
 }
 
+/// The profile message of an interface not in Pro Audio: "Scarlett 4i4 is
+/// in Analog Surround 2.1: only some inputs reach OpenStar" (the Stage says
+/// the same with `t()`).
+pub fn profile_message(card: &NotProAudio) -> String {
+    let label = &card.label;
+    if card.profile.is_empty() {
+        format!("{label} is not in Pro Audio: only some inputs reach OpenStar")
+    } else {
+        format!(
+            "{label} is in {}: only some inputs reach OpenStar",
+            card.profile
+        )
+    }
+}
+
+/// What a refused switch says instead of the button, with [`pactl_line`].
+pub const SWITCH_REFUSED: &str = "Set its profile to Pro Audio in your sound settings, or run:";
+
+/// The status lines headless prints about the profile messages.
+fn profile_lines(not_pro_audio: &[NotProAudio]) -> Vec<String> {
+    not_pro_audio
+        .iter()
+        .map(|card| {
+            if card.switch_refused {
+                format!(
+                    "{} {SWITCH_REFUSED} {}",
+                    profile_message(card),
+                    pactl_line(&card.card_name)
+                )
+            } else {
+                profile_message(card)
+            }
+        })
+        .collect()
+}
+
 /// What the bridge does about one message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Effect {
@@ -65,6 +103,7 @@ pub enum Effect {
 }
 
 /// The joining state of one connection.
+#[derive(Clone)]
 pub struct Joining {
     interfaces: Vec<BridgeInterface>,
     build: String,
@@ -76,6 +115,11 @@ impl Joining {
             interfaces,
             build: crate::BUILD_ID.to_owned(),
         }
+    }
+
+    /// What the bridge offers now.
+    pub fn set_interfaces(&mut self, interfaces: Vec<BridgeInterface>) {
+        self.interfaces = interfaces;
     }
 
     /// Says hello as `build` (the bridge's own, see [`SelfFile::build`]).
@@ -174,6 +218,12 @@ pub enum Event<'a> {
     /// The server is of another build and the bridge cannot replace its
     /// own file: it does not connect.
     BuildMismatch(&'a Mismatch),
+    /// What the bridge sees changed: the interfaces it offers and those not
+    /// in Pro Audio (each a profile message).
+    Offered {
+        interfaces: &'a [BridgeInterface],
+        not_pro_audio: &'a [NotProAudio],
+    },
     /// An interface was opened or closed.
     InterfaceOpen { device_name: &'a str, open: bool },
     /// The level of each channel of an open interface (index = hardware
@@ -220,6 +270,108 @@ pub trait Input: Send {
     }
     /// The interface is no longer needed.
     fn close(&mut self) {}
+    /// What tells this input from another for the same interface: an
+    /// input that comes back with the same identity is kept as it is (its
+    /// stream stays open), any other is replaced.
+    fn identity(&self) -> String {
+        format!("{:?}", self.interface())
+    }
+}
+
+/// What the bridge offers, as it changes.
+pub struct Offered {
+    pub inputs: Vec<Box<dyn Input>>,
+    /// The interfaces it sees that are not in Pro Audio.
+    pub not_pro_audio: Vec<NotProAudio>,
+}
+
+/// Where the bridge's inputs come from: a fixed list (`--wav`) or the
+/// sound server, watched ([`crate::watch`]).
+pub trait Offer: Send {
+    /// What is offered, if it changed since the last call (the first call
+    /// always answers). Called about every [`CAPTURE_INTERVAL`]; must not
+    /// block.
+    fn changed(&mut self) -> Option<Offered>;
+    /// Switch to Pro Audio was pressed on the Stage for `device_name`.
+    fn switch_to_pro_audio(&mut self, _device_name: &str) {}
+}
+
+/// A fixed list of inputs, offered once.
+struct Fixed(Option<Vec<Box<dyn Input>>>);
+
+impl Offer for Fixed {
+    fn changed(&mut self) -> Option<Offered> {
+        Some(Offered {
+            inputs: self.0.take()?,
+            not_pro_audio: Vec::new(),
+        })
+    }
+}
+
+/// One offered input, with the frames it captured since the last levels
+/// while it is open (`None` while closed).
+type Entry = (Box<dyn Input>, Option<Vec<f32>>);
+
+/// The inputs offered now.
+#[derive(Default)]
+struct Inputs {
+    entries: Vec<Entry>,
+    not_pro_audio: Vec<NotProAudio>,
+}
+
+impl Inputs {
+    fn interfaces(&self) -> Vec<BridgeInterface> {
+        self.entries
+            .iter()
+            .map(|(input, _)| input.interface().clone())
+            .collect()
+    }
+
+    /// What the server is told the bridge sees.
+    fn message(&self) -> ClientMessage {
+        ClientMessage::BridgeInterfaces {
+            interfaces: self.interfaces(),
+            not_pro_audio: self.not_pro_audio.clone(),
+        }
+    }
+
+    /// Takes `offered` in: an input of the same identity as one offered
+    /// before is kept (open or not); the others are new and closed. Returns
+    /// the device names of open inputs that went, now closed.
+    fn replace(&mut self, offered: Offered) -> Vec<String> {
+        let mut old: Vec<Option<Entry>> = std::mem::take(&mut self.entries)
+            .into_iter()
+            .map(Some)
+            .collect();
+        for input in offered.inputs {
+            let identity = input.identity();
+            let kept = old
+                .iter_mut()
+                .find(|entry| {
+                    entry
+                        .as_ref()
+                        .is_some_and(|(o, _)| o.identity() == identity)
+                })
+                .and_then(Option::take);
+            self.entries.push(kept.unwrap_or((input, None)));
+        }
+        self.not_pro_audio = offered.not_pro_audio;
+        old.into_iter()
+            .flatten()
+            .filter_map(|(mut input, stream)| {
+                input.close();
+                stream.map(|_| input.interface().device_name.clone())
+            })
+            .collect()
+    }
+
+    /// Every input is closed (not connected).
+    fn close_all(&mut self) {
+        for (input, stream) in &mut self.entries {
+            input.close();
+            *stream = None;
+        }
+    }
 }
 
 /// What to tell the server about `input`'s input delays when it opens:
@@ -258,15 +410,26 @@ pub async fn run(config: ConfigDir, inputs: Vec<Box<dyn Input>>) -> anyhow::Resu
 /// [`run`], telling `report` what happens.
 pub async fn run_reporting(
     config: ConfigDir,
-    mut inputs: Vec<Box<dyn Input>>,
+    inputs: Vec<Box<dyn Input>>,
+    report: &mut dyn Report,
+) -> anyhow::Result<Ended> {
+    run_offered(config, Box::new(Fixed(Some(inputs))), report).await
+}
+
+/// [`run_reporting`] with inputs that change as `offer` says (a profile
+/// changed, an interface came or went), telling the server each time.
+pub async fn run_offered(
+    config: ConfigDir,
+    mut offer: Box<dyn Offer>,
     report: &mut dyn Report,
 ) -> anyhow::Result<Ended> {
     let server = config.server()?;
     let url = bridge_socket_url(&server)?;
-    let interfaces = inputs.iter().map(|i| i.interface().clone()).collect();
     let me = SelfFile::current()?;
     let build = me.build();
-    let joining = Joining::new(interfaces).with_build(build.clone());
+    let mut inputs = Inputs::default();
+    let mut joining = Joining::new(Vec::new()).with_build(build.clone());
+    take_offered(offer.as_mut(), &mut inputs, &mut joining, report);
     let host_name = host_name();
     let clock = MonotonicClock::new();
     let mut attempt = 0;
@@ -276,9 +439,10 @@ pub async fn run_reporting(
         let ran = session(
             &config,
             &url,
-            &joining,
+            &mut joining,
             &host_name,
             &mut inputs,
+            offer.as_mut(),
             &clock,
             report,
         )
@@ -328,12 +492,34 @@ pub async fn run_reporting(
             }
         }
         // Not connected, so nothing is needed.
-        for input in &mut inputs {
-            input.close();
-        }
+        inputs.close_all();
         tokio::time::sleep(RETRY[attempt.min(RETRY.len() - 1)]).await;
+        take_offered(offer.as_mut(), &mut inputs, &mut joining, report);
         attempt += 1;
     }
+}
+
+/// Takes in what `offer` offers now, if it changed: shown, and the device
+/// names of open inputs that went (closed now) returned. `None` when
+/// nothing changed.
+fn take_offered(
+    offer: &mut dyn Offer,
+    inputs: &mut Inputs,
+    joining: &mut Joining,
+    report: &mut dyn Report,
+) -> Option<Vec<String>> {
+    let offered = offer.changed()?;
+    let gone = inputs.replace(offered);
+    let interfaces = inputs.interfaces();
+    joining.set_interfaces(interfaces.clone());
+    report.event(Event::Offered {
+        interfaces: &interfaces,
+        not_pro_audio: &inputs.not_pro_audio,
+    });
+    for line in profile_lines(&inputs.not_pro_audio) {
+        report.line(&line);
+    }
+    Some(gone)
 }
 
 /// Sends one message on `socket`.
@@ -368,12 +554,14 @@ pub fn update_notice(text: &str) -> Option<String> {
 }
 
 /// One connection, until it ends.
+#[expect(clippy::too_many_arguments, reason = "one connection's whole context")]
 async fn session(
     config: &ConfigDir,
     url: &str,
-    joining: &Joining,
+    joining: &mut Joining,
     host_name: &str,
-    inputs: &mut [Box<dyn Input>],
+    inputs: &mut Inputs,
+    offer: &mut dyn Offer,
     clock: &MonotonicClock,
     report: &mut dyn Report,
 ) -> anyhow::Result<Session> {
@@ -381,12 +569,12 @@ async fn session(
         .await
         .with_context(|| format!("connecting to {url}"))?;
     send(&mut socket, &joining.hello(host_name, config.token())).await?;
+    // What it sees, profile messages included, right after the hello.
+    send(&mut socket, &inputs.message()).await?;
     let mut metering = Metering::default();
     // Fresh per connection: every Local mic syncs afresh.
     let mut detecting = Detecting::new();
     let mut connected = false;
-    // While an interface is open: the frames it gave since the last levels.
-    let mut streams: Vec<Option<Vec<f32>>> = vec![None; inputs.len()];
     let mut capture = tokio::time::interval(CAPTURE_INTERVAL);
     capture.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut tick = tokio::time::interval(LEVEL_INTERVAL);
@@ -408,6 +596,9 @@ async fn session(
                 };
                 match &message {
                     ServerMessage::BridgeConnected { .. } => connected = true,
+                    ServerMessage::BridgeSwitchProfile { device_name } => {
+                        offer.switch_to_pro_audio(device_name);
+                    }
                     ServerMessage::BridgeChannels { channels } => metering.set_channels(channels),
                     ServerMessage::BridgeMicsScreen { open } => metering.set_mics_screen_open(*open),
                     _ => {}
@@ -428,11 +619,19 @@ async fn session(
                 }
             }
             _ = capture.tick() => {
+                if let Some(gone) = take_offered(offer, inputs, joining, report) {
+                    for device_name in gone {
+                        report.event(Event::InterfaceOpen { device_name: &device_name, open: false });
+                        report.line(&format!("Interface {device_name}: closed"));
+                        detecting.closed(&device_name);
+                    }
+                    send(&mut socket, &inputs.message()).await?;
+                }
                 if !connected {
                     continue;
                 }
                 let mut out = Vec::new();
-                for (input, stream) in inputs.iter_mut().zip(&mut streams) {
+                for (input, stream) in &mut inputs.entries {
                     let interface = input.interface().clone();
                     let device_name = interface.device_name.as_str();
                     let open = metering.is_open(&interface) || detecting.wants(device_name);
@@ -467,7 +666,7 @@ async fn session(
                     continue;
                 }
                 let mut levels = Vec::new();
-                for (input, stream) in inputs.iter().zip(&mut streams) {
+                for (input, stream) in &mut inputs.entries {
                     // Nothing read since the last levels: no level yet.
                     let Some(frames) = stream.as_mut().filter(|frames| !frames.is_empty()) else {
                         continue;

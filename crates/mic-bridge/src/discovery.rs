@@ -6,8 +6,10 @@
 //!
 //! - Only a card in the **Pro Audio** profile is read, through its Pro
 //!   Audio source (`….pro-input-N`), whose `AUXn` is hardware channel *n*.
-//!   A card in another profile is offered nothing ([`Discovered::not_pro_audio`]
-//!   lists it for the profile message, #206).
+//!   A card in another profile is offered nothing, whichever it is (UCM
+//!   "Direct" and "HiFi" included, and a profile with Pro Audio for one
+//!   direction only); [`Discovered::not_pro_audio`] lists it for the
+//!   profile message.
 //! - Each interface is keyed on its card's `device.name`, which does not
 //!   change with the profile (the source's node name does), so a Local mic
 //!   keeps its id across a profile change. The source is mapped to its
@@ -18,7 +20,7 @@
 //!   adds to a repeated name in the order it found them, plus `@` and the
 //!   USB port path. Swapping their ports swaps their Local mics.
 
-use openstar_protocol::bridge::BridgeInterface;
+use openstar_protocol::bridge::{BridgeInterface, NotProAudio};
 
 /// What the sound server says about one card.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -38,6 +40,10 @@ pub struct Card {
     pub bus_path: Option<String>,
     /// The name of its active profile (`pro-audio` for Pro Audio).
     pub active_profile: Option<String>,
+    /// The card's name on the sound server (what `pactl` takes).
+    pub card_name: String,
+    /// Its active profile's description, for people.
+    pub profile_description: Option<String>,
 }
 
 /// What the sound server says about one source.
@@ -66,21 +72,13 @@ pub struct Found {
     pub latency_ms: Option<f64>,
 }
 
-/// A card that is not in Pro Audio, so nothing of it is offered.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NotProAudio {
-    pub device_name: String,
-    pub description: String,
-    /// Its active profile's name.
-    pub profile: Option<String>,
-}
-
 /// What discovery found.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Discovered {
     /// The interfaces offered, by key.
     pub interfaces: Vec<Found>,
-    /// Cards with an input that are in another profile (#206 shows them).
+    /// Cards with an input that are in another profile: the profile
+    /// message, each with Switch to Pro Audio.
     pub not_pro_audio: Vec<NotProAudio>,
 }
 
@@ -104,8 +102,10 @@ pub fn discover(cards: &[Card], sources: &[Source]) -> Discovered {
             if !inputs.is_empty() {
                 found.not_pro_audio.push(NotProAudio {
                     device_name: card.device_name.clone(),
-                    description: card.description.clone(),
-                    profile: card.active_profile.clone(),
+                    card_name: card.card_name.clone(),
+                    label: card.description.clone(),
+                    profile: profile_for_people(card),
+                    switch_refused: false,
                 });
             }
             continue;
@@ -139,6 +139,24 @@ pub fn discover(cards: &[Card], sources: &[Source]) -> Discovered {
         .interfaces
         .sort_by(|a, b| a.interface.device_name.cmp(&b.interface.device_name));
     found
+}
+
+/// The active profile's name for people: its description, with a
+/// matching "X Output + X Input" said once as "X" (so "Analog Surround
+/// 2.1"); else its name; else nothing.
+fn profile_for_people(card: &Card) -> String {
+    let Some(description) = &card.profile_description else {
+        return card.active_profile.clone().unwrap_or_default();
+    };
+    match description.split_once(" + ") {
+        Some((output, input)) => {
+            match (output.strip_suffix(" Output"), input.strip_suffix(" Input")) {
+                (Some(a), Some(b)) if a == b => a.to_owned(),
+                _ => description.clone(),
+            }
+        }
+        None => description.clone(),
+    }
 }
 
 /// `pro-input-N` when `node_name` is a Pro Audio source's, ignoring a
@@ -197,6 +215,8 @@ mod tests {
             serial: Some("Focusrite_Scarlett_4i4_4th_Gen_S4628DT4107338".into()),
             bus_path: Some("pci-0000:00:14.0-usb-0:3:1.0".into()),
             active_profile: Some(profile.into()),
+            card_name: format!("{SCARLETT}-card"),
+            profile_description: None,
         }
     }
 
@@ -209,6 +229,8 @@ mod tests {
             serial: Some("BEHRINGER_UMC404HD_192k".into()),
             bus_path: Some(format!("pci-0000:00:14.0-usb-0:{port}:1.0")),
             active_profile: Some(PRO_AUDIO.into()),
+            card_name: device_name.into(),
+            profile_description: Some("Pro Audio".into()),
         }
     }
 
@@ -264,11 +286,12 @@ mod tests {
 
     #[test]
     fn a_card_in_another_profile_offers_nothing_and_is_named_for_the_profile_message() {
+        let mut card = scarlett(42, "output:analog-surround-21+input:analog-surround-21");
+        card.profile_description =
+            Some("Analog Surround 2.1 Output + Analog Surround 2.1 Input".into());
+        card.description = "Scarlett 4i4".into();
         let found = discover(
-            &[scarlett(
-                42,
-                "output:analog-surround-21+input:analog-surround-21",
-            )],
+            &[card],
             &[source(
                 "alsa_input.usb-Focusrite-00.analog-surround-21",
                 42,
@@ -280,10 +303,76 @@ mod tests {
             found.not_pro_audio,
             vec![NotProAudio {
                 device_name: SCARLETT.into(),
-                description: "Scarlett 4i4 4th Gen".into(),
-                profile: Some("output:analog-surround-21+input:analog-surround-21".into()),
+                card_name: format!("{SCARLETT}-card"),
+                label: "Scarlett 4i4".into(),
+                profile: "Analog Surround 2.1".into(),
+                switch_refused: false,
             }]
         );
+    }
+
+    #[test]
+    fn a_profile_is_named_by_its_description_with_a_matching_output_and_input_said_once() {
+        let named = |description: Option<&str>| {
+            let mut card = scarlett(1, "output:x+input:y");
+            card.profile_description = description.map(str::to_owned);
+            profile_for_people(&card)
+        };
+        assert_eq!(
+            named(Some(
+                "Analog Surround 2.1 Output + Analog Surround 2.1 Input"
+            )),
+            "Analog Surround 2.1"
+        );
+        assert_eq!(
+            named(Some("Analog Stereo Output + Analog Surround 4.0 Input")),
+            "Analog Stereo Output + Analog Surround 4.0 Input"
+        );
+        assert_eq!(named(Some("Analog Stereo Input")), "Analog Stereo Input");
+        assert_eq!(named(None), "output:x+input:y");
+    }
+
+    #[test]
+    fn ucm_direct_hifi_and_partial_profiles_are_not_read() {
+        // UCM "Direct", UCM "HiFi" (inputs split into mono sources), and a
+        // profile that names Pro Audio for one direction only: each is a
+        // profile message, and no channel of the card is offered.
+        for (profile, sources) in [
+            (
+                "Direct",
+                vec![source("alsa_input.usb-X-00.Direct__hw_X__source", 42, 4)],
+            ),
+            (
+                "HiFi",
+                vec![
+                    source("alsa_input.usb-X-00.HiFi__Mic1__source", 42, 1),
+                    source("alsa_input.usb-X-00.HiFi__Mic2__source", 42, 1),
+                ],
+            ),
+            (
+                "output:pro-audio+input:analog-stereo",
+                vec![source("alsa_input.usb-X-00.pro-input-0", 42, 2)],
+            ),
+        ] {
+            let found = discover(&[scarlett(42, profile)], &sources);
+            assert_eq!(found.interfaces, vec![], "{profile} was read");
+            assert_eq!(found.not_pro_audio.len(), 1, "{profile}");
+            assert_eq!(found.not_pro_audio[0].profile, profile);
+        }
+    }
+
+    #[test]
+    fn a_card_with_no_profile_active_or_no_input_is_said_only_when_it_has_an_input() {
+        let mut off = scarlett(42, "off");
+        off.active_profile = None;
+        let found = discover(
+            &[off],
+            &[source("alsa_input.usb-X-00.analog-stereo", 42, 2)],
+        );
+        assert_eq!(found.not_pro_audio[0].profile, "");
+        // An output-only card in another profile says nothing.
+        let found = discover(&[scarlett(42, "output:analog-stereo")], &[]);
+        assert_eq!(found.not_pro_audio, vec![]);
     }
 
     #[test]

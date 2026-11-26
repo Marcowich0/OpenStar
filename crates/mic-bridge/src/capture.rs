@@ -162,6 +162,18 @@ impl Input for PipeWireInput {
             .flatten()
     }
 
+    /// The node and its format, not only the interface: after a profile
+    /// switch the same interface comes back as a new node.
+    fn identity(&self) -> String {
+        let Found {
+            interface,
+            node_name,
+            sample_rate,
+            latency_ms: _,
+        } = &self.found;
+        format!("{interface:?} {node_name} {sample_rate}")
+    }
+
     fn close(&mut self) {
         if let Some(Running { quit, thread }) = self.running.take() {
             // The loop may have ended already (an error): nothing to stop.

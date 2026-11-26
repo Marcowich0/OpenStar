@@ -2,6 +2,7 @@
 import type { BridgeChannel } from "./BridgeChannel";
 import type { BridgeId } from "./BridgeId";
 import type { BridgeInterface } from "./BridgeInterface";
+import type { NotProAudio } from "./NotProAudio";
 
 /**
  * An approved Mic bridge.
@@ -22,7 +23,13 @@ open: boolean,
  */
 channels: Array<BridgeChannel>, 
 /**
- * While open: the interfaces it offers, as it said in its hello.
- * Empty while closed.
+ * While open: the interfaces it offers, as it last said (its hello or
+ * a [`crate::ClientMessage::BridgeInterfaces`]). Empty while closed.
  */
-interfaces: Array<BridgeInterface>, };
+interfaces: Array<BridgeInterface>, 
+/**
+ * While open: the interfaces it sees that are not in Pro Audio, as it
+ * last said. Shown ahead of everything else in its group. Empty while
+ * closed, and then left out.
+ */
+notProAudio?: Array<NotProAudio>, };

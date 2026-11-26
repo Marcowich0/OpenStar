@@ -15,6 +15,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AvOffset } from "../generated/AvOffset";
 import type { ClientMessage } from "../generated/ClientMessage";
+import type { MicBridge } from "../generated/MicBridge";
+import type { MicBridges } from "../generated/MicBridges";
+import type { NotProAudio } from "../generated/NotProAudio";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { LiveClientOptions } from "../live/liveClient";
@@ -68,10 +71,12 @@ function bodyOf(init: RequestInit | undefined): string {
 
 let saved: AvOffset[] = [];
 let kept = 0;
+let micBridges: MicBridges = { bridges: [], requests: [] };
 
 beforeEach(() => {
   saved = [];
   kept = 0;
+  micBridges = { bridges: [], requests: [] };
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -84,6 +89,9 @@ beforeEach(() => {
         saved.push(body);
         kept = body.avOffsetMs;
         return Promise.resolve(Response.json(body));
+      }
+      if (url.pathname === "/api/mic-bridges") {
+        return Promise.resolve(Response.json(micBridges));
       }
       if (url.pathname === "/api/av-offset") {
         return Promise.resolve(
@@ -156,6 +164,50 @@ function press(key: string) {
     fireEvent.keyDown(document.activeElement ?? document.body, { key });
   });
 }
+
+describe("Check A/V sync and Pro Audio", () => {
+  const SWITCH_FIRST =
+    "A Mic bridge interface is not in Pro Audio: switch profiles before calibrating (Setup › Mics)";
+  /** An open bridge; `notProAudio` left out when everything is in Pro Audio. */
+  const bridge = (notProAudio?: NotProAudio[]): MicBridge => ({
+    bridgeId: "zeus",
+    hostName: "zeus",
+    open: true,
+    channels: [],
+    interfaces: [],
+    ...(notProAudio === undefined ? {} : { notProAudio }),
+  });
+
+  it("says to switch profiles first while a connected bridge's interface is not in Pro Audio", async () => {
+    micBridges = {
+      bridges: [
+        bridge([
+          {
+            deviceName: "card",
+            cardName: "card",
+            label: "Scarlett 4i4",
+            profile: "Analog Surround 2.1",
+            switchRefused: false,
+          },
+        ]),
+      ],
+      requests: [],
+    };
+    const { server } = renderStage();
+    server({ type: "avSync", running: true });
+    expect(await screen.findByText(SWITCH_FIRST)).toBeInTheDocument();
+  });
+
+  it("says nothing of profiles while every connected interface is in Pro Audio", async () => {
+    micBridges = { bridges: [bridge()], requests: [] };
+    const { server } = renderStage();
+    server({ type: "avSync", running: true });
+    await waitFor(() => {
+      expect(value()).toBe("0 ms");
+    });
+    expect(screen.queryByText(SWITCH_FIRST)).toBeNull();
+  });
+});
 
 describe("Check A/V sync on the Stage", () => {
   it("starts from the Setup pill with no Admin PIN, and opens once the server says it runs", () => {

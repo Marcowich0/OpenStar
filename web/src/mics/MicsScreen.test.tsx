@@ -113,6 +113,7 @@ function setup({
     setSwitchedOn: vi.fn(),
     bridges,
     approveBridge: vi.fn(),
+    switchBridgeToProAudio: vi.fn(),
     match: matchLocalMics({
       stageBrowser: "stage",
       devices: snapshot.devices,
@@ -581,6 +582,90 @@ describe("the Mics screen", () => {
       );
     });
     expect(api.relink).toHaveBeenCalledWith(goneRight.localMicId, webcam);
+  });
+
+  describe("an interface not in Pro Audio", () => {
+    const CARD = "alsa_card.usb-Focusrite_Scarlett_4i4_4th_Gen_S46-00";
+    const inSurround = (switchRefused: boolean) => ({
+      bridges: [
+        {
+          bridgeId: "zeus",
+          hostName: "zeus",
+          open: true,
+          channels: [wavChannel("zeus", 0)],
+          interfaces: [
+            {
+              deviceName: "mics.wav",
+              label: "mics.wav",
+              channels: 1,
+              twin: false,
+            },
+          ],
+          notProAudio: [
+            {
+              deviceName: CARD,
+              cardName: CARD,
+              label: "Scarlett 4i4",
+              profile: "Analog Surround 2.1",
+              switchRefused,
+            },
+          ],
+        },
+      ],
+      requests: [],
+    });
+
+    it("says so in its bridge's group, naming it and its profile, ahead of the channels", () => {
+      setup({ bridges: inSurround(false) });
+      const zeus = within(openMicsScreen()).getByRole("group", {
+        name: "zeus mic bridge",
+      });
+      const message = within(zeus).getByText(
+        "Scarlett 4i4 is in Analog Surround 2.1: only some inputs reach OpenStar",
+      );
+      const firstChannel = within(zeus).getByRole("textbox", {
+        name: "Name of mics.wav · Input 1",
+      });
+      expect(
+        message.compareDocumentPosition(firstChannel) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("switches it to Pro Audio through its bridge with no Admin PIN", () => {
+      const api = setup({ bridges: inSurround(false) });
+      const zeus = within(openMicsScreen()).getByRole("group", {
+        name: "zeus mic bridge",
+      });
+      fireEvent.click(
+        within(zeus).getByRole("button", {
+          name: "Switch Scarlett 4i4 to Pro Audio",
+        }),
+      );
+      expect(api.switchBridgeToProAudio).toHaveBeenCalledWith("zeus", CARD);
+    });
+
+    it("after a refused switch, says to use the sound settings with the exact pactl line to copy", () => {
+      setup({ bridges: inSurround(true) });
+      const zeus = within(openMicsScreen()).getByRole("group", {
+        name: "zeus mic bridge",
+      });
+      expect(
+        within(zeus).getByText(
+          "Set its profile to Pro Audio in your sound settings, or run this on the bridge's computer:",
+        ),
+      ).toBeInTheDocument();
+      const line = within(zeus).getByLabelText(
+        "Command to set Scarlett 4i4 to Pro Audio",
+      );
+      expect(line).toHaveTextContent(
+        `pactl set-card-profile ${CARD} pro-audio`,
+      );
+      expect(line).toHaveClass("select-all");
+      expect(
+        within(zeus).queryByRole("button", { name: /Pro Audio/ }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("notes on a bridge group that swapping two identical interfaces' USB ports swaps their mics", () => {

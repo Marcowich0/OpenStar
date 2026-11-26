@@ -149,7 +149,12 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::BridgeLevels { .. }
         // A bridge's reported input delays are only a default Mic delay,
         // kept while it is open.
-        | ClientMessage::BridgeInputDelays { .. } => Access::NotGuarded,
+        | ClientMessage::BridgeInputDelays { .. }
+        // What a bridge sees only says what it offers; Switch to Pro Audio
+        // changes a sound card's profile on the bridge's computer, no
+        // Library file and no kept data.
+        | ClientMessage::BridgeInterfaces { .. }
+        | ClientMessage::SwitchBridgeToProAudio { .. } => Access::NotGuarded,
     }
 }
 

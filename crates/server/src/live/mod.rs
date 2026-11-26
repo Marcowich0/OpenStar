@@ -1140,6 +1140,18 @@ impl LiveState {
             Ok(ClientMessage::ApproveBridge { request_id }) => {
                 self.approve_bridge(id, request_id, now_ms).await;
             }
+            Ok(ClientMessage::BridgeInterfaces {
+                interfaces,
+                not_pro_audio,
+            }) => {
+                self.bridge_interfaces(id, interfaces, not_pro_audio).await;
+            }
+            Ok(ClientMessage::SwitchBridgeToProAudio {
+                bridge_id,
+                device_name,
+            }) => {
+                self.switch_bridge_to_pro_audio(id, &bridge_id, device_name);
+            }
             Err(()) => self.reject(id, UserMessage::InvalidMessage),
         }
     }
