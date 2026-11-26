@@ -59,7 +59,7 @@ export function Downloads({
   store,
 }: {
   /** The live store the list follows; the browser's own by default. */
-  store?: Pick<LiveStore, "onJobChanged"> | undefined;
+  store?: LiveStore | undefined;
 } = {}) {
   const status = useQuery(usdbStatusQuery).data?.state;
   const mirror = useQuery(usdbMirrorQuery).data;

@@ -10,6 +10,7 @@ import { vi } from "vitest";
 import { invalidateOnChange } from "../api/changeNotices";
 import { createQueryClient } from "../api/queryClient";
 import type { ChangeTopic } from "../generated/ChangeTopic";
+import type { ClientMessage } from "../generated/ClientMessage";
 import type { ServerMessage } from "../generated/ServerMessage";
 import { createLiveClient, type LiveSocket } from "../live/liveClient";
 import { createLiveStore, type LiveStore } from "../live/liveStore";
@@ -19,7 +20,11 @@ class FakeSocket implements LiveSocket {
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   onmessage: ((event: { data: unknown }) => void) | null = null;
-  send() {}
+  /** Every message the page sent, parsed. */
+  sent: ClientMessage[] = [];
+  send(data: string) {
+    this.sent.push(JSON.parse(data) as ClientMessage);
+  }
   close() {}
   open() {
     this.readyState = 1;
@@ -113,6 +118,8 @@ export async function renderLive(
   await settle();
   return {
     stop,
+    /** Every message the page sent over the WebSocket, in order. */
+    sent: () => socket.sent,
     /** Delivers any server message. */
     async receive(message: ServerMessage) {
       act(() => {

@@ -3,7 +3,9 @@
 // speed and time left, in the Library, failed with the reason, or
 // cancelled. It reads `GET /api/jobs` once and then follows the
 // `jobChanged` messages, which the server sends to every browser. Anyone
-// may cancel a waiting or running Download: no PIN.
+// may cancel a waiting or running Download: no PIN. Once a Download is in
+// the Library, the browser that started it (#197) offers "Add to Queue" for
+// the new Song, also with no PIN.
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -17,8 +19,12 @@ import type { Job } from "../generated/Job";
 import type { JobList } from "../generated/JobList";
 import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
-import { liveStore } from "../live/browserLive";
+import type { SongId } from "../generated/SongId";
+import type { UserMessage } from "../generated/UserMessage";
+import { browserStorage, liveStore } from "../live/browserLive";
 import type { LiveStore } from "../live/liveStore";
+import { phoneId } from "../live/phoneId";
+import { request } from "../phone/joinRequests";
 
 type Download = Job & { download: DownloadDetails };
 
@@ -39,19 +45,21 @@ export function DownloadList({
   store,
 }: {
   /** The browser's own live store by default. */
-  store?: Pick<LiveStore, "onJobChanged"> | undefined;
+  store?: LiveStore | undefined;
 }) {
+  const live = store ?? liveStore();
   const queryClient = useQueryClient();
   const jobs = useQuery(jobsQuery).data?.jobs;
   useEffect(
     () =>
-      (store ?? liveStore()).onJobChanged((job) => {
+      live.onJobChanged((job) => {
         queryClient.setQueryData(jobsQuery.queryKey, (list) =>
           upsert(list, job),
         );
       }),
-    [store, queryClient],
+    [live, queryClient],
   );
+  const thisBrowser = phoneId(browserStorage());
 
   const downloads = (jobs ?? []).filter(isDownload).reverse();
   if (downloads.length === 0) return null;
@@ -61,7 +69,12 @@ export function DownloadList({
       className="flex flex-col gap-3 rounded-card-sm bg-white p-4 shadow-ledge-sm"
     >
       {downloads.map((job) => (
-        <DownloadRow key={job.id} job={job} />
+        <DownloadRow
+          key={job.id}
+          job={job}
+          store={live}
+          startedHere={job.download.browser === thisBrowser}
+        />
       ))}
     </ul>
   );
@@ -121,13 +134,61 @@ function stateText(job: Download): string {
   }
 }
 
-function DownloadRow({ job }: { job: Download }) {
+/** `reason` is `null` when the socket dropped before the answer. */
+type QueueResult = { ok: true } | { ok: false; reason: UserMessage | null };
+
+/**
+ * Adds a Request for `songId` at the end of the Queue, with this browser's
+ * Party member as its adder and Player (the server's default). Succeeds once
+ * the Queue holds a new Request for the Song (Request ids only grow).
+ */
+function queueSong(store: LiveStore, songId: SongId): Promise<QueueResult> {
+  const before = store.getSnapshot().stage?.party?.queue ?? [];
+  const newest = Math.max(0, ...before.map((r) => r.requestId));
+  return request<QueueResult>(
+    store,
+    { type: "addRequest", songId, requestedPlayers: null },
+    (state) =>
+      state.stage?.party?.queue.some(
+        (r) => r.requestId > newest && r.songId === songId,
+      )
+        ? { ok: true }
+        : undefined,
+    (reason) => ({ ok: false, reason }),
+    { ok: false, reason: null },
+  );
+}
+
+function DownloadRow({
+  job,
+  store,
+  startedHere,
+}: {
+  job: Download;
+  store: LiveStore;
+  /** Whether this browser started it: only it may offer "Add to Queue". */
+  startedHere: boolean;
+}) {
   const [cancelling, setCancelling] = useState(false);
   const [cancelFailed, setCancelFailed] = useState(false);
   const details = job.download;
   const running = job.state.type === "running";
   const cancellable = job.state.type === "queued" || running;
   const percent = job.state.type === "running" ? job.state.percent : null;
+  const newSong =
+    startedHere && job.state.type === "done" ? details.song : null;
+  const [queueing, setQueueing] = useState(false);
+  const [queued, setQueued] = useState(false);
+  const [queueFailed, setQueueFailed] = useState<QueueResult | null>(null);
+
+  const addToQueue = async (songId: SongId) => {
+    setQueueing(true);
+    setQueueFailed(null);
+    const result = await queueSong(store, songId);
+    setQueueing(false);
+    if (result.ok) setQueued(true);
+    else setQueueFailed(result);
+  };
 
   const cancel = async () => {
     setCancelling(true);
@@ -172,7 +233,30 @@ function DownloadRow({ job }: { job: Download }) {
             {t("admin.downloads.job.cancel")}
           </AriaButton>
         ) : null}
+        {newSong !== null && !queued ? (
+          <AriaButton
+            isDisabled={queueing}
+            onPress={() => {
+              void addToQueue(newSong);
+            }}
+            className="inline-flex min-h-12 shrink-0 cursor-pointer items-center rounded-full bg-green px-5 text-lg font-semibold text-white shadow-ledge-green outline-none transition-transform duration-200 data-disabled:cursor-default data-disabled:opacity-50 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
+          >
+            {t("admin.downloads.job.addToQueue")}
+          </AriaButton>
+        ) : null}
       </div>
+      {queued ? (
+        <p role="status" className="text-sm font-semibold text-ink-2">
+          {t("admin.downloads.job.addedToQueue")}
+        </p>
+      ) : null}
+      {queueFailed !== null && !queueFailed.ok ? (
+        <p role="alert" className="text-sm font-semibold text-warn-fg">
+          {queueFailed.reason === null
+            ? t("request.noAnswer")
+            : userMessageText(queueFailed.reason)}
+        </p>
+      ) : null}
       {running ? (
         <ProgressBar
           aria-label={songName(details)}

@@ -13,6 +13,9 @@
 //! without a PIN; each step retried twice with a 1.5 s backoff that doubles;
 //! the 403 fallback; a failure or cancel removing only the temporary
 //! folder; a restart starting an interrupted Download again from scratch.
+//!
+//! "Add to Queue" (#197): a finished Download names its new Song once the
+//! Song is in the Library index, and the Phone that started it queues it.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -24,11 +27,14 @@ use openstar::usdb::{UsdbTimer, VirtualTimer};
 use openstar_protocol::admin::{ApiError, ApiErrorCode};
 use openstar_protocol::jobs::{DownloadRate, Job, JobId, JobKind, JobList, JobState};
 use openstar_protocol::library::{SongIdentity, SongList};
+use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
 use openstar_protocol::song::TxtRejection;
 use openstar_protocol::usdb::{
     DownloadStarted, StartDownload, UsdbMirrorState, UsdbMirrorStatus, UsdbTextVersion,
 };
-use openstar_protocol::{ClientMessage, PhoneId, ServerMessage, UserMessage};
+use openstar_protocol::{
+    ClientMessage, JoinAs, NewGuest, PartySnapshot, PhoneId, ServerMessage, UserMessage,
+};
 use openstar_test_harness::{
     AppFolders, FakeSong, FakeUsdb, Media, TestApp, TestAppBuilder, WsClient, YtDlpStub,
     YtDlpStubBehaviour,
@@ -906,4 +912,135 @@ async fn a_restart_in_the_middle_removes_the_temporary_folder_and_starts_again_f
         files_in(&app.songs_dir().join(SONG_1_FOLDER)),
         vec!["cover.jpg", "metadata.json", "song.txt", "video.mp4"]
     );
+}
+
+/// The next message on `socket` past change notices for HTTP data and job
+/// updates.
+async fn next_live(socket: &mut WsClient) -> ServerMessage {
+    loop {
+        match socket.recv().await {
+            ServerMessage::Changed { .. } | ServerMessage::JobChanged { .. } => {}
+            message => return message,
+        }
+    }
+}
+
+async fn queue_changed(socket: &mut WsClient) -> PartySnapshot {
+    loop {
+        if let ServerMessage::PartyChanged { party, .. } = next_live(socket).await {
+            return party;
+        }
+    }
+}
+
+/// "Add to Queue" (#197): a finished Download names its new Song once the
+/// Song is in the Library index, and the browser that started it, a Phone in
+/// the Party, queues it like any Library Song; every Remote hears it.
+#[tokio::test]
+async fn a_finished_download_names_its_new_song_which_the_phone_that_started_it_can_queue() {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    let app = started(&usdb, &stub).await;
+    let cookie = app.unlock().await;
+    let mut stage = app.connect_stage().await;
+    let join_code = loop {
+        if let ServerMessage::PartyChanged { party, .. } = next_live(&mut stage).await {
+            break party.join_code;
+        }
+    };
+    let mut phone = app.connect_ws().await;
+    phone
+        .send(&ClientMessage::Join {
+            phone_id: browser(),
+            join_code,
+            join_as: JoinAs::Guest(NewGuest {
+                name: "Bo".to_owned(),
+                colour: PaletteKey::Sky,
+                avatar: Avatar::BuiltIn {
+                    key: AvatarKey::Star,
+                },
+            }),
+        })
+        .await;
+    let member = loop {
+        if let ServerMessage::PhoneStatus {
+            member_id: Some(member),
+        } = next_live(&mut phone).await
+        {
+            break member;
+        }
+    };
+    queue_changed(&mut stage).await;
+    let mut remote = app.connect_ws().await;
+
+    let id = download(&app, &cookie, 1).await;
+    let seen = follow_job(&mut remote, id).await;
+    for job in &seen[..seen.len() - 1] {
+        assert_eq!(job.download.as_ref().unwrap().song, None, "{job:?}");
+    }
+    let done = seen.last().unwrap();
+    assert_eq!(done.state, JobState::Done);
+    let songs: SongList = app.get_json("/api/songs").await;
+    let new_song = songs
+        .songs
+        .iter()
+        .find(|song| song.identity == SongIdentity::Usdb { usdb_id: 1 })
+        .expect("the new Song is in the Library")
+        .id;
+    assert_eq!(done.download.as_ref().unwrap().song, Some(new_song));
+    assert_eq!(
+        job(&app, id).await.download.unwrap().song,
+        Some(new_song),
+        "the list says it too"
+    );
+
+    phone
+        .send(&ClientMessage::AddRequest {
+            song_id: new_song,
+            requested_players: None,
+        })
+        .await;
+    for socket in [&mut phone, &mut stage, &mut remote] {
+        let party = loop {
+            match next_live(socket).await {
+                ServerMessage::PartyChanged { party, .. } if !party.queue.is_empty() => {
+                    break party;
+                }
+                ServerMessage::Rejected { reason } => panic!("refused: {reason:?}"),
+                _ => {}
+            }
+        };
+        assert_eq!(party.queue.len(), 1);
+        assert_eq!(party.queue[0].song_id, new_song);
+        assert_eq!(party.queue[0].adder, Some(member));
+    }
+}
+
+/// A failed or cancelled Download names no Song, and a finished one still
+/// names its Song after a restart.
+#[tokio::test]
+async fn only_a_finished_download_names_a_song_also_after_a_restart() {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    stub.script(YtDlpStubBehaviour::Hang, 1);
+    let mut app = started(&usdb, &stub).await;
+    let cookie = app.unlock().await;
+
+    let rejected = download(&app, &cookie, 3).await;
+    assert!(matches!(ended(&app, rejected).await, JobState::Failed { .. }));
+    let cancelled = download(&app, &cookie, 1).await;
+    let call = next_download_call(&stub, 0).await;
+    ytdlp_running(&stub, call).await;
+    assert_eq!(cancel(&app, cancelled).await, StatusCode::NO_CONTENT);
+    assert!(matches!(ended(&app, cancelled).await, JobState::Failed { .. }));
+    let finished = download(&app, &cookie, 4).await;
+    assert_eq!(ended(&app, finished).await, JobState::Done);
+
+    assert_eq!(job(&app, rejected).await.download.unwrap().song, None);
+    assert_eq!(job(&app, cancelled).await.download.unwrap().song, None);
+    let song = job(&app, finished).await.download.unwrap().song;
+    assert!(song.is_some());
+    app.restart().await;
+    assert_eq!(job(&app, finished).await.download.unwrap().song, song);
+    assert_eq!(job(&app, rejected).await.download.unwrap().song, None);
 }

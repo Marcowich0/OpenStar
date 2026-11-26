@@ -204,6 +204,7 @@ impl DownloadJob {
             video_url: self.video_url.clone(),
             browser: self.browser.clone(),
             rate: None,
+            song: None,
         }
     }
 
