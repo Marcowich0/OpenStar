@@ -66,7 +66,9 @@ export function ResultsBody({ results, song, next, onNext }: ResultsBodyProps) {
   const duet = results.players.some((p) => p.voice !== null);
   return (
     <section className="relative h-full">
-      <header className="absolute inset-x-0 top-[44px] text-center">
+      {/* The head ends above the toast band (150 px from the top), so a toast
+          shows between the head and the bars instead of over the artist. */}
+      <header className="absolute inset-x-0 top-[30px] text-center">
         <h1 className="text-[72px] leading-none font-bold">
           {song?.title ?? ""}
         </h1>
@@ -82,7 +84,7 @@ export function ResultsBody({ results, song, next, onNext }: ResultsBodyProps) {
       <ol
         data-testid="results-players"
         aria-label={t("stage.results.players")}
-        className="absolute inset-x-[120px] top-[220px] bottom-[220px] flex items-end justify-center gap-[50px]"
+        className="absolute inset-x-[120px] top-[230px] bottom-[220px] flex items-end justify-center gap-[50px]"
       >
         {view.bars.map((bar) => (
           <Bar key={bar.player.memberId} bar={bar} duet={duet} />
@@ -126,7 +128,8 @@ function Legend() {
 }
 
 // "Bo · Hard · Guest": each part after the first gets its dot from CSS.
-const DETAIL = "before:mx-2 before:content-['·'] first:before:content-none";
+const DETAIL =
+  "whitespace-nowrap before:mx-2 before:content-['·'] first:before:content-none";
 
 function Bar({ bar, duet }: { bar: BarView; duet: boolean }) {
   const { player, parts } = bar;
@@ -148,8 +151,11 @@ function Bar({ bar, duet }: { bar: BarView; duet: boolean }) {
         className="relative z-[2] -mb-[30px]"
       />
 
+      {/* The bar takes up to 62 % of the column; the rest holds the total,
+          the Rank title and the avatar. It never gets lower than the avatar's
+          overlap and the place number need. */}
       <div
-        className="relative w-full"
+        className="relative min-h-[130px] w-full"
         style={{ height: `${String(bar.height * 62)}%` }}
       >
         <div
@@ -175,7 +181,7 @@ function Bar({ bar, duet }: { bar: BarView; duet: boolean }) {
         </div>
 
         {bar.hatched && (
-          <span className="absolute bottom-[40%] left-1/2 z-[3] -translate-x-1/2 -rotate-12 rounded-[14px] border-4 border-warn-fg bg-white px-3.5 py-1.5 text-2xl font-bold whitespace-nowrap text-warn-fg">
+          <span className="absolute bottom-[max(40%,100px)] left-1/2 z-[3] -translate-x-1/2 -rotate-12 rounded-[14px] border-4 border-warn-fg bg-white px-3.5 py-1.5 text-2xl font-bold whitespace-nowrap text-warn-fg">
             {t("stage.results.unfinished")}
           </span>
         )}

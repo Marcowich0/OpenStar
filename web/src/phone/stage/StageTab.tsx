@@ -3,9 +3,9 @@
 // sings?" with the Song's cover and title, one row per seat, "Add a singer",
 // the server's warnings, and a big Start. While the results show, this
 // Phone's own Player's result with its Rank title (#175: the data, #182: the
-// Rank title; its look is #49's). The
-// playing Song and the empty Queue are later tickets' cards. No level meters and no Mic
-// threshold here: those are on the Stage.
+// Rank title; its look is #49's). The playing Song and the empty Queue are
+// later tickets' cards. No level meters and no Mic threshold here: those are
+// on the Stage.
 
 import { useState } from "react";
 
