@@ -7,6 +7,7 @@ import {
   type BrowserContext,
   type Page,
 } from "@playwright/test";
+import { access, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /**
@@ -161,6 +162,29 @@ export async function newParty(stage: Page): Promise<string> {
   await expect(code).toHaveText(JOIN_CODE);
   await expect(code).not.toHaveText(old);
   return (await code.textContent()) ?? "";
+}
+
+/**
+ * Stops or starts the shared `--wav` Mic bridge that `scripts/e2e.sh` runs
+ * (as closing its window and opening it again would): writes the command
+ * where the script's watcher looks and waits until it has acted. A started
+ * bridge keeps its config, so it connects approved. A spec that stops it
+ * starts it again before it ends: every spec shares it.
+ */
+export async function bridgeControl(command: "stop" | "start"): Promise<void> {
+  const dir = join(import.meta.dirname, "generated/bridge-control");
+  const file = join(dir, "command");
+  await writeFile(file, command);
+  await expect
+    .poll(
+      () =>
+        access(file).then(
+          () => false,
+          () => true,
+        ),
+      { timeout: 10_000, intervals: [50] },
+    )
+    .toBe(true);
 }
 
 export interface PhoneOptions {
