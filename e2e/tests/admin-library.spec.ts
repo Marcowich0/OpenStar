@@ -71,7 +71,7 @@ test("Songs lists the playable Songs and searches artist and title", async ({
   await page.goto("/admin/songs");
 
   const songs = page.getByRole("list", { name: "Songs in the Library" });
-  await expect(songs.getByRole("listitem")).toHaveCount(3);
+  await expect(songs.getByRole("listitem")).toHaveCount(4);
   await expect(songs).toContainText("Steady Tone");
   await expect(songs).not.toContainText("Rejected");
   await expectNoSideways(page);
