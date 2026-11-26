@@ -408,6 +408,15 @@ const MIGRATIONS: &[&str] = &[
         txt_sha256    TEXT NOT NULL,
         downloaded_ms INTEGER NOT NULL
     ) STRICT;",
+    // 29: the trash ledger (#190, see `library::trash`): one row per Song
+    // folder deleted to `/appdata/trash/<id>`, with the folder's path
+    // relative to the Library when it was deleted and the time of deletion
+    // (ms since the epoch). #191 restores and purges from it.
+    "CREATE TABLE trash (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_path TEXT NOT NULL,
+        deleted_ms    INTEGER NOT NULL
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

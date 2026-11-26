@@ -563,6 +563,9 @@ export const en = {
   "admin.songs.failed": "The Songs could not be loaded",
   "admin.songs.restoreOriginal": "Restore Original",
   "admin.songs.restoreOriginal.failed": "The Original could not be restored",
+  "admin.songs.delete": "Delete {title}",
+  "admin.songs.deleteShort": "Delete",
+  "admin.songs.deleteFailed": "The Song could not be deleted",
   "admin.songs.timing": "Timing",
   "admin.songs.timingOf": "Timing of {title}",
   "admin.songs.fit.title": "Auto-fit",
@@ -694,6 +697,10 @@ export const en = {
     "This Song's file changed on disk since it was opened. Open it again and redo the edit",
   "userMessage.songPlaying": "This Song is playing on the Stage now",
   "userMessage.noOriginal": "This Song has no Original to restore",
+  "userMessage.songFolderShared":
+    "Its folder also holds {otherTxt}, which deleting the folder would take with it. Move one of them to a folder of its own first",
+  "userMessage.songInLibraryRoot":
+    "This Song's .txt sits directly in the Library folder, so it has no folder of its own to delete. Move it into a folder first",
   "userMessage.notWhileSongPlays": "Not while a Song is playing",
   "userMessage.avSyncNotRunning": "Check A/V sync is not running",
   "userMessage.avSyncRunning": "Check A/V sync is running",

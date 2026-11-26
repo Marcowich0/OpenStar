@@ -22,6 +22,7 @@ mod resolve;
 mod scan;
 mod search;
 pub(crate) mod timing;
+pub(crate) mod trash;
 
 pub(crate) use artwork::tile_colour;
 pub use conversion::Conversion;

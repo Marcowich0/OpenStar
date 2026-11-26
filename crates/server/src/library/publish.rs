@@ -157,7 +157,7 @@ fn claim(songs: &Path, base: &str) -> io::Result<(String, PathBuf)> {
 /// Copies the files of `staging` (at any depth) into the empty `target`,
 /// every `.txt` last. On failure the files and folders copied so far are
 /// removed again (never `target` itself, see [`move_in`]).
-fn copy_in(staging: &Path, target: &Path) -> io::Result<()> {
+pub(super) fn copy_in(staging: &Path, target: &Path) -> io::Result<()> {
     let mut files = Vec::new();
     let mut folders = Vec::new();
     list(staging, PathBuf::new(), &mut files, &mut folders)?;

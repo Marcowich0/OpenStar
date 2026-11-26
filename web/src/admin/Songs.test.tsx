@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SongList } from "../generated/SongList";
 import type { SongSummary } from "../generated/SongSummary";
+import { HOLD_DURATION_MS } from "../ui/hold";
 import { fakeLibraryServer, renderLive, settle } from "./adminTestKit";
 import { Songs } from "./Songs";
 
@@ -279,6 +280,107 @@ describe("the Songs section", () => {
       expect(within(row(0)).getByRole("alert")).toHaveTextContent(
         "This Song is playing on the Stage now",
       );
+    });
+  });
+
+  describe("Delete", () => {
+    const status = (code: number, body?: unknown) =>
+      new Response(body === undefined ? null : JSON.stringify(body), {
+        status: code,
+        headers: { "Content-Type": "application/json" },
+      });
+
+    /** A Library whose guarded delete answers `answer` (a `204` that drops the Song by default). */
+    function deleteServer(answer?: Response) {
+      let songs = SONGS;
+      const server = fakeLibraryServer({
+        "GET /api/songs": () => songList(songs),
+        "GET /api/unlock": { unlocked: true },
+      });
+      for (const s of SONGS)
+        server.answers[`DELETE /api/songs/${String(s.id)}`] = () => {
+          if (answer) return answer;
+          songs = songs.filter((other) => other.id !== s.id);
+          return status(204);
+        };
+      return server;
+    }
+
+    async function holdDelete(title: string, ms = HOLD_DURATION_MS) {
+      vi.useFakeTimers();
+      const button = screen.getByRole("button", { name: `Delete ${title}` });
+      act(() => {
+        fireEvent.pointerDown(button);
+      });
+      act(() => {
+        vi.advanceTimersByTime(ms);
+      });
+      act(() => {
+        fireEvent.pointerUp(button);
+      });
+      vi.useRealTimers();
+      await settle();
+    }
+
+    it("does nothing on a short press", async () => {
+      const server = deleteServer();
+      await renderLive(<SongsInRouter />);
+
+      await holdDelete("Waterloo", HOLD_DURATION_MS - 200);
+
+      expect(server.count("DELETE /api/songs/1")).toBe(0);
+    });
+
+    it("deletes a Song after a press and hold; the Library notice drops its row", async () => {
+      const server = deleteServer();
+      const live = await renderLive(<SongsInRouter />);
+
+      await holdDelete("Waterloo");
+      expect(server.count("DELETE /api/songs/1")).toBe(1);
+      await live.changed("library");
+
+      expect(rows()).toHaveLength(1);
+      expect(rows()[0]).toHaveTextContent("Bohemian Rhapsody");
+    });
+
+    it("says why when the folder holds another .txt, and keeps the Song", async () => {
+      deleteServer(
+        status(409, {
+          code: "songFolderShared",
+          params: { otherTxt: "Abba - Waterloo/other.txt" },
+        }),
+      );
+      await renderLive(<SongsInRouter />);
+
+      await holdDelete("Waterloo");
+
+      const alert = within(rows()[0] as HTMLElement).getByRole("alert");
+      expect(alert).toHaveTextContent(
+        "Its folder also holds Abba - Waterloo/other.txt",
+      );
+      expect(rows()).toHaveLength(2);
+    });
+
+    it("says why when the .txt sits in the Library root", async () => {
+      deleteServer(status(409, { code: "songInLibraryRoot" }));
+      await renderLive(<SongsInRouter />);
+
+      await holdDelete("Waterloo");
+
+      expect(
+        within(rows()[0] as HTMLElement).getByRole("alert"),
+      ).toHaveTextContent("directly in the Library folder");
+    });
+
+    it("says why while the Song plays", async () => {
+      deleteServer(status(409, { code: "songPlaying" }));
+      await renderLive(<SongsInRouter />);
+
+      await holdDelete("Waterloo");
+
+      expect(
+        within(rows()[0] as HTMLElement).getByRole("alert"),
+      ).toHaveTextContent("This Song is playing on the Stage now");
     });
   });
 });

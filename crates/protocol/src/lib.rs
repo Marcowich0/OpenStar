@@ -731,6 +731,13 @@ pub enum UserMessage {
     /// The Song has no Original (`<name>.txt.orig`) to restore. Sent with
     /// `404`.
     NoOriginal,
+    /// The Song's folder also holds `other_txt` (another Song, a rejected
+    /// file or a duplicate; relative to the Library), so deleting the
+    /// folder would take that with it. Nothing is moved. Sent with `409`.
+    SongFolderShared { other_txt: String },
+    /// The Song's `.txt` sits directly in the Library root, so it has no
+    /// folder of its own to delete. Nothing is moved. Sent with `409`.
+    SongInLibraryRoot,
     /// A Song plays on the Stage, so this (Check A/V sync) cannot start.
     NotWhileSongPlays,
     /// Check A/V sync does not run, so there is nothing to step.
