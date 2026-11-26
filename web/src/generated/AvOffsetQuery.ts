@@ -3,13 +3,12 @@
 /**
  * Query of `GET /api/av-offset`: which browser's value, at which output.
  */
-export type AvOffsetQuery = {
-  /**
-   * The browser's random id (`stageBrowserId`, kept in its local storage).
-   */
-  browser: string;
-  /**
-   * The output key: the default output's label without "Default - ".
-   */
-  output: string;
-};
+export type AvOffsetQuery = { 
+/**
+ * The browser's random id (`stageBrowserId`, kept in its local storage).
+ */
+browser: string, 
+/**
+ * The output key: the default output's label without "Default - ".
+ */
+output: string, };

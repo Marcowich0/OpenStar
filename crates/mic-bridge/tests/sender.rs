@@ -7,7 +7,7 @@
 
 use openstar_mic_bridge::sender::Sender;
 use openstar_protocol::bridge::{BridgeId, BridgeInterface, MicBridges, bridge_local_mic_id};
-use openstar_protocol::{BridgeInput, ClientMessage, MicId, ServerMessage};
+use openstar_protocol::{BridgeLocalMic, ClientMessage, MicId, ServerMessage};
 use openstar_test_harness::{TestApp, WsClient};
 
 const DEVICE: &str = "alsa_card.usb-X-00";
@@ -103,7 +103,7 @@ fn handled_ms(b: usize) -> f64 {
 async fn the_native_sender_sends_nothing_before_an_offset_then_readings_on_the_stages_clock() {
     let app = TestApp::start().await;
     let (mut stage, mut bridge, bridge_id) = stage_and_bridge(&app).await;
-    let input = BridgeInput {
+    let input = BridgeLocalMic {
         device_name: DEVICE.into(),
         channel: 1,
     };
@@ -144,7 +144,7 @@ async fn the_native_sender_sends_nothing_before_an_offset_then_readings_on_the_s
         t0,
         ts,
         epoch,
-        input: Some(ponged),
+        local_mic: Some(ponged),
     } = recv(&mut bridge).await
     else {
         panic!("expected a pong at the bridge");

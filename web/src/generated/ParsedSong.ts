@@ -5,11 +5,9 @@ import type { Voice } from "./Voice";
 /**
  * A Song's `.txt` as parsed: its headers and its Voices.
  */
-export type ParsedSong = {
-  headers: SongHeaders;
-  /**
-   * One Voice for a solo Song; two (`P1`, then `P2`) for a duet. A Song
-   * is a duet when its body has any `P` line.
-   */
-  voices: Array<Voice>;
-};
+export type ParsedSong = { headers: SongHeaders, 
+/**
+ * One Voice for a solo Song; two (`P1`, then `P2`) for a duet. A Song
+ * is a duet when its body has any `P` line.
+ */
+voices: Array<Voice>, };

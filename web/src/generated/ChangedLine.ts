@@ -3,18 +3,17 @@
 /**
  * One line a Timing edit changes.
  */
-export type ChangedLine = {
-  /**
-   * The 1-based line number in the new file; a deleted line's number in
-   * the old one.
-   */
-  line: number;
-  /**
-   * The old text without its line ending; `null` for an inserted line.
-   */
-  old: string | null;
-  /**
-   * The new text without its line ending; `null` for a deleted line.
-   */
-  new: string | null;
-};
+export type ChangedLine = { 
+/**
+ * The 1-based line number in the new file; a deleted line's number in
+ * the old one.
+ */
+line: number, 
+/**
+ * The old text without its line ending; `null` for an inserted line.
+ */
+old: string | null, 
+/**
+ * The new text without its line ending; `null` for a deleted line.
+ */
+new: string | null, };

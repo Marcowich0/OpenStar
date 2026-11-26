@@ -6,12 +6,9 @@ import type { VideoSource } from "./VideoSource";
  * One video the admin can download a USDB song's audio and video from. Any
  * host yt-dlp supports.
  */
-export type VideoCandidate = {
-  url: string;
-  source: VideoSource;
-  /**
-   * Already known for a search hit; otherwise ask
-   * `GET /api/usdb/video-details` for it.
-   */
-  details: VideoDetails | null;
-};
+export type VideoCandidate = { url: string, source: VideoSource, 
+/**
+ * Already known for a search hit; otherwise ask
+ * `GET /api/usdb/video-details` for it.
+ */
+details: VideoDetails | null, };

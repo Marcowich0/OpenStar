@@ -13,7 +13,7 @@ use openstar_protocol::bridge::{
 };
 use openstar_protocol::mics::{LocalMicSource, MicKey};
 use openstar_protocol::{
-    BridgeInput, ChangeTopic, MicId, PartySnapshot, ServerMessage, UserMessage,
+    BridgeLocalMic, ChangeTopic, MicId, PartySnapshot, ServerMessage, UserMessage,
 };
 
 use super::LiveState;
@@ -57,9 +57,9 @@ pub(super) struct Open {
     /// The interfaces it sees that are not in Pro Audio, as it last said.
     pub not_pro_audio: Vec<NotProAudio>,
     /// The channels it was last told detect ([`ServerMessage::BridgeDetecting`]).
-    pub told_detecting: Vec<BridgeInput>,
+    pub told_detecting: Vec<BridgeLocalMic>,
     /// The input delays it reported, by channel.
-    pub input_delays: HashMap<BridgeInput, f64>,
+    pub input_delays: HashMap<BridgeLocalMic, f64>,
 }
 
 impl Bridges {
@@ -121,32 +121,37 @@ impl Bridges {
 }
 
 impl Open {
-    /// The Mic of the hardware channel `input`, if this bridge offers it.
-    fn mic(&self, input: &BridgeInput) -> Option<MicId> {
-        self.offers(input).then(|| MicId::Bridge {
+    /// The Mic of the hardware channel `local_mic`, if this bridge offers it.
+    fn mic(&self, local_mic: &BridgeLocalMic) -> Option<MicId> {
+        self.offers(local_mic).then(|| MicId::Bridge {
             bridge_id: self.bridge_id.clone(),
-            local_mic_id: bridge_local_mic_id(&self.bridge_id, &input.device_name, input.channel),
+            local_mic_id: bridge_local_mic_id(
+                &self.bridge_id,
+                &local_mic.device_name,
+                local_mic.channel,
+            ),
         })
     }
 
     /// The hardware channel whose Local mic id is `local_mic_id`.
-    fn input_of(&self, local_mic_id: &str) -> Option<BridgeInput> {
-        self.inputs().find(|input| {
-            bridge_local_mic_id(&self.bridge_id, &input.device_name, input.channel) == local_mic_id
+    fn local_mic_of(&self, local_mic_id: &str) -> Option<BridgeLocalMic> {
+        self.local_mics().find(|local_mic| {
+            bridge_local_mic_id(&self.bridge_id, &local_mic.device_name, local_mic.channel)
+                == local_mic_id
         })
     }
 
-    /// Whether it offers hardware channel `input`.
-    fn offers(&self, input: &BridgeInput) -> bool {
+    /// Whether it offers hardware channel `local_mic`.
+    fn offers(&self, local_mic: &BridgeLocalMic) -> bool {
         self.interfaces.iter().any(|interface| {
-            interface.device_name == input.device_name && input.channel < interface.channels
+            interface.device_name == local_mic.device_name && local_mic.channel < interface.channels
         })
     }
 
     /// Every hardware channel it offers, interface by interface.
-    fn inputs(&self) -> impl Iterator<Item = BridgeInput> + '_ {
+    fn local_mics(&self) -> impl Iterator<Item = BridgeLocalMic> + '_ {
         self.interfaces.iter().flat_map(|interface| {
-            (0..interface.channels).map(|channel| BridgeInput {
+            (0..interface.channels).map(|channel| BridgeLocalMic {
                 device_name: interface.device_name.clone(),
                 channel,
             })
@@ -170,7 +175,7 @@ fn channels_of(open: &Open) -> Vec<BridgeChannel> {
                 },
                 reported_input_delay_ms: open
                     .input_delays
-                    .get(&BridgeInput {
+                    .get(&BridgeLocalMic {
                         device_name: interface.device_name.clone(),
                         channel,
                     })
@@ -417,23 +422,24 @@ impl LiveState {
         let Some(open) = self.bridges.open.get_mut(&id) else {
             return;
         };
-        let before: Vec<BridgeInput> = open.inputs().collect();
+        let before: Vec<BridgeLocalMic> = open.local_mics().collect();
         open.interfaces = interfaces;
         open.not_pro_audio = not_pro_audio;
         let gone: Vec<MicId> = before
             .iter()
-            .filter(|input| !open.offers(input))
-            .map(|input| MicId::Bridge {
+            .filter(|local_mic| !open.offers(local_mic))
+            .map(|local_mic| MicId::Bridge {
                 bridge_id: open.bridge_id.clone(),
                 local_mic_id: bridge_local_mic_id(
                     &open.bridge_id,
-                    &input.device_name,
-                    input.channel,
+                    &local_mic.device_name,
+                    local_mic.channel,
                 ),
             })
             .collect();
-        let offered: Vec<BridgeInput> = open.inputs().collect();
-        open.input_delays.retain(|input, _| offered.contains(input));
+        let offered: Vec<BridgeLocalMic> = open.local_mics().collect();
+        open.input_delays
+            .retain(|local_mic, _| offered.contains(local_mic));
         let changed_inputs = before != offered;
         for mic in gone {
             self.send_to_stage(&ServerMessage::MicClosed { mic });
@@ -544,13 +550,13 @@ impl LiveState {
         detecting.extend(self.calibration_local_mics().map(str::to_owned));
         let mut tell = Vec::new();
         for (&id, open) in &mut self.bridges.open {
-            let channels: Vec<BridgeInput> = open
-                .inputs()
-                .filter(|input| {
+            let channels: Vec<BridgeLocalMic> = open
+                .local_mics()
+                .filter(|local_mic| {
                     detecting.contains(&bridge_local_mic_id(
                         &open.bridge_id,
-                        &input.device_name,
-                        input.channel,
+                        &local_mic.device_name,
+                        local_mic.channel,
                     ))
                 })
                 .collect();
@@ -573,15 +579,15 @@ impl LiveState {
         };
         let mut changed = false;
         for delay in delays {
-            let input = BridgeInput {
+            let local_mic = BridgeLocalMic {
                 device_name: delay.device_name,
                 channel: delay.channel,
             };
-            if !open.offers(&input) || !delay.delay_ms.is_finite() {
+            if !open.offers(&local_mic) || !delay.delay_ms.is_finite() {
                 continue;
             }
             let delay_ms = delay.delay_ms.max(0.0);
-            if open.input_delays.insert(input, delay_ms) != Some(delay_ms) {
+            if open.input_delays.insert(local_mic, delay_ms) != Some(delay_ms) {
                 changed = true;
             }
         }
@@ -592,14 +598,14 @@ impl LiveState {
 
     /// The Mic that bridge socket `id` sends a reading or ping as: one of
     /// its Local mics, if the bridge is approved and open and offers
-    /// `input`. `None` drops it: an unapproved bridge's readings never
+    /// `local_mic`. `None` drops it: an unapproved bridge's readings never
     /// reach the Stage, and a bridge must say which Local mic it means.
     pub(super) fn bridge_mic(
         &self,
         id: ConnectionId,
-        input: Option<&BridgeInput>,
+        local_mic: Option<&BridgeLocalMic>,
     ) -> Option<MicId> {
-        self.bridges.open.get(&id)?.mic(input?)
+        self.bridges.open.get(&id)?.mic(local_mic?)
     }
 
     /// The Stage's pong for one Local mic of a bridge: to that bridge's open
@@ -614,17 +620,20 @@ impl LiveState {
     ) {
         let target = self.bridges.open.iter().find_map(|(&id, open)| {
             (&open.bridge_id == bridge_id)
-                .then(|| open.input_of(local_mic_id).map(|input| (id, input)))
+                .then(|| {
+                    open.local_mic_of(local_mic_id)
+                        .map(|local_mic| (id, local_mic))
+                })
                 .flatten()
         });
-        if let Some((id, input)) = target {
+        if let Some((id, local_mic)) = target {
             self.hub.send_to(
                 id,
                 &ServerMessage::ClockPong {
                     t0,
                     ts,
                     epoch,
-                    input: Some(input),
+                    local_mic: Some(local_mic),
                 },
             );
         }
@@ -696,7 +705,10 @@ impl LiveState {
         let closed = self.bridges.open.remove(&id);
         let was_open = closed.is_some();
         if let Some(open) = closed {
-            let mics: Vec<MicId> = open.inputs().filter_map(|input| open.mic(&input)).collect();
+            let mics: Vec<MicId> = open
+                .local_mics()
+                .filter_map(|local_mic| open.mic(&local_mic))
+                .collect();
             for mic in mics {
                 self.send_to_stage(&ServerMessage::MicClosed { mic });
             }

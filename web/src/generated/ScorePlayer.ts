@@ -4,5 +4,4 @@ import type { ProfileId } from "./ProfileId";
 /**
  * Who a Score record belongs to.
  */
-export type ScorePlayer =
-  { kind: "profile"; profileId: ProfileId } | { kind: "guest"; name: string };
+export type ScorePlayer = { "kind": "profile", profileId: ProfileId, } | { "kind": "guest", name: string, };

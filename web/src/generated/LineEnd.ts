@@ -3,13 +3,12 @@
 /**
  * A Line end marker, `- beat`.
  */
-export type LineEnd = {
-  /**
-   * The beat the marker names, relative to `#GAP`.
-   */
-  beat: number;
-  /**
-   * The 1-based line number of the marker in the file.
-   */
-  line: number;
-};
+export type LineEnd = { 
+/**
+ * The beat the marker names, relative to `#GAP`.
+ */
+beat: number, 
+/**
+ * The 1-based line number of the marker in the file.
+ */
+line: number, };

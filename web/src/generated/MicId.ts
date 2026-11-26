@@ -6,6 +6,4 @@ import type { PhoneId } from "./PhoneId";
  * Names the Mic a relayed message came from. The Stage uses it to tell
  * Mics apart and to address a [`crate::ClientMessage::ClockPong`].
  */
-export type MicId =
-  | { kind: "phone"; phoneId: PhoneId }
-  | { kind: "bridge"; bridgeId: BridgeId; localMicId: string };
+export type MicId = { "kind": "phone", phoneId: PhoneId, } | { "kind": "bridge", bridgeId: BridgeId, localMicId: string, };

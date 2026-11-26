@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 
-use openstar_protocol::{BridgeInput, ClientMessage, ServerMessage};
+use openstar_protocol::{BridgeLocalMic, ClientMessage, ServerMessage};
 
 use crate::sender::Sender;
 
@@ -25,7 +25,7 @@ pub const QUANTUM_FRAMES: usize = 128;
 pub struct Detecting {
     sender: Sender,
     /// What the server last named.
-    wanted: Vec<BridgeInput>,
+    wanted: Vec<BridgeLocalMic>,
     /// Open interfaces and their sample rates, by device name.
     open: HashMap<String, f64>,
 }
@@ -36,7 +36,7 @@ impl Detecting {
     }
 
     /// The Local mics capturing now.
-    pub fn capturing(&self) -> impl Iterator<Item = &BridgeInput> {
+    pub fn capturing(&self) -> impl Iterator<Item = &BridgeLocalMic> {
         self.sender.capturing()
     }
 
@@ -50,8 +50,8 @@ impl Detecting {
 
     /// The server named the channels that detect now: those on an open
     /// interface start, those no longer named stop.
-    pub fn set(&mut self, channels: Vec<BridgeInput>, now_ms: f64) {
-        let gone: Vec<BridgeInput> = self
+    pub fn set(&mut self, channels: Vec<BridgeLocalMic>, now_ms: f64) {
+        let gone: Vec<BridgeLocalMic> = self
             .sender
             .capturing()
             .filter(|input| !channels.contains(input))
@@ -119,7 +119,7 @@ impl Detecting {
                 t0,
                 ts,
                 epoch,
-                input: Some(input),
+                local_mic: Some(input),
             } => self.sender.receive_pong(input, *t0, *ts, *epoch, now_ms),
             ServerMessage::BridgeDetecting { channels } => self.set(channels.clone(), now_ms),
             _ => {}
@@ -135,8 +135,8 @@ mod tests {
     const DEVICE: &str = "multichannel.wav";
     const RATE: f64 = 48_000.0;
 
-    fn input(channel: u32) -> BridgeInput {
-        BridgeInput {
+    fn input(channel: u32) -> BridgeLocalMic {
+        BridgeLocalMic {
             device_name: DEVICE.into(),
             channel,
         }
@@ -153,12 +153,12 @@ mod tests {
             .collect()
     }
 
-    fn detected(sent: &[ClientMessage]) -> Vec<(BridgeInput, PitchReading)> {
+    fn detected(sent: &[ClientMessage]) -> Vec<(BridgeLocalMic, PitchReading)> {
         sent.iter()
             .filter_map(|message| match message {
                 ClientMessage::PitchReading {
                     reading,
-                    input: Some(input),
+                    local_mic: Some(input),
                 } => Some((input.clone(), *reading)),
                 _ => None,
             })
@@ -170,7 +170,7 @@ mod tests {
         for ping in detecting.pings(now_ms) {
             let ClientMessage::ClockPing {
                 t0,
-                input: Some(input),
+                local_mic: Some(input),
             } = ping
             else {
                 panic!("a bridge ping: {ping:?}");
@@ -180,7 +180,7 @@ mod tests {
                     t0,
                     ts: t0 + 1.0 + 5_000.0,
                     epoch: 1.7e12,
-                    input: Some(input),
+                    local_mic: Some(input),
                 },
                 now_ms + 2.0,
             );

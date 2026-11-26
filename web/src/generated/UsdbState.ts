@@ -4,10 +4,4 @@
  * Where OpenStar's USDB login stands. Only `loggedIn` lets Downloads and
  * the mirror run; every other state is a notice in the Downloads section.
  */
-export type UsdbState =
-  | "credentialsMissing"
-  | "checking"
-  | "loggedIn"
-  | "loginFailed"
-  | "unreachable"
-  | "gaveUp";
+export type UsdbState = "credentialsMissing" | "checking" | "loggedIn" | "loginFailed" | "unreachable" | "gaveUp";

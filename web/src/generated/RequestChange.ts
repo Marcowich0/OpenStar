@@ -7,8 +7,4 @@ import type { SongId } from "./SongId";
  * with the title it had at that moment (so a removed Request still names
  * its Song).
  */
-export type RequestChange = {
-  requestId: RequestId;
-  songId: SongId;
-  title: string;
-};
+export type RequestChange = { requestId: RequestId, songId: SongId, title: string, };

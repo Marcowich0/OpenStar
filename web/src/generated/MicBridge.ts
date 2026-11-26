@@ -7,31 +7,29 @@ import type { NotProAudio } from "./NotProAudio";
 /**
  * An approved Mic bridge.
  */
-export type MicBridge = {
-  bridgeId: BridgeId;
-  /**
-   * The name of the bridge's computer, as it last said.
-   */
-  hostName: string;
-  /**
-   * Whether the bridge is connected now; a closed bridge stays approved.
-   */
-  open: boolean;
-  /**
-   * While open: every hardware channel it offers, interface by
-   * interface. Empty while closed (its kept Local mics are in
-   * `GET /api/local-mics`).
-   */
-  channels: Array<BridgeChannel>;
-  /**
-   * While open: the interfaces it offers, as it last said (its hello or
-   * a [`crate::ClientMessage::BridgeInterfaces`]). Empty while closed.
-   */
-  interfaces: Array<BridgeInterface>;
-  /**
-   * While open: the interfaces it sees that are not in Pro Audio, as it
-   * last said. Shown ahead of everything else in its group. Empty while
-   * closed, and then left out.
-   */
-  notProAudio?: Array<NotProAudio>;
-};
+export type MicBridge = { bridgeId: BridgeId, 
+/**
+ * The name of the bridge's computer, as it last said.
+ */
+hostName: string, 
+/**
+ * Whether the bridge is connected now; a closed bridge stays approved.
+ */
+open: boolean, 
+/**
+ * While open: every hardware channel it offers, interface by
+ * interface. Empty while closed (its kept Local mics are in
+ * `GET /api/local-mics`).
+ */
+channels: Array<BridgeChannel>, 
+/**
+ * While open: the interfaces it offers, as it last said (its hello or
+ * a [`crate::ClientMessage::BridgeInterfaces`]). Empty while closed.
+ */
+interfaces: Array<BridgeInterface>, 
+/**
+ * While open: the interfaces it sees that are not in Pro Audio, as it
+ * last said. Shown ahead of everything else in its group. Empty while
+ * closed, and then left out.
+ */
+notProAudio?: Array<NotProAudio>, };

@@ -31,10 +31,10 @@ import { Button } from "../../../ui/Button";
 import { FOCUSABLE } from "../../frame/focusables";
 import { useStageKeys } from "../../frame/stageFrameContext";
 
-export type NewSingerKind = "guest" | "newProfile";
+export type NewPlayerKind = "guest" | "newProfile";
 
-export interface NewSingerFormProps {
-  kind: NewSingerKind;
+export interface NewPlayerFormProps {
+  kind: NewPlayerKind;
   members: readonly PartyMember[];
   profiles: readonly Profile[];
   /** Seats them; resolves to a refusal to show, or `null` when it is handled. */
@@ -59,13 +59,13 @@ const ROW = "gap-2.5 rounded-card-sm bg-cream p-3 outline-none";
 const ITEM =
   "flex cursor-pointer items-center justify-center rounded-full ring-ink";
 
-export function NewSingerForm({
+export function NewPlayerForm({
   kind,
   members,
   profiles,
   onSeat,
   random,
-}: NewSingerFormProps) {
+}: NewPlayerFormProps) {
   const [name, setName] = useState("");
   const [picked, setPicked] = useState<PaletteKey | null>(null);
   const [avatar, setAvatar] = useState<AvatarValue>(() => randomAvatar(random));

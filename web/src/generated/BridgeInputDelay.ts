@@ -3,11 +3,8 @@
 /**
  * A channel's input delay, as a bridge's capture backend reported it.
  */
-export type BridgeInputDelay = {
-  deviceName: string;
-  channel: number;
-  /**
-   * In ms, at least 0.
-   */
-  delayMs: number;
-};
+export type BridgeInputDelay = { deviceName: string, channel: number, 
+/**
+ * In ms, at least 0.
+ */
+delayMs: number, };

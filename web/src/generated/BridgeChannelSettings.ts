@@ -4,10 +4,4 @@
  * What the server tells a bridge about one of its channels: whether it is
  * switched on and its name (empty: the bridge shows the default name).
  */
-export type BridgeChannelSettings = {
-  deviceName: string;
-  channel: number;
-  localMicId: string;
-  switchedOn: boolean;
-  name: string;
-};
+export type BridgeChannelSettings = { deviceName: string, channel: number, localMicId: string, switchedOn: boolean, name: string, };

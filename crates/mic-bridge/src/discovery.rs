@@ -55,8 +55,9 @@ pub struct Source {
     pub card: Option<u32>,
     pub channels: u32,
     pub sample_rate: u32,
-    /// The latency the sound server reports for it, in ms.
-    pub latency_ms: Option<f64>,
+    /// The source latency the sound server reports for it, in ms (its
+    /// input delay).
+    pub source_latency_ms: Option<f64>,
     /// Whether it is the monitor of an output.
     pub monitor: bool,
 }
@@ -69,7 +70,7 @@ pub struct Found {
     pub node_name: String,
     pub sample_rate: u32,
     /// The input delay to report for every channel, in ms.
-    pub latency_ms: Option<f64>,
+    pub source_latency_ms: Option<f64>,
 }
 
 /// What discovery found.
@@ -131,7 +132,7 @@ pub fn discover(cards: &[Card], sources: &[Source]) -> Discovered {
                 },
                 node_name: source.name.clone(),
                 sample_rate: source.sample_rate,
-                latency_ms: source.latency_ms,
+                source_latency_ms: source.source_latency_ms,
             });
         }
     }
@@ -240,7 +241,7 @@ mod tests {
             card: Some(card),
             channels,
             sample_rate: 48_000,
-            latency_ms: Some(8.0),
+            source_latency_ms: Some(8.0),
             monitor: false,
         }
     }
@@ -278,7 +279,7 @@ mod tests {
                 },
                 node_name: "alsa_input.usb-Focusrite-00.pro-input-0".into(),
                 sample_rate: 48_000,
-                latency_ms: Some(8.0),
+                source_latency_ms: Some(8.0),
             }]
         );
         assert_eq!(found.not_pro_audio, vec![]);

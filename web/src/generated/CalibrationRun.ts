@@ -9,12 +9,10 @@ import type { CalibrationPhase } from "./CalibrationPhase";
  * Stage plays the tones; Mics not ready by then are left out) → `results`
  * (one row per Mic in the run) and ends when closed.
  */
-export type CalibrationRun = {
-  phase: CalibrationPhase;
-  /**
-   * In `choosing`, every Mic on the checklist with whether it is ticked;
-   * from `waiting` on, only the chosen Mics; from `tones` on, only those
-   * that take part.
-   */
-  mics: Array<CalibrationMic>;
-};
+export type CalibrationRun = { phase: CalibrationPhase, 
+/**
+ * In `choosing`, every Mic on the checklist with whether it is ticked;
+ * from `waiting` on, only the chosen Mics; from `tones` on, only those
+ * that take part.
+ */
+mics: Array<CalibrationMic>, };

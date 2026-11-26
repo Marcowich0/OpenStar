@@ -5,7 +5,4 @@ import type { PartyMemberId } from "./PartyMemberId";
  * Who made a change: the Stage, or the Party member using the Phone that
  * made it.
  */
-export type Actor =
-  | { kind: "stage" }
-  | { kind: "member"; memberId: PartyMemberId }
-  | { kind: "admin" };
+export type Actor = { "kind": "stage" } | { "kind": "member", memberId: PartyMemberId, } | { "kind": "admin" };

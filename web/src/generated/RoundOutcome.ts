@@ -11,32 +11,28 @@ import type { SongId } from "./SongId";
  * Body of `POST /api/rounds`: how a round ended and, unless it was
  * skipped, one Score per seated Player (any number of them).
  */
-export type RoundOutcome = {
-  /**
-   * The Song as the Stage loaded it.
-   */
-  songId: SongId;
-  /**
-   * The Request that was sung. A round is stored once per Request, so
-   * the Stage retrying the same outcome after a lost response stores it
-   * once.
-   */
-  requestId: RequestId;
-  /**
-   * The fingerprint the loaded Song carried.
-   */
-  noteFingerprint: NoteFingerprint;
-  partyId: PartyId;
-  mode: RoundMode;
-  /**
-   * When the Song last started from its beginning (after the last
-   * Restart), in milliseconds since the Unix epoch.
-   */
-  startedAtMs: number;
-  ended: RoundEnd;
-  /**
-   * Empty for a skipped round. Otherwise one per seat of the Line-up
-   * fixed at Start, in seat order.
-   */
-  scores: Array<PlayerScore>;
-};
+export type RoundOutcome = { 
+/**
+ * The Song as the Stage loaded it.
+ */
+songId: SongId, 
+/**
+ * The Request that was sung. A round is stored once per Request, so
+ * the Stage retrying the same outcome after a lost response stores it
+ * once.
+ */
+requestId: RequestId, 
+/**
+ * The fingerprint the loaded Song carried.
+ */
+noteFingerprint: NoteFingerprint, partyId: PartyId, mode: RoundMode, 
+/**
+ * When the Song last started from its beginning (after the last
+ * Restart), in milliseconds since the Unix epoch.
+ */
+startedAtMs: number, ended: RoundEnd, 
+/**
+ * Empty for a skipped round. Otherwise one per seat of the Line-up
+ * fixed at Start, in seat order.
+ */
+scores: Array<PlayerScore>, };

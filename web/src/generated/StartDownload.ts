@@ -4,17 +4,15 @@ import type { PhoneId } from "./PhoneId";
 /**
  * Body of `POST /api/downloads`.
  */
-export type StartDownload = {
-  usdbId: number;
-  /**
-   * The video picked in the video picker: an `http://` or `https://` link
-   * on any host yt-dlp supports.
-   */
-  videoUrl: string;
-  /**
-   * The browser that starts the Download: its Phone id (every browser
-   * keeps one, the Stage computer's too), so that browser alone can offer
-   * "Add to Queue" once it is done.
-   */
-  browser: PhoneId;
-};
+export type StartDownload = { usdbId: number, 
+/**
+ * The video picked in the video picker: an `http://` or `https://` link
+ * on any host yt-dlp supports.
+ */
+videoUrl: string, 
+/**
+ * The browser that starts the Download: its Phone id (every browser
+ * keeps one, the Stage computer's too), so that browser alone can offer
+ * "Add to Queue" once it is done.
+ */
+browser: PhoneId, };

@@ -4,11 +4,8 @@ import type { BridgeRequestId } from "./BridgeRequestId";
 /**
  * A bridge waiting for approval.
  */
-export type BridgeRequest = {
-  requestId: BridgeRequestId;
-  hostName: string;
-  /**
-   * The 4-digit code the bridge shows too.
-   */
-  code: string;
-};
+export type BridgeRequest = { requestId: BridgeRequestId, hostName: string, 
+/**
+ * The 4-digit code the bridge shows too.
+ */
+code: string, };

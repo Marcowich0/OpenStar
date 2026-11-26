@@ -7,26 +7,24 @@ import type { TxtVersion } from "./TxtVersion";
  * The body of `POST /api/songs/{id}/timing`: the Timing edit to save, and
  * the version of the `.txt` its preview was computed from.
  */
-export type TimingSave = {
-  /**
-   * [`TimingPreview::base`] of the preview the admin confirmed. The save
-   * is refused (`409 songFileChanged`) when the file is no longer that
-   * version.
-   */
-  base: TxtVersion;
-  operations: Array<TimingOperation>;
-  /**
-   * Set when a Phone accepts its Auto-fit (#223): the Phone that ran it.
-   * Then only `setGap` and `setBpm` are allowed, and the Stage shows a
-   * [`crate::PartyEvent::AutoFitAccepted`] toast naming that Phone's
-   * Party member. The desktop Timing editor leaves it out.
-   */
-  autoFitFrom?: PhoneId;
-  /**
-   * [`crate::library::SongDetail::loaded_at_ms`] of the Song detail the
-   * editor opened (server time, ms since the Unix epoch). The save is
-   * refused (`409 songStartedSinceOpened`) when the Song started playing
-   * on the Stage since then.
-   */
-  openedAtMs?: number;
-};
+export type TimingSave = { 
+/**
+ * [`TimingPreview::base`] of the preview the admin confirmed. The save
+ * is refused (`409 songFileChanged`) when the file is no longer that
+ * version.
+ */
+base: TxtVersion, operations: Array<TimingOperation>, 
+/**
+ * Set when a Phone accepts its Auto-fit (#223): the Phone that ran it.
+ * Then only `setGap` and `setBpm` are allowed, and the Stage shows a
+ * [`crate::PartyEvent::AutoFitAccepted`] toast naming that Phone's
+ * Party member. The desktop Timing editor leaves it out.
+ */
+autoFitFrom?: PhoneId, 
+/**
+ * [`crate::library::SongDetail::loaded_at_ms`] of the Song detail the
+ * editor opened (server time, ms since the Unix epoch). The save is
+ * refused (`409 songStartedSinceOpened`) when the Song started playing
+ * on the Stage since then.
+ */
+openedAtMs?: number, };

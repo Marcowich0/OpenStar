@@ -32,7 +32,7 @@ import { phoneMember } from "../phonePage";
 import { HighScoreTables } from "./HighScoreTables";
 import {
   addRequest,
-  sameSingers,
+  samePlayers,
   setRequestedPlayers,
   type CommandResult,
 } from "./requestCommands";
@@ -53,10 +53,10 @@ function topTotal(tables: readonly HighScoreTable[] | undefined) {
 }
 
 /** Toggles a Party member in or out, keeping the order they were added. */
-function toggle(singers: readonly PartyMemberId[], id: PartyMemberId) {
-  return singers.includes(id)
-    ? singers.filter((s) => s !== id)
-    : [...singers, id];
+function toggle(players: readonly PartyMemberId[], id: PartyMemberId) {
+  return players.includes(id)
+    ? players.filter((s) => s !== id)
+    : [...players, id];
 }
 
 export function RequestSheet({
@@ -121,7 +121,7 @@ function SheetBody({
   const profiles = useQuery(profilesQuery);
   const party = useLive(selectParty, store);
   const me = useLive(phoneMember, store);
-  const [singers, setSingers] = useState<PartyMemberId[]>(() =>
+  const [players, setPlayers] = useState<PartyMemberId[]>(() =>
     target.kind === "change"
       ? target.request.requestedPlayers
       : me
@@ -153,19 +153,19 @@ function SheetBody({
     if (pending) return;
     setProblem(null);
     if (target.kind === "change") {
-      if (sameSingers(singers, target.request.requestedPlayers)) {
+      if (samePlayers(players, target.request.requestedPlayers)) {
         onClose();
         return;
       }
       setPending(true);
-      void setRequestedPlayers(store, target.request.requestId, singers).then(
+      void setRequestedPlayers(store, target.request.requestId, players).then(
         settle,
       );
       return;
     }
     if (!me) return;
     setPending(true);
-    void addRequest(store, songId, singers, me.memberId).then(settle);
+    void addRequest(store, songId, players, me.memberId).then(settle);
   }
 
   const preparing = target.kind === "add" && song.data.preparing;
@@ -218,14 +218,14 @@ function SheetBody({
         {(party?.members ?? []).map((member) => {
           const look = memberLook(member, profiles.data);
           if (!look) return null;
-          const on = singers.includes(member.memberId);
+          const on = players.includes(member.memberId);
           return (
             <button
               key={member.memberId}
               type="button"
               aria-pressed={on}
               onClick={() => {
-                setSingers((current) => toggle(current, member.memberId));
+                setPlayers((current) => toggle(current, member.memberId));
               }}
               className={`flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card-sm bg-white px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow ${on ? "ring-3 ring-ink" : ""}`}
             >

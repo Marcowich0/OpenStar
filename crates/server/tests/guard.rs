@@ -288,11 +288,11 @@ fn every_client_message() -> Vec<ClientMessage> {
                 clarity: 0.0,
                 loudness: -120.0,
             },
-            input: None,
+            local_mic: None,
         },
         ClientMessage::ClockPing {
             t0: 0.0,
-            input: None,
+            local_mic: None,
         },
         ClientMessage::ClockPong {
             mic: MicId::Phone {

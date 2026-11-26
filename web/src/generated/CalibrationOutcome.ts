@@ -3,5 +3,4 @@
 /**
  * One Mic's result row.
  */
-export type CalibrationOutcome =
-  { result: "calibrated"; micDelayMs: number } | { result: "failed" };
+export type CalibrationOutcome = { "result": "calibrated", micDelayMs: number, } | { "result": "failed" };

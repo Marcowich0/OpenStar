@@ -3,9 +3,8 @@
 /**
  * The URL query of `GET /api/usdb/video-details`.
  */
-export type VideoDetailsQuery = {
-  /**
-   * An `http://` or `https://` link.
-   */
-  url: string;
-};
+export type VideoDetailsQuery = { 
+/**
+ * An `http://` or `https://` link.
+ */
+url: string, };

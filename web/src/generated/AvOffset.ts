@@ -4,11 +4,8 @@
  * One browser's A/V offset at one output: the body of `GET /api/av-offset`
  * (0 when nothing is stored) and of `PUT /api/av-offset`, both ways.
  */
-export type AvOffset = {
-  browser: string;
-  output: string;
-  /**
-   * -300..=500, in 10 ms steps.
-   */
-  avOffsetMs: number;
-};
+export type AvOffset = { browser: string, output: string, 
+/**
+ * -300..=500, in 10 ms steps.
+ */
+avOffsetMs: number, };

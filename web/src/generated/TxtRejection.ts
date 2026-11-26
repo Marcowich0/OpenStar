@@ -3,15 +3,4 @@
 /**
  * Why a `.txt` cannot be played. A file has exactly one.
  */
-export type TxtRejection =
-  | { code: "invalidVersion"; line: number }
-  | { code: "unsupportedVersion"; line: number }
-  | { code: "relativeMode"; line: number }
-  | { code: "missingBpm" }
-  | { code: "invalidBpm"; line: number }
-  | { code: "missingArtist" }
-  | { code: "missingTitle" }
-  | { code: "noNotes" }
-  | { code: "duetVoiceWithoutNotes"; voice: number }
-  | { code: "invalidNoteLine"; line: number }
-  | { code: "invalidVoice"; line: number };
+export type TxtRejection = { "code": "invalidVersion", line: number, } | { "code": "unsupportedVersion", line: number, } | { "code": "relativeMode", line: number, } | { "code": "missingBpm" } | { "code": "invalidBpm", line: number, } | { "code": "missingArtist" } | { "code": "missingTitle" } | { "code": "noNotes" } | { "code": "duetVoiceWithoutNotes", voice: number, } | { "code": "invalidNoteLine", line: number, } | { "code": "invalidVoice", line: number, };

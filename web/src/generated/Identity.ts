@@ -6,23 +6,19 @@ import type { ProfileId } from "./ProfileId";
 /**
  * Who a Party member is: a Profile or a Guest, tagged by `kind`.
  */
-export type Identity =
-  | { kind: "profile"; profileId: ProfileId }
-  | {
-      kind: "guest";
-      /**
-       * Trimmed, at most [`crate::profile::NAME_MAX_LENGTH`] characters,
-       * unique among the Party's Guests ignoring case and surrounding
-       * spaces, and no Profile's name.
-       */
-      name: string;
-      /**
-       * Any built-in avatar; other members may have the same one.
-       */
-      avatar: Avatar;
-      /**
-       * The Difficulty its next seat starts at: Medium until changed,
-       * kept for the Party.
-       */
-      difficulty: Difficulty;
-    };
+export type Identity = { "kind": "profile", profileId: ProfileId, } | { "kind": "guest", 
+/**
+ * Trimmed, at most [`crate::profile::NAME_MAX_LENGTH`] characters,
+ * unique among the Party's Guests ignoring case and surrounding
+ * spaces, and no Profile's name.
+ */
+name: string, 
+/**
+ * Any built-in avatar; other members may have the same one.
+ */
+avatar: Avatar, 
+/**
+ * The Difficulty its next seat starts at: Medium until changed,
+ * kept for the Party.
+ */
+difficulty: Difficulty, };

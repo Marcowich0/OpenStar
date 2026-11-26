@@ -4,11 +4,4 @@ import type { UserMessage } from "./UserMessage";
 /**
  * The mirror's state, for the Downloads section.
  */
-export type UsdbMirrorState =
-  | { type: "unavailable"; reason: UserMessage }
-  | { type: "empty" }
-  | { type: "filling"; percent: number | null }
-  | { type: "refreshing"; full: boolean; percent: number | null }
-  | { type: "incomplete" }
-  | { type: "fresh" }
-  | { type: "stale" };
+export type UsdbMirrorState = { "type": "unavailable", reason: UserMessage, } | { "type": "empty" } | { "type": "filling", percent: number | null, } | { "type": "refreshing", full: boolean, percent: number | null, } | { "type": "incomplete" } | { "type": "fresh" } | { "type": "stale" };

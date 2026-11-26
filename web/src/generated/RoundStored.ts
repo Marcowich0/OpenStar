@@ -6,4 +6,4 @@ import type { StoredRound } from "./StoredRound";
  * The answer to `POST /api/rounds`: the round as stored and, for a played
  * or ended round, the results the Party now shows (`null` for a skip).
  */
-export type RoundStored = { round: StoredRound; results: SongResults | null };
+export type RoundStored = { round: StoredRound, results: SongResults | null, };

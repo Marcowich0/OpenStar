@@ -4,16 +4,13 @@
  * A channel's meter level, as a bridge measured it over the last tenth of
  * a second.
  */
-export type BridgeLevel = {
-  deviceName: string;
-  channel: number;
-  /**
-   * RMS level in dBFS: at most 0, and −100 for silence.
-   */
-  levelDbfs: number;
-  /**
-   * Every sample of the interval was exactly 0 (not quiet noise): the
-   * "sends no sound" warning's input.
-   */
-  digitalSilence: boolean;
-};
+export type BridgeLevel = { deviceName: string, channel: number, 
+/**
+ * RMS level in dBFS: at most 0, and −100 for silence.
+ */
+levelDbfs: number, 
+/**
+ * Every sample of the interval was exactly 0 (not quiet noise): the
+ * "sends no sound" warning's input.
+ */
+digitalSilence: boolean, };

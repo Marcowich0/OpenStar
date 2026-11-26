@@ -354,13 +354,13 @@ function beatPosition(grid: BeatGrid, t: number): number {
  */
 function lyricColour(state: SingState, voice: number): LyricColour {
   let colour: LyricColour = "--color-slate";
-  let singers = 0;
+  let players = 0;
   for (const lane of state.lanes) {
     if (lane.voice !== voice) continue;
-    singers++;
+    players++;
     colour = lane.colour;
   }
-  return singers === 1 ? colour : "--color-slate";
+  return players === 1 ? colour : "--color-slate";
 }
 
 /**

@@ -5,7 +5,4 @@
  * (`GET /api/usdb/songs/{id}/version`). v1 only records it, so offering a
  * newer USDB text can be built later.
  */
-export type UsdbTextVersion =
-  | { state: "notInLibrary" }
-  | { state: "unknown" }
-  | { state: "known"; lastChange: number | null; txtSha256: string };
+export type UsdbTextVersion = { "state": "notInLibrary" } | { "state": "unknown" } | { "state": "known", lastChange: number | null, txtSha256: string, };

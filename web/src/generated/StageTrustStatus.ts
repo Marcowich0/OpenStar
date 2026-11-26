@@ -3,4 +3,4 @@
 /**
  * Whether this browser is a remembered Stage browser.
  */
-export type StageTrustStatus = { trusted: boolean };
+export type StageTrustStatus = { trusted: boolean, };

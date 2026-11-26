@@ -3,10 +3,9 @@
 /**
  * Body of `POST /api/stage/trust`: asking to be a Stage browser.
  */
-export type StageTrustRequest = {
-  /**
-   * The digits typed on the PIN pad; absent to ask whether this browser
-   * is already remembered.
-   */
-  pin?: string;
-};
+export type StageTrustRequest = { 
+/**
+ * The digits typed on the PIN pad; absent to ask whether this browser
+ * is already remembered.
+ */
+pin?: string, };

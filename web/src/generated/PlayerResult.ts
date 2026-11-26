@@ -10,44 +10,33 @@ import type { ScorePlayer } from "./ScorePlayer";
  * One Player's result on the results screen (on the Stage, and on the
  * Phone that was the Player's Mic).
  */
-export type PlayerResult = {
-  /**
-   * The Party member in the seat.
-   */
-  memberId: PartyMemberId;
-  /**
-   * A Profile (with its id) or a Guest.
-   */
-  player: ScorePlayer;
-  name: string;
-  avatar: Avatar;
-  /**
-   * The member's Party colour.
-   */
-  colour: PaletteKey;
-  /**
-   * The seat's Mic: a Phone finds its own result by it.
-   */
-  mic: MicKey | null;
-  /**
-   * The Voice sung (0 = `P1`), only in a duet.
-   */
-  voice: number | null;
-  difficulty: Difficulty;
-  total: number;
-  notes: number;
-  golden: number;
-  lineBonus: number;
-  /**
-   * 1-based, by total across Difficulties. Equal totals share a place
-   * and the next place skips (1, 1, 3).
-   */
-  place: number;
-  /**
-   * `min(floor(total / 1250), 7)`: which of the eight Rank titles shows.
-   */
-  rankTitleBand: number;
-  newHighScore: boolean;
-  micLost: boolean;
-  unfinished: boolean;
-};
+export type PlayerResult = { 
+/**
+ * The Party member in the seat.
+ */
+memberId: PartyMemberId, 
+/**
+ * A Profile (with its id) or a Guest.
+ */
+player: ScorePlayer, name: string, avatar: Avatar, 
+/**
+ * The member's Party colour.
+ */
+colour: PaletteKey, 
+/**
+ * The seat's Mic: a Phone finds its own result by it.
+ */
+mic: MicKey | null, 
+/**
+ * The Voice sung (0 = `P1`), only in a duet.
+ */
+voice: number | null, difficulty: Difficulty, total: number, notes: number, golden: number, lineBonus: number, 
+/**
+ * 1-based, by total across Difficulties. Equal totals share a place
+ * and the next place skips (1, 1, 3).
+ */
+place: number, 
+/**
+ * `min(floor(total / 1250), 7)`: which of the eight Rank titles shows.
+ */
+rankTitleBand: number, newHighScore: boolean, micLost: boolean, unfinished: boolean, };

@@ -4,20 +4,18 @@ import type { MicKey } from "./MicKey";
 /**
  * One Mic's successful Calibration result, as the Stage computed it.
  */
-export type CalibrationResult = {
-  mic: MicKey;
-  /**
-   * The Mic delay, in milliseconds.
-   */
-  micDelayMs: number;
-  /**
-   * The bleed level, in dBFS at the reference volume.
-   */
-  bleedLevelDbfs: number;
-  /**
-   * For a Local mic: its Mic threshold (bleed level + 6 dB), in dBFS at
-   * the reference volume. Stored as set by Calibration. Left out, the
-   * stored Mic threshold stays as it was.
-   */
-  micThresholdDbfs?: number;
-};
+export type CalibrationResult = { mic: MicKey, 
+/**
+ * The Mic delay, in milliseconds.
+ */
+micDelayMs: number, 
+/**
+ * The bleed level, in dBFS at the reference volume.
+ */
+bleedLevelDbfs: number, 
+/**
+ * For a Local mic: its Mic threshold (bleed level + 6 dB), in dBFS at
+ * the reference volume. Stored as set by Calibration. Left out, the
+ * stored Mic threshold stays as it was.
+ */
+micThresholdDbfs?: number, };

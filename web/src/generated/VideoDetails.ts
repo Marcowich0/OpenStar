@@ -3,11 +3,8 @@
 /**
  * What yt-dlp reads about a video.
  */
-export type VideoDetails = {
-  title: string;
-  durationSeconds: number | null;
-  /**
-   * The thumbnail's URL on the video's host.
-   */
-  thumbnail: string | null;
-};
+export type VideoDetails = { title: string, durationSeconds: number | null, 
+/**
+ * The thumbnail's URL on the video's host.
+ */
+thumbnail: string | null, };

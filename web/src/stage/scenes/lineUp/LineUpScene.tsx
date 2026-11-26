@@ -40,7 +40,7 @@ import {
   type MicLabel,
   type MicLevels,
 } from "./lineUpView";
-import { AddSingerCard, SeatCard } from "./SeatCard";
+import { AddPlayerCard, SeatCard } from "./SeatCard";
 import { MicPickList, WhoPickList } from "./SeatPickLists";
 
 /** v1 seats at most 4 Players (v1 spec #48). */
@@ -334,7 +334,7 @@ function LineUpBody({
         })}
         {lineUp.seats.length < SEATS && (
           <li>
-            <AddSingerCard
+            <AddPlayerCard
               order={lineUp.seats.length}
               isDefault={lineUp.seats.length === 0}
               onPress={() => {
@@ -359,7 +359,7 @@ function LineUpBody({
                   }}
                 />
               )}
-            </AddSingerCard>
+            </AddPlayerCard>
           </li>
         )}
       </ol>

@@ -10,8 +10,4 @@ import type { ProfileId } from "./ProfileId";
  * that enters the Party and takes the seat in one step (the Stage's
  * + Guest and + Profile). Tagged by `kind`, like [`JoinAs`].
  */
-export type SeatWho =
-  | { kind: "member"; memberId: PartyMemberId }
-  | { kind: "profile"; profileId: ProfileId }
-  | ({ kind: "guest" } & NewGuest)
-  | ({ kind: "newProfile" } & NewProfile);
+export type SeatWho = { "kind": "member", memberId: PartyMemberId, } | { "kind": "profile", profileId: ProfileId, } | { "kind": "guest" } & NewGuest | { "kind": "newProfile" } & NewProfile;

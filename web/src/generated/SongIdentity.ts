@@ -7,6 +7,4 @@
  * survives renamed and moved folders. Two Songs with equal identities are
  * duplicates.
  */
-export type SongIdentity =
-  | { kind: "usdb"; usdbId: number }
-  | { kind: "artistTitle"; artist: string; title: string; duet: boolean };
+export type SongIdentity = { "kind": "usdb", usdbId: number, } | { "kind": "artistTitle", artist: string, title: string, duet: boolean, };

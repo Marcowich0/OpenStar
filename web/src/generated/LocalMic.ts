@@ -6,12 +6,8 @@ import type { LocalMicSource } from "./LocalMicSource";
  * A channel that matches none is new and switched off. Kept across Parties
  * and restarts.
  */
-export type LocalMic = {
-  localMicId: string;
-  source: LocalMicSource;
-  /**
-   * The name the host gave it; empty shows the default name.
-   */
-  name: string;
-  switchedOn: boolean;
-};
+export type LocalMic = { localMicId: string, source: LocalMicSource, 
+/**
+ * The name the host gave it; empty shows the default name.
+ */
+name: string, switchedOn: boolean, };

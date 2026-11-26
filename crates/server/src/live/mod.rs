@@ -39,7 +39,7 @@ use openstar_protocol::mics::{LocalMic, LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::volume::VolumeStep;
 use openstar_protocol::{
-    Actor, BridgeInput, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode,
+    Actor, BridgeLocalMic, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode,
     JoinedPhone, LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMember, PartyMemberId,
     PartySnapshot, PhoneId, PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind,
     SeatVoice, SeatWho, ServerMessage, SongControl, SongEnd, SongProgress, SongResults, StageId,
@@ -852,13 +852,13 @@ impl LiveState {
                     None => self.reject(id, UserMessage::ServerError),
                 }
             }
-            Ok(ClientMessage::PitchReading { reading, input }) => {
-                if let Some(mic) = self.sending_mic(id, input.as_ref()) {
+            Ok(ClientMessage::PitchReading { reading, local_mic }) => {
+                if let Some(mic) = self.sending_mic(id, local_mic.as_ref()) {
                     self.send_to_stage(&ServerMessage::PitchReading { mic, reading });
                 }
             }
-            Ok(ClientMessage::ClockPing { t0, input }) => {
-                if let Some(mic) = self.sending_mic(id, input.as_ref()) {
+            Ok(ClientMessage::ClockPing { t0, local_mic }) => {
+                if let Some(mic) = self.sending_mic(id, local_mic.as_ref()) {
                     self.send_to_stage(&ServerMessage::ClockPing { mic, t0 });
                 }
             }
@@ -882,7 +882,7 @@ impl LiveState {
                                     t0,
                                     ts,
                                     epoch,
-                                    input: None,
+                                    local_mic: None,
                                 },
                             );
                         }
@@ -1391,9 +1391,13 @@ impl LiveState {
     /// The Mic a reading or ping from connection `id` is relayed as: one of
     /// an approved bridge's Local mics on a bridge socket (never a Phone),
     /// otherwise the Phone's ([`Self::acting_mic`]).
-    fn sending_mic(&mut self, id: ConnectionId, input: Option<&BridgeInput>) -> Option<MicId> {
+    fn sending_mic(
+        &mut self,
+        id: ConnectionId,
+        local_mic: Option<&BridgeLocalMic>,
+    ) -> Option<MicId> {
         if self.bridges.sockets.contains(&id) {
-            self.bridge_mic(id, input)
+            self.bridge_mic(id, local_mic)
         } else {
             self.acting_mic(id)
         }
@@ -1917,7 +1921,7 @@ impl LiveState {
         let mut party = self.party()?;
         queue::set_players(&mut party, request_id, requested_players)?;
         // Change singers on the head whose Line-up waits: the Line-up is
-        // prefilled again from the new singers (in `commit_queue`).
+        // prefilled again from the new requested Players (in `commit_queue`).
         if party.playing.is_none()
             && party.line_up.as_ref().map(|line_up| line_up.request_id) == Some(request_id)
         {
@@ -2817,9 +2821,9 @@ impl LiveState {
     }
 
     /// Prefills the Line-up of `party`'s head when the head is a Request
-    /// that has none yet (it just reached the head, or its singers were
-    /// changed), and drops it when there is no head. A Line-up already
-    /// waiting is kept as it is.
+    /// that has none yet (it just reached the head, or its requested
+    /// Players were changed), and drops it when there is no head. A Line-up
+    /// already waiting is kept as it is.
     async fn follow_head(&self, party: &mut PartySnapshot) -> Result<(), UserMessage> {
         let Some(head) = party.head else {
             party.line_up = None;

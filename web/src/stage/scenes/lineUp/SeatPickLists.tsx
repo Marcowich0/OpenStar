@@ -1,7 +1,7 @@
 // The short pick lists under a Line-up field (v1 spec #55): Who lists the
 // Party members, then the Profiles not in the Party yet (most recently sung
 // first), then + Guest and + Profile, which turn the list into a small form
-// (`NewSingerForm`). Mic lists the Mics, dimming those another seat has (with who
+// (`NewPlayerForm`). Mic lists the Mics, dimming those another seat has (with who
 // has them) and unplugged Local mics. The seat's current choice takes the
 // focus.
 
@@ -27,7 +27,7 @@ import {
   type MicChoice,
   type MicLabel,
 } from "./lineUpView";
-import { NewSingerForm, type NewSingerKind } from "./NewSingerForm";
+import { NewPlayerForm, type NewPlayerKind } from "./NewPlayerForm";
 
 const POSITION = "top-full left-1/2 mt-4 -translate-x-1/2";
 const ENTRY = "flex w-full items-center gap-4";
@@ -97,7 +97,7 @@ export function WhoPickList({
    */
   onSeat: (who: SeatWho) => Promise<UserMessage | null>;
 }) {
-  const [form, setForm] = useState<NewSingerKind | null>(null);
+  const [form, setForm] = useState<NewPlayerKind | null>(null);
   const [problem, setProblem] = useState<UserMessage | null>(null);
   const seated = new Set(lineUp.seats.map((s) => s.memberId));
   const label = t("stage.lineUp.whoList");
@@ -107,7 +107,7 @@ export function WhoPickList({
     return (
       <StagePickList aria-label={label} onClose={onClose} className={POSITION}>
         <div ref={fit} className="contents" />
-        <NewSingerForm
+        <NewPlayerForm
           kind={form}
           members={party.members}
           profiles={profiles ?? []}

@@ -5,11 +5,8 @@ import type { PaletteKey } from "./PaletteKey";
 /**
  * Body of `POST /api/profiles`, and of joining as a new Profile.
  */
-export type NewProfile = {
-  /**
-   * Surrounding spaces are trimmed before the name is checked and stored.
-   */
-  name: string;
-  avatar: Avatar;
-  favouriteColour: PaletteKey;
-};
+export type NewProfile = { 
+/**
+ * Surrounding spaces are trimmed before the name is checked and stored.
+ */
+name: string, avatar: Avatar, favouriteColour: PaletteKey, };

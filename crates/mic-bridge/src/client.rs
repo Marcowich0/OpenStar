@@ -865,7 +865,7 @@ mod tests {
 
     #[test]
     fn detecting_channels_are_shown_as_a_count() {
-        let input = |channel| openstar_protocol::BridgeInput {
+        let input = |channel| openstar_protocol::BridgeLocalMic {
             device_name: "alsa_card.usb-X-00".into(),
             channel,
         };

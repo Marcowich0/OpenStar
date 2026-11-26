@@ -5,4 +5,4 @@ import type { TimingOperation } from "./TimingOperation";
  * The body of `POST /api/songs/{id}/timing/preview`: the Timing edit to
  * preview.
  */
-export type TimingEdit = { operations: Array<TimingOperation> };
+export type TimingEdit = { operations: Array<TimingOperation>, };

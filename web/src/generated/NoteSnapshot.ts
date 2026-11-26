@@ -7,17 +7,16 @@ import type { SnapshotVoice } from "./SnapshotVoice";
  * fingerprint, so an old Score record can be graphed against the Notes it
  * was sung to.
  */
-export type NoteSnapshot = {
-  /**
-   * `#GAP` in seconds.
-   */
-  gapSeconds: number;
-  /**
-   * The real beat rate, `#BPM` × 4.
-   */
-  beatsPerMinute: number;
-  /**
-   * The Voices in Song order (`P1`, then `P2`).
-   */
-  voices: Array<SnapshotVoice>;
-};
+export type NoteSnapshot = { 
+/**
+ * `#GAP` in seconds.
+ */
+gapSeconds: number, 
+/**
+ * The real beat rate, `#BPM` × 4.
+ */
+beatsPerMinute: number, 
+/**
+ * The Voices in Song order (`P1`, then `P2`).
+ */
+voices: Array<SnapshotVoice>, };

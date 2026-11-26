@@ -95,7 +95,7 @@ async fn sings(phone: &mut WsClient, stage: &mut WsClient, mic: &MicId, capture_
     phone
         .send(&ClientMessage::PitchReading {
             reading: reading(capture_ms),
-            input: None,
+            local_mic: None,
         })
         .await;
     assert_eq!(

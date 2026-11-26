@@ -5,4 +5,4 @@ import type { PartyEvent } from "./PartyEvent";
 /**
  * One accepted change: who made it and what it was.
  */
-export type ChangeEvent = { actor: Actor; event: PartyEvent };
+export type ChangeEvent = { actor: Actor, event: PartyEvent, };

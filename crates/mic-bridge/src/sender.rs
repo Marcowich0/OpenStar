@@ -12,7 +12,7 @@
 //! dropped.
 //!
 //! Each Local mic syncs on its own (its pings and pongs carry its
-//! [`BridgeInput`]), so the Stage sees every bridge Local mic as one remote
+//! [`BridgeLocalMic`]), so the Stage sees every bridge Local mic as one remote
 //! Mic, like a Phone. The sender is pure: every time is an input, in ms on
 //! the bridge's monotonic clock, and it returns the messages to send.
 
@@ -20,7 +20,7 @@ use std::time::Instant;
 
 use openstar_capture_clock::{Pong, SenderSession};
 use openstar_detector::{Mpm, ReadingMaker};
-use openstar_protocol::{BridgeInput, ClientMessage, PitchReading};
+use openstar_protocol::{BridgeLocalMic, ClientMessage, PitchReading};
 
 /// The bridge's own monotonic clock, in ms since it was made (never
 /// `SystemTime`, which can jump).
@@ -49,7 +49,7 @@ impl MonotonicClock {
 }
 
 struct MicSender {
-    input: BridgeInput,
+    input: BridgeLocalMic,
     maker: ReadingMaker<Mpm>,
     session: SenderSession,
 }
@@ -66,7 +66,7 @@ impl Sender {
     }
 
     /// The Local mics capturing now, in the order they started.
-    pub fn capturing(&self) -> impl Iterator<Item = &BridgeInput> {
+    pub fn capturing(&self) -> impl Iterator<Item = &BridgeLocalMic> {
         self.mics.iter().map(|mic| &mic.input)
     }
 
@@ -74,7 +74,7 @@ impl Sender {
     /// stream) at `now_ms`, at `sample_rate`: a fresh reading maker and frame
     /// mapping, and fast pings. A restart keeps the clock offset: the
     /// Stage's clock has not changed.
-    pub fn start(&mut self, input: BridgeInput, sample_rate: f64, now_ms: f64) {
+    pub fn start(&mut self, input: BridgeLocalMic, sample_rate: f64, now_ms: f64) {
         let maker = ReadingMaker::new(Mpm::new(), sample_rate);
         match self.mics.iter_mut().find(|mic| mic.input == input) {
             Some(mic) => {
@@ -94,7 +94,7 @@ impl Sender {
     }
 
     /// Local mic `input` stops capturing: no more readings or pings.
-    pub fn stop(&mut self, input: &BridgeInput) {
+    pub fn stop(&mut self, input: &BridgeLocalMic) {
         self.mics.retain(|mic| &mic.input != input);
     }
 
@@ -104,7 +104,7 @@ impl Sender {
     /// is not capturing.
     pub fn push_block(
         &mut self,
-        input: &BridgeInput,
+        input: &BridgeLocalMic,
         block: &[f32],
         handled_ms: f64,
     ) -> Option<ClientMessage> {
@@ -121,7 +121,7 @@ impl Sender {
                 clarity: made.clarity,
                 loudness: made.loudness_dbfs,
             },
-            input: Some(mic.input.clone()),
+            local_mic: Some(mic.input.clone()),
         })
     }
 
@@ -136,7 +136,7 @@ impl Sender {
         handled_ms: f64,
     ) -> Vec<ClientMessage> {
         let width = channels.max(1) as usize;
-        let wanted: Vec<BridgeInput> = self
+        let wanted: Vec<BridgeLocalMic> = self
             .mics
             .iter()
             .filter(|mic| mic.input.device_name == device_name && mic.input.channel < channels)
@@ -164,7 +164,7 @@ impl Sender {
                 let t0 = mic.session.poll_ping(now_ms)?;
                 Some(ClientMessage::ClockPing {
                     t0,
-                    input: Some(mic.input.clone()),
+                    local_mic: Some(mic.input.clone()),
                 })
             })
             .collect()
@@ -179,7 +179,7 @@ impl Sender {
     }
 
     /// The Stage's pong for Local mic `input`, handled at `t1`.
-    pub fn receive_pong(&mut self, input: &BridgeInput, t0: f64, ts: f64, epoch: f64, t1: f64) {
+    pub fn receive_pong(&mut self, input: &BridgeLocalMic, t0: f64, ts: f64, epoch: f64, t1: f64) {
         if let Some(mic) = self.mics.iter_mut().find(|mic| &mic.input == input) {
             mic.session.receive_pong(Pong { t0, t1, ts, epoch });
         }
@@ -203,8 +203,8 @@ mod tests {
     /// makes a reading.
     const BLOCK: usize = 480;
 
-    fn input(channel: u32) -> BridgeInput {
-        BridgeInput {
+    fn input(channel: u32) -> BridgeLocalMic {
+        BridgeLocalMic {
             device_name: "alsa_card.usb-X-00".into(),
             channel,
         }
@@ -221,7 +221,7 @@ mod tests {
     /// f handled at `f / 48 + delay(block)` ms; returns what is to be sent.
     fn feed(
         sender: &mut Sender,
-        mic: &BridgeInput,
+        mic: &BridgeLocalMic,
         first_block: usize,
         blocks: usize,
         delay: impl Fn(usize) -> f64,
@@ -235,12 +235,12 @@ mod tests {
             .collect()
     }
 
-    fn readings(sent: &[ClientMessage]) -> Vec<(PitchReading, BridgeInput)> {
+    fn readings(sent: &[ClientMessage]) -> Vec<(PitchReading, BridgeLocalMic)> {
         sent.iter()
             .map(|message| match message {
                 ClientMessage::PitchReading {
                     reading,
-                    input: Some(input),
+                    local_mic: Some(input),
                 } => (*reading, input.clone()),
                 other => panic!("expected a bridge reading, got {other:?}"),
             })
@@ -249,12 +249,15 @@ mod tests {
 
     /// Answers the first ping due at `now` for `mic` as a Stage whose clock
     /// is `offset` ahead, over a round trip of `round_trip` ms.
-    fn sync(sender: &mut Sender, mic: &BridgeInput, now: f64, offset: f64, round_trip: f64) {
+    fn sync(sender: &mut Sender, mic: &BridgeLocalMic, now: f64, offset: f64, round_trip: f64) {
         let pings = sender.poll_pings(now);
         let t0 = pings
             .iter()
             .find_map(|ping| match ping {
-                ClientMessage::ClockPing { t0, input: Some(i) } if i == mic => Some(*t0),
+                ClientMessage::ClockPing {
+                    t0,
+                    local_mic: Some(i),
+                } if i == mic => Some(*t0),
                 _ => None,
             })
             .expect("a ping is due");
@@ -314,11 +317,11 @@ mod tests {
             vec![
                 ClientMessage::ClockPing {
                     t0: 0.0,
-                    input: Some(input(0))
+                    local_mic: Some(input(0))
                 },
                 ClientMessage::ClockPing {
                     t0: 0.0,
-                    input: Some(input(2))
+                    local_mic: Some(input(2))
                 },
             ]
         );

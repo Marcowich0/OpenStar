@@ -5,4 +5,4 @@ import type { Line } from "./Line";
  * One sung part of a Song: its Lines in file order. Each Voice has its own
  * beat timeline.
  */
-export type Voice = { lines: Array<Line> };
+export type Voice = { lines: Array<Line>, };

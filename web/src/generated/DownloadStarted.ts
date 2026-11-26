@@ -5,4 +5,4 @@ import type { JobId } from "./JobId";
  * Answer of `POST /api/downloads`: the Download's job, whose progress and
  * end reach every browser as `JobChanged`.
  */
-export type DownloadStarted = { jobId: JobId };
+export type DownloadStarted = { jobId: JobId, };

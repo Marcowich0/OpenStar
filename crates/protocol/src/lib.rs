@@ -28,7 +28,7 @@ pub use party::{
     PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice,
     SeatWho, SongControl, SongEnd, SongProgress, SongResults,
 };
-pub use pitch::{BridgeInput, MicId, PitchReading};
+pub use pitch::{BridgeLocalMic, MicId, PitchReading};
 pub use scoring::BeatValue;
 
 /// Body of `GET /api/server-info`.
@@ -98,7 +98,7 @@ pub enum ClientMessage {
         /// the reading is from; a Phone leaves it out.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        input: Option<BridgeInput>,
+        local_mic: Option<BridgeLocalMic>,
     },
     /// A clock-sync ping, relayed to the current Stage (dropped while there
     /// is none). `t0` is the send time on the sender's own clock, in ms.
@@ -108,7 +108,7 @@ pub enum ClientMessage {
         /// its own); a Phone leaves it out.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        input: Option<BridgeInput>,
+        local_mic: Option<BridgeLocalMic>,
     },
     /// The Stage's answer to a [`ServerMessage::ClockPing`], relayed to the
     /// Mic named in `mic` alone. Accepted only from the active Stage.
@@ -522,7 +522,7 @@ pub enum ServerMessage {
         /// To a Mic bridge only: the Local mic whose ping this answers.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        input: Option<BridgeInput>,
+        local_mic: Option<BridgeLocalMic>,
     },
     /// Stage only: a Mic's WebSocket closed (one of the lost-Mic signals).
     MicClosed { mic: MicId },
@@ -624,7 +624,7 @@ pub enum ServerMessage {
     /// each a switched-on Local mic seated in the Song that plays (paused
     /// included). Sent whenever that set changes (not on connect while it
     /// is empty). The bridge sends Pitch readings for exactly these.
-    BridgeDetecting { channels: Vec<BridgeInput> },
+    BridgeDetecting { channels: Vec<BridgeLocalMic> },
     /// To a connected Mic bridge: Switch to Pro Audio was pressed on the
     /// Stage for its interface `device_name`. The bridge tries the switch
     /// itself, as if its own button had been pressed; it never switches

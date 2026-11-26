@@ -6,4 +6,4 @@ import type { AvatarKey } from "./AvatarKey";
  * uploaded image becomes another variant (for example `uploaded { id }`)
  * without changing the stored built-in avatars.
  */
-export type Avatar = { kind: "builtIn"; key: AvatarKey };
+export type Avatar = { "kind": "builtIn", key: AvatarKey, };

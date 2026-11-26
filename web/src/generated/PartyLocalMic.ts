@@ -5,17 +5,14 @@ import type { LocalMicSource } from "./LocalMicSource";
  * A switched-on Local mic as the Line-up offers it, in the Party snapshot:
  * its name and whether it can sing now.
  */
-export type PartyLocalMic = {
-  localMicId: string;
-  source: LocalMicSource;
-  /**
-   * The name the host gave it; empty shows the default name.
-   */
-  name: string;
-  /**
-   * Plugged in (a Stage-browser device the Stage reports, a bridge
-   * channel whose bridge is open and offers it). An unplugged or
-   * closed-bridge Local mic is never free and is dimmed in Mic lists.
-   */
-  present: boolean;
-};
+export type PartyLocalMic = { localMicId: string, source: LocalMicSource, 
+/**
+ * The name the host gave it; empty shows the default name.
+ */
+name: string, 
+/**
+ * Plugged in (a Stage-browser device the Stage reports, a bridge
+ * channel whose bridge is open and offers it). An unplugged or
+ * closed-bridge Local mic is never free and is dimmed in Mic lists.
+ */
+present: boolean, };

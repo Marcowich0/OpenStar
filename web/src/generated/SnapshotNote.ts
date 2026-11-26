@@ -4,10 +4,4 @@ import type { NoteKind } from "./NoteKind";
 /**
  * One Note of a [`NoteSnapshot`], values as written in the `.txt`.
  */
-export type SnapshotNote = {
-  kind: NoteKind;
-  start: number;
-  length: number;
-  pitch: number;
-  text: string;
-};
+export type SnapshotNote = { kind: NoteKind, start: number, length: number, pitch: number, text: string, };

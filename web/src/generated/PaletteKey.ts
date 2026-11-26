@@ -5,16 +5,4 @@
  * these keys everywhere, never as hex values; a theme maps each key to its
  * own value. [`PaletteKey::ALL`] is the palette order, most distinct first.
  */
-export type PaletteKey =
-  | "cherry"
-  | "sky"
-  | "navy"
-  | "cocoa"
-  | "teal"
-  | "lime"
-  | "berry"
-  | "mint"
-  | "bubblegum"
-  | "forest"
-  | "grape"
-  | "tangerine";
+export type PaletteKey = "cherry" | "sky" | "navy" | "cocoa" | "teal" | "lime" | "berry" | "mint" | "bubblegum" | "forest" | "grape" | "tangerine";

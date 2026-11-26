@@ -4,14 +4,9 @@
  * What one Player sang in one Beat, independent of the Note and the
  * Difficulty.
  */
-export type BeatValue =
-  | { kind: "noVoice" }
-  | { kind: "voiceWithoutPitch" }
-  | {
-      kind: "pitch";
-      /**
-       * A fractional MIDI note number (A4 = 69), always one of the Beat's
-       * actual readings.
-       */
-      pitch: number;
-    };
+export type BeatValue = { "kind": "noVoice" } | { "kind": "voiceWithoutPitch" } | { "kind": "pitch", 
+/**
+ * A fractional MIDI note number (A4 = 69), always one of the Beat's
+ * actual readings.
+ */
+pitch: number, };

@@ -4,16 +4,14 @@ import type { TrashId } from "./TrashId";
 /**
  * A Song folder in the 30-day trash (`GET /api/library/trash`).
  */
-export type TrashedSong = {
-  id: TrashId;
-  /**
-   * The folder's path relative to the Library when it was deleted, with
-   * `/` between segments; a restore moves it back there.
-   */
-  originalPath: string;
-  /**
-   * When it was deleted, in ms since the Unix epoch. It is purged 30 days
-   * after this.
-   */
-  deletedMs: number;
-};
+export type TrashedSong = { id: TrashId, 
+/**
+ * The folder's path relative to the Library when it was deleted, with
+ * `/` between segments; a restore moves it back there.
+ */
+originalPath: string, 
+/**
+ * When it was deleted, in ms since the Unix epoch. It is purged 30 days
+ * after this.
+ */
+deletedMs: number, };
