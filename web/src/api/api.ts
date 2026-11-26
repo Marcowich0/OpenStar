@@ -5,6 +5,8 @@
 
 import type { ApiError } from "../generated/ApiError";
 import type { ApiErrorCode } from "../generated/ApiErrorCode";
+import type { AvOffset } from "../generated/AvOffset";
+import type { AvOffsetQuery } from "../generated/AvOffsetQuery";
 import type { JobList } from "../generated/JobList";
 import type { LibraryProblem } from "../generated/LibraryProblem";
 import type { LocalMic } from "../generated/LocalMic";
@@ -50,6 +52,8 @@ export interface Endpoints {
   "GET /api/server-info": { response: ServerInfo };
   "GET /api/local-mics": { response: LocalMic[] };
   "GET /api/mic-bridges": { response: MicBridges };
+  "GET /api/av-offset": { query: AvOffsetQuery; response: AvOffset };
+  "PUT /api/av-offset": { body: AvOffset; response: AvOffset };
   "GET /api/unlock": { response: UnlockStatus };
   "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
   "POST /api/unlock/heartbeat": { response: UnlockStatus };
