@@ -27,7 +27,10 @@ describe("who reads the Song's position", () => {
     // And in the playback view's readout (#155, kept as a debug page), and in
     // the live scoring session (#165), which finalises Beats on Song time
     // itself: drawing runs behind by the A/V offset, scoring never does.
+    // The playback adapter reads it only at its event-only position reports
+    // for the Remotes (#159): start, pause, resume, Restart and end.
     expect(filesMatching(/\.songTime\s*\(/)).toEqual([
+      "src/playback/mediaPlayback.ts",
       "src/scoring/liveScoring.ts",
       "src/stage/playback/PlaybackCheck.tsx",
       "src/stage/sing/renderLoop.ts",
@@ -52,5 +55,21 @@ describe("who reads the Song's position", () => {
       "src/playback/mediaPlayback.ts",
       "src/playback/songPreview.ts",
     ]);
+  });
+
+  it("never hands Song time or progress to a Phone's mic path", () => {
+    // The Pitch capture and relay (and the Phone's mic) send readings only;
+    // the Remote's progress lives in the live state, away from them.
+    const micPath = /^\/src\/(pitch|phone\/mic)\//;
+    const offenders = Object.entries(sources)
+      .filter(([path]) => micPath.test(path))
+      .filter(([, text]) =>
+        /songProgress|SongProgress|progressAt|\.songTime\s*\(/.test(text),
+      )
+      .map(([path]) => path);
+    expect(
+      Object.keys(sources).filter((path) => micPath.test(path)).length,
+    ).toBeGreaterThan(0);
+    expect(offenders).toEqual([]);
   });
 });

@@ -202,3 +202,87 @@ describe("the OpenStar volume", () => {
     expect(again.volume).toBe(65);
   });
 });
+
+describe("Song progress on a Remote", () => {
+  const playing = (requestId: number, paused = false): PartySnapshot => ({
+    ...party,
+    playing: { requestId, songId: 7, paused },
+  });
+  const progress = (
+    requestId: number,
+    positionSeconds: number,
+    rate: number,
+    ageMs = 0,
+  ): ServerMessage => ({
+    type: "songProgress",
+    progress: { requestId, positionSeconds, rate, lengthSeconds: 200, ageMs },
+  });
+  const changed = (next: PartySnapshot): ServerMessage => ({
+    type: "partyChanged",
+    party: next,
+    change: {
+      actor: { kind: "stage" },
+      event: {
+        code: "songPaused",
+        params: { requestId: 1, songId: 7, title: "Solo" },
+      },
+    },
+  });
+
+  it("has no progress until the Stage reports", () => {
+    expect(initialLiveState.songProgress).toBeNull();
+    expect(synced(false, playing(1)).songProgress).toBeNull();
+  });
+
+  it("keeps the latest report, pinned to when it was heard", () => {
+    let state = synced(false, playing(1));
+    state = receive(state, progress(1, 0, 1), 1_000);
+    state = receive(state, changed(playing(1, true)), 6_000);
+    state = receive(state, progress(1, 5, 0), 6_050);
+    expect(state.songProgress).toEqual({
+      requestId: 1,
+      positionSeconds: 5,
+      rate: 0,
+      lengthSeconds: 200,
+      atMs: 6_050,
+    });
+    state = receive(state, progress(1, 5, 1), 9_100);
+    state = receive(state, progress(1, 0, 1), 20_000);
+    expect(state.songProgress).toMatchObject({
+      positionSeconds: 0,
+      rate: 1,
+      atMs: 20_000,
+    });
+  });
+
+  it("pins a report heard on connecting mid-Song to when it was sent", () => {
+    let state = synced(false, playing(1));
+    state = receive(state, progress(1, 40, 1, 2_500), 10_000);
+    expect(state.songProgress?.atMs).toBe(7_500);
+  });
+
+  it("drops the progress once its Song stops playing, and ignores stale reports", () => {
+    let state = synced(false, playing(1));
+    state = receive(state, progress(1, 3, 1), 1_000);
+    state = receive(state, changed(playing(2)), 2_000);
+    expect(state.songProgress).toBeNull();
+    state = receive(state, progress(1, 9, 1), 2_100);
+    expect(state.songProgress).toBeNull();
+    state = receive(state, progress(2, 0, 1), 2_200);
+    expect(state.songProgress?.requestId).toBe(2);
+    state = receive(state, changed(party), 3_000);
+    expect(state.songProgress).toBeNull();
+  });
+
+  it("forgets the progress when the live state comes again (a reconnect)", () => {
+    let state = synced(false, playing(1));
+    state = receive(state, progress(1, 3, 1), 1_000);
+    state = receive(state, {
+      type: "liveState",
+      stageId: "main",
+      party: playing(1),
+      isStage: false,
+    });
+    expect(state.songProgress).toBeNull();
+  });
+});

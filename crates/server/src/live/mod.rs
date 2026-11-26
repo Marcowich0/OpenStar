@@ -39,7 +39,7 @@ use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
     LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMember, PartyMemberId, PartySnapshot,
     PhoneId, PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SeatVoice,
-    SeatWho, ServerMessage, SongControl, SongEnd, SongResults, StageId, UserMessage,
+    SeatWho, ServerMessage, SongControl, SongEnd, SongProgress, SongResults, StageId, UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
@@ -318,6 +318,9 @@ struct Stage {
     /// The Stage output the active Stage last reported, with its OpenStar
     /// volume. Gone when that Stage closes or another becomes the Stage.
     output: Option<(StageOutput, u8)>,
+    /// The active Stage's latest position report for the playing Song, and
+    /// when it arrived (ms). Passed on only while its Request still plays.
+    progress: Option<(SongProgress, i64)>,
 }
 
 /// Owned by the task alone.
@@ -378,6 +381,7 @@ impl LiveState {
                 last_local_mics,
                 connection: None,
                 output: None,
+                progress: None,
             },
         );
         Ok(Self {
@@ -590,6 +594,10 @@ impl LiveState {
                     stepped: false,
                 },
             );
+        }
+        if let Some(progress) = self.current_progress(now_ms) {
+            self.hub
+                .send_to(id, &ServerMessage::SongProgress { progress });
         }
         if let Some(change) = started {
             self.party_changed(change);
@@ -841,6 +849,25 @@ impl LiveState {
             }) => {
                 let controlled = self.control_song(id, request_id, control).await;
                 self.refuse_on_error(id, controlled);
+            }
+            Ok(ClientMessage::ReportSongPosition {
+                request_id,
+                position_seconds,
+                rate,
+                length_seconds,
+            }) => {
+                let reported = self.report_song_position(
+                    id,
+                    now_ms,
+                    SongProgress {
+                        request_id,
+                        position_seconds,
+                        rate,
+                        length_seconds,
+                        age_ms: 0,
+                    },
+                );
+                self.refuse_on_error(id, reported);
             }
             Ok(ClientMessage::CloseResults) => {
                 let closed = self.close_results(id).await;
@@ -2053,6 +2080,7 @@ impl LiveState {
         let stage = self.stage_mut();
         stage.last_local_mics.extend(sung);
         stage.party = Some(party);
+        stage.progress = None;
         self.party_changed(ChangeEvent {
             actor,
             event: PartyEvent::SongStarted(change),
@@ -2246,6 +2274,59 @@ impl LiveState {
             .as_ref()
             .and_then(|party| party.playing.as_ref())
             .is_some_and(|playing| playing.song_id == song_id)
+    }
+
+    /// The active Stage reports where the playing Song stands (on start,
+    /// pause, resume, Restart and end only): kept, and passed on to every
+    /// connection as it is.
+    fn report_song_position(
+        &mut self,
+        id: ConnectionId,
+        now_ms: i64,
+        progress: SongProgress,
+    ) -> Result<(), UserMessage> {
+        if self.stage().connection != Some(id) {
+            return Err(UserMessage::NotTheStage);
+        }
+        let valid = |value: f64| value.is_finite() && value >= 0.0;
+        if !valid(progress.position_seconds)
+            || !valid(progress.rate)
+            || !progress.length_seconds.is_none_or(valid)
+        {
+            return Err(UserMessage::InvalidMessage);
+        }
+        let plays = self
+            .stage()
+            .party
+            .as_ref()
+            .and_then(|party| party.playing.as_ref())
+            .is_some_and(|playing| playing.request_id == progress.request_id);
+        if !plays {
+            return Err(UserMessage::NoSongPlaying);
+        }
+        self.hub.send_all(&ServerMessage::SongProgress {
+            progress: progress.clone(),
+        });
+        self.stage_mut().progress = Some((progress, now_ms));
+        Ok(())
+    }
+
+    /// The latest position report, aged to `now_ms`, while its Request
+    /// still plays.
+    fn current_progress(&self, now_ms: i64) -> Option<SongProgress> {
+        let stage = self.stage();
+        let (progress, received_ms) = stage.progress.as_ref()?;
+        let playing = stage.party.as_ref()?.playing.as_ref()?;
+        if playing.request_id != progress.request_id {
+            return None;
+        }
+        let age = now_ms
+            .saturating_sub(*received_ms)
+            .clamp(0, i64::from(u32::MAX));
+        Some(SongProgress {
+            age_ms: u32::try_from(age).unwrap_or(u32::MAX),
+            ..progress.clone()
+        })
     }
 
     /// Tells the active Stage to act on the head's Song.

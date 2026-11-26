@@ -111,6 +111,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // `POST /api/rounds`).
         | ClientMessage::ControlSong { .. }
         | ClientMessage::CloseResults
+        // The Stage's position report only tells Remotes how far the Song
+        // has got; it changes nothing kept.
+        | ClientMessage::ReportSongPosition { .. }
         // A bridge asking to join changes nothing until the Stage approves
         // it; approving needs no Admin PIN (becoming the Stage needed it).
         | ClientMessage::BridgeHello { .. }
@@ -315,6 +318,20 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/usdb/mirror/refetch",
             NotGuarded,
             usdb::http::refetch_mirror,
+        )
+        // Browsing USDB is free: the search reads the mirror, and a cover is
+        // fetched once into the cache (not the Library, not kept data).
+        .add(
+            Method::GET,
+            "/api/usdb/songs",
+            NotGuarded,
+            usdb::http::search,
+        )
+        .add(
+            Method::GET,
+            "/api/usdb/songs/{id}/cover",
+            NotGuarded,
+            usdb::covers::cover,
         )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage: the handler refuses a browser without Stage trust

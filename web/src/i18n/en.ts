@@ -283,10 +283,11 @@ export const en = {
   "mics.findIt.label": "Find it: {name}",
   "mics.findIt.choose": "Which channel is {name} on now?",
   "mics.findIt.none": "No new channel to pick. Is the mic plugged in?",
-  "stage.queue.count": {
-    one: "{count, number} Request in the Queue",
-    other: "{count, number} Requests in the Queue",
-  },
+  "stage.queue.actions": "What to do with {song}",
+  "stage.queue.singers": "Who sings {song}?",
+  "stage.queue.singersHint":
+    "Enter adds or takes off a singer, up to {seats, number}",
+  "stage.songs.added": "Added {song}",
   "stage.people.count": "{count, number} of 12 colours taken",
   "stage.people.joinCode": "Join with {code}",
   "stage.newParty": "New party",
@@ -383,8 +384,59 @@ export const en = {
   "admin.intro":
     "Anyone may look around here. Changing the Library's files, deleting kept data and taking the Stage ask for the Admin PIN.",
   "admin.lock": "Lock",
-  "admin.downloads.placeholder":
-    "Search USDB and download Songs here. Coming soon.",
+  "admin.downloads.search": "Search USDB by artist or title",
+  "admin.downloads.sort": "Sort by",
+  "admin.downloads.sort.views": "Views",
+  "admin.downloads.sort.rating": "Rating",
+  "admin.downloads.list": "USDB songs",
+  "admin.downloads.inLibrary": "In Library",
+  "admin.downloads.rating": "★ {rating, number}",
+  "admin.downloads.views": {
+    one: "{count, number} view",
+    other: "{count, number} views",
+  },
+  "admin.downloads.showing": "Showing {shown, number} of {total, number} songs",
+  "admin.downloads.none": "No USDB songs match",
+  "admin.downloads.empty": "No USDB songs are here yet",
+  "admin.downloads.loading": "Loading the USDB songs…",
+  "admin.downloads.failed": "The USDB songs could not be loaded",
+  "admin.downloads.credentialsMissing":
+    "USDB is not set up. Set OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD to a USDB account (or OPENSTAR_USDB_USERNAME_FILE and OPENSTAR_USDB_PASSWORD_FILE for Docker secrets), then restart OpenStar.",
+  "admin.downloads.checking": "Checking the USDB login…",
+  "admin.downloads.loginFailed":
+    "USDB login failed. Check OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD, then restart OpenStar.",
+  "admin.downloads.unreachable": "USDB cannot be reached right now.",
+  "admin.downloads.gaveUp":
+    "USDB is busy, so OpenStar stopped asking it for now.",
+  "admin.downloads.filling": {
+    one: "Fetching USDB's song list: {percent, number}% ({count, number} song so far)",
+    other:
+      "Fetching USDB's song list: {percent, number}% ({count, number} songs so far)",
+  },
+  "admin.downloads.fillingStarted": {
+    one: "Fetching USDB's song list ({count, number} song so far)",
+    other: "Fetching USDB's song list ({count, number} songs so far)",
+  },
+  "admin.downloads.lastFailure":
+    "The last update of the USDB list failed: {reason}",
+  "admin.downloads.mirror.empty": "USDB's song list is not here yet",
+  "admin.downloads.mirror.refetching": "Fetching the whole USDB list again…",
+  "admin.downloads.mirror.updating": "Updating the USDB list…",
+  "admin.downloads.mirror.incomplete": {
+    one: "{count, number} USDB song so far: the rest comes with the next update",
+    other:
+      "{count, number} USDB songs so far: the rest comes with the next update",
+  },
+  "admin.downloads.mirror.fresh": {
+    one: "{count, number} USDB song, up to date",
+    other: "{count, number} USDB songs, up to date",
+  },
+  "admin.downloads.mirror.stale": {
+    one: "{count, number} USDB song, last updated more than a day ago",
+    other: "{count, number} USDB songs, last updated more than a day ago",
+  },
+  "admin.downloads.refetch": "Fetch the whole list again",
+  "admin.downloads.refetchFailed": "The refetch could not be started",
   "admin.songs.search": "Search by artist or title",
   "admin.songs.list": "Songs in the Library",
   "admin.songs.none": "No Songs match",

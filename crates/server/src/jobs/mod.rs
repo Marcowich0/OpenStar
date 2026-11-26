@@ -29,7 +29,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::Duration;
 
 use openstar_protocol::jobs::{Job, JobId, JobKind, JobState};
-use openstar_protocol::{ServerMessage, UserMessage};
+use openstar_protocol::{ChangeTopic, ServerMessage, UserMessage};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
@@ -597,12 +597,28 @@ impl Runner {
         entry.job.state = state;
         let job = entry.job.clone();
         self.broadcast(&job).await;
+        if matches!(job.state, JobState::Done | JobState::Failed { .. }) {
+            let topics = topics_on_end(job.kind);
+            if !topics.is_empty() {
+                self.live.changed(topics).await;
+            }
+        }
     }
 
     async fn broadcast(&self, job: &Job) {
         self.live
             .send_all(ServerMessage::JobChanged { job: job.clone() })
             .await;
+    }
+}
+
+/// What a job of `kind` changes for browsers once it has ended (after its
+/// `JobChanged`), so a status read then sees the end: the USDB mirror's
+/// status says whether its run failed.
+fn topics_on_end(kind: JobKind) -> Vec<ChangeTopic> {
+    match kind {
+        JobKind::UsdbMirrorRefetch | JobKind::UsdbMirrorUpdate => vec![ChangeTopic::UsdbMirror],
+        _ => Vec::new(),
     }
 }
 

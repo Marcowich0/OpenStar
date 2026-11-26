@@ -25,7 +25,7 @@ pub use party::{
     Actor, ChangeEvent, Identity, JoinAs, JoinCode, JoinedPhone, LineUp, LineUpEdit, LineUpWarning,
     MemberEdit, NewGuest, PartyEvent, PartyId, PartyMember, PartyMemberId, PartySnapshot, PhoneId,
     PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice,
-    SeatWho, SongControl, SongEnd, SongResults,
+    SeatWho, SongControl, SongEnd, SongProgress, SongResults,
 };
 pub use pitch::{MicId, PitchReading};
 pub use scoring::BeatValue;
@@ -264,6 +264,22 @@ pub enum ClientMessage {
         request_id: RequestId,
         control: SongControl,
     },
+    /// The active Stage reports where the playing Song stands, only on
+    /// events: when it starts, pauses, resumes (once it really plays after
+    /// the countdown), restarts (Restart, the only seek) and ends. `rate` is
+    /// 1 while it plays and 0 while it is paused or after its end. The
+    /// server keeps the latest report and passes it to every connection as
+    /// [`ServerMessage::SongProgress`]. Refused with
+    /// [`UserMessage::NotTheStage`] from anyone but the active Stage, with
+    /// [`UserMessage::NoSongPlaying`] when Request `request_id` is not
+    /// playing, and with [`UserMessage::InvalidMessage`] for a position,
+    /// rate or length that is negative or not finite.
+    ReportSongPosition {
+        request_id: RequestId,
+        position_seconds: f64,
+        rate: f64,
+        length_seconds: Option<f64>,
+    },
     /// Next (or Done, with an empty Queue) on the results: the next
     /// Request's Line-up comes up prefilled, or the song browser. A Remote
     /// command; [`UserMessage::NoResults`] when no results show.
@@ -380,6 +396,12 @@ pub enum ServerMessage {
         song_id: library::SongId,
         control: SongControl,
     },
+    /// The Stage's latest position report for the playing Song (see
+    /// [`ClientMessage::ReportSongPosition`]), sent to every connection
+    /// when the Stage reports, and to a new connection after its
+    /// [`ServerMessage::LiveState`] while a Song plays. Never sent
+    /// continuously. A report whose Request no longer plays is stale.
+    SongProgress { progress: SongProgress },
     /// To a Mic bridge without a valid token: it waits for approval on the
     /// Stage, which shows the same 4-digit `code`.
     BridgeWaiting { code: String },

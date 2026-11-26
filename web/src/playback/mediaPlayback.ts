@@ -12,6 +12,11 @@
  * when the Song starts, and again on Restart (#158), the sing screen's only
  * seek. Pause, resume and stalls never seek, so the media and the clock carry
  * on from where they stopped.
+ *
+ * It also reports where the Song stands (`onReport`, #159), only on events:
+ * when the Song really starts, pauses, really resumes, lands a Restart's
+ * seek and ends. Never per frame, and not on a stall or its recovery: the
+ * Remotes extrapolate between reports.
  */
 
 import { createSongClock, type SongClock } from "../clock/songClock";
@@ -38,6 +43,14 @@ export interface PlaybackElement extends Pick<
  */
 export type SongEnding = "played" | "ended";
 
+/** Where the Song stood at an event, and how fast it runs on from there. */
+export interface PositionReport {
+  /** Song time, seconds. */
+  positionSeconds: number;
+  /** 1 (the clock's rate) while it plays; 0 once paused or ended. */
+  rate: number;
+}
+
 export interface MediaPlaybackOptions {
   element: PlaybackElement;
   plan: PlaybackPlan;
@@ -47,6 +60,12 @@ export interface MediaPlaybackOptions {
    * ms, as the browser reports it (the Stage's `AudioContext` latencies).
    */
   outputLatencyMs: () => number;
+  /**
+   * Raised on start, pause, resume, Restart and end only (#159): when the
+   * media really plays after `start()`, `resume()` or `restart()`, when a
+   * `pause()` lands, and when the Song ends (before `onEnded`).
+   */
+  onReport?: (report: PositionReport) => void;
   /** Raised once when the Song ends; never after `dispose()`. */
   onEnded: (how: SongEnding) => void;
   /** The Song clock to feed; a new one for the plan's media by default. */
@@ -108,6 +127,23 @@ export function createMediaPlayback(
   let finished = false;
   /** A Restart's seek has not landed yet: `playing` says nothing until it does. */
   let seeking = false;
+  /** A start, resume or Restart is reported once the media really plays. */
+  let reportWhenPlaying = false;
+  /** A `pause()` is reported once the element's `pause` lands. */
+  let pausing = false;
+
+  function report(rate: number) {
+    options.onReport?.({ positionSeconds: clock.songTime(), rate });
+  }
+
+  /** The media really plays: the clock starts, and a pending event is reported. */
+  function played() {
+    clock.play();
+    if (reportWhenPlaying) {
+      reportWhenPlaying = false;
+      report(clock.rate);
+    }
+  }
 
   /** Stops at `#END`; reports whether it did. */
   function checkEnd(): boolean {
@@ -153,18 +189,23 @@ export function createMediaPlayback(
   const listeners: Record<string, () => void> = {
     // Only now does the media really play: the clock starts here, also after a stall.
     playing: () => {
-      if (!seeking) clock.play();
+      if (!seeking) played();
     },
     seeked: () => {
       if (!seeking) return;
       seeking = false;
-      if (!element.paused) clock.play();
+      if (!element.paused) played();
     },
     waiting: () => {
       clock.stall();
     },
     pause: () => {
       clock.pause();
+      if (pausing) {
+        pausing = false;
+        reportWhenPlaying = false;
+        report(0);
+      }
     },
     ended: () => {
       finish("played");
@@ -195,6 +236,7 @@ export function createMediaPlayback(
     if (finished) return;
     finished = true;
     release();
+    report(0);
     options.onEnded(how);
   }
 
@@ -209,21 +251,28 @@ export function createMediaPlayback(
       element.currentTime = plan.startSeconds;
       clock.seek(plan.startSeconds);
       running = true;
+      reportWhenPlaying = true;
       animationFrame = requestFrame(onAnimationFrame);
       requestVideoFrame();
       await element.play();
     },
     pause() {
+      pausing = !finished;
       element.pause();
     },
     async resume() {
-      if (!finished) await element.play();
+      if (finished) return;
+      pausing = false;
+      reportWhenPlaying = true;
+      await element.play();
     },
     async restart() {
       if (finished || !running) return;
       // Freeze first, so Song time jumps back to `#START` and waits there.
       clock.pause();
       seeking = true;
+      pausing = false;
+      reportWhenPlaying = true;
       element.currentTime = plan.startSeconds;
       clock.seek(plan.startSeconds);
       if (element.paused) await element.play();

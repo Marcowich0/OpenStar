@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -54,12 +55,18 @@ function setup(scene?: SceneId) {
       close: () => {},
     };
   });
+  // The Songs and Queue overlays read queries; these tests fetch nothing.
+  const queries = new QueryClient({
+    defaultOptions: { queries: { enabled: false, retry: false } },
+  });
   render(
-    <StageFrame
-      store={store}
-      scenes={NO_BROWSER}
-      {...(scene ? { chooseScene: () => scene } : {})}
-    />,
+    <QueryClientProvider client={queries}>
+      <StageFrame
+        store={store}
+        scenes={NO_BROWSER}
+        {...(scene ? { chooseScene: () => scene } : {})}
+      />
+    </QueryClientProvider>,
   );
   const server = (volume: number, stepped: boolean) => {
     act(() => handlers?.onMessage({ type: "volume", volume, stepped }));

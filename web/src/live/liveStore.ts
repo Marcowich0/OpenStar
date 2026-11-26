@@ -168,7 +168,8 @@ export function createLiveStore(
           for (const listener of topicListeners.get(topic) ?? []) listener();
         }
       }
-      update(receive(state, message));
+      // A Song progress report is pinned to when it arrived (#159).
+      update(receive(state, message, performance.now()));
       if (message.type === "controlSong") {
         for (const listener of [...songControlListeners]) listener(message);
       }

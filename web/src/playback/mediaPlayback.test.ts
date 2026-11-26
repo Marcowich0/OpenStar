@@ -419,3 +419,81 @@ describe("Restart", () => {
     expect(recorded.seeks).toEqual([4, 4]);
   });
 });
+
+describe("position reports", () => {
+  /** A playback whose reports are recorded as `position@rate`. */
+  async function reporting(playbackPlan: PlaybackPlan) {
+    const media = new FakeMedia();
+    const reports: string[] = [];
+    const s = setUp(media, playbackPlan, {
+      onReport: (report) =>
+        reports.push(
+          `${report.positionSeconds.toFixed(2)}@${String(report.rate)}`,
+        ),
+    });
+    await s.playback.start();
+    return { ...s, media, reports };
+  }
+
+  it("reports once when the Song really starts, at #START and rate 1", async () => {
+    const s = await reporting(plan({ startSeconds: 3 }));
+    expect(s.reports).toEqual([]);
+    s.advance(400);
+    s.media.fire("playing");
+    expect(s.reports).toEqual(["3.00@1"]);
+  });
+
+  it("reports a pause at rate 0, and the resume only once the media plays again", async () => {
+    const s = await reporting(plan());
+    s.media.fire("playing");
+    s.advance(2000);
+    s.playback.pause();
+    expect(s.reports).toEqual(["0.00@1", "2.00@0"]);
+    // The countdown runs: nothing to report until the element plays.
+    s.advance(3000);
+    await s.playback.resume();
+    expect(s.reports).toHaveLength(2);
+    s.media.fire("playing");
+    expect(s.reports).toEqual(["0.00@1", "2.00@0", "2.00@1"]);
+  });
+
+  it("reports a Restart once its seek lands, at #START", async () => {
+    const s = await reporting(plan({ startSeconds: 2 }));
+    s.media.fire("playing");
+    s.advance(5000);
+    void s.playback.restart();
+    s.media.fire("playing");
+    expect(s.reports).toEqual(["2.00@1"]);
+    s.media.fire("seeked");
+    expect(s.reports).toEqual(["2.00@1", "2.00@1"]);
+  });
+
+  it("reports the end at rate 0, for End and for a Song that played out", async () => {
+    const ended = await reporting(plan());
+    ended.media.fire("playing");
+    ended.advance(1500);
+    ended.playback.end();
+    expect(ended.reports).toEqual(["0.00@1", "1.50@0"]);
+
+    const played = await reporting(plan({ endSeconds: 60 }));
+    played.media.fire("playing");
+    played.media.currentTime = 60;
+    played.media.fire("timeupdate");
+    expect(played.reports).toEqual(["0.00@1", "0.00@0"]);
+  });
+
+  it("reports at no other time: frames, stalls and their recovery, Skip", async () => {
+    const s = await reporting(plan({ startSeconds: 1 }));
+    s.media.fire("playing");
+    for (let i = 0; i < 100; i += 1) {
+      s.advance(16);
+      s.media.currentTime = 1 + i * 0.016;
+      s.animationFrame();
+      s.media.fire("timeupdate");
+    }
+    s.media.fire("waiting");
+    s.media.fire("playing");
+    s.playback.dispose();
+    expect(s.reports).toEqual(["1.00@1"]);
+  });
+});

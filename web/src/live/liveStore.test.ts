@@ -131,6 +131,47 @@ describe("live store", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it("pins a Song progress report to the time it arrived", () => {
+    const { store, server } = start();
+    server({
+      type: "liveState",
+      stageId: "main",
+      party: {
+        partyId: "p1",
+        stageId: "main",
+        joinCode: "0427",
+        startedAtMs: 0,
+        members: [],
+        phones: [],
+        queue: [],
+        head: null,
+        lineUp: null,
+        playing: { requestId: 1, songId: 7, paused: false },
+        results: null,
+      },
+      isStage: false,
+    });
+    const now = vi.spyOn(performance, "now").mockReturnValue(5_000);
+    server({
+      type: "songProgress",
+      progress: {
+        requestId: 1,
+        positionSeconds: 12,
+        rate: 1,
+        lengthSeconds: 90,
+        ageMs: 1_000,
+      },
+    });
+    now.mockRestore();
+    expect(store.getSnapshot().songProgress).toEqual({
+      requestId: 1,
+      positionSeconds: 12,
+      rate: 1,
+      lengthSeconds: 90,
+      atMs: 4_000,
+    });
+  });
+
   it("sends through the client", () => {
     const { store, sent } = start();
     store.send({ type: "newParty" });
