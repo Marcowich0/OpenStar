@@ -1,6 +1,15 @@
 import { t } from "../i18n/t";
+import { AdminSection } from "./AdminSection";
 
-/** A placeholder for the Admin area's Library problems section. */
+/**
+ * The Admin area's Library problems section. #46 fills it with the list and
+ * Rescan (neither guarded); `fileProblemText` and `txtRejectionText` in
+ * `i18n/serverText.ts` render the problems.
+ */
 export function LibraryProblems() {
-  return <h2>{t("admin.libraryProblems")}</h2>;
+  return (
+    <AdminSection title={t("admin.libraryProblems")}>
+      {t("admin.libraryProblems.placeholder")}
+    </AdminSection>
+  );
 }

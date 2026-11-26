@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 
 import { createQueryClient } from "./api/queryClient";
+import { validateAdminSearch } from "./adminSearch";
 import { validatePhoneSearch } from "./phone/phoneSearch";
 
 // Every screen is loaded lazily, so each route's code is its own chunk: a
@@ -84,6 +85,7 @@ const adminRoute = createRoute({
 const adminIndexRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "/",
+  validateSearch: validateAdminSearch,
   component: lazyRouteComponent(() => import("./admin/AdminHome"), "AdminHome"),
 });
 
