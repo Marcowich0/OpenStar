@@ -9,8 +9,10 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { SongList } from "../generated/SongList";
 import type { SongSummary } from "../generated/SongSummary";
+import type { LiveStore } from "../live/liveStore";
 import { HOLD_DURATION_MS } from "../ui/hold";
 import { fakeLibraryServer, renderLive, settle } from "./adminTestKit";
 import { Songs } from "./Songs";
@@ -55,9 +57,11 @@ function songList(songs: SongSummary[]): SongList {
 }
 
 /** The Songs section inside a router, as on `/admin/songs` (its rows link). */
-function SongsInRouter() {
+function SongsInRouter({ store }: { store?: LiveStore }) {
   const [router] = useState(() => {
-    const root = createRootRoute({ component: Songs });
+    const root = createRootRoute({
+      component: () => <Songs {...(store ? { store } : {})} />,
+    });
     const timing = createRoute({
       getParentRoute: () => root,
       path: "/admin/songs/$song/timing",
@@ -382,5 +386,57 @@ describe("the Songs section", () => {
         within(rows()[0] as HTMLElement).getByRole("alert"),
       ).toHaveTextContent("This Song is playing on the Stage now");
     });
+  });
+});
+
+describe("Restore Original while the Song plays on the Stage", () => {
+  const party = (songId: number | null): PartySnapshot => ({
+    partyId: "p1",
+    stageId: "main",
+    joinCode: "0427",
+    startedAtMs: 1000,
+    members: [],
+    phones: [],
+    queue: [],
+    head: null,
+    lineUp: null,
+    playing: songId === null ? null : { requestId: 1, songId, paused: false },
+    results: null,
+    localMics: [],
+  });
+  const REASON =
+    "Not while this Song plays on the Stage, so nobody's Notes move mid-Song";
+
+  it("is disabled for that Song with the reason, live, and enabled when it stops", async () => {
+    screenFor(true);
+    const server = fakeLibraryServer({
+      "GET /api/songs": songList(SONGS),
+      "GET /api/library/originals": [1, 2],
+      "GET /api/unlock": { unlocked: true },
+    });
+    const live = await renderLive((store) => <SongsInRouter store={store} />);
+    const buttons = () =>
+      screen.getAllByRole("button", { name: "Restore Original" });
+    const told = (songId: number | null) =>
+      live.receive({
+        type: "liveState",
+        stageId: "main",
+        isStage: false,
+        party: party(songId),
+      });
+
+    await told(1);
+    expect(buttons()[0]).toHaveAttribute("aria-disabled", "true");
+    expect(buttons()[1]).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.getAllByText(REASON)).toHaveLength(1);
+    act(() => {
+      fireEvent.click(buttons()[0] as HTMLElement);
+    });
+    await settle();
+    expect(server.count("POST /api/songs/1/restore-original")).toBe(0);
+
+    await told(null);
+    expect(buttons()[0]).not.toHaveAttribute("aria-disabled", "true");
+    expect(screen.queryByText(REASON)).toBeNull();
   });
 });

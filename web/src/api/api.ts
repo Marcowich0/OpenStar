@@ -251,6 +251,7 @@ const REFUSAL_CODES = {
   pitchTrackFailed: true,
   songFileChanged: true,
   songPlaying: true,
+  songStartedSinceOpened: true,
   noOriginal: true,
   songFolderShared: true,
   songInLibraryRoot: true,

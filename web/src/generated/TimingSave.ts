@@ -20,4 +20,11 @@ base: TxtVersion, operations: Array<TimingOperation>,
  * [`crate::PartyEvent::AutoFitAccepted`] toast naming that Phone's
  * Party member. The desktop Timing editor leaves it out.
  */
-autoFitFrom?: PhoneId, };
+autoFitFrom?: PhoneId, 
+/**
+ * [`crate::library::SongDetail::loaded_at_ms`] of the Song detail the
+ * editor opened (server time, ms since the Unix epoch). The save is
+ * refused (`409 songStartedSinceOpened`) when the Song started playing
+ * on the Stage since then.
+ */
+openedAtMs?: number, };

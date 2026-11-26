@@ -512,6 +512,7 @@ pub(crate) fn song(conn: &Connection, id: SongId) -> rusqlite::Result<Option<Son
                 media,
                 loudness_lufs: row.get(17)?,
                 warnings: problems.into_iter().map(|(_, reason)| reason).collect(),
+                loaded_at_ms: None,
             })
         },
     )

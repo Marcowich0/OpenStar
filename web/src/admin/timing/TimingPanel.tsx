@@ -235,10 +235,16 @@ export function SaveSection({
   song,
   operations,
   onSaved,
+  playing = false,
+  openedAtMs,
 }: {
   song: SongId;
   operations: readonly TimingOperation[];
   onSaved: (written: TimingPreview) => void;
+  /** The Song plays on the Stage now: Save is disabled (#225). */
+  playing?: boolean;
+  /** The opened detail's `loadedAtMs`, sent with the save (#225). */
+  openedAtMs?: number | undefined;
 }) {
   const preview = usePreview(song, operations);
   const [saving, setSaving] = useState(false);
@@ -263,7 +269,11 @@ export function SaveSection({
       if (!current) return Promise.reject(new Error("no preview to save"));
       return api("POST /api/songs/{id}/timing", {
         params: { id: String(song) },
-        body: { base: current.base, operations: [...operations] },
+        body: {
+          base: current.base,
+          operations: [...operations],
+          ...(openedAtMs === undefined ? {} : { openedAtMs }),
+        },
       });
     },
     { writesLibrary: true },
@@ -275,6 +285,7 @@ export function SaveSection({
   const canSave =
     current !== null &&
     current.changed.length > 0 &&
+    !playing &&
     !saving &&
     !save.isDisabled;
 
@@ -351,6 +362,9 @@ export function SaveSection({
       >
         {t("timing.panel.save")}
       </Button>
+      {playing ? (
+        <p className="text-sm text-ink-2">{t("song.playingNow.reason")}</p>
+      ) : null}
       {save.dialog}
       {failure === null ? null : (
         <p role="alert" className="font-semibold text-warn-fg">

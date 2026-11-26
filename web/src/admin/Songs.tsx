@@ -16,6 +16,9 @@ import { originalsQuery, songsQuery } from "../api/queries";
 import type { SongQuery } from "../generated/SongQuery";
 import type { SongSummary } from "../generated/SongSummary";
 import { t } from "../i18n/t";
+import type { LiveStore } from "../live/liveStore";
+import { playingSong } from "../live/playingSong";
+import { useLive } from "../live/useLive";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
@@ -30,7 +33,12 @@ function searchQuery(search: string): SongQuery {
   return words === "" ? {} : { search: words };
 }
 
-export function Songs() {
+export function Songs({
+  store,
+}: {
+  /** Where the Song playing now comes from (the browser's live store by default). */
+  store?: LiveStore;
+} = {}) {
   const [search, setSearch] = useState("");
   const query = searchQuery(useDeferredValue(search));
   const list = useQuery({
@@ -39,6 +47,7 @@ export function Songs() {
   });
   const originals = new Set(useQuery(originalsQuery).data ?? []);
   const fullEditor = useFullTimingEditor();
+  const playing = useLive(playingSong, store);
 
   return (
     <AdminSection title={t("admin.songs")} writesLibrary>
@@ -73,7 +82,10 @@ export function Songs() {
             >
               {list.data.songs.map((song) => {
                 const restore = originals.has(song.id) ? (
-                  <RestoreOriginal songId={song.id} />
+                  <RestoreOriginal
+                    songId={song.id}
+                    playing={playing === song.id}
+                  />
                 ) : undefined;
                 return fullEditor ? (
                   <AdminSongRow key={song.id} song={song}>
@@ -82,7 +94,11 @@ export function Songs() {
                     <DeleteSong song={song} />
                   </AdminSongRow>
                 ) : (
-                  <PhoneAutoFit key={song.id} song={song}>
+                  <PhoneAutoFit
+                    key={song.id}
+                    song={song}
+                    {...(store ? { store } : {})}
+                  >
                     {(control, details) => (
                       <AdminSongRow song={song} below={details}>
                         {control}
