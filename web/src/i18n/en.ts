@@ -379,6 +379,8 @@ export const en = {
   "admin.songs.failed": "The Songs could not be loaded",
   "admin.songs.restoreOriginal": "Restore Original",
   "admin.songs.restoreOriginal.failed": "The Original could not be restored",
+  "admin.songs.timing": "Timing",
+  "admin.songs.timingOf": "Timing of {title}",
   "admin.libraryProblems.intro":
     "Why a file does not show up as a Song. Rejected files are hidden from Players; Songs with warnings still play.",
   "admin.libraryProblems.rescan": "Rescan",
@@ -644,6 +646,26 @@ export const en = {
     "Tempo around the playhead: BPM {fromBpm, number} → {toBpm, number}, GAP {fromGap, number} → {toGap, number} ms",
   // Line and Note edits: what moved ("Lines 3–5", "Note “la” in Line 3"),
   // then by how many whole Beats.
+  "timing.view.clock": "{minutes}:{seconds}",
+  "timing.view.title": "Timing: {artist} – {title}",
+  "timing.view.titleLoading": "Timing",
+  "timing.view.back": "Back to the Songs",
+  "timing.view.loading": "Loading the Song…",
+  "timing.view.loadFailed": "The Song could not be loaded",
+  "timing.view.listening": "Listening to the song…",
+  "timing.view.listeningPercent": "Listening to the song… {percent, number} %",
+  "timing.view.overview": "The whole Song: one bar per Line (overview)",
+  "timing.view.detail":
+    "The Notes, the heard pitch and the waveform (detail view)",
+  "timing.view.help":
+    "Wheel: move in time · Ctrl or Cmd + wheel: zoom · drag on the ruler to move the playhead · click the overview to go there",
+  "timing.view.share": "Notes on the singing",
+  "timing.view.sharePercent": "{percent, number} %",
+  "timing.view.sharePending": "Waiting for the singing",
+  "timing.view.shareNone": "No Note here is scored",
+  "timing.view.shareWhat":
+    "The share of Note time where the pitch heard in the Song is within a semitone of the Note. A rough guide: it is low on Songs with loud backing.",
+  "timing.view.playhead": "Playhead {time}",
   "timing.lines.one": "Line {line, number}",
   "timing.lines.range": "Lines {first, number}–{last, number}",
   "timing.note": "Note “{text}” in Line {line, number}",

@@ -6,7 +6,7 @@
 // Nothing on the Stage links here: on the Stage computer the Admin area opens
 // in its own browser tab, so `/stage` is never navigated away from.
 
-import { Link, Outlet } from "@tanstack/react-router";
+import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 
 import { useUnlockHeartbeat } from "../guarded/useUnlockHeartbeat";
 import { t } from "../i18n/t";
@@ -22,8 +22,12 @@ export const ADMIN_SECTIONS = [
 
 export function AdminArea() {
   useUnlockHeartbeat();
+  // The Timing editor is a desktop view: it takes the window's full width.
+  const wide = useMatchRoute()({ to: "/admin/songs/$song/timing" }) !== false;
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6">
+    <main
+      className={`mx-auto flex w-full flex-col gap-6 px-4 py-6 ${wide ? "max-w-[1800px]" : "max-w-3xl"}`}
+    >
       <header className="flex items-center justify-between gap-3">
         <Link
           to="/admin"

@@ -90,6 +90,8 @@ export const INTERFACE_TOKENS = [
   "--color-golden-text",
   "--color-lyric-ledge",
   "--color-mic-lost-ledge",
+  "--color-fit-low",
+  "--color-fit-high",
   "--radius-card-sm",
   "--radius-card",
   "--radius-card-lg",

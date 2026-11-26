@@ -101,6 +101,8 @@ describe("interface tokens", () => {
       "--color-golden-text": "#E09A00",
       "--color-lyric-ledge": "rgba(43, 45, 66, 0.2)",
       "--color-mic-lost-ledge": "rgba(0, 0, 0, 0.25)",
+      "--color-fit-low": "hsl(0 75% 55%)",
+      "--color-fit-high": "hsl(120 75% 55%)",
       "--color-white": "#FFFFFF",
       "--radius-card-sm": "36px",
       "--radius-card": "44px",

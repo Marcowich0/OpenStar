@@ -1,5 +1,6 @@
 import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ClientMessage } from "../generated/ClientMessage";
+import type { Job } from "../generated/Job";
 import type { LocalMicLevel } from "../generated/LocalMicLevel";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { PitchRouter } from "../pitch/pitchRouter";
@@ -44,6 +45,12 @@ export interface LiveStore {
   onLocalMicLevels: (
     listener: (levels: readonly LocalMicLevel[]) => void,
   ) => () => void;
+  /**
+   * Calls `listener` with every job update (`JobChanged`): queued, running with
+   * its percentage, done or failed. The screens that wait on a job (the Timing
+   * editor's Pitch track) read them; the live state keeps none.
+   */
+  onJobChanged: (listener: (job: Job) => void) => () => void;
   /** Drops a toast the screen has finished showing (`toasts.ts`). */
   dismissToast: (id: number) => void;
   /** Shows a toast the Stage raises itself ("Mia is back on the mic"). */
@@ -72,6 +79,7 @@ export function createLiveStore(
   const topicListeners = new Map<ChangeTopic, Set<() => void>>();
   const songControlListeners = new Set<(control: SongControlMessage) => void>();
   const levelListeners = new Set<(levels: readonly LocalMicLevel[]) => void>();
+  const jobListeners = new Set<(job: Job) => void>();
 
   function update(next: LiveState) {
     if (next === state) return;
@@ -95,6 +103,10 @@ export function createLiveStore(
       // Mic bridge levels go to the meters, not the reducer.
       if (message.type === "localMicLevels") {
         for (const listener of levelListeners) listener(message.levels);
+        return;
+      }
+      if (message.type === "jobChanged") {
+        for (const listener of [...jobListeners]) listener(message.job);
         return;
       }
       if (message.type === "changed") {
@@ -140,6 +152,12 @@ export function createLiveStore(
       levelListeners.add(listener);
       return () => {
         levelListeners.delete(listener);
+      };
+    },
+    onJobChanged(listener) {
+      jobListeners.add(listener);
+      return () => {
+        jobListeners.delete(listener);
       };
     },
     dismissToast(id) {
