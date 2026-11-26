@@ -325,6 +325,19 @@ export const en = {
   "admin.songs": "Songs",
   "admin.libraryProblems": "Library problems",
   "admin.profiles": "Profiles",
+  "admin.sections": "Admin sections",
+  "admin.intro":
+    "Anyone may look around here. Changing the Library's files, deleting kept data and taking the Stage ask for the Admin PIN.",
+  "admin.lock": "Lock",
+  "admin.downloads.placeholder":
+    "Search USDB and download Songs here. Coming soon.",
+  "admin.songs.placeholder":
+    "Fix a Song's timing, restore it to the original, delete it or bring it back from the trash here. Coming soon.",
+  "admin.libraryProblems.placeholder":
+    "See why a Song does not show up, and rescan the Library, here. Coming soon.",
+  "admin.profiles.placeholder": "Delete Profiles here. Coming soon.",
+  "admin.testGuarded": "Test guarded action",
+  "admin.testGuardedDone": "The guarded action is done",
 
   // The twelve Party colours' display names, keyed by palette key.
   "colour.cherry": "Cherry",
