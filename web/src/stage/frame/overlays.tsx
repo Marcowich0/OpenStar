@@ -1,14 +1,15 @@
 // What each overlay shows, and the overlay itself: a veil over the whole
 // screen and a cream modal (44 px radius) in the reference frame. Songs and
 // Queue are `../overlays/`; People is a placeholder until its ticket fills it;
-// so are two of the Setup menu's three screens (Calibrate mics #52, Check
-// A/V sync #53). Mics is `mics/MicsScreen.tsx`.
+// so is Calibrate mics (#52). Mics is `mics/MicsScreen.tsx`, Check A/V sync
+// `avSync/StageAvSync.tsx`.
 
 import { useId, type ComponentType } from "react";
 
 import { t, type MessageKey } from "../../i18n/t";
 import type { LiveState } from "../../live/liveState";
 import { useLive } from "../../live/useLive";
+import { StageAvSync } from "../../avSync/StageAvSync";
 import { MicsScreen } from "../../mics/MicsScreen";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
@@ -63,7 +64,7 @@ export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
     title: "stage.overlay.calibrateMics",
     component: ComingSoon,
   },
-  avSync: { title: "stage.overlay.avSync", component: ComingSoon },
+  avSync: { title: "stage.overlay.avSync", component: StageAvSync },
 };
 
 /** The open overlay: veil, modal, heading and close control. */

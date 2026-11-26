@@ -1,0 +1,18 @@
+[youtube] Extracting URL: https://www.youtube.com/watch?v=AAAAAAAAAAA
+[youtube] AAAAAAAAAAA: Downloading webpage
+[youtube] AAAAAAAAAAA: Downloading tv client config
+[youtube] AAAAAAAAAAA: Downloading m3u8 information
+[info] AAAAAAAAAAA: Downloading 1 format(s): 137+140
+[download] Destination: /appdata/tmp/new-songs/1/video.f137.mp4
+  0.0%|Unknown B/s|Unknown
+  0.1%|  1.01MiB/s|00:41
+  2.5%|  2.50MiB/s|00:12
+ 50.0%| 12.34MiB/s|00:01
+100.0%| 10.00MiB/s|00:00
+100.0%|NA|NA
+[download] Destination: /appdata/tmp/new-songs/1/video.f140.m4a
+  1.0%|512.00KiB/s|01:02:03
+ 99.9%|999B/s|00:00
+100.0%|  4.00GiB/s|00:00
+[Merger] Merging formats into "/appdata/tmp/new-songs/1/video.mp4"
+Deleting original file /appdata/tmp/new-songs/1/video.f137.mp4 (pass -k to keep)

@@ -84,6 +84,11 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // The OpenStar volume is everyone's, from the Stage or any Remote.
         | ClientMessage::ReportStageOutput { .. }
         | ClientMessage::StepVolume { .. }
+        // Check A/V sync is harmless and reversible and touches no Library
+        // file: anyone in the Party starts, steps and ends it.
+        | ClientMessage::StartAvSync
+        | ClientMessage::StepAvSync { .. }
+        | ClientMessage::EndAvSync
         | ClientMessage::Hello { .. }
         | ClientMessage::CheckJoinCode { .. }
         | ClientMessage::Join { .. }
@@ -382,6 +387,14 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/downloads",
             Guarded(Writes),
             usdb::download::start,
+        )
+        // Anyone may stop a Download: it removes only the Download's own
+        // temporary folder, never the Library's files or kept data.
+        .add(
+            Method::POST,
+            "/api/downloads/{id}/cancel",
+            NotGuarded,
+            usdb::download::cancel,
         )
         // Which USDB version of a text the Library holds; reads only.
         .add(

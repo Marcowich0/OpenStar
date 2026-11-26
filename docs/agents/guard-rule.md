@@ -43,6 +43,7 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - Rescan and the Library problems list;
 - browsing and searching USDB (`GET /api/usdb/songs`, on the mirror alone), its covers (`GET /api/usdb/songs/{id}/cover`: a cover is fetched once into `/appdata/cache`, which is neither the Library nor kept data), and seeing the video candidates (`GET /api/usdb/songs/{id}/videos`, `GET /api/usdb/video-details`: they read USDB and run yt-dlp lookups, writing nothing);
 - the USDB login status (`GET /api/usdb/status`);
+- cancelling a waiting or running Download (`POST /api/downloads/{id}/cancel`): it stops yt-dlp and removes only that Download's temporary folder under `/appdata`, never a Library file or kept data;
 - which USDB version of a text the Library holds (`GET /api/usdb/songs/{id}/version`), which reads only;
 - the USDB mirror's status, the update the Downloads section asks for when it opens, and a full USDB refetch started by hand (`GET /api/usdb/mirror`, `POST /api/usdb/mirror/refresh`, `POST /api/usdb/mirror/refetch`): the mirror is a copy of USDB's list, not kept data, so dropping songs USDB no longer has deletes nothing kept;
 - cancelling a Download;

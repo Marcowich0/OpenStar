@@ -47,6 +47,18 @@ pub struct AvOffset {
     pub av_offset_ms: i32,
 }
 
+/// One press during Check A/V sync, from the Stage or any Remote: one
+/// 10 ms step down (`−`, `←`) or up (`+`, `→`), or Reset to 0. The Stage
+/// applies it to its own value and saves it under its own browser id.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum AvSyncStep {
+    Down,
+    Up,
+    Reset,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

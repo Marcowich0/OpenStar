@@ -142,7 +142,7 @@ function unavailable() {
 }
 
 async function openPicker() {
-  await renderLive(<Downloads />);
+  await renderLive((store) => <Downloads store={store} />);
   act(() => {
     fireEvent.click(screen.getByRole("button", { name: /First Tune/ }));
   });

@@ -391,6 +391,11 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::StepVolume {
             step: openstar_protocol::volume::VolumeStep::Up,
         },
+        ClientMessage::StartAvSync,
+        ClientMessage::StepAvSync {
+            step: openstar_protocol::av_offset::AvSyncStep::Up,
+        },
+        ClientMessage::EndAvSync,
         ClientMessage::LeaveParty,
         ClientMessage::RemoveMember {
             member_id: PartyMemberId(1),

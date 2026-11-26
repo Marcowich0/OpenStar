@@ -17,6 +17,7 @@
 //! pongs go back to the connection that last spoke for that Mic. The relay never changes a reading, never scores
 //! and never touches SQLite.
 
+mod av_sync;
 mod bridges;
 pub mod connection;
 pub mod hub;
@@ -345,6 +346,8 @@ struct Stage {
     /// The active Stage's latest position report for the playing Song, and
     /// when it arrived (ms). Passed on only while its Request still plays.
     progress: Option<(SongProgress, i64)>,
+    /// Check A/V sync runs on the active Stage (`av_sync.rs`).
+    av_sync: bool,
 }
 
 /// Owned by the task alone.
@@ -406,6 +409,7 @@ impl LiveState {
                 connection: None,
                 output: None,
                 progress: None,
+                av_sync: false,
             },
         );
         Ok(Self {
@@ -601,6 +605,7 @@ impl LiveState {
             }
             // The new Stage reports its own output.
             self.stage_mut().output = None;
+            self.av_sync_ended();
             if self.stage().party.is_none() {
                 started = self.start_party(now_ms).await;
             }
@@ -628,6 +633,7 @@ impl LiveState {
             self.hub
                 .send_to(id, &ServerMessage::SongProgress { progress });
         }
+        self.tell_av_sync(id);
         if let Some(change) = started {
             self.party_changed(change);
         }
@@ -644,6 +650,7 @@ impl LiveState {
         if stage.connection == Some(id) {
             stage.connection = None;
             stage.output = None;
+            self.av_sync_ended();
             self.tell_mics_screen();
             self.present_browser_mics.clear();
             self.local_mics_changed();
@@ -810,6 +817,18 @@ impl LiveState {
                 let result = self.step_volume(id, step).await;
                 self.refuse_on_error(id, result);
             }
+            Ok(ClientMessage::StartAvSync) => {
+                let result = self.start_av_sync(id);
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::StepAvSync { step }) => {
+                let result = self.step_av_sync(id, step);
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::EndAvSync) => {
+                let result = self.end_av_sync(id);
+                self.refuse_on_error(id, result);
+            }
             Ok(ClientMessage::Hello { phone_id }) => {
                 if !phone_id.is_valid() {
                     self.reject(id, UserMessage::InvalidMessage);
@@ -896,6 +915,10 @@ impl LiveState {
                 control,
             }) => {
                 let controlled = self.control_song(id, request_id, control).await;
+                // A Song that starts ends Check A/V sync.
+                if control == SongControl::Start && controlled.is_ok() {
+                    self.av_sync_ended();
+                }
                 self.refuse_on_error(id, controlled);
             }
             Ok(ClientMessage::ReportSongPosition {
