@@ -374,7 +374,15 @@ export const en = {
     "Enter adds or takes off a singer, up to {seats, number}",
   "stage.songs.added": "Added {song}",
   "stage.people.count": "{count, number} of 12 colours taken",
-  "stage.people.joinCode": "Join with {code}",
+  "stage.people.colours": "Party colours",
+  "stage.people.free": "{colour} is free",
+  "stage.people.profile": "Profile",
+  "stage.people.guest": "Guest",
+  "stage.people.phone": "Phone",
+  "stage.people.localMic": "Local mic",
+  "stage.people.singing": "singing",
+  "stage.people.holdToRemove": "hold to remove",
+  "stage.people.remove": "Hold to remove {name}",
   "stage.newParty": "New party",
 
   // The Stage's scenes (#120 placeholders; #124, #164, #182 fill them).

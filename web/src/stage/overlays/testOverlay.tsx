@@ -5,7 +5,12 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render } from "@testing-library/react";
 
-import { profilesQuery, songQuery, songsQuery } from "../../api/queries";
+import {
+  profilesQuery,
+  serverInfoQuery,
+  songQuery,
+  songsQuery,
+} from "../../api/queries";
 import { createQueryClient } from "../../api/queryClient";
 import type { Actor } from "../../generated/Actor";
 import type { ClientMessage } from "../../generated/ClientMessage";
@@ -113,6 +118,12 @@ export function renderOverlays(
   for (const s of songs)
     queries.setQueryData(songQuery(s.id).queryKey, detail(s));
   queries.setQueryData(profilesQuery.queryKey, profiles);
+  queries.setQueryData(serverInfoQuery.queryKey, {
+    version: "test",
+    schemaVersion: 1,
+    libraryReadOnly: null,
+    publicUrl: "https://party.example",
+  });
   const live = (fn: (h: NonNullable<typeof handlers>) => void) => {
     act(() => {
       if (handlers) fn(handlers);

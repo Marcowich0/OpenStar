@@ -127,14 +127,15 @@ export async function newParty(stage: Page): Promise<string> {
   await stage.keyboard.press("p");
   const people = stage.getByRole("dialog", { name: "Tonight's Party" });
   await expect(people).toBeVisible();
-  const peopleCode = people.getByTestId("people-join-code");
-  await expect(peopleCode).toHaveText(/^Join with \d{4}$/);
-  const old = ((await peopleCode.textContent()) ?? "").slice(-4);
+  // The People overlay's join card always shows the code.
+  const peopleCode = people.getByTestId("party-join-code");
+  await expect(peopleCode).toHaveText(/^\d{4}$/);
+  const old = (await peopleCode.textContent()) ?? "";
   await people.getByRole("button", { name: "New party" }).focus();
   await stage.keyboard.down("Enter");
   await stage.waitForTimeout(900);
   await stage.keyboard.up("Enter");
-  await expect(peopleCode).not.toHaveText(`Join with ${old}`);
+  await expect(peopleCode).not.toHaveText(old);
   await stage.keyboard.press("Escape");
   await expect(people).toHaveCount(0);
 
