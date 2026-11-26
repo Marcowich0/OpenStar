@@ -55,7 +55,8 @@ use super::{index, loudness, scan};
 use crate::AppState;
 use crate::jobs::{JobContext, JobEnv, JobParams, Progress, Slot};
 
-/// A Pitch track job gives up after this long.
+/// A Pitch track job gives up on the track after this long (its loudness
+/// measurement afterwards is not counted).
 pub(crate) const TIMEOUT: Duration = Duration::from_secs(120);
 
 const MAGIC: &[u8; 4] = b"OSPT";
@@ -286,8 +287,18 @@ impl PitchTrackJob {
     pub(crate) async fn run(self, ctx: &mut JobContext) -> Result<(), UserMessage> {
         let song = self.song;
         let timeout = Duration::from_millis(self.timeout_ms);
+        // The timeout covers the track; the loudness measurement after it
+        // is not part of listening to the Song.
         match tokio::time::timeout(timeout, compute(ctx, song)).await {
-            Ok(Ok(())) => Ok(()),
+            Ok(Ok(None)) => {
+                ctx.progress.report(100);
+                Ok(())
+            }
+            Ok(Ok(Some(path))) => {
+                measure_loudness(ctx, &path).await?;
+                ctx.progress.report(100);
+                Ok(())
+            }
             Ok(Err(UserMessage::JobCancelled)) => Err(UserMessage::JobCancelled),
             Ok(Err(reason)) => {
                 tracing::warn!(song = song.0, ?reason, "a Pitch track job failed");
@@ -303,7 +314,23 @@ impl PitchTrackJob {
     }
 }
 
-async fn compute(ctx: &JobContext, song: SongId) -> Result<(), UserMessage> {
+/// Measures the loudness of the audio at `path` (relative to the Library)
+/// for the index, after its track was saved. Only a cancel fails the job: the
+/// track is fine, and the scan's loudness pass measures it later.
+async fn measure_loudness(ctx: &JobContext, path: &str) -> Result<(), UserMessage> {
+    match loudness::measure_once(&ctx.slot, &ctx.env, path).await {
+        Ok(()) => Ok(()),
+        Err(UserMessage::JobCancelled) => Err(UserMessage::JobCancelled),
+        Err(reason) => {
+            tracing::warn!(path, ?reason, "measuring loudness for a Pitch track");
+            Ok(())
+        }
+    }
+}
+
+/// Computes and saves the track of `song`. Returns the audio's path when
+/// it saved one, `None` when an earlier job already had.
+async fn compute(ctx: &JobContext, song: SongId) -> Result<Option<String>, UserMessage> {
     let env = &ctx.env;
     let Some(key) = current_key(env, song).await.map_err(server_error)? else {
         tracing::warn!(song = song.0, "the Song has no audio to listen to");
@@ -311,8 +338,7 @@ async fn compute(ctx: &JobContext, song: SongId) -> Result<(), UserMessage> {
     };
     if cached_frames(env, song, &key).await.is_some() {
         // An earlier job wrote it meanwhile.
-        ctx.progress.report(100);
-        return Ok(());
+        return Ok(None);
     }
     ctx.progress.report(0);
 
@@ -346,20 +372,7 @@ async fn compute(ctx: &JobContext, song: SongId) -> Result<(), UserMessage> {
         .map_err(|error| server_error(error.into()))?
         .map_err(|error| server_error(error.into()))?;
 
-    match loudness::measure_once(&ctx.slot, env, &key.path).await {
-        Ok(()) => {}
-        Err(UserMessage::JobCancelled) => return Err(UserMessage::JobCancelled),
-        // The track is fine; the scan's loudness pass measures it later.
-        Err(reason) => {
-            tracing::warn!(
-                path = key.path,
-                ?reason,
-                "measuring loudness for a Pitch track"
-            );
-        }
-    }
-    ctx.progress.report(100);
-    Ok(())
+    Ok(Some(key.path))
 }
 
 /// Decodes `source` to the detector's samples.
