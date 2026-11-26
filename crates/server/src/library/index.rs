@@ -584,6 +584,19 @@ pub(crate) fn media_path(
         .flatten())
 }
 
+/// The playable Song with `identity` in the Library now, the newest when
+/// there are several. A finished Download names its new Song by it.
+pub(crate) fn song_with_identity(
+    conn: &Connection,
+    identity: &SongIdentity,
+) -> rusqlite::Result<Option<SongId>> {
+    conn.prepare_cached(
+        "SELECT id FROM library_files WHERE identity = ?1 AND playable ORDER BY id DESC LIMIT 1",
+    )?
+    .query_row([identity::key(identity)], |row| row.get(0).map(SongId))
+    .optional()
+}
+
 /// Whether a playable Song with `identity` is in the Library now. Scoring
 /// shows a Song's Score records only while this holds; USDB search marks a
 /// song "In Library" by it.

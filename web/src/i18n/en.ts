@@ -553,6 +553,8 @@ export const en = {
   "admin.downloads.job.failed": "Failed: {reason}",
   "admin.downloads.job.cancel": "Cancel",
   "admin.downloads.job.cancelFailed": "The Download could not be cancelled",
+  "admin.downloads.job.addToQueue": "Add to Queue",
+  "admin.downloads.job.addedToQueue": "Added to the Queue",
   "admin.songs.search": "Search by artist or title",
   "admin.songs.list": "Songs in the Library",
   "admin.songs.none": "No Songs match",

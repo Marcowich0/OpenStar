@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::UserMessage;
+use crate::library::SongId;
 use crate::party::PhoneId;
 
 /// Names one background job while it is kept.
@@ -97,6 +98,10 @@ pub struct DownloadDetails {
     /// How fast yt-dlp is fetching the video, while it runs; `None` before
     /// and after.
     pub rate: Option<DownloadRate>,
+    /// The new Song, once the Download is done and the Song is in the
+    /// Library index; the browser that started it offers "Add to Queue" for
+    /// it. `None` before, and for a failed or cancelled Download.
+    pub song: Option<SongId>,
 }
 
 /// yt-dlp's last progress report for a running Download.

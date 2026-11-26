@@ -30,6 +30,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::{Duration, Instant};
 
 use openstar_protocol::jobs::{DownloadDetails, DownloadRate, Job, JobId, JobKind, JobState};
+use openstar_protocol::library::{SongId, SongIdentity};
 use openstar_protocol::{ChangeTopic, ServerMessage, UserMessage};
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, oneshot, watch};
@@ -437,7 +438,7 @@ impl Runner {
                 })
                 .ok();
             let kind = params.as_ref().map_or(JobKind::Test, JobParams::kind);
-            let download = params.as_ref().and_then(JobParams::download_details);
+            let mut download = params.as_ref().and_then(JobParams::download_details);
             let mut state = match row.state {
                 StoredState::Queued => JobState::Queued,
                 StoredState::Running => JobState::Running { percent: None },
@@ -482,6 +483,9 @@ impl Runner {
                     }
                 },
                 _ => {}
+            }
+            if let (Some(details), JobState::Done) = (download.as_mut(), &state) {
+                details.song = new_song(&self.db, details.usdb_id).await;
             }
             if let (Some(params), JobState::Queued) = (&params, &state) {
                 self.queues
@@ -628,6 +632,9 @@ impl Runner {
             tracing::error!(?error, job = id.0, "storing a job's end");
         }
         self.set_rate(id, None);
+        if state == JobState::Done {
+            self.find_new_song(id).await;
+        }
         self.set_state(id, state).await;
         self.start_next(running.lane).await;
     }
@@ -690,6 +697,29 @@ impl Runner {
         }
     }
 
+    /// Names a finished Download's new Song, now in the Library index, for
+    /// its last [`JobChanged`]; nothing for other kinds.
+    ///
+    /// [`JobChanged`]: ServerMessage::JobChanged
+    async fn find_new_song(&mut self, id: JobId) {
+        let Some(usdb_id) = self
+            .jobs
+            .get(&id)
+            .and_then(|entry| entry.job.download.as_ref())
+            .map(|download| download.usdb_id)
+        else {
+            return;
+        };
+        let song = new_song(&self.db, usdb_id).await;
+        if let Some(download) = self
+            .jobs
+            .get_mut(&id)
+            .and_then(|entry| entry.job.download.as_mut())
+        {
+            download.song = song;
+        }
+    }
+
     async fn set_state(&mut self, id: JobId, state: JobState) {
         let Some(entry) = self.jobs.get_mut(&id) else {
             return;
@@ -710,6 +740,19 @@ impl Runner {
             .send_all(ServerMessage::JobChanged { job: job.clone() })
             .await;
     }
+}
+
+/// The playable Library Song with USDB id `usdb_id`: what a finished
+/// Download made. `None` when it is not (or no longer) in the Library index.
+async fn new_song(db: &Database, usdb_id: u32) -> Option<SongId> {
+    let identity = SongIdentity::Usdb { usdb_id };
+    db.call(move |conn| crate::library::song_with_identity(conn, &identity))
+        .await
+        .inspect_err(|error| {
+            tracing::error!(?error, usdb_id, "finding a Download's new Song");
+        })
+        .ok()
+        .flatten()
 }
 
 /// What a job of `kind` changes for browsers once it has ended (after its
