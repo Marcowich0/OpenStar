@@ -338,6 +338,14 @@ const MIGRATIONS: &[&str] = &[
         volume        INTEGER NOT NULL CHECK (volume BETWEEN 0 AND 100),
         PRIMARY KEY (stage_browser, stage_output)
     ) STRICT, WITHOUT ROWID;",
+    // 22: remembered Stage browsers (see `stage_trust`): a hash of each
+    // browser's Stage token and the fingerprint of the Admin PIN it gave,
+    // never the PIN. Separate from `unlocks`.
+    "CREATE TABLE stage_browsers (
+        token_hash      BLOB PRIMARY KEY NOT NULL,
+        pin_fingerprint BLOB NOT NULL,
+        trusted_at_ms   INTEGER NOT NULL
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

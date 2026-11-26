@@ -30,7 +30,7 @@ mod media;
 mod usdb;
 mod ytdlp;
 
-pub use app::{AppFolders, TestApp, TestAppBuilder, WsClient};
+pub use app::{AppFolders, DEFAULT_ADMIN_PIN, TestApp, TestAppBuilder, WsClient, WsRefusal};
 pub use executable::write_executable;
 pub use media::{Media, Signal, placeholder_media};
 pub use usdb::{FakeUsdb, RecordedRequest, Scripted};

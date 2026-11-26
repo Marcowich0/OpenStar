@@ -1,11 +1,22 @@
 import { createPitchRouter, type PitchRouter } from "../pitch/pitchRouter";
-import { createLiveClient, liveUrl } from "./liveClient";
+import { createLiveClient, isStagePage, liveUrl } from "./liveClient";
 import type { LiveState } from "./liveState";
 import { createLiveStore, type LiveStore } from "./liveStore";
 import { phoneId, type PhoneStorage } from "./phoneId";
+import { createStageTrust, type StageTrust } from "./stageTrust";
 
 let browserStore: LiveStore | null = null;
 let browserPitch: PitchRouter | null = null;
+let browserStageTrust: StageTrust | null = null;
+
+/**
+ * The browser's Stage trust. On the Stage's page the live client waits for
+ * it before every connection to `/ws/stage`.
+ */
+export function stageTrust(): StageTrust {
+  browserStageTrust ??= createStageTrust();
+  return browserStageTrust;
+}
 
 /**
  * The browser's one Pitch router: the live store hands it every Pitch
@@ -26,7 +37,13 @@ export function stagePitch(): PitchRouter {
 export function liveStore(): LiveStore {
   browserStore ??= createLiveStore(
     (handlers) =>
-      createLiveClient({ url: liveUrl(window.location), ...handlers }),
+      createLiveClient({
+        url: liveUrl(window.location),
+        ...(isStagePage(window.location.pathname)
+          ? { beforeConnect: () => stageTrust().whenTrusted() }
+          : {}),
+        ...handlers,
+      }),
     () => ({ type: "hello", phoneId: phoneId(browserStorage()) }),
     stagePitch(),
   );

@@ -350,19 +350,93 @@ impl TestApp {
         self.connect_ws_at("/ws").await
     }
 
-    /// Opens the Stage's WebSocket (`/ws/stage`): this browser becomes the
-    /// active Stage, taking over from any earlier one.
+    /// Opens the Stage's WebSocket (`/ws/stage`) as a new browser that gives
+    /// the Admin PIN first ([`TestApp::trust_stage_browser`]): it becomes the
+    /// active Stage, taking over from any earlier one. Each call is another
+    /// browser; to reconnect the same one, keep the cookie and use
+    /// [`TestApp::connect_stage_as`].
     pub async fn connect_stage(&self) -> WsClient {
-        self.connect_ws_at("/ws/stage").await
+        let cookie = self.trust_stage_browser().await;
+        self.connect_stage_as(&cookie).await
+    }
+
+    /// Opens the Stage's WebSocket with `cookie`, the `Cookie` header of a
+    /// remembered Stage browser.
+    pub async fn connect_stage_as(&self, cookie: &str) -> WsClient {
+        self.try_connect_ws_at("/ws/stage", Some(cookie))
+            .await
+            .unwrap_or_else(|refused| panic!("the Stage's WebSocket was refused: {refused:?}"))
+    }
+
+    /// Gives the app's Admin PIN at `POST /api/stage/trust`, as a new browser
+    /// would on `/stage`, and returns the `Cookie` header value
+    /// (`openstar_stage=<token>`) that makes the browser a Stage browser.
+    /// A correct PIN resets the shared wrong-guess count.
+    pub async fn trust_stage_browser(&self) -> String {
+        let pin = self
+            .var("OPENSTAR_ADMIN_PIN")
+            .expect("the Admin PIN is set");
+        let response = self
+            .http
+            .post(self.url("/api/stage/trust"))
+            .json(&serde_json::json!({ "pin": pin }))
+            .send()
+            .await
+            .unwrap_or_else(|e| panic!("POST /api/stage/trust: {e}"));
+        let status = response.status();
+        assert!(
+            status.is_success(),
+            "POST /api/stage/trust answered {status}"
+        );
+        response
+            .headers()
+            .get_all(reqwest::header::SET_COOKIE)
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .find(|value| value.starts_with(STAGE_COOKIE_PREFIX))
+            .and_then(|value| value.split(';').next())
+            .expect("a correct PIN sets the Stage cookie")
+            .to_owned()
     }
 
     /// Opens a WebSocket at `path` (starting with `/`).
     pub async fn connect_ws_at(&self, path: &str) -> WsClient {
-        let url = format!("ws://{}{path}", self.addr);
-        let (socket, _) = tokio_tungstenite::connect_async(&url)
+        self.try_connect_ws_at(path, None)
             .await
-            .unwrap_or_else(|e| panic!("connecting to {url}: {e}"));
-        WsClient { socket }
+            .unwrap_or_else(|refused| panic!("connecting to {path}: {refused:?}"))
+    }
+
+    /// Opens a WebSocket at `path`, sending `cookie` as the `Cookie` header if
+    /// given; a refused upgrade comes back as its status and body.
+    pub async fn try_connect_ws_at(
+        &self,
+        path: &str,
+        cookie: Option<&str>,
+    ) -> Result<WsClient, WsRefusal> {
+        use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+        use tokio_tungstenite::tungstenite::http::HeaderValue;
+
+        let url = format!("ws://{}{path}", self.addr);
+        let mut request = url.as_str().into_client_request().expect("a WebSocket URL");
+        if let Some(cookie) = cookie {
+            request.headers_mut().insert(
+                "cookie",
+                HeaderValue::from_str(cookie).expect("a Cookie header value"),
+            );
+        }
+        match tokio_tungstenite::connect_async(request).await {
+            Ok((socket, _)) => Ok(WsClient { socket }),
+            Err(tokio_tungstenite::tungstenite::Error::Http(response)) => Err(WsRefusal {
+                status: reqwest::StatusCode::from_u16(response.status().as_u16())
+                    .expect("an HTTP status"),
+                body: response
+                    .body()
+                    .as_deref()
+                    .map(|body| String::from_utf8_lossy(body).into_owned())
+                    .unwrap_or_default(),
+            }),
+            Err(e) => panic!("connecting to {url}: {e}"),
+        }
     }
 
     /// The songs folder.
@@ -435,9 +509,26 @@ impl Drop for TestApp {
     }
 }
 
+/// The name and `=` that start the Stage cookie (`openstar_stage`).
+const STAGE_COOKIE_PREFIX: &str = "openstar_stage=";
+
+/// A WebSocket upgrade the app refused.
+#[derive(Debug)]
+pub struct WsRefusal {
+    pub status: reqwest::StatusCode,
+    /// The answer's body, as text (an `ApiError` as JSON, for example).
+    pub body: String,
+}
+
 /// A WebSocket to a [`TestApp`], speaking the protocol crate's messages.
 pub struct WsClient {
     socket: WebSocketStream<MaybeTlsStream<TcpStream>>,
+}
+
+impl std::fmt::Debug for WsClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WsClient").finish_non_exhaustive()
+    }
 }
 
 impl WsClient {

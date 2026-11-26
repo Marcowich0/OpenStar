@@ -76,6 +76,8 @@ mkdir "$work/appdata"
 rm -rf "$root/e2e/generated/mic"
 "$harness" fake-mic "$root/e2e/generated/mic" >/dev/null
 
+# The Admin PIN of the server under test; the fixtures give it to become the Stage.
+admin_pin=1234
 port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
 base_url="http://127.0.0.1:$port"
 
@@ -84,7 +86,7 @@ env -i PATH="$PATH" HOME="$work" \
   OPENSTAR_PORT="$port" \
   OPENSTAR_APPDATA_DIR="$work/appdata" \
   OPENSTAR_SONGS_DIR="$work/songs" \
-  OPENSTAR_ADMIN_PIN=1234 \
+  OPENSTAR_ADMIN_PIN="$admin_pin" \
   OPENSTAR_YTDLP_AUTOUPDATE=false \
   OPENSTAR_USDB_BASE_URL=http://127.0.0.1:9 \
   "$binary" >"$work/openstar.log" 2>&1 &
@@ -118,6 +120,7 @@ docker run --rm --init \
   -e HOME=/tmp \
   -e CI="${CI:-}" \
   -e OPENSTAR_E2E_BASE_URL="$base_url" \
+  -e OPENSTAR_E2E_ADMIN_PIN="$admin_pin" \
   -v "$root/e2e:/e2e" -w /e2e \
   "$PLAYWRIGHT_IMAGE" \
   node node_modules/@playwright/test/cli.js test "${update_args[@]}" "$@" || status=$?

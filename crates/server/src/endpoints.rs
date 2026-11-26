@@ -30,7 +30,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::{
     AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles,
-    scores, unlock, usdb,
+    scores, stage_trust, unlock, usdb,
 };
 
 /// Whether an endpoint needs an Unlock.
@@ -149,6 +149,15 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             unlock::heartbeat,
         )
         .add(Method::POST, "/api/lock", NotGuarded, unlock::lock)
+        // Stage trust: it checks the Admin PIN itself (through the shared
+        // wrong-guess wait), not an Unlock, so it is not guarded here
+        // (docs/agents/guard-rule.md).
+        .add(
+            Method::POST,
+            "/api/stage/trust",
+            NotGuarded,
+            stage_trust::trust,
+        )
         // Profiles: anyone creates, lists and edits them. Deleting one deletes
         // kept data, so it is guarded and lives in the Admin area.
         .add(
@@ -237,7 +246,8 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             usdb::http::status,
         )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
-        // Takes the Stage, but needs Stage trust (#186), not an Unlock.
+        // Takes the Stage: the handler refuses a browser without Stage trust
+        // (`stage_trust`), which is not an Unlock.
         .add(Method::GET, "/ws/stage", NotGuarded, crate::stage_websocket)
         // A Mic bridge's own WebSocket: it may only ask to join, and the
         // Stage's approval is the guard.
