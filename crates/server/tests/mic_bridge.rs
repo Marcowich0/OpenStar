@@ -70,9 +70,15 @@ async fn bridge_recv(bridge: &mut WsClient) -> ServerMessage {
     }
 }
 
+/// The next bridges change notice, past the Mic-closed notices a closed
+/// bridge's Local mics send the Stage first.
 async fn expect_bridges_changed(socket: &mut WsClient) {
+    let mut message = socket.recv().await;
+    while matches!(message, ServerMessage::MicClosed { .. }) {
+        message = socket.recv().await;
+    }
     assert_eq!(
-        socket.recv().await,
+        message,
         ServerMessage::Changed {
             topics: vec![ChangeTopic::MicBridges]
         }
