@@ -63,6 +63,8 @@ describe("externalHosts", () => {
     ['fetch("/api/info")'],
     ["src: url(/assets/fredoka-latin-500-normal.woff2)"],
     ["a = b // c"],
+    // A sentence about a scheme, not a URL (the join card's warning).
+    ['"opened over plain http://. Set up HTTPS"'],
   ])("ignores %s", (code) => {
     expect(externalHosts(code)).toEqual([]);
   });
