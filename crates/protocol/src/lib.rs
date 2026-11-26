@@ -28,7 +28,7 @@ pub use party::{
     PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice,
     SeatWho, SongControl, SongEnd, SongProgress, SongResults,
 };
-pub use pitch::{MicId, PitchReading};
+pub use pitch::{BridgeInput, MicId, PitchReading};
 pub use scoring::BeatValue;
 
 /// Body of `GET /api/server-info`.
@@ -89,12 +89,27 @@ pub enum ClientMessage {
     /// Starts a new Party with a new Join code. Accepted only from the
     /// active Stage; needs no Admin PIN.
     NewParty,
-    /// One Pitch reading from this browser's Mic, relayed to the current
-    /// Stage (dropped while there is none).
-    PitchReading { reading: PitchReading },
+    /// One Pitch reading from this browser's Mic, or from one Local mic of
+    /// an approved Mic bridge, relayed to the current Stage (dropped while
+    /// there is none).
+    PitchReading {
+        reading: PitchReading,
+        /// Only from a Mic bridge, which must say which of its Local mics
+        /// the reading is from; a Phone leaves it out.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        input: Option<BridgeInput>,
+    },
     /// A clock-sync ping, relayed to the current Stage (dropped while there
     /// is none). `t0` is the send time on the sender's own clock, in ms.
-    ClockPing { t0: f64 },
+    ClockPing {
+        t0: f64,
+        /// Only from a Mic bridge: the Local mic that syncs (each syncs on
+        /// its own); a Phone leaves it out.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        input: Option<BridgeInput>,
+    },
     /// The Stage's answer to a [`ServerMessage::ClockPing`], relayed to the
     /// Mic named in `mic` alone. Accepted only from the active Stage.
     ClockPong {
@@ -367,8 +382,17 @@ pub enum ServerMessage {
     /// Stage only: a Mic's clock-sync ping. Answer at once with a
     /// [`ClientMessage::ClockPong`] naming the same Mic.
     ClockPing { mic: MicId, t0: f64 },
-    /// The Stage's answer to this browser's [`ClientMessage::ClockPing`].
-    ClockPong { t0: f64, ts: f64, epoch: f64 },
+    /// The Stage's answer to this browser's (or bridge's)
+    /// [`ClientMessage::ClockPing`].
+    ClockPong {
+        t0: f64,
+        ts: f64,
+        epoch: f64,
+        /// To a Mic bridge only: the Local mic whose ping this answers.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        input: Option<BridgeInput>,
+    },
     /// Stage only: a Mic's WebSocket closed (one of the lost-Mic signals).
     MicClosed { mic: MicId },
     /// Stage only: a Phone's page was hidden or is visible again (the

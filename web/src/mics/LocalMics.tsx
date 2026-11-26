@@ -176,6 +176,8 @@ export function LocalMicsProvider({
   useEffect(
     () =>
       store.onPitchReading((mic, reading) => {
+        // A bridge's Local mics have their own levels.
+        if (mic.kind !== "phone") return;
         phoneLevels.receive(
           [{ localMicId: mic.phoneId, levelDbfs: reading.loudness }],
           performance.now(),

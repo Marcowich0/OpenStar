@@ -36,10 +36,11 @@ use openstar_protocol::mics::{LocalMic, LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::volume::VolumeStep;
 use openstar_protocol::{
-    Actor, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode, JoinedPhone,
-    LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMember, PartyMemberId, PartySnapshot,
-    PhoneId, PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SeatVoice,
-    SeatWho, ServerMessage, SongControl, SongEnd, SongProgress, SongResults, StageId, UserMessage,
+    Actor, BridgeInput, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode,
+    JoinedPhone, LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMember, PartyMemberId,
+    PartySnapshot, PhoneId, PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind,
+    SeatVoice, SeatWho, ServerMessage, SongControl, SongEnd, SongProgress, SongResults, StageId,
+    UserMessage,
 };
 use tokio::sync::{mpsc, oneshot};
 
@@ -685,13 +686,13 @@ impl LiveState {
                     None => self.reject(id, UserMessage::ServerError),
                 }
             }
-            Ok(ClientMessage::PitchReading { reading }) => {
-                if let Some(mic) = self.acting_mic(id) {
+            Ok(ClientMessage::PitchReading { reading, input }) => {
+                if let Some(mic) = self.sending_mic(id, input.as_ref()) {
                     self.send_to_stage(&ServerMessage::PitchReading { mic, reading });
                 }
             }
-            Ok(ClientMessage::ClockPing { t0 }) => {
-                if let Some(mic) = self.acting_mic(id) {
+            Ok(ClientMessage::ClockPing { t0, input }) => {
+                if let Some(mic) = self.sending_mic(id, input.as_ref()) {
                     self.send_to_stage(&ServerMessage::ClockPing { mic, t0 });
                 }
             }
@@ -705,11 +706,25 @@ impl LiveState {
                     self.reject(id, UserMessage::NotTheStage);
                     return;
                 }
-                let MicId::Phone { phone_id } = mic;
                 // A pong for a Mic that has gone is dropped.
-                if let Some(&connection) = self.mics.get(&phone_id) {
-                    self.hub
-                        .send_to(connection, &ServerMessage::ClockPong { t0, ts, epoch });
+                match mic {
+                    MicId::Phone { phone_id } => {
+                        if let Some(&connection) = self.mics.get(&phone_id) {
+                            self.hub.send_to(
+                                connection,
+                                &ServerMessage::ClockPong {
+                                    t0,
+                                    ts,
+                                    epoch,
+                                    input: None,
+                                },
+                            );
+                        }
+                    }
+                    MicId::Bridge {
+                        bridge_id,
+                        local_mic_id,
+                    } => self.bridge_pong(&bridge_id, &local_mic_id, t0, ts, epoch),
                 }
             }
             Ok(ClientMessage::StoreCalibration {
@@ -1061,6 +1076,17 @@ impl LiveState {
             .phones
             .iter()
             .find(|phone| &phone.phone_id == phone_id)
+    }
+
+    /// The Mic a reading or ping from connection `id` is relayed as: one of
+    /// an approved bridge's Local mics on a bridge socket (never a Phone),
+    /// otherwise the Phone's ([`Self::acting_mic`]).
+    fn sending_mic(&mut self, id: ConnectionId, input: Option<&BridgeInput>) -> Option<MicId> {
+        if self.bridges.sockets.contains(&id) {
+            self.bridge_mic(id, input)
+        } else {
+            self.acting_mic(id)
+        }
     }
 
     /// The Mic connection `id` sends readings and pings as: the Phone id it

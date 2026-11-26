@@ -92,14 +92,16 @@ export function clockPlacement(
 
 /**
  * A Map key for a Mic: a Phone's is its Phone id, a Local mic's its Local
- * mic id, the ones its Line-up seat names. A new `MicId` kind (#151's Mic
- * bridge) fails to compile here until it gets its own key.
+ * mic id, the ones its Line-up seat names. A Mic bridge's Local mic is a
+ * Local mic like a Stage-browser one, whichever way its readings arrive. A
+ * new `MicId` kind fails to compile here until it gets its own key.
  */
 function micKey(mic: PitchMic): string {
   switch (mic.kind) {
     case "phone":
       return `phone:${mic.phoneId}`;
     case "localMic":
+    case "bridge":
       return `localMic:${mic.localMicId}`;
   }
 }
