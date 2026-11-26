@@ -55,6 +55,7 @@ function party(
     lineUp: null,
     playing: null,
     results: null,
+    localMics: [],
   };
 }
 

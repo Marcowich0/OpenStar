@@ -90,6 +90,7 @@ export function partyOf(members: PartyMember[]): PartySnapshot {
     lineUp: null,
     playing: null,
     results: null,
+    localMics: [],
   };
 }
 

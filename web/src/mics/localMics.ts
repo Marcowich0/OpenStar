@@ -217,6 +217,36 @@ export function matchLocalMics({
 }
 
 /**
+ * The ids of this Stage browser's kept Local mics that are present now:
+ * their device is listed under its stored `deviceId`, and, once it is open,
+ * it has their channel. The Stage reports these to the server, which offers
+ * the switched-on ones to the Line-up.
+ */
+export function presentLocalMics({
+  stageBrowser,
+  devices,
+  open,
+  kept,
+}: {
+  stageBrowser: string;
+  devices: readonly BrowserDevice[];
+  /** Channel count of each open device. */
+  open: ReadonlyMap<string, number>;
+  kept: readonly LocalMic[];
+}): string[] {
+  const listed = new Set(devices.map((d) => d.deviceId));
+  return kept
+    .filter(isBrowserLocalMic)
+    .filter(({ source }) => {
+      if (source.stageBrowser !== stageBrowser) return false;
+      if (!listed.has(source.deviceId)) return false;
+      const channels = open.get(source.deviceId);
+      return channels === undefined || source.channel < channels;
+    })
+    .map((m) => m.localMicId);
+}
+
+/**
  * The devices the Stage browser keeps open: every device with a switched-on
  * Local mic of this Stage browser, every device whose label is that of a
  * missing switched-on Local mic of this Stage browser (so it can be

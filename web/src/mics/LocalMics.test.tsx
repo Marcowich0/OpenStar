@@ -207,6 +207,32 @@ describe("the Stage browser's Local mics", () => {
     expect(said()).toEqual([false, true, true, false]);
   });
 
+  it("report which of its Local mics are plugged in, and again after a reconnect", () => {
+    const { becomeStage, reconnect, sent } = setup();
+    const reports = () =>
+      sent.flatMap((m) =>
+        m.type === "reportPresentLocalMics" ? [m.localMicIds] : [],
+      );
+    becomeStage(false);
+    expect(reports()).toEqual([]);
+    becomeStage(true);
+    expect(reports()).toEqual([[dongleRight.localMicId]]);
+    reconnect();
+    expect(reports()).toEqual([
+      [dongleRight.localMicId],
+      [dongleRight.localMicId],
+    ]);
+  });
+
+  it("report a Local mic whose device is unplugged as not present", () => {
+    const { becomeStage, sent } = setup({ capture: fakeCapture([WEBCAM]) });
+    becomeStage(true);
+    expect(sent).toContainEqual({
+      type: "reportPresentLocalMics",
+      localMicIds: [],
+    });
+  });
+
   it("say nothing about the Mics screen while the browser is not the Stage", () => {
     const { becomeStage, api, sent } = setup();
     becomeStage(false);
@@ -226,6 +252,19 @@ describe("the Stage browser's Local mics", () => {
       levels: [{ localMicId: id, levelDbfs: -12 }],
     });
     expect(api().bridgeLevelDbfs(id)).toBe(-12);
+  });
+
+  it("keep each Phone's loudness from its Pitch readings for the seat meters", () => {
+    const { becomeStage, api, server } = setup();
+    becomeStage(true);
+    expect(api().phoneLevelDbfs("phone-1")).toBeNull();
+    server({
+      type: "pitchReading",
+      mic: { kind: "phone", phoneId: "phone-1" },
+      reading: { captureMs: 5, pitch: null, clarity: 0.1, loudness: -33 },
+    });
+    expect(api().phoneLevelDbfs("phone-1")).toBe(-33);
+    expect(api().phoneLevelDbfs("phone-2")).toBeNull();
   });
 
   it("name a channel at once, with no Admin PIN, and show it before the server answers", async () => {

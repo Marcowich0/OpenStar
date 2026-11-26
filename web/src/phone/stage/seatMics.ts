@@ -1,11 +1,11 @@
 // A Line-up seat's Mic, as the Phone's Stage tab shows it (v1 spec #49,
 // "Stage tab"): the Mic list in the seat sheet and the Mic's name on the seat
-// row. Pure functions of the Party snapshot, this Phone's id and the kept
-// Local mics.
+// row. Pure functions of the Party snapshot (with its switched-on Local
+// mics) and this Phone's id.
 
 import type { LineUp } from "../../generated/LineUp";
-import type { LocalMic } from "../../generated/LocalMic";
 import type { MicKey } from "../../generated/MicKey";
+import type { PartyLocalMic } from "../../generated/PartyLocalMic";
 import type { PartyMemberId } from "../../generated/PartyMemberId";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { PhoneId } from "../../generated/PhoneId";
@@ -17,8 +17,8 @@ export interface MicNaming {
   party: Pick<PartySnapshot, "phones">;
   /** This Phone's own id: its Mic is "This phone". */
   myPhoneId: PhoneId;
-  /** Every kept Local mic (`GET /api/local-mics`); empty until it loads. */
-  localMics: readonly LocalMic[];
+  /** The snapshot's switched-on Local mics, in Mics-screen order. */
+  localMics: readonly PartyLocalMic[];
   nameOf: (memberId: PartyMemberId) => string;
 }
 
@@ -30,6 +30,8 @@ export interface MicOption {
   inUse: boolean;
   /** This seat's own Mic. */
   current: boolean;
+  /** An unplugged Local mic, or one on a closed bridge: disabled, dimmed. */
+  unavailable: boolean;
 }
 
 function sameMic(a: MicKey | null, b: MicKey): boolean {
@@ -39,7 +41,7 @@ function sameMic(a: MicKey | null, b: MicKey): boolean {
     : b.kind === "localMic" && a.localMicId === b.localMicId;
 }
 
-function localName(mic: LocalMic): string {
+function localName(mic: PartyLocalMic): string {
   return localMicName(mic.source, mic.name);
 }
 
@@ -62,9 +64,8 @@ export function micName(mic: MicKey, naming: MicNaming): string {
 
 /**
  * The Mics the seat sheet offers for `seat`: every joined Phone in the order
- * they joined, then every switched-on Local mic in the kept order. A Mic in
- * another seat is in use. Whether a Local mic is present right now is the
- * server's to say (`micNotAvailable`).
+ * they joined, then every switched-on Local mic in Mics-screen order. A Mic
+ * in another seat is in use; a Local mic that is not present is unavailable.
  */
 export function seatMicOptions(
   input: MicNaming & { lineUp: LineUp; seat: number },
@@ -77,14 +78,19 @@ export function seatMicOptions(
       kind: "phone",
       phoneId: p.phoneId,
     })),
-    ...input.localMics
-      .filter((m) => m.switchedOn)
-      .map((m): MicKey => ({ kind: "localMic", localMicId: m.localMicId })),
+    ...input.localMics.map((m): MicKey => ({
+      kind: "localMic",
+      localMicId: m.localMicId,
+    })),
   ];
+  const absent = new Set(
+    input.localMics.filter((m) => !m.present).map((m) => m.localMicId),
+  );
   return mics.map((mic) => ({
     mic,
     name: micName(mic, input),
     inUse: others.some((other) => sameMic(other, mic)),
     current: sameMic(own, mic),
+    unavailable: mic.kind === "localMic" && absent.has(mic.localMicId),
   }));
 }

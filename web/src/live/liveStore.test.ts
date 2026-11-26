@@ -156,6 +156,7 @@ describe("live store", () => {
           lineUp: null,
           playing: null,
           results: null,
+          localMics: [],
         },
         change: {
           actor: { kind: "stage" },

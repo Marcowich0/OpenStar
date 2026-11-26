@@ -37,6 +37,7 @@ const party: PartySnapshot = {
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 };
 
 function setup(scene?: SceneId) {

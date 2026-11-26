@@ -99,6 +99,7 @@ export const en = {
   "stageTab.thisPhone": "This phone",
   "stageTab.phoneOf": "{name}'s phone",
   "stageTab.inUse": "in use",
+  "stageTab.unplugged": "unplugged",
   "stageTab.takeOff": "Take {name} off this Song",
   // The Songs tab and the Request sheet (`phone/songs/`).
   "songs.search": "Search songs or artists",
@@ -574,6 +575,7 @@ export const en = {
   "partyEvent.micBlocked": "{name}'s mic is blocked",
   "partyEvent.micOpened": "{name}'s mic is on",
   "partyEvent.lineUpChanged": "The Line-up changed",
+  "partyEvent.localMicsChanged": "The Local mics changed",
   "partyEvent.seatMoved": "{name} moved to another seat",
   "partyEvent.seatVoice": "{name} is on Voice {voice, number}",
   "partyEvent.seatDifficulty": "{name} sings on {difficulty}",

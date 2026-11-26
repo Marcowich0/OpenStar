@@ -33,6 +33,7 @@ const idle: PartySnapshot = {
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 };
 
 /** The head's Line-up waits for Start. */

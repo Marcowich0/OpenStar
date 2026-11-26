@@ -50,6 +50,7 @@ const party = (
   lineUp: null,
   playing: null,
   results,
+  localMics: [],
 });
 
 function setup(snapshot: PartySnapshot) {
