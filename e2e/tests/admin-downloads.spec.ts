@@ -137,10 +137,13 @@ test("Downloads searches the USDB mirror at Phone width without a PIN", async ({
   await page.getByRole("radio", { name: "Rating" }).click();
   await expect(rows.nth(0)).toContainText("Downloadable Tune");
 
-  // Each shown cover was asked of USDB once (paced, one a second).
+  // Each shown cover was asked of USDB once (paced, one a second). The
+  // fake is shared by the whole run, so count this test's songs only.
+  const ourCovers = new Set(
+    SONGS.map((song) => `/data/cover/${String(song.id)}.jpg`),
+  );
   const coverRequests = async () =>
-    (await fakeRequests(page)).filter((r) => r.path.startsWith("/data/cover/"))
-      .length;
+    (await fakeRequests(page)).filter((r) => ourCovers.has(r.path)).length;
   await expect.poll(coverRequests, { timeout: 10_000 }).toBe(3);
 
   // A search answers from the mirror and sends USDB nothing.
