@@ -111,6 +111,13 @@ enum Command {
     /// deleted, and one gone at a Rescan plays on until it ends or is
     /// skipped.
     SongsLeft { songs: Vec<(SongId, String)> },
+    /// A Phone's Auto-fit of Song `song_id` (titled `title`) was saved: the
+    /// Stage toasts it, naming the Phone's Party member.
+    AutoFitAccepted {
+        phone_id: PhoneId,
+        song_id: SongId,
+        title: String,
+    },
     /// Whether Song `song_id` plays on the Stage now (a Timing edit's save,
     /// Restore Original and a Song delete are refused then).
     SongPlaying {
@@ -237,6 +244,19 @@ impl LiveHandle {
         if !songs.is_empty() {
             let _ = self.commands.send(Command::SongsLeft { songs }).await;
         }
+    }
+
+    /// Tells the Party that Phone `phone_id`'s Auto-fit of Song `song_id`
+    /// was saved (see [`Command::AutoFitAccepted`]).
+    pub async fn auto_fit_accepted(&self, phone_id: PhoneId, song_id: SongId, title: String) {
+        let _ = self
+            .commands
+            .send(Command::AutoFitAccepted {
+                phone_id,
+                song_id,
+                title,
+            })
+            .await;
     }
 
     /// Whether Song `song_id` plays on the Stage now; false once the task
@@ -523,6 +543,11 @@ impl LiveState {
                     let _ = reply.send(self.edit_profile(id, edit).await);
                 }
                 Command::SongsLeft { songs } => self.songs_left(songs).await,
+                Command::AutoFitAccepted {
+                    phone_id,
+                    song_id,
+                    title,
+                } => self.auto_fit_accepted(&phone_id, song_id, title),
                 Command::SongPlaying { song_id, reply } => {
                     let _ = reply.send(self.song_playing(song_id));
                 }
@@ -2419,6 +2444,24 @@ impl LiveState {
     /// Tells every connection the whole Party after an accepted change, plus
     /// the change itself. The Line-up's Start availability and warnings are
     /// checked first, so every snapshot sent carries them up to date.
+    /// A Phone's Auto-fit was saved: one change event, by that Phone's
+    /// Party member (by the Admin area when the Phone is not joined), so the
+    /// Stage shows the usual toast. Nothing happens without a Party.
+    fn auto_fit_accepted(&mut self, phone_id: &PhoneId, song_id: SongId, title: String) {
+        let member = self.stage().party.as_ref().and_then(|party| {
+            party
+                .phones
+                .iter()
+                .find(|phone| &phone.phone_id == phone_id)
+                .map(|phone| phone.member_id)
+        });
+        let actor = member.map_or(Actor::Admin, |member_id| Actor::Member { member_id });
+        self.party_changed(ChangeEvent {
+            actor,
+            event: PartyEvent::AutoFitAccepted { song_id, title },
+        });
+    }
+
     fn party_changed(&mut self, change: ChangeEvent) {
         let blocked = self.blocked_phones.clone();
         let Some(party) = self.stage_mut().party.as_mut() else {

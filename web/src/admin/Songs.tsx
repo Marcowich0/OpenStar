@@ -3,7 +3,9 @@
 // index's search (`GET /api/songs?search=`). It refreshes from the `library`
 // change notice, like every Song list. Each row is where the Song's admin
 // actions attach: Restore Original (#188, on a Song with an Original), Delete (#190), the Timing editor
-// (#218) and Fit to the singing (#223), passed as the row's `children`.
+// (#218) and Fit to the singing (#223), passed as the row's `children`. The
+// editor's link shows only with a fine pointer and room for it
+// (`useFullTimingEditor`); any other browser gets Fit to the singing instead.
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useState, type ReactNode } from "react";
@@ -17,7 +19,9 @@ import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import { AdminSection } from "./AdminSection";
 import { RestoreOriginal } from "./RestoreOriginal";
+import { PhoneAutoFit } from "./timing/PhoneAutoFit";
 import { TimingEditorLink } from "./timing/TimingEditorLink";
+import { useFullTimingEditor } from "./timing/useFullTimingEditor";
 
 function searchQuery(search: string): SongQuery {
   const words = search.trim();
@@ -32,6 +36,7 @@ export function Songs() {
     placeholderData: keepPreviousData,
   });
   const originals = new Set(useQuery(originalsQuery).data ?? []);
+  const fullEditor = useFullTimingEditor();
 
   return (
     <AdminSection title={t("admin.songs")} writesLibrary>
@@ -64,14 +69,26 @@ export function Songs() {
               aria-label={t("admin.songs.list")}
               className="flex flex-col gap-3"
             >
-              {list.data.songs.map((song) => (
-                <AdminSongRow key={song.id} song={song}>
-                  <TimingEditorLink song={song} />
-                  {originals.has(song.id) ? (
-                    <RestoreOriginal songId={song.id} />
-                  ) : undefined}
-                </AdminSongRow>
-              ))}
+              {list.data.songs.map((song) => {
+                const restore = originals.has(song.id) ? (
+                  <RestoreOriginal songId={song.id} />
+                ) : undefined;
+                return fullEditor ? (
+                  <AdminSongRow key={song.id} song={song}>
+                    <TimingEditorLink song={song} />
+                    {restore}
+                  </AdminSongRow>
+                ) : (
+                  <PhoneAutoFit key={song.id} song={song}>
+                    {(control, details) => (
+                      <AdminSongRow song={song} below={details}>
+                        {control}
+                        {restore}
+                      </AdminSongRow>
+                    )}
+                  </PhoneAutoFit>
+                );
+              })}
             </ul>
           )
         ) : (
@@ -88,19 +105,21 @@ export interface AdminSongRowProps {
   song: SongSummary;
   /** The Song's admin actions, at the row's end (later tickets). */
   children?: ReactNode;
+  /** What an action shows under the row (a Phone's fit proposal). */
+  below?: ReactNode;
 }
 
 /** One Song in the Songs section: its cover, title and artist, and its actions. */
-export function AdminSongRow({ song, children }: AdminSongRowProps) {
+export function AdminSongRow({ song, children, below }: AdminSongRowProps) {
   return (
-    <li className="flex min-w-0 items-center gap-3">
+    <li className="flex min-w-0 flex-wrap items-center gap-3">
       <Cover
         src={song.cover}
         tileColour={song.tileColour}
         rim={3}
         className="w-14 shrink-0"
       />
-      <div className="flex min-w-0 grow flex-col gap-0.5">
+      <div className="flex min-w-0 grow basis-0 flex-col gap-0.5">
         <span className="truncate text-lg leading-tight font-semibold text-ink">
           {song.title}
         </span>
@@ -108,6 +127,9 @@ export function AdminSongRow({ song, children }: AdminSongRowProps) {
       </div>
       {children === undefined ? null : (
         <div className="flex shrink-0 items-center gap-2">{children}</div>
+      )}
+      {below === undefined || below === null ? null : (
+        <div className="basis-full">{below}</div>
       )}
     </li>
   );

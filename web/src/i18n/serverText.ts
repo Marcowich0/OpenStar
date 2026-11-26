@@ -174,6 +174,8 @@ export const partyEventText = byCode<PartyEvent>({
   resultsShown: ({ params }) =>
     t("partyEvent.resultsShown", { song: params.title }),
   resultsClosed: () => t("partyEvent.resultsClosed"),
+  autoFitAccepted: ({ params }) =>
+    t("partyEvent.autoFitAccepted", { song: params.title }),
 });
 
 /**

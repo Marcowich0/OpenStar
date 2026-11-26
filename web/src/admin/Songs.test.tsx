@@ -69,6 +69,21 @@ function SongsInRouter() {
   return <RouterProvider router={router} />;
 }
 
+/** A browser whose `matchMedia` answers `full` for the full editor's query. */
+function screenFor(full: boolean) {
+  const queries: string[] = [];
+  vi.stubGlobal("matchMedia", (query: string) => {
+    queries.push(query);
+    return {
+      matches: full,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    };
+  });
+  return queries;
+}
+
 const list = () => screen.getByRole("list", { name: "Songs in the Library" });
 const rows = () => within(list()).getAllByRole("listitem");
 
@@ -131,7 +146,8 @@ describe("the Songs section", () => {
     expect(screen.getByText("No Songs match")).toBeVisible();
   });
 
-  it("links each Song to its Timing editor", async () => {
+  it("links each Song to its Timing editor, with a fine pointer and room for it", async () => {
+    const queries = screenFor(true);
     fakeLibraryServer({ "GET /api/songs": songList(SONGS) });
     await renderLive(<SongsInRouter />);
 
@@ -140,6 +156,24 @@ describe("the Songs section", () => {
         name: "Timing of Bohemian Rhapsody",
       }),
     ).toHaveAttribute("href", "/admin/songs/2/timing");
+    expect(
+      screen.queryByRole("button", { name: "Fit to the singing" }),
+    ).toBeNull();
+    expect(queries).toContain("(pointer: fine) and (min-width: 48rem)");
+  });
+
+  it("offers only Fit to the singing on a Phone or without a fine pointer", async () => {
+    screenFor(false);
+    fakeLibraryServer({ "GET /api/songs": songList(SONGS) });
+    await renderLive(<SongsInRouter />);
+
+    const row = within(rows()[1] as HTMLElement);
+    expect(
+      row.getByRole("button", { name: "Fit to the singing" }),
+    ).toBeVisible();
+    expect(row.queryByRole("link")).toBeNull();
+    expect(row.queryByRole("button", { name: "offset only" })).toBeNull();
+    expect(row.queryByText("Lines still off")).toBeNull();
   });
 
   it("refreshes on the Library change notice", async () => {

@@ -18,6 +18,9 @@
 //!   4. The file is read again into the index like a scan would (no scan),
 //!      keeping its row and so its [`SongId`], and every browser gets a
 //!      [`ChangeTopic::Library`] notice.
+//!   5. A Phone's accepted Auto-fit (`autoFitFrom` set) may only set `#GAP`
+//!      and `#BPM`, and the Stage gets one `autoFitAccepted` Party change by
+//!      that Phone's Party member.
 //! - **Restore Original** (`POST /api/songs/{id}/restore-original`, guarded,
 //!   writes the Library): the Original replaces the `.txt` the same atomic
 //!   way, then the Original is deleted, so the next edit keeps a fresh one.
@@ -233,9 +236,21 @@ pub(crate) async fn save(
         if on_disk.version != save.base {
             return Err(Refused::FileChanged);
         }
+        // A Phone's Auto-fit changes `#GAP` and `#BPM` only.
+        if save.auto_fit_from.is_some()
+            && !save.operations.iter().all(|operation| {
+                matches!(
+                    operation,
+                    TimingOperation::SetGap { .. } | TimingOperation::SetBpm { .. }
+                )
+            })
+        {
+            return Err(Refused::Invalid);
+        }
         if state.live.song_playing(id).await {
             return Err(Refused::Playing);
         }
+        let title = on_disk.parsed.song.headers.title.clone();
         let written = patch(&on_disk, save.operations)?;
         let changed = changed_lines(&written);
         let base = TxtVersion(scan::sha256_hex(&written.bytes));
@@ -244,6 +259,9 @@ pub(crate) async fn save(
             tokio::task::spawn_blocking(move || write_edit(&on_disk, &written.bytes)).await??;
             tracing::info!(%path, "a Timing edit was saved");
             scanner.reindex(path).await?;
+        }
+        if let Some(phone_id) = save.auto_fit_from {
+            state.live.auto_fit_accepted(phone_id, id, title).await;
         }
         Ok(TimingPreview { base, changed })
     }

@@ -686,6 +686,9 @@ pub enum PartyEvent {
     /// Someone pressed Next or Done on the results: the next Request's
     /// Line-up waits, or the song browser shows.
     ResultsClosed,
+    /// A Phone's Auto-fit of a Song was accepted and saved (#223). `title`
+    /// is the Song's title in the saved file.
+    AutoFitAccepted { song_id: SongId, title: String },
 }
 
 /// One accepted change: who made it and what it was.
