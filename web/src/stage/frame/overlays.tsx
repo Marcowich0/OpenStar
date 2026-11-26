@@ -2,7 +2,8 @@
 // screen and a cream modal (44 px radius) in the reference frame. Songs,
 // Queue and People are `../overlays/`. Mics is `mics/MicsScreen.tsx`,
 // Calibrate mics `calibration/StageCalibration.tsx`, Check A/V sync
-// `avSync/StageAvSync.tsx`.
+// `avSync/StageAvSync.tsx`. The Song detail is
+// `../overlays/SongDetailOverlay.tsx`.
 
 import { useId, type ComponentType } from "react";
 
@@ -13,6 +14,7 @@ import { MicsScreen } from "../../mics/MicsScreen";
 import { Icon } from "../../ui/Icon";
 import { PeopleOverlay } from "../overlays/PeopleOverlay";
 import { QueueOverlay } from "../overlays/QueueOverlay";
+import { SongDetailOverlay } from "../overlays/SongDetailOverlay";
 import { SongsOverlay } from "../overlays/SongsOverlay";
 import type { OverlayId } from "./overlayIds";
 import { ReferenceBox } from "./ReferenceBox";
@@ -33,6 +35,10 @@ export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
     component: StageCalibration,
   },
   avSync: { title: "stage.overlay.avSync", component: StageAvSync },
+  songDetail: {
+    title: "stage.overlay.songDetail",
+    component: SongDetailOverlay,
+  },
 };
 
 /** The open overlay: veil, modal, heading and close control. */

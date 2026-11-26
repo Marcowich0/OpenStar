@@ -5,8 +5,9 @@
  * painter. Nothing else in the frontend reads the media element's position.
  *
  * Effects move on real frame time instead (#134): before drawing, the loop
- * advances the state's particle pool by the real time since the previous
- * animation frame, whatever the display's refresh rate.
+ * advances the state's particle pool and Line rating pops (#216) by the real
+ * time since the previous animation frame, whatever the display's refresh
+ * rate.
  *
  * Apart from the draw list itself, a frame allocates nothing: the frame
  * callback is made once, the lane layout is recomputed only when the Player
@@ -14,6 +15,7 @@
  */
 
 import type { SongClock } from "../../clock/songClock";
+import { GoldenSparkles } from "./effects";
 import { frame, type DrawList, type SingState } from "./frame";
 import { laneLayout, type LaneLayout } from "./laneLayout";
 
@@ -55,6 +57,7 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
       window.cancelAnimationFrame(handle);
     });
   let layout: LaneLayout = [];
+  const sparkles = new GoldenSparkles();
   let handle: number | null = null;
   /** The previous animation frame's time, ms; null on the first frame. */
   let lastFrameTime: number | null = null;
@@ -62,12 +65,17 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
   function step(delta = 0) {
     const state = options.state();
     state.effects?.advance(delta);
+    state.ratings?.advance(delta);
     if (layout.length !== state.lanes.length) {
       layout = laneLayout(state.lanes.length);
     }
     // The one place the drawing time is read.
     const drawTime = options.clock().songTime() - options.avOffset();
-    options.paint(frame(state, drawTime, layout));
+    const list = frame(state, drawTime, layout);
+    // A head ball on a golden Note sparkles; the new particles show from
+    // the next frame on.
+    if (state.effects) sparkles.emit(list, state.effects, delta);
+    options.paint(list);
   }
 
   function onFrame(timestamp: number) {

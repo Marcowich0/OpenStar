@@ -5,10 +5,8 @@
 // The join card (`../joinCard/`) sits in the bottom-right corner; it holds
 // `data-testid="party-join-code"`, which the e2e tests read.
 
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { songsQuery } from "../../api/queries";
 import type { SongId } from "../../generated/SongId";
 import type { SongSummary } from "../../generated/SongSummary";
 import type { UserMessage } from "../../generated/UserMessage";
@@ -21,6 +19,8 @@ import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { useStageFrame } from "../frame/stageFrameContext";
 import { StageJoinCard } from "../joinCard/StageJoinCard";
+import { StageSongSearch } from "../search/StageSongSearch";
+import { useStageSongs } from "../search/songSearch";
 import { CAROUSEL_ARROWS, SongCarousel } from "./songBrowser/SongCarousel";
 import { SongInfo } from "./songBrowser/SongInfo";
 import { addStageRequest } from "./songBrowser/stageRequest";
@@ -34,8 +34,9 @@ const selectHeld = (live: LiveState) =>
 const STAR = "M32 4l8 18 19 2-14 13 4 19-17-10-17 10 4-19L5 24l19-2z";
 
 export function SongBrowserScene() {
-  const { store } = useStageFrame();
-  const songs = useQuery(songsQuery()).data?.songs;
+  const { store, openSongDetail } = useStageFrame();
+  // `/` opens the search, which narrows the carousel (#179).
+  const { songs, filters, narrowed } = useStageSongs();
   const [selectedId, setSelectedId] = useState<SongId | null>(null);
   const [adding, setAdding] = useState(false);
   const [refusal, setRefusal] = useState<UserMessage | null>(null);
@@ -44,6 +45,9 @@ export function SongBrowserScene() {
   const found = songs?.findIndex((s) => s.id === selectedId) ?? -1;
   const index = found === -1 ? 0 : found;
   const song: SongSummary | undefined = songs?.[index];
+  // The Song shown is the selection, so the Song a search found stays
+  // selected once the search is cleared.
+  if (song && song.id !== selectedId) setSelectedId(song.id);
   // Previews stop while Check A/V sync runs (#163), so only its click
   // plays, and from the Calibrate mics checklist until its run ends (#170).
   const held = useLive(selectHeld, store);
@@ -90,9 +94,16 @@ export function SongBrowserScene() {
         {t("stage.logo")}
       </header>
 
+      {/* Between the logo and the pill row; the chips row is centred. */}
+      <StageSongSearch
+        filters={filters}
+        boxClassName="relative -left-[100px]"
+        className="absolute inset-x-0 top-8 z-10"
+      />
+
       {songs !== undefined && song === undefined && (
         <p className="absolute inset-x-0 top-[420px] text-center text-6xl font-bold text-ink-2">
-          {t("stage.browser.empty")}
+          {t(narrowed ? "songs.none" : "stage.browser.empty")}
         </p>
       )}
 
@@ -108,6 +119,9 @@ export function SongBrowserScene() {
           <SongInfo
             song={song}
             genre={detail?.song.headers.genre ?? null}
+            onBest={() => {
+              openSongDetail(song);
+            }}
             className="absolute inset-x-0 top-[670px]"
           />
           <div

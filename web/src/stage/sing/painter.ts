@@ -418,6 +418,9 @@ export function createPainter(
           case "lyric":
             // DOM text: the render loop writes it to the lyric bar.
             break;
+          case "lineRating":
+            // DOM text too: the render loop writes it beside the lane header.
+            break;
           case "particle":
             // The effects canvas's painter draws these.
             break;

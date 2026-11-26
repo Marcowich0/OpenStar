@@ -43,6 +43,29 @@ describe("syntheticSing", () => {
     },
   );
 
+  it.each(SING_TEST_CASES)(
+    "case %s pops a settled Perfect! beside the first lane header, and Great! beside the second where there is one",
+    (name) => {
+      const state = syntheticSing(name);
+      const ratings = frame(state, 6, laneLayout(state.lanes.length)).filter(
+        (e) => e.type === "lineRating",
+      );
+      expect(ratings[0]).toMatchObject({
+        lane: 0,
+        word: "sing.lineRating.perfect",
+        scale: 1,
+        alpha: 1,
+      });
+      if (state.lanes.length > 1) {
+        expect(ratings[1]).toMatchObject({
+          lane: 1,
+          word: "sing.lineRating.great",
+        });
+      }
+      expect(ratings).toHaveLength(Math.min(2, state.lanes.length));
+    },
+  );
+
   it("covers every case the test entry accepts", () => {
     for (const name of SING_TEST_CASES)
       expect(syntheticSing(name).lanes.length).toBeGreaterThan(0);

@@ -233,6 +233,51 @@ pub(crate) fn store_read(
     Ok(())
 }
 
+/// Stores a file OpenStar itself just wrote, like [`store_read`], and when
+/// that changed the row's identity key (artist, title or duet of a Song
+/// without a USDB id) moves the Score records of the old key to the new one
+/// in the same transaction. Records stay with the old key while another
+/// copy in the Library still has it. A file changed by another program is
+/// read by a scan through [`store_read`] and never moves records.
+pub(crate) fn store_own_write(
+    tx: &Transaction<'_>,
+    file: &ReadFile,
+    parser_version: u32,
+) -> rusqlite::Result<()> {
+    let identity_of = |tx: &Transaction<'_>| -> rusqlite::Result<Option<String>> {
+        Ok(tx
+            .query_row(
+                "SELECT identity FROM library_files WHERE path = ?1",
+                [&file.path],
+                |row| row.get(0),
+            )
+            .optional()?
+            .flatten())
+    };
+    let before = identity_of(tx)?;
+    store_read(tx, std::slice::from_ref(file), parser_version)?;
+    let after = identity_of(tx)?;
+    let (Some(before), Some(after)) = (before, after) else {
+        return Ok(());
+    };
+    let still_held: bool = tx.query_row(
+        "SELECT EXISTS (SELECT 1 FROM library_files WHERE identity = ?1)",
+        [&before],
+        |row| row.get(0),
+    )?;
+    if before == after || still_held {
+        return Ok(());
+    }
+    let decode = |key: &str| {
+        serde_json::from_str::<SongIdentity>(key).map_err(|e| {
+            rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, e.into())
+        })
+    };
+    let moved = crate::scores::move_identity_in(tx, &decode(&before)?, &decode(&after)?)?;
+    tracing::info!(path = %file.path, moved, "an own edit changed a Song's identity key");
+    Ok(())
+}
+
 /// Stores what the references of `path` resolved to, and whether it plays.
 pub(crate) fn store_media(
     tx: &Transaction<'_>,

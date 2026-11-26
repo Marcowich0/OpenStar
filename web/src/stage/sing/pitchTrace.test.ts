@@ -447,6 +447,33 @@ describe("the head ball", () => {
     expect(Math.min(...xs)).toBeLessThan(1.001);
   });
 
+  it("is marked golden only while it hits a golden Note", () => {
+    const golden = [note("golden", 4, 4, 0), note("goldenRap", 10, 2, 4)];
+    const ball = (s: SingState, t: number) => {
+      const found = frame(s, t, oneLane).find((e) => e.type === "headBall");
+      if (found?.type !== "headBall") throw new Error("no ball");
+      return found.golden;
+    };
+    // On the golden Note's pitch: golden.
+    expect(ball(state(trace(buffer(sung(3, 3.5, 60))), golden), 3.5)).toBe(
+      true,
+    );
+    // Off its pitch: a miss, not golden.
+    expect(ball(state(trace(buffer(sung(3, 3.5, 66))), golden), 3.5)).toBe(
+      false,
+    );
+    // A golden Rap Note is hit by any voice.
+    expect(ball(state(trace(buffer(sung(6, 6.5, 70))), golden), 6.5)).toBe(
+      true,
+    );
+    // A Normal Note, hit: not golden.
+    expect(ball(state(trace(buffer(sung(3, 3.5, 60)))), 3.5)).toBe(false);
+    // Between Notes: not golden.
+    expect(ball(state(trace(buffer(sung(5.1, 5.4, 60))), golden), 5.4)).toBe(
+      false,
+    );
+  });
+
   it("is smaller in lanes under 130 px", () => {
     const list = frame(
       state(trace(buffer(sung(3, 3.5, 60)))),
