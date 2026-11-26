@@ -10,6 +10,7 @@ import type { LibraryReadOnly } from "../generated/LibraryReadOnly";
 import type { LineUpWarning } from "../generated/LineUpWarning";
 import type { PartyMemberId } from "../generated/PartyMemberId";
 import type { PartyEvent } from "../generated/PartyEvent";
+import type { ProblemReason } from "../generated/ProblemReason";
 import type { TxtRejection } from "../generated/TxtRejection";
 import type { TxtWarning } from "../generated/TxtWarning";
 import type { UserMessage } from "../generated/UserMessage";
@@ -207,8 +208,7 @@ export const libraryReadOnlyText = byCode<LibraryReadOnly>({
     t("libraryReadOnly.songsFolderMissing", { songsDir }),
 });
 
-/** Why a `.txt` cannot be played (a Library problem). */
-export const txtRejectionText = byCode<TxtRejection>({
+const txtRejectionHandlers: CodeHandlers<TxtRejection> = {
   invalidVersion: ({ line }) => t("txtRejection.invalidVersion", { line }),
   unsupportedVersion: ({ line }) =>
     t("txtRejection.unsupportedVersion", { line }),
@@ -222,10 +222,12 @@ export const txtRejectionText = byCode<TxtRejection>({
     t("txtRejection.duetVoiceWithoutNotes", { voice }),
   invalidNoteLine: ({ line }) => t("txtRejection.invalidNoteLine", { line }),
   invalidVoice: ({ line }) => t("txtRejection.invalidVoice", { line }),
-});
+};
 
-/** Something wrong with the files a `.txt` names (a Library problem). */
-export const fileProblemText = byCode<FileProblem>({
+/** Why a `.txt` cannot be played (a Library problem). */
+export const txtRejectionText = byCode<TxtRejection>(txtRejectionHandlers);
+
+const fileProblemHandlers: CodeHandlers<FileProblem> = {
   missingAudioReference: () => t("fileProblem.missingAudioReference"),
   audioNotFound: ({ header, reference }) =>
     t("fileProblem.audioNotFound", { header, reference }),
@@ -235,10 +237,12 @@ export const fileProblemText = byCode<FileProblem>({
   unreadableMetadata: () => t("fileProblem.unreadableMetadata"),
   audioNotConverted: ({ file }) => t("fileProblem.audioNotConverted", { file }),
   videoNotConverted: ({ file }) => t("fileProblem.videoNotConverted", { file }),
-});
+};
 
-/** Something wrong with a `.txt` that still lets the Song play. */
-export const txtWarningText = byCode<TxtWarning>({
+/** Something wrong with the files a `.txt` names (a Library problem). */
+export const fileProblemText = byCode<FileProblem>(fileProblemHandlers);
+
+const txtWarningHandlers: CodeHandlers<TxtWarning> = {
   duplicateHeader: ({ line, header }) =>
     t("txtWarning.duplicateHeader", { line, header }),
   invalidNumber: ({ line, header }) =>
@@ -247,4 +251,17 @@ export const txtWarningText = byCode<TxtWarning>({
   overlappingNotes: ({ line, earlierLine }) =>
     t("txtWarning.overlappingNotes", { line, earlierLine }),
   unknownBodyLine: ({ line }) => t("txtWarning.unknownBodyLine", { line }),
+};
+
+/** Something wrong with a `.txt` that still lets the Song play. */
+export const txtWarningText = byCode<TxtWarning>(txtWarningHandlers);
+
+/**
+ * Why a file is a Library problem: any rejection, warning or file problem.
+ * The three groups' codes never overlap, so one handler per code covers it.
+ */
+export const problemReasonText = byCode<ProblemReason>({
+  ...txtRejectionHandlers,
+  ...txtWarningHandlers,
+  ...fileProblemHandlers,
 });

@@ -2,8 +2,9 @@
 // each `@ts-expect-error`.
 
 import type { PartyEvent } from "../generated/PartyEvent";
+import type { ProblemReason } from "../generated/ProblemReason";
 import type { UserMessage } from "../generated/UserMessage";
-import { byCode, type CodeHandlers } from "./serverText";
+import { byCode, problemReasonText, type CodeHandlers } from "./serverText";
 import { t } from "./t";
 
 const handlers: CodeHandlers<UserMessage> = {
@@ -111,3 +112,47 @@ export const wrongParam = byCode<PartyEvent>({
   resultsShown: ({ params }) => params.title,
   resultsClosed: () => "",
 });
+
+// Every Library problem reason renders through one handler per code: a
+// handler object for the reason union that leaves a code out fails tsc, so
+// a code the server adds without a catalogue text is a type error.
+// @ts-expect-error: `videoNotConverted` (a file problem) has no handler.
+byCode<ProblemReason>({
+  invalidVersion: ({ line }) => t("txtRejection.invalidVersion", { line }),
+  unsupportedVersion: ({ line }) =>
+    t("txtRejection.unsupportedVersion", { line }),
+  relativeMode: ({ line }) => t("txtRejection.relativeMode", { line }),
+  missingBpm: () => t("txtRejection.missingBpm"),
+  invalidBpm: ({ line }) => t("txtRejection.invalidBpm", { line }),
+  missingArtist: () => t("txtRejection.missingArtist"),
+  missingTitle: () => t("txtRejection.missingTitle"),
+  noNotes: () => t("txtRejection.noNotes"),
+  duetVoiceWithoutNotes: ({ voice }) =>
+    t("txtRejection.duetVoiceWithoutNotes", { voice }),
+  invalidNoteLine: ({ line }) => t("txtRejection.invalidNoteLine", { line }),
+  invalidVoice: ({ line }) => t("txtRejection.invalidVoice", { line }),
+  duplicateHeader: ({ line, header }) =>
+    t("txtWarning.duplicateHeader", { line, header }),
+  invalidNumber: ({ line, header }) =>
+    t("txtWarning.invalidNumber", { line, header }),
+  zeroLengthNote: ({ line }) => t("txtWarning.zeroLengthNote", { line }),
+  overlappingNotes: ({ line, earlierLine }) =>
+    t("txtWarning.overlappingNotes", { line, earlierLine }),
+  unknownBodyLine: ({ line }) => t("txtWarning.unknownBodyLine", { line }),
+  missingAudioReference: () => t("fileProblem.missingAudioReference"),
+  audioNotFound: ({ header, reference }) =>
+    t("fileProblem.audioNotFound", { header, reference }),
+  mediaNotFound: ({ header, reference }) =>
+    t("fileProblem.mediaNotFound", { header, reference }),
+  unreadableFile: () => t("fileProblem.unreadableFile"),
+  unreadableMetadata: () => t("fileProblem.unreadableMetadata"),
+  audioNotConverted: ({ file }) => t("fileProblem.audioNotConverted", { file }),
+});
+
+// The renderer takes any reason, and only a reason.
+problemReasonText({ code: "unreadableMetadata" });
+problemReasonText({ code: "zeroLengthNote", line: 4 });
+// @ts-expect-error: a reason with an unknown code.
+problemReasonText({ code: "notAReason" });
+// @ts-expect-error: `duplicateHeader` needs its header name.
+problemReasonText({ code: "duplicateHeader", line: 2 });
