@@ -183,6 +183,10 @@ export const en = {
   "numberPad.delete": "Delete",
   "numberPad.ok": "OK",
 
+  "adminPinPad.wait": "Too many wrong PINs, try again in {time}",
+  "adminPinPad.failed": "The PIN could not be checked. Try again.",
+  "adminPinPad.cancel": "Cancel",
+
   // The walking skeleton's server check (shown on the Phone and the Stage).
   "server.loading": "Asking the server…",
   "server.failed": "The server did not answer",
@@ -267,9 +271,12 @@ export const en = {
   "stage.newParty": "New party",
 
   // The Stage's scenes (#120 placeholders; #124, #164, #182 fill them).
+  "stage.logo": "OpenStar",
   "stage.browser.pickFromPhone": "Pick a song from your phone",
   "stage.browser.joinCode": "Join code",
-  "stage.browser.browse": "Or browse songs here",
+  "stage.browser.carousel": "Songs",
+  "stage.browser.best": "Best {total, number} · {name}",
+  "stage.browser.empty": "No Songs in the Library yet",
   "stage.lineUp.artistDuet": "{artist} · duet",
   "stage.lineUp.thenOne": "Then {first}",
   "stage.lineUp.thenTwo": "Then {first}, {second}",
@@ -291,9 +298,13 @@ export const en = {
   "stage.lineUp.addProfile": "+ Profile",
   "stage.lineUp.namePlaceholder": "Type a name",
   "stage.lineUp.ok": "OK",
-  "stage.sing.title": "Singing",
+  "stage.sing.loading": "Getting the Song ready",
+  "stage.sing.failed": "The Song could not be loaded",
+  "stage.sing.notPlaying": "This Song is not playing here",
+  "stage.sing.playFailed": "The browser did not start the Song",
+  "stage.sing.play": "Play",
   "stage.results.title": "Results",
-  // The minimal playback view (#155), until the sing scene plays Songs (#164).
+  // The playback check page (#155), kept as a debug page beside the sing scene (#164).
   "stage.playback.play": "Play",
   "stage.playback.loading": "Loading the Song",
   "stage.playback.noSong": "No such Song",

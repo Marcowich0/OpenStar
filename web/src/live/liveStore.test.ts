@@ -65,6 +65,25 @@ describe("live store", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  it("hands each Song control the Stage must act on to its listeners", () => {
+    const { store, server } = start();
+    const listener = vi.fn();
+    const unsubscribe = store.onSongControl(listener);
+    const control: ServerMessage = {
+      type: "controlSong",
+      requestId: 5,
+      songId: 7,
+      control: "pause",
+    };
+
+    server(control);
+    expect(listener).toHaveBeenCalledWith(control);
+
+    unsubscribe();
+    server(control);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
   it("presents the Phone id each time the socket opens", () => {
     const hello: ClientMessage = { type: "hello", phoneId: "phone-1" };
     const { connection, sent } = start(() => hello);

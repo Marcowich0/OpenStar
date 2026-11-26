@@ -51,6 +51,36 @@ describe("pickScene", () => {
     ).toBe("lineUp");
   });
 
+  it("shows the sing screen while the head's Song plays, paused or not", () => {
+    const playing = { requestId: 1, songId: 1, paused: false };
+    expect(
+      pickScene(
+        stage({ party: party({ queue: [request], head: 1, playing }) }),
+      ),
+    ).toBe("sing");
+    expect(
+      pickScene(
+        stage({
+          party: party({
+            queue: [request],
+            head: 1,
+            playing: { ...playing, paused: true },
+          }),
+        }),
+      ),
+    ).toBe("sing");
+  });
+
+  it("shows the results once the Song ended, before any Line-up", () => {
+    const results = { requestId: 1, songId: 1, ended: "played" as const };
+    expect(pickScene(stage({ party: party({ results }) }))).toBe("results");
+    expect(
+      pickScene(
+        stage({ party: party({ results, queue: [request], head: 1 }) }),
+      ),
+    ).toBe("results");
+  });
+
   it("shows Stage moved here on a browser that stopped being the Stage", () => {
     expect(
       pickScene(
