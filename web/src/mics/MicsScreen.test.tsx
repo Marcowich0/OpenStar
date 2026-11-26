@@ -79,6 +79,7 @@ function setup({
       refresh: () => Promise.resolve(),
       setOpen: () => Promise.resolve(),
       levelDbfs: () => -30,
+      subscribeReadings: () => () => {},
       dispose: () => {},
     },
     snapshot,

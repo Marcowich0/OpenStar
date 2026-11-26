@@ -58,3 +58,40 @@ it("has no styled component kit and no animation library", () => {
   );
   expect(banned).toEqual([]);
 });
+
+// One pitch detector: the Rust one (crates/detector), run in the browser as
+// the detector-wasm module whose C ABI the worklet calls directly (#105).
+const JAVASCRIPT_DETECTORS = [
+  /^pitchy$/,
+  /^pitchfinder$/,
+  /^aubiojs$/,
+  /^ml5$/,
+  /^@tensorflow\//,
+  /^crepe/,
+  /pitch-?detect/,
+];
+
+const WASM_GLUE_GENERATORS = [
+  /^wasm-bindgen/,
+  /^wasm-pack$/,
+  /^@wasm-tool\//,
+  /^vite-plugin-wasm/,
+  /^@rollup\/plugin-wasm$/,
+  /^emscripten/,
+];
+
+it("has no JavaScript pitch detector beside the Rust one", () => {
+  expect(
+    dependencies.filter((name) =>
+      JAVASCRIPT_DETECTORS.some((pattern) => pattern.test(name)),
+    ),
+  ).toEqual([]);
+});
+
+it("has no WASM glue generator: the worklet calls the exports itself", () => {
+  expect(
+    dependencies.filter((name) =>
+      WASM_GLUE_GENERATORS.some((pattern) => pattern.test(name)),
+    ),
+  ).toEqual([]);
+});

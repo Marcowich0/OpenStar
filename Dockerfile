@@ -18,7 +18,23 @@ ARG GITHUB_REF=""
 ARG GITHUB_SHA=""
 
 # ---------------------------------------------------------------------------
-# Frontend: the Vite build, embedded into the server binary below.
+# WASM: the pitch detector (crates/detector-wasm) for the pitch-detection
+# AudioWorklet, built for wasm32-unknown-unknown with the same pinned
+# toolchain image as the server stage, before the frontend stage's Vite build
+# bundles it. The target is the one rust-toolchain.toml names.
+FROM --platform=linux/amd64 rust:1.100.0-slim-trixie@sha256:3b199fd6db7d709274df56565b8f4003f9e30d7bfcff9d53148c86053b7855e2 AS wasm
+RUN rustup target add wasm32-unknown-unknown
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
+RUN --mount=type=cache,id=openstar-cargo-registry,target=/usr/local/cargo/registry \
+    --mount=type=cache,id=openstar-cargo-wasm-target,target=/src/target \
+    cargo build --release --locked --target wasm32-unknown-unknown -p openstar-detector-wasm \
+    && install -D -m 0644 target/wasm32-unknown-unknown/release/openstar_detector_wasm.wasm /out/openstar_detector.wasm
+
+# ---------------------------------------------------------------------------
+# Frontend: the Vite build, embedded into the server binary below. It bundles
+# the WASM stage's module (web/wasm/) with the pitch worklet.
 FROM --platform=linux/amd64 node:26.13.0-trixie-slim@sha256:5adad64f9a1fca2d51972caa65983634c8a774eb300d72b20f7f2a0f60368072 AS frontend
 # renovate: datasource=npm depName=pnpm
 ARG PNPM_VERSION=12.23.0
@@ -28,6 +44,7 @@ COPY web/package.json web/pnpm-lock.yaml ./
 RUN --mount=type=cache,id=openstar-pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY web/ ./
+COPY --from=wasm /out/openstar_detector.wasm wasm/openstar_detector.wasm
 RUN pnpm build
 
 # ---------------------------------------------------------------------------

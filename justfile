@@ -31,7 +31,7 @@ update-screenshots: build harness-build e2e-install screenshot-page
 
 # The test-only painter screenshot page (web/sing-test.html), built into
 # e2e/generated/screenshot-page/; never part of the production build.
-screenshot-page: web-install
+screenshot-page: web-install wasm
     pnpm --dir web exec vite build --mode screenshots --logLevel warn
 
 # The openstar-harness binary `just e2e` uses (fixture Library, fake mic WAVs),
@@ -74,8 +74,15 @@ fixtures-check:
     scripts/check-fixture-media.test.sh >/dev/null
     scripts/check-fixture-media.sh
 
-# Lint, type-check and test the frontend.
-web-check: web-install
+# The detector as WASM (crates/detector-wasm) for the pitch-detection
+# AudioWorklet, into web/wasm/ (git-ignored), where Vitest and the Vite build
+# take it from. The wasm32 target is pinned in rust-toolchain.toml.
+wasm:
+    cargo build --release --locked --target wasm32-unknown-unknown -p openstar-detector-wasm
+    install -D -m 0644 "${CARGO_TARGET_DIR:-target}/wasm32-unknown-unknown/release/openstar_detector_wasm.wasm" web/wasm/openstar_detector.wasm
+
+# Lint, type-check and test the frontend (Vitest runs the WASM build).
+web-check: web-install wasm
     pnpm --dir web lint
     pnpm --dir web typecheck
     pnpm --dir web test
@@ -97,8 +104,8 @@ types:
 web-install:
     pnpm --dir web install --frozen-lockfile
 
-# Build the frontend into web/dist.
-web-build: web-install
+# Build the frontend into web/dist (with the detector WASM module).
+web-build: web-install wasm
     pnpm --dir web build
 
 # Build the release binary with the frontend embedded (target/release/openstar).

@@ -63,6 +63,15 @@ export default defineConfig(
     },
   },
   {
+    // The pitch worklet's loader fetches a build asset (the detector's WASM
+    // bytes) from the same origin, not the HTTP+JSON API.
+    files: [
+      "src/pitch/worklet/pitchWorklet.ts",
+      "src/pitch/worklet/pitchWorklet.test.ts",
+    ],
+    rules: { "no-restricted-globals": "off" },
+  },
+  {
     // Every word on screen goes through t() (src/i18n/t.ts). Tests and type
     // tests are not on screen.
     files: ["src/**/*.tsx"],

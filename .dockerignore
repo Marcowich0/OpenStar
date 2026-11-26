@@ -7,4 +7,5 @@
 !web/
 web/node_modules/
 web/dist/
+web/wasm/
 **/target/

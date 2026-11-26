@@ -1,26 +1,22 @@
 // The Stage browser's own capture of its input devices (v1 spec #51,
 // "Capture in the Stage browser"): lists them, opens each with every kind of
 // processing off and 2 channels asked for, splits it into its channels, and
-// meters each channel. Meters use an `AnalyserNode` per channel (level only,
-// no detector) until the pitch-detection worklet carries them (#130).
+// meters each channel. Each channel runs its own pitch node (the shared
+// pitch-detection worklet, `pitch/worklet/`), and its meter shows the loudness
+// of the newest Pitch reading. Routing those readings to scoring is #130's;
+// `subscribeReadings` is where it takes them.
 // Which devices to open is decided by `devicesToOpen` (`localMics.ts`); this
 // module only does what it is told. It never reads or changes an
 // interface's PipeWire profile: the browser cannot.
 
 import { browserInputDevices, type BrowserDevice } from "./localMics";
+import {
+  createPitchNode as createWorkletPitchNode,
+  type PitchWorkletReading,
+} from "../pitch/worklet/pitchWorklet";
 
 /** What a meter shows for silence, and the floor of `levelDbfs`. */
 export const SILENCE_DBFS = -100;
-
-/** The level of a block of samples: RMS in dBFS, floored at {@link SILENCE_DBFS}. */
-export function rmsDbfs(samples: Float32Array): number {
-  if (samples.length === 0) return SILENCE_DBFS;
-  let sum = 0;
-  for (const s of samples) sum += s * s;
-  const rms = Math.sqrt(sum / samples.length);
-  if (rms === 0) return SILENCE_DBFS;
-  return Math.max(SILENCE_DBFS, 20 * Math.log10(rms));
-}
 
 /** The constraints a device is opened with: no processing, 2 channels. */
 export function captureConstraints(deviceId: string): MediaStreamConstraints {
@@ -66,8 +62,13 @@ export interface LocalMicCapture {
   refresh: (askPermission: boolean) => Promise<void>;
   /** Opens exactly these devices, closing every other. */
   setOpen: (deviceIds: ReadonlySet<string>) => Promise<void>;
-  /** A channel's current level in dBFS, or `null` if its device is not open. */
+  /**
+   * A channel's current level in dBFS: the newest reading's loudness, floored
+   * at {@link SILENCE_DBFS}; `null` if its device is not open.
+   */
   levelDbfs: (deviceId: string, channel: number) => number | null;
+  /** Every Pitch reading of every open channel, as the worklet posts it. */
+  subscribeReadings: (listener: ReadingListener) => () => void;
   /** Closes everything; a later call starts again (React may remount). */
   dispose: () => void;
 }
@@ -80,14 +81,25 @@ type Devices = Pick<
   | "removeEventListener"
 >;
 
+export type ReadingListener = (
+  deviceId: string,
+  channel: number,
+  reading: PitchWorkletReading,
+) => void;
+
+/** Makes a pitch node: `createPitchNode` of `pitch/worklet/pitchWorklet.ts`. */
+export type CreatePitchNode = (
+  context: BaseAudioContext,
+  onReading: (reading: PitchWorkletReading) => void,
+) => Promise<AudioWorkletNode>;
+
 interface OpenDevice {
   stream: MediaStream;
   source: MediaStreamAudioSourceNode;
-  analysers: AnalyserNode[];
-  buffer: Float32Array<ArrayBuffer>;
+  nodes: AudioWorkletNode[];
+  /** Each channel's newest loudness, dBFS; `null` before its first reading. */
+  levels: (number | null)[];
 }
-
-const FFT_SIZE = 2048;
 
 /** `navigator.mediaDevices`, which is missing outside a secure context. */
 function browserMediaDevices(): Devices | undefined {
@@ -97,9 +109,11 @@ function browserMediaDevices(): Devices | undefined {
 export function createLocalMicCapture({
   mediaDevices = browserMediaDevices(),
   createContext = () => new AudioContext(),
+  createPitchNode = createWorkletPitchNode,
 }: {
   mediaDevices?: Devices | undefined;
   createContext?: () => AudioContext;
+  createPitchNode?: CreatePitchNode;
 } = {}): LocalMicCapture {
   let snapshot: CaptureSnapshot = {
     status: mediaDevices ? "idle" : "unavailable",
@@ -107,6 +121,7 @@ export function createLocalMicCapture({
     open: new Map(),
   };
   const listeners = new Set<() => void>();
+  const readingListeners = new Set<ReadingListener>();
   const opened = new Map<string, OpenDevice>();
   let context: AudioContext | null = null;
   let wanted: ReadonlySet<string> = new Set();
@@ -122,7 +137,7 @@ export function createLocalMicCapture({
   function publishOpen() {
     update({
       open: new Map(
-        [...opened].map(([id, device]) => [id, device.analysers.length]),
+        [...opened].map(([id, device]) => [id, device.nodes.length]),
       ),
     });
   }
@@ -157,6 +172,10 @@ export function createLocalMicCapture({
     if (!device) return;
     opened.delete(deviceId);
     device.source.disconnect();
+    for (const node of device.nodes) {
+      node.disconnect();
+      node.port.close();
+    }
     for (const track of device.stream.getTracks()) track.stop();
   }
 
@@ -175,21 +194,35 @@ export function createLocalMicCapture({
       2,
       Math.max(1, track?.getSettings().channelCount ?? 1),
     );
+    const levels: (number | null)[] = Array.from(
+      { length: channels },
+      () => null,
+    );
+    let nodes: AudioWorkletNode[];
+    try {
+      nodes = await Promise.all(
+        levels.map((_, channel) =>
+          createPitchNode(audio, (reading) => {
+            levels[channel] = reading.loudness;
+            for (const listener of readingListeners)
+              listener(deviceId, channel, reading);
+          }),
+        ),
+      );
+    } catch (error) {
+      for (const track of stream.getTracks()) track.stop();
+      throw error;
+    }
+    if (!wanted.has(deviceId)) {
+      for (const node of nodes) node.port.close();
+      for (const track of stream.getTracks()) track.stop();
+      return;
+    }
     const source = audio.createMediaStreamSource(stream);
     const splitter = audio.createChannelSplitter(channels);
     source.connect(splitter);
-    const analysers = Array.from({ length: channels }, (_, channel) => {
-      const analyser = audio.createAnalyser();
-      analyser.fftSize = FFT_SIZE;
-      splitter.connect(analyser, channel);
-      return analyser;
-    });
-    opened.set(deviceId, {
-      stream,
-      source,
-      analysers,
-      buffer: new Float32Array(FFT_SIZE),
-    });
+    nodes.forEach((node, channel) => splitter.connect(node, channel));
+    opened.set(deviceId, { stream, source, nodes, levels });
   }
 
   async function sync() {
@@ -219,10 +252,12 @@ export function createLocalMicCapture({
     },
     levelDbfs(deviceId, channel) {
       const device = opened.get(deviceId);
-      const analyser = device?.analysers[channel];
-      if (!device || !analyser) return null;
-      analyser.getFloatTimeDomainData(device.buffer);
-      return rmsDbfs(device.buffer);
+      if (!device || channel >= device.nodes.length) return null;
+      return Math.max(SILENCE_DBFS, device.levels[channel] ?? SILENCE_DBFS);
+    },
+    subscribeReadings(listener) {
+      readingListeners.add(listener);
+      return () => readingListeners.delete(listener);
     },
     dispose() {
       wanted = new Set();

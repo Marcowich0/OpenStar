@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  SILENCE_DBFS,
-  createLocalMicCapture,
-  rmsDbfs,
-} from "./localMicCapture";
+import { SILENCE_DBFS, createLocalMicCapture } from "./localMicCapture";
+import type { PitchWorkletReading } from "../pitch/worklet/pitchWorklet";
 
 interface FakeDevice {
   deviceId: string;
@@ -53,23 +50,48 @@ function fakeBrowser(devices: FakeDevice[], { granted = true } = {}) {
     removeEventListener: vi.fn(),
   };
   const node = () => ({ connect: vi.fn(), disconnect: vi.fn() });
+  const splitters: ReturnType<typeof node>[] = [];
   const context = {
     state: "running",
     createMediaStreamSource: vi.fn(node),
-    createChannelSplitter: vi.fn(node),
-    createAnalyser: vi.fn(() => ({
-      ...node(),
-      fftSize: 0,
-      getFloatTimeDomainData: (buffer: Float32Array) => buffer.fill(0.5),
-    })),
+    createChannelSplitter: vi.fn(() => {
+      const splitter = node();
+      splitters.push(splitter);
+      return splitter;
+    }),
     resume: vi.fn(() => Promise.resolve()),
     close: vi.fn(() => Promise.resolve()),
   };
+  /** Every pitch node made, with the hook that plays the worklet posting a reading. */
+  const pitchNodes: {
+    node: ReturnType<typeof node> & { port: { close: () => void } };
+    closed: boolean;
+    post: (reading: Partial<PitchWorkletReading>) => void;
+  }[] = [];
   const capture = createLocalMicCapture({
     mediaDevices: mediaDevices as unknown as MediaDevices,
     createContext: () => context as unknown as AudioContext,
+    createPitchNode: (_context, onReading) => {
+      const made = {
+        node: { ...node(), port: { close: () => (made.closed = true) } },
+        closed: false,
+        post: (reading: Partial<PitchWorkletReading>) => {
+          onReading({
+            type: "reading",
+            pitch: null,
+            clarity: 0,
+            loudness: -120,
+            endFrame: 2048,
+            sampleRate: 48_000,
+            ...reading,
+          });
+        },
+      };
+      pitchNodes.push(made);
+      return Promise.resolve(made.node as unknown as AudioWorkletNode);
+    },
   });
-  return { capture, mediaDevices, opened, stopped };
+  return { capture, mediaDevices, opened, stopped, pitchNodes, splitters };
 }
 
 const DONGLE = { deviceId: "dongle", label: "USB Audio", channels: 2 };
@@ -117,8 +139,8 @@ describe("the Stage browser's capture", () => {
     ]);
   });
 
-  it("splits a stereo device into two metered channels and a mono device into one", async () => {
-    const { capture } = fakeBrowser([DONGLE, WEBCAM]);
+  it("splits a stereo device into two channels and a mono device into one, each with its own pitch node", async () => {
+    const { capture, pitchNodes, splitters } = fakeBrowser([DONGLE, WEBCAM]);
     await capture.setOpen(new Set(["dongle", "webcam"]));
     expect(capture.getSnapshot().open).toEqual(
       new Map([
@@ -126,8 +148,20 @@ describe("the Stage browser's capture", () => {
         ["webcam", 1],
       ]),
     );
-    expect(capture.levelDbfs("dongle", 1)).toBeCloseTo(-6.02, 1);
+    expect(pitchNodes).toHaveLength(3);
+    expect(splitters[0]?.connect.mock.calls).toEqual([
+      [pitchNodes[0]?.node, 0],
+      [pitchNodes[1]?.node, 1],
+    ]);
     expect(capture.levelDbfs("webcam", 1)).toBeNull();
+  });
+
+  it("closes a closed device's pitch nodes", async () => {
+    const { capture, pitchNodes } = fakeBrowser([DONGLE]);
+    await capture.setOpen(new Set(["dongle"]));
+    await capture.setOpen(new Set());
+    expect(pitchNodes.map((n) => n.closed)).toEqual([true, true]);
+    expect(pitchNodes[0]?.node.disconnect).toHaveBeenCalled();
   });
 
   it("closes what it is no longer told to keep open", async () => {
@@ -146,12 +180,34 @@ describe("the Stage browser's capture", () => {
 });
 
 describe("a channel's level", () => {
-  it("is the RMS in dBFS", () => {
-    expect(rmsDbfs(new Float32Array([1, -1, 1, -1]))).toBeCloseTo(0);
-    expect(rmsDbfs(new Float32Array(8).fill(0.1))).toBeCloseTo(-20);
+  it("is the loudness of its newest Pitch reading", async () => {
+    const { capture, pitchNodes } = fakeBrowser([DONGLE]);
+    await capture.setOpen(new Set(["dongle"]));
+    pitchNodes[1]?.post({ loudness: -30 });
+    pitchNodes[1]?.post({ loudness: -6.5 });
+    expect(capture.levelDbfs("dongle", 1)).toBe(-6.5);
   });
 
-  it("is the floor for digital silence", () => {
-    expect(rmsDbfs(new Float32Array(8))).toBe(SILENCE_DBFS);
+  it("is the floor before the first reading and for digital silence", async () => {
+    const { capture, pitchNodes } = fakeBrowser([DONGLE]);
+    await capture.setOpen(new Set(["dongle"]));
+    expect(capture.levelDbfs("dongle", 0)).toBe(SILENCE_DBFS);
+    pitchNodes[0]?.post({ loudness: -120 });
+    expect(capture.levelDbfs("dongle", 0)).toBe(SILENCE_DBFS);
+  });
+});
+
+describe("the readings", () => {
+  it("reach every subscriber with their device and channel", async () => {
+    const { capture, pitchNodes } = fakeBrowser([DONGLE]);
+    await capture.setOpen(new Set(["dongle"]));
+    const heard: [string, number, number | null][] = [];
+    const unsubscribe = capture.subscribeReadings((deviceId, channel, r) =>
+      heard.push([deviceId, channel, r.pitch]),
+    );
+    pitchNodes[1]?.post({ pitch: 69 });
+    unsubscribe();
+    pitchNodes[0]?.post({ pitch: 60 });
+    expect(heard).toEqual([["dongle", 1, 69]]);
   });
 });
