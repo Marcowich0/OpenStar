@@ -35,9 +35,10 @@ const TOPICS = Object.keys(QUERIES_BY_TOPIC) as ChangeTopic[];
 /**
  * Keeps the query cache current from the WebSocket: each change notice
  * invalidates the queries its topics name, so the screens showing them
- * refetch and the others refetch when they next open. After a reconnect
- * every query is invalidated, because notices sent while the socket was
- * down are lost. Returns the function that stops it.
+ * refetch and the others refetch when they next open. Each time the socket
+ * opens, the first time included, every query is invalidated: notices sent
+ * while it was down, or not yet open (a reloaded page fetches over HTTP
+ * while its socket opens), are lost. Returns the function that stops it.
  */
 export function invalidateOnChange(
   store: Pick<LiveStore, "onChanged" | "subscribe" | "getSnapshot">,
@@ -52,7 +53,7 @@ export function invalidateOnChange(
   );
 
   let connection: LiveConnection = store.getSnapshot().connection;
-  let missedNotices = false;
+  let missedNotices = connection !== "open";
   stops.push(
     store.subscribe(() => {
       const previous = connection;
