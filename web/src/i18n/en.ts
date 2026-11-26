@@ -805,4 +805,41 @@ export const en = {
     one: "{note}: length {from, number} → {count, number} beat",
     other: "{note}: length {from, number} → {count, number} beats",
   },
+  // Auto-fit (`fit/describeFit.ts`), shared by the desktop editor and a
+  // Phone: the change, then the share before and after.
+  "fit.offsetEarlier":
+    "notes {seconds, number} s earlier (GAP {fromGap, number} → {toGap, number} ms)",
+  "fit.offsetLater":
+    "notes {seconds, number} s later (GAP {fromGap, number} → {toGap, number} ms)",
+  "fit.tempoSlower":
+    "tempo {percent, number} % slower (BPM {fromBpm, number} → {toBpm, number})",
+  "fit.tempoFaster":
+    "tempo {percent, number} % faster (BPM {fromBpm, number} → {toBpm, number})",
+  "fit.and": ", ",
+  "fit.share": "Notes on the singing {from, number} % → {to, number} %.",
+  "fit.alreadyBest": "Already the best fit the editor can find.",
+  "fit.lineLater": {
+    one: "Line {line, number} “{lyric}” +{count, number} beat ({from, number} → {to, number} %)",
+    other:
+      "Line {line, number} “{lyric}” +{count, number} beats ({from, number} → {to, number} %)",
+  },
+  "fit.lineEarlier": {
+    one: "Line {line, number} “{lyric}” −{count, number} beat ({from, number} → {to, number} %)",
+    other:
+      "Line {line, number} “{lyric}” −{count, number} beats ({from, number} → {to, number} %)",
+  },
+  // The desktop editor's Auto-fit panel.
+  "timing.fit.title": "Auto-fit",
+  "timing.fit.run": "Fit to the singing",
+  "timing.fit.offsetOnly": "offset only",
+  "timing.fit.pending": "Auto-fit starts once the singing is heard.",
+  "timing.fit.check": "Play a few Lines to check, or Undo.",
+  "timing.fit.linesStillOff": "Lines still off",
+  "timing.fit.noLineStandsOut": "No single Line stands out after the fit.",
+  "timing.fit.go": "Go",
+  "timing.fit.apply": "Apply",
+  "timing.edit.fitToTheSinging":
+    "Fit to the singing: GAP {fromGap, number} → {toGap, number} ms, BPM {fromBpm, number} → {toBpm, number}",
+  "timing.edit.fitOffsetOnly":
+    "Fit, offset only: GAP {fromGap, number} → {toGap, number} ms",
 } as const satisfies Record<string, Entry>;
