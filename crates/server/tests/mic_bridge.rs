@@ -17,6 +17,8 @@ fn wav_interface() -> BridgeInterface {
         device_name: "multichannel.wav".into(),
         label: "multichannel.wav".into(),
         channels: 4,
+        usb_id: None,
+        twin: false,
     }
 }
 
@@ -192,6 +194,7 @@ async fn a_new_bridge_waits_with_a_code_the_stage_sees_and_approves_without_a_pi
             device_name: "multichannel.wav".into(),
             label: "multichannel.wav".into(),
             channel: 2,
+            loopback: None,
         }
     );
     let text = serde_json::to_string(&listed).unwrap();
@@ -423,6 +426,7 @@ async fn a_bridge_local_mic_id_that_does_not_match_its_source_is_refused() {
                 device_name: "multichannel.wav".into(),
                 label: "multichannel.wav".into(),
                 channel: 0,
+                loopback: None,
             },
             switched_on: true,
         })
@@ -511,6 +515,7 @@ async fn a_rename_or_find_it_whose_bridge_id_does_not_match_its_source_is_refuse
         device_name: "multichannel.wav".into(),
         label: "multichannel.wav".into(),
         channel: 0,
+        loopback: None,
     };
     stage
         .send(&ClientMessage::SetLocalMicName {
@@ -540,4 +545,47 @@ async fn a_rename_or_find_it_whose_bridge_id_does_not_match_its_source_is_refuse
     );
     let kept: Vec<LocalMic> = app.get_json("/api/local-mics").await;
     assert_eq!(kept, vec![]);
+}
+
+#[tokio::test]
+async fn an_open_bridge_lists_its_interfaces_and_marks_known_loopback_channels() {
+    let app = TestApp::start().await;
+    let mut stage = open_stage(&app).await;
+    let mut bridge = connect_bridge(&app).await;
+    let scarlett = BridgeInterface {
+        device_name: "alsa_card.usb-Focusrite_Scarlett_4i4_4th_Gen_S4628DT4107338-00".into(),
+        label: "Scarlett 4i4 4th Gen".into(),
+        channels: 6,
+        usb_id: Some("1235:821a".into()),
+        twin: false,
+    };
+    bridge
+        .send(&ClientMessage::BridgeHello {
+            build: openstar::BUILD_ID.into(),
+            host_name: "hermes".into(),
+            token: None,
+            interfaces: vec![scarlett.clone()],
+        })
+        .await;
+    assert!(matches!(
+        bridge_recv(&mut bridge).await,
+        ServerMessage::BridgeWaiting { .. }
+    ));
+    expect_bridges_changed(&mut stage).await;
+    approve(&app, &mut stage, &mut bridge).await;
+
+    let listed = mic_bridges(&app).await;
+    let [open] = listed.bridges.as_slice() else {
+        panic!("one bridge, got {listed:?}");
+    };
+    assert_eq!(open.interfaces, vec![scarlett]);
+    let loopback: Vec<Option<u32>> = open
+        .channels
+        .iter()
+        .map(|channel| match &channel.source {
+            LocalMicSource::Bridge { loopback, .. } => *loopback,
+            LocalMicSource::Browser { .. } => panic!("a bridge channel"),
+        })
+        .collect();
+    assert_eq!(loopback, [None, None, None, None, Some(1), Some(2)]);
 }

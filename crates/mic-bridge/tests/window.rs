@@ -31,6 +31,8 @@ fn scarlett() -> Vec<BridgeInterface> {
         device_name: DEVICE.into(),
         label: "Scarlett 4i4".into(),
         channels: 4,
+        usb_id: None,
+        twin: false,
     }]
 }
 

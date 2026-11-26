@@ -40,9 +40,14 @@ const RETRY: [Duration; 4] = [
 pub const CAPTURE_INTERVAL: Duration = Duration::from_millis(10);
 
 /// The name a channel shows when the Stage left it empty (the Stage builds
-/// the same one with `t()`): "<device> · Input n", n from 1.
-pub fn default_name(label: &str, channel: u32) -> String {
-    format!("{label} · Input {}", channel + 1)
+/// the same one with `t()`): "<device> · Input n", n from 1, or for a
+/// loopback channel of the known-models table "<device> · Loopback n".
+pub fn default_name(interface: &BridgeInterface, channel: u32) -> String {
+    let label = &interface.label;
+    match openstar_protocol::bridge::loopback_number(interface.usb_id.as_deref(), channel) {
+        Some(n) => format!("{label} · Loopback {n}"),
+        None => format!("{label} · Input {}", channel + 1),
+    }
 }
 
 /// What the bridge does about one message.
@@ -109,12 +114,14 @@ impl Joining {
 
     fn channel_line(&self, channel: &BridgeChannelSettings) -> String {
         let name = if channel.name.is_empty() {
-            let label = self
+            match self
                 .interfaces
                 .iter()
                 .find(|i| i.device_name == channel.device_name)
-                .map_or(channel.device_name.as_str(), |i| i.label.as_str());
-            default_name(label, channel.channel)
+            {
+                Some(interface) => default_name(interface, channel.channel),
+                None => format!("{} · Input {}", channel.device_name, channel.channel + 1),
+            }
         } else {
             channel.name.clone()
         };
@@ -402,6 +409,8 @@ mod tests {
             device_name: "alsa_card.usb-X-00".into(),
             label: "Scarlett 4i4".into(),
             channels: 4,
+            usb_id: None,
+            twin: false,
         }])
     }
 
@@ -430,6 +439,32 @@ mod tests {
         assert_eq!(host_name, "hermes");
         assert_eq!(token.as_deref(), Some("t"));
         assert_eq!(interfaces[0].channels, 4);
+    }
+
+    #[test]
+    fn default_names_say_input_n_or_loopback_n_from_the_known_models_table() {
+        let scarlett = BridgeInterface {
+            device_name: "alsa_card.usb-Focusrite-00".into(),
+            label: "Scarlett 4i4 4th Gen".into(),
+            channels: 6,
+            usb_id: Some("1235:821a".into()),
+            twin: false,
+        };
+        assert_eq!(default_name(&scarlett, 3), "Scarlett 4i4 4th Gen · Input 4");
+        assert_eq!(
+            default_name(&scarlett, 4),
+            "Scarlett 4i4 4th Gen · Loopback 1"
+        );
+        assert_eq!(
+            default_name(&scarlett, 5),
+            "Scarlett 4i4 4th Gen · Loopback 2"
+        );
+        let unknown = BridgeInterface {
+            usb_id: Some("1397:0509".into()),
+            label: "UMC404HD 192k".into(),
+            ..scarlett
+        };
+        assert_eq!(default_name(&unknown, 4), "UMC404HD 192k · Input 5");
     }
 
     #[test]
@@ -505,6 +540,8 @@ mod tests {
             device_name: "alsa_card.usb-X-00".into(),
             label: "Scarlett 4i4".into(),
             channels: 4,
+            usb_id: None,
+            twin: false,
         };
         let delay = |channel, delay_ms| BridgeInputDelay {
             device_name: "alsa_card.usb-X-00".into(),

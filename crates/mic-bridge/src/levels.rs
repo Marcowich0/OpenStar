@@ -117,6 +117,8 @@ mod tests {
             device_name: device_name.into(),
             label: device_name.into(),
             channels,
+            usb_id: None,
+            twin: false,
         }
     }
 

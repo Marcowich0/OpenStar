@@ -17,4 +17,17 @@ label: string,
 /**
  * How many hardware channels it has: channels `0..channels`.
  */
-channels: number, };
+channels: number, 
+/**
+ * Its USB id, `vendor:product` in lowercase hex (`1235:821a`), when it
+ * is a USB device: what the known-models table ([`loopback_number`])
+ * is keyed on. Left out for `--wav`.
+ */
+usbId?: string, 
+/**
+ * Whether it is one of two or more identical interfaces without a
+ * serial number on this bridge. Those are told apart by USB port (their
+ * `device_name` carries it), so swapping their ports swaps their Local
+ * mics; the Mics screen says so.
+ */
+twin: boolean, };

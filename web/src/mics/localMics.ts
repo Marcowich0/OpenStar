@@ -105,11 +105,17 @@ export function browserChannels(
  * The name a Local mic shows: the host's, or for an empty stored name the
  * default: "<label> · Left" / "<label> · Right" for a stereo channel, the
  * plain label for a mono device, "<device> · Input n" (n from 1) for a
- * bridge channel.
+ * bridge channel, "<device> · Loopback n" for a loopback channel of the
+ * known-models table.
  */
 export function localMicName(source: LocalMicSource, name: string): string {
   if (name !== "") return name;
   const { label } = source;
+  if (source.kind === "bridge" && source.loopback !== undefined)
+    return t("mics.localMic.loopback", {
+      device: label,
+      number: source.loopback,
+    });
   if (source.kind === "bridge")
     return t("mics.localMic.input", {
       device: label,
@@ -284,7 +290,7 @@ export function devicesToOpen({
 /**
  * The rows of a bridge's group on the Mics screen: an open bridge's
  * channels, a closed bridge's kept Local mics; devices by name, channels by
- * number.
+ * number, loopback channels of the known-models table last.
  */
 export function bridgeGroupChannels(
   bridge: MicBridge,
@@ -297,12 +303,88 @@ export function bridgeGroupChannels(
       ? [{ localMicId, source }]
       : [],
   );
+  const loopbackLast = (source: BridgeSource) =>
+    source.loopback === undefined ? 0 : 1;
   return channels.sort(
     (a, b) =>
+      loopbackLast(a.source) - loopbackLast(b.source) ||
       a.source.label.localeCompare(b.source.label) ||
       a.source.deviceName.localeCompare(b.source.deviceName) ||
       a.source.channel - b.source.channel,
   );
+}
+
+/** What a bridge's group says besides its rows. */
+export interface BridgeGroupNotes {
+  /**
+   * Two identical interfaces without a serial number are present: they
+   * are told apart by USB port, so swapping their ports swaps their mics.
+   */
+  twins: boolean;
+  /**
+   * This browser lists an input device that is one of the bridge's
+   * interfaces (its label is the interface's name plus a profile, as
+   * PipeWire names its sources): use one or the other. Nothing enforces it.
+   */
+  sameInterface: boolean;
+}
+
+/** The notes of `bridge`'s group, given This browser's input devices. */
+export function bridgeGroupNotes(
+  bridge: MicBridge,
+  browserDevices: readonly BrowserDevice[],
+): BridgeGroupNotes {
+  const labels = new Set([
+    ...bridge.interfaces.map((i) => i.label),
+    ...bridge.channels.flatMap(({ source }) =>
+      source.kind === "bridge" ? [source.label] : [],
+    ),
+  ]);
+  const same = (deviceLabel: string) =>
+    [...labels].some(
+      (label) => deviceLabel === label || deviceLabel.startsWith(`${label} `),
+    );
+  return {
+    twins: bridge.interfaces.filter((i) => i.twin).length >= 2,
+    sameInterface: browserDevices.some((d) => same(d.label)),
+  };
+}
+
+/** How an open bridge's channels meet its kept Local mics. */
+export interface BridgeMatch {
+  /**
+   * Kept Local mics of this bridge it does not offer now while open (a
+   * twin moved to another USB port, say): "not found", with Find it.
+   */
+  notFound: LocalMic[];
+  /** Its channels that are not yet a Local mic: what Find it offers. */
+  newChannels: LocalMicChannel[];
+}
+
+/**
+ * Id matching on the bridge path. A bridge Local mic is keyed on the card
+ * and hardware channel, so there is no fallback: one that is missing while
+ * its bridge is open is not found until Find it re-links it. A closed
+ * bridge's Local mics are closed, not missing.
+ */
+export function matchBridgeLocalMics(
+  bridge: MicBridge,
+  kept: readonly LocalMic[],
+): BridgeMatch {
+  if (!bridge.open) return { notFound: [], newChannels: [] };
+  const offered = new Set(bridge.channels.map((c) => c.localMicId));
+  const keptIds = new Set(kept.map((m) => m.localMicId));
+  return {
+    notFound: kept.filter(
+      (m) =>
+        m.source.kind === "bridge" &&
+        m.source.bridgeId === bridge.bridgeId &&
+        !offered.has(m.localMicId),
+    ),
+    newChannels: bridgeGroupChannels(bridge, []).filter(
+      (c) => !keptIds.has(c.localMicId),
+    ),
+  };
 }
 
 const STAGE_BROWSER_KEY = "openstar.stageBrowser";

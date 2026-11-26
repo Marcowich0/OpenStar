@@ -29,7 +29,7 @@ pub struct Presence {
 
 /// Every switched-on Local mic of `kept`, in Mics-screen order (This
 /// browser first, then each bridge by approval; devices by name, channels
-/// by number), with whether it is present.
+/// by number, loopback channels last), with whether it is present.
 pub fn party_local_mics(kept: &[LocalMic], presence: &Presence) -> Vec<PartyLocalMic> {
     let mut on: Vec<&LocalMic> = kept.iter().filter(|mic| mic.switched_on).collect();
     on.sort_by(|a, b| mics_screen_order(&a.source, &b.source, &presence.bridges));
@@ -69,6 +69,7 @@ fn mics_screen_order(a: &LocalMicSource, b: &LocalMicSource, bridges: &[BridgeId
                 .unwrap_or(bridges.len())
         }
     };
+    // Loopback channels of the known-models table go last in their group.
     let within = |source: &LocalMicSource| match source {
         LocalMicSource::Browser {
             stage_browser,
@@ -77,6 +78,7 @@ fn mics_screen_order(a: &LocalMicSource, b: &LocalMicSource, bridges: &[BridgeId
             channel,
             ..
         } => (
+            false,
             label.clone(),
             stage_browser.clone(),
             device_id.clone(),
@@ -87,7 +89,9 @@ fn mics_screen_order(a: &LocalMicSource, b: &LocalMicSource, bridges: &[BridgeId
             device_name,
             label,
             channel,
+            loopback,
         } => (
+            loopback.is_some(),
             label.clone(),
             bridge_id.0.clone(),
             device_name.clone(),
@@ -137,6 +141,7 @@ mod tests {
                 device_name: device.into(),
                 label: label.into(),
                 channel,
+                loopback: None,
             },
             name: String::new(),
             switched_on: on,
@@ -198,6 +203,45 @@ mod tests {
                 first_bridge_1.local_mic_id.as_str(),
                 first_bridge_2.local_mic_id.as_str(),
                 second_bridge.local_mic_id.as_str(),
+            ]
+        );
+    }
+
+    #[test]
+    fn loopback_channels_go_last_in_their_bridge_group() {
+        let loopback = |mut mic: LocalMic, number| {
+            if let LocalMicSource::Bridge { loopback, .. } = &mut mic.source {
+                *loopback = Some(number);
+            }
+            mic
+        };
+        let input_1 = bridged("aa", "card-s", "Scarlett", 0, true);
+        let loopback_1 = loopback(bridged("aa", "card-s", "Scarlett", 4, true), 1);
+        let loopback_2 = loopback(bridged("aa", "card-s", "Scarlett", 5, true), 2);
+        // Another device of the same bridge, named after the Scarlett.
+        let umc = bridged("aa", "card-u", "UMC404HD", 3, true);
+        let next_bridge = bridged("bb", "card-a", "Alpha", 0, true);
+        let list = party_local_mics(
+            &[
+                next_bridge.clone(),
+                loopback_2.clone(),
+                loopback_1.clone(),
+                umc.clone(),
+                input_1.clone(),
+            ],
+            &Presence {
+                bridges: vec![BridgeId("aa".into()), BridgeId("bb".into())],
+                ..Presence::default()
+            },
+        );
+        assert_eq!(
+            ids(&list),
+            vec![
+                input_1.local_mic_id.as_str(),
+                umc.local_mic_id.as_str(),
+                loopback_1.local_mic_id.as_str(),
+                loopback_2.local_mic_id.as_str(),
+                next_bridge.local_mic_id.as_str(),
             ]
         );
     }

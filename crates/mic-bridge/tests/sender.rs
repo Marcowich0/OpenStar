@@ -54,6 +54,8 @@ async fn stage_and_bridge(app: &TestApp) -> (WsClient, WsClient, BridgeId) {
                 device_name: DEVICE.into(),
                 label: "Scarlett".into(),
                 channels: 2,
+                usb_id: None,
+                twin: false,
             }],
         })
         .await;

@@ -156,6 +156,13 @@ pub enum LocalMicSource {
         label: String,
         /// The hardware channel, from 0 (`AUXn` of the Pro Audio source).
         channel: u32,
+        /// For a loopback channel of the known-models table
+        /// ([`crate::bridge::loopback_number`]): which one, from 1. Its
+        /// default name is "<label> · Loopback n" and it is listed last in
+        /// its bridge's group.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        loopback: Option<u32>,
     },
 }
 

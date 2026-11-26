@@ -119,6 +119,7 @@ fn local_mic(bridge_id: &BridgeId, channel: u32) -> (String, LocalMicSource) {
             device_name: DEVICE.into(),
             label: DEVICE.into(),
             channel,
+            loopback: None,
         },
     )
 }

@@ -12,6 +12,7 @@ const HERMES: MicBridge = {
   hostName: "hermes",
   open: true,
   channels: [],
+  interfaces: [],
 };
 const FORGET = "DELETE /api/mic-bridges/ab12";
 
