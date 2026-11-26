@@ -64,7 +64,13 @@ impl Metering {
 
     /// The levels to send for `interface`, given the level of each of its
     /// channels (`levels[n]` = channel n) over the last interval.
-    pub fn levels_to_send(&self, interface: &BridgeInterface, levels: &[f64]) -> Vec<BridgeLevel> {
+    /// `zeros[n]` says whether channel n was exact digital silence.
+    pub fn levels_to_send(
+        &self,
+        interface: &BridgeInterface,
+        levels: &[f64],
+        zeros: &[bool],
+    ) -> Vec<BridgeLevel> {
         self.metered(interface)
             .into_iter()
             .filter_map(|channel| {
@@ -73,10 +79,32 @@ impl Metering {
                     device_name: interface.device_name.clone(),
                     channel,
                     level_dbfs,
+                    digital_silence: zeros.get(channel as usize).copied().unwrap_or(false),
                 })
             })
             .collect()
     }
+}
+
+/// Whether each channel of `interleaved` frames of `channels` channels is
+/// exact digital silence: at least one frame, every sample exactly 0 (v1
+/// spec #51, "sends no sound"). Quiet noise is not, however quiet.
+pub fn channel_digital_silence(interleaved: &[f32], channels: usize) -> Vec<bool> {
+    if channels == 0 {
+        return Vec::new();
+    }
+    let frames = interleaved.len() / channels;
+    (0..channels)
+        .map(|channel| {
+            frames > 0
+                && interleaved
+                    .iter()
+                    .skip(channel)
+                    .step_by(channels)
+                    .take(frames)
+                    .all(|&s| s == 0.0)
+        })
+        .collect()
 }
 
 /// The RMS level of each channel of `interleaved` frames of `channels`
@@ -189,13 +217,36 @@ mod tests {
     fn the_levels_sent_name_their_interface_and_channel() {
         let (closed, scarlett, _) = metering(false);
         assert_eq!(
-            closed.levels_to_send(&scarlett, &[-10.0, -20.0, -30.0, -40.0]),
+            closed.levels_to_send(
+                &scarlett,
+                &[-10.0, -20.0, -30.0, -40.0],
+                &[false, false, true, false]
+            ),
             vec![BridgeLevel {
                 device_name: "scarlett".into(),
                 channel: 2,
                 level_dbfs: -30.0,
+                digital_silence: true,
             }]
         );
+    }
+
+    #[test]
+    fn only_exact_zeros_are_digital_silence_never_quiet_noise() {
+        // Channel 0: exact zeros; channel 1: quiet noise far below the
+        // meter's floor (about −150 dBFS); channel 2: zeros but one sample.
+        let frames: Vec<f32> = (0..480)
+            .flat_map(|i| {
+                let sign = if i % 2 == 0 { 1.0 } else { -1.0 };
+                [0.0, sign * 3e-8, if i == 300 { 1e-9 } else { 0.0 }]
+            })
+            .collect();
+        assert_eq!(
+            channel_digital_silence(&frames, 3),
+            vec![true, false, false]
+        );
+        assert_eq!(channel_levels_dbfs(&frames, 3)[1], SILENCE_DBFS);
+        assert_eq!(channel_digital_silence(&[], 2), vec![false; 2]);
     }
 
     #[test]

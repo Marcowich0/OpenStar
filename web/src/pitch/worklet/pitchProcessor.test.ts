@@ -143,6 +143,7 @@ describe("the pitch worklet", () => {
       pitch: null,
       clarity: expect.any(Number) as number,
       loudness: -120,
+      zero: true,
       endFrame: 2048,
       sampleRate: 48_000,
     });
@@ -236,7 +237,34 @@ describe("a pitch node with its detector off", () => {
   it("gives digital silence the detector's floor", () => {
     const processor = offProcessor();
     feed(processor, new Float32Array(2048));
-    expect(posted).toEqual([{ type: "level", loudness: -120, endFrame: 2048 }]);
+    expect(posted).toEqual([
+      { type: "level", loudness: -120, zero: true, endFrame: 2048 },
+    ]);
+  });
+
+  it("flags a window of exact zeros, and never one of quiet noise", () => {
+    const processor = offProcessor();
+    // Quiet noise below the detector's floor (about −130 dBFS) reads as
+    // −120 but is not digital silence.
+    const quiet = new Float32Array(2048).map((_, i) => (i % 2 ? 3e-7 : -3e-7));
+    feed(processor, quiet);
+    expect(posted.map((m) => [m.loudness, m.zero])).toEqual([[-120, false]]);
+    // One non-zero sample keeps the window from being silence until 2048
+    // zeros have followed it.
+    posted = [];
+    feed(processor, new Float32Array(2048 - 512));
+    expect(posted.every((m) => !m.zero)).toBe(true);
+    posted = [];
+    feed(processor, new Float32Array(512));
+    expect(posted.map((m) => m.zero)).toEqual([true]);
+  });
+
+  it("flags exact zeros on readings too, while the detector runs", () => {
+    run(new Float32Array(2048), 48_000);
+    expect(posted.map((m) => m.zero)).toEqual([true]);
+    const quiet = new Float32Array(2048).fill(1e-7);
+    run(quiet, 48_000);
+    expect(posted.map((m) => m.zero)).toEqual([false]);
   });
 
   it("makes readings once switched on, from a fresh window, and only levels again once off", () => {

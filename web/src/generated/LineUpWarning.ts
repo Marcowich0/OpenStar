@@ -6,4 +6,4 @@ import type { SeatVoice } from "./SeatVoice";
  * A Line-up warning: a code plus its parameters, like [`crate::UserMessage`].
  * The screens resolve the member's name.
  */
-export type LineUpWarning = { "code": "noMic", "params": { memberId: PartyMemberId, } } | { "code": "micBlocked", "params": { memberId: PartyMemberId, } } | { "code": "duetNeedsVoice", "params": { voice: SeatVoice, } } | { "code": "notCalibrated", "params": { memberId: PartyMemberId, } };
+export type LineUpWarning = { "code": "noMic", "params": { memberId: PartyMemberId, } } | { "code": "micBlocked", "params": { memberId: PartyMemberId, } } | { "code": "localMicUnplugged", "params": { memberId: PartyMemberId, localMicId: string, } } | { "code": "bridgeClosed", "params": { memberId: PartyMemberId, localMicId: string, hostName: string, } } | { "code": "localMicSilent", "params": { memberId: PartyMemberId, localMicId: string, } } | { "code": "duetNeedsVoice", "params": { voice: SeatVoice, } } | { "code": "notCalibrated", "params": { memberId: PartyMemberId, } };

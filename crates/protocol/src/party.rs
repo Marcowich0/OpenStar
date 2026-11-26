@@ -404,6 +404,29 @@ pub enum LineUpWarning {
     /// "<name>'s mic is blocked": the seat's Mic is a Phone that reported
     /// its mic could not open. Does not block Start.
     MicBlocked { member_id: PartyMemberId },
+    /// "<mic> is unplugged": the seat's Local mic is switched on but not
+    /// present (its device is not listed, or its open bridge no longer
+    /// offers its channel). Does not block Start; during a Song it is a lost
+    /// Mic and reattaches by itself.
+    LocalMicUnplugged {
+        member_id: PartyMemberId,
+        local_mic_id: String,
+    },
+    /// "<host> mic bridge is closed": the seat's Local mic belongs to an
+    /// approved Mic bridge that is not connected. Does not block Start.
+    BridgeClosed {
+        member_id: PartyMemberId,
+        local_mic_id: String,
+        host_name: String,
+    },
+    /// "<mic> sends no sound: check the interface": the seat's Local mic
+    /// delivered exact digital silence (every sample zero) for more than
+    /// 2 s, as the Stage reports. There is no "too quiet" warning. Does not
+    /// block Start.
+    LocalMicSilent {
+        member_id: PartyMemberId,
+        local_mic_id: String,
+    },
     /// "A duet needs someone on Voice <voice>": nobody sits on that Voice
     /// of a duet. Blocks Start.
     DuetNeedsVoice { voice: SeatVoice },

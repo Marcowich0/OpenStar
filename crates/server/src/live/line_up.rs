@@ -5,7 +5,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use openstar_protocol::mics::MicKey;
+use openstar_protocol::bridge::BridgeId;
+use openstar_protocol::mics::{LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Difficulty, ProfileId};
 use openstar_protocol::{
     Identity, LineUp, LineUpWarning, PartyMember, PartyMemberId, PartySnapshot, PhoneId, Request,
@@ -19,6 +20,53 @@ pub struct MicChoices {
     pub local_mics: Vec<String>,
     /// The Local mic each Party member last sang on in this Party.
     pub last_local_mics: HashMap<PartyMemberId, String>,
+}
+
+/// What the seat warnings about Local mics read: whether each switched-on
+/// Local mic is present, which ones the Stage reports in digital silence,
+/// and the approved Mic bridges that are closed now.
+#[derive(Debug, Default, Clone)]
+pub struct SeatMicState {
+    /// The Party's switched-on Local mics (`PartySnapshot.local_mics`).
+    pub local_mics: Vec<PartyLocalMic>,
+    /// Local mics that delivered exact zeros for more than 2 s.
+    pub silent: HashSet<String>,
+    /// Approved Mic bridges not connected now, with their host names.
+    pub closed_bridges: HashMap<BridgeId, String>,
+}
+
+impl SeatMicState {
+    /// The warning, if any, for a seat of `member_id` on Local mic
+    /// `local_mic_id`. Only what is certain: a closed bridge, then an
+    /// unplugged Local mic, then digital silence. A Local mic that is not
+    /// switched on is not listed and gets none.
+    fn warning(&self, member_id: PartyMemberId, local_mic_id: &str) -> Option<LineUpWarning> {
+        let mic = self
+            .local_mics
+            .iter()
+            .find(|mic| mic.local_mic_id == local_mic_id)?;
+        if let LocalMicSource::Bridge { bridge_id, .. } = &mic.source
+            && let Some(host_name) = self.closed_bridges.get(bridge_id)
+        {
+            return Some(LineUpWarning::BridgeClosed {
+                member_id,
+                local_mic_id: local_mic_id.to_owned(),
+                host_name: host_name.clone(),
+            });
+        }
+        if !mic.present {
+            return Some(LineUpWarning::LocalMicUnplugged {
+                member_id,
+                local_mic_id: local_mic_id.to_owned(),
+            });
+        }
+        self.silent
+            .contains(local_mic_id)
+            .then(|| LineUpWarning::LocalMicSilent {
+                member_id,
+                local_mic_id: local_mic_id.to_owned(),
+            })
+    }
 }
 
 /// The Line-up of `request` as it reaches the head of `party`'s Queue: one
@@ -304,7 +352,8 @@ pub fn refresh_singing(party: &mut PartySnapshot) {
 /// Start needs at least one seat, a Mic in every seat, no Mic in two seats,
 /// no member in two seats ("at most once" is this rule, never a database
 /// constraint), and in a duet someone on each Voice. A blocked Phone mic
-/// warns but never blocks Start. An empty Line-up shows no warning: its
+/// warns but never blocks Start, nor do the Local mic warnings of `mics`
+/// (unplugged, bridge closed, digital silence). An empty Line-up shows no warning: its
 /// screens offer Add a singer instead.
 ///
 /// `calibrated` holds the Mics with a Mic delay stored at the Stage's
@@ -313,6 +362,7 @@ pub fn refresh_singing(party: &mut PartySnapshot) {
 pub fn check(
     line_up: &mut LineUp,
     blocked_phones: &HashSet<PhoneId>,
+    mics: &SeatMicState,
     calibrated: Option<&HashSet<MicKey>>,
 ) {
     let mut warnings = Vec::new();
@@ -327,6 +377,9 @@ pub fn check(
                 warnings.push(LineUpWarning::MicBlocked {
                     member_id: seat.member_id,
                 });
+            }
+            Some(MicKey::LocalMic { local_mic_id }) => {
+                warnings.extend(mics.warning(seat.member_id, local_mic_id));
             }
             Some(_) => {}
         }
@@ -369,7 +422,9 @@ pub fn check(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use openstar_protocol::bridge::BridgeId;
     use openstar_protocol::library::SongId;
+    use openstar_protocol::mics::{LocalMicSource, PartyLocalMic};
     use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
     use openstar_protocol::{JoinedPhone, RequestId, RequestKind, StageId};
 
@@ -629,8 +684,145 @@ mod tests {
             }],
         };
         let blocked: HashSet<PhoneId> = blocked.iter().map(|id| PhoneId((*id).into())).collect();
-        check(&mut line_up, &blocked, None);
+        check(&mut line_up, &blocked, &SeatMicState::default(), None);
         line_up
+    }
+
+    /// A one-seat Line-up (member 1 on Local mic `mic`) checked against `mics`.
+    fn checked_mic(mic: &str, mics: &SeatMicState) -> LineUp {
+        let mut line_up = LineUp {
+            request_id: RequestId(9),
+            duet: false,
+            seats: vec![seat(1, local(mic), SeatVoice::P1)],
+            can_start: false,
+            warnings: Vec::new(),
+        };
+        check(&mut line_up, &HashSet::new(), mics, None);
+        line_up
+    }
+
+    fn browser_mic(id: &str, present: bool) -> PartyLocalMic {
+        PartyLocalMic {
+            local_mic_id: id.into(),
+            source: LocalMicSource::Browser {
+                stage_browser: "stage".into(),
+                device_id: "dev".into(),
+                label: "USB mic".into(),
+                channel: 0,
+                stereo: false,
+            },
+            name: "Red mic".into(),
+            present,
+        }
+    }
+
+    fn bridge_mic(id: &str, bridge: &str, present: bool) -> PartyLocalMic {
+        PartyLocalMic {
+            local_mic_id: id.into(),
+            source: LocalMicSource::Bridge {
+                bridge_id: BridgeId(bridge.into()),
+                device_name: "umc404".into(),
+                label: "UMC404HD".into(),
+                channel: 0,
+                loopback: None,
+            },
+            name: String::new(),
+            present,
+        }
+    }
+
+    #[test]
+    fn an_unplugged_local_mic_warns_under_its_seat_and_does_not_block_start() {
+        let mics = SeatMicState {
+            local_mics: vec![browser_mic("red", false)],
+            ..SeatMicState::default()
+        };
+        let line_up = checked_mic("red", &mics);
+        assert_eq!(
+            line_up.warnings,
+            vec![LineUpWarning::LocalMicUnplugged {
+                member_id: member(1),
+                local_mic_id: "red".into(),
+            }]
+        );
+        assert!(line_up.can_start);
+    }
+
+    #[test]
+    fn a_local_mic_of_a_closed_bridge_warns_that_the_bridge_is_closed_not_unplugged() {
+        let mics = SeatMicState {
+            local_mics: vec![bridge_mic("b-0", "b", false)],
+            closed_bridges: HashMap::from([(BridgeId("b".into()), "hermes".into())]),
+            ..SeatMicState::default()
+        };
+        let line_up = checked_mic("b-0", &mics);
+        assert_eq!(
+            line_up.warnings,
+            vec![LineUpWarning::BridgeClosed {
+                member_id: member(1),
+                local_mic_id: "b-0".into(),
+                host_name: "hermes".into(),
+            }]
+        );
+        assert!(line_up.can_start);
+    }
+
+    #[test]
+    fn a_channel_an_open_bridge_no_longer_offers_is_unplugged() {
+        let mics = SeatMicState {
+            local_mics: vec![bridge_mic("b-0", "b", false)],
+            ..SeatMicState::default()
+        };
+        assert_eq!(
+            checked_mic("b-0", &mics).warnings,
+            vec![LineUpWarning::LocalMicUnplugged {
+                member_id: member(1),
+                local_mic_id: "b-0".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn a_present_local_mic_in_digital_silence_warns_and_does_not_block_start() {
+        let mics = SeatMicState {
+            local_mics: vec![browser_mic("red", true)],
+            silent: HashSet::from(["red".to_owned()]),
+            ..SeatMicState::default()
+        };
+        let line_up = checked_mic("red", &mics);
+        assert_eq!(
+            line_up.warnings,
+            vec![LineUpWarning::LocalMicSilent {
+                member_id: member(1),
+                local_mic_id: "red".into(),
+            }]
+        );
+        assert!(line_up.can_start);
+    }
+
+    #[test]
+    fn an_unplugged_local_mic_shows_only_unplugged_even_if_last_reported_silent() {
+        let mics = SeatMicState {
+            local_mics: vec![browser_mic("red", false)],
+            silent: HashSet::from(["red".to_owned()]),
+            ..SeatMicState::default()
+        };
+        assert_eq!(
+            checked_mic("red", &mics).warnings,
+            vec![LineUpWarning::LocalMicUnplugged {
+                member_id: member(1),
+                local_mic_id: "red".into(),
+            }]
+        );
+    }
+
+    #[test]
+    fn a_present_sounding_local_mic_has_no_warning() {
+        let mics = SeatMicState {
+            local_mics: vec![browser_mic("red", true)],
+            ..SeatMicState::default()
+        };
+        assert_eq!(checked_mic("red", &mics).warnings, vec![]);
     }
 
     #[test]

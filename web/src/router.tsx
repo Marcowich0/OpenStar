@@ -12,6 +12,7 @@ import {
 import { createQueryClient } from "./api/queryClient";
 import { validateAdminSearch } from "./adminSearch";
 import { validatePhoneSearch } from "./phone/phoneSearch";
+import { validateStageSearch } from "./stageSearch";
 
 // Every screen is loaded lazily, so each route's code is its own chunk: a
 // Phone downloads only the Phone code. Keep this file free of static imports
@@ -37,10 +38,11 @@ const phoneRoute = createRoute({
   ),
 });
 
-/** `/stage`: the Stage. */
+/** `/stage`: the Stage. `?perf` and `?perf&lanes=8` are its performance check (#227). */
 const stageRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/stage",
+  validateSearch: validateStageSearch,
   component: lazyRouteComponent(
     () => import("./stage/StageScreen"),
     "StageScreen",

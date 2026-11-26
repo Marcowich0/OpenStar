@@ -61,7 +61,7 @@ export interface ScorerSetup {
 }
 
 /** The `t()` key of each Line rating word. */
-const LINE_RATING_KEYS = {
+export const LINE_RATING_KEYS = {
   perfect: "sing.lineRating.perfect",
   great: "sing.lineRating.great",
   good: "sing.lineRating.good",

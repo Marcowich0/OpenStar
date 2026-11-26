@@ -85,6 +85,30 @@ describe("code split by route", () => {
   });
 });
 
+describe("the Stage's performance check (ticket 227)", () => {
+  it("loads its tools and recorded readings only with ?perf, in a chunk of their own", () => {
+    const stage = staticGraph([chunkOf("stage/StageScreen.tsx")]);
+    const ids = stage.flatMap((c) => c.moduleIds);
+    const perfOnly = [
+      "stage/perf/perfTools.ts",
+      "stage/perf/syntheticLanes.ts",
+      "stage/perf/FrameTimeOverlay.tsx",
+      "stage/perf/frameStats.ts",
+    ];
+    for (const file of perfOnly) {
+      expect(ids).not.toContain(path.join(src, file));
+    }
+    expect(ids.filter((id) => id.includes("fixtures/readings"))).toEqual([]);
+    // The small switch the sing scene reads is in the Stage's own code.
+    expect(ids).toContain(path.join(src, "stage/perf/stagePerf.tsx"));
+    expect(
+      chunkOf("stage/perf/perfTools.ts").moduleIds.some((id) =>
+        id.includes("fixtures/readings/run-"),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("the production build", () => {
   // The painter screenshot page (`sing-test.html`, #203) is built only by
   // `just e2e` / `just update-screenshots`, never into the binary.

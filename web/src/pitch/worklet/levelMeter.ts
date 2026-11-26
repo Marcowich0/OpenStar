@@ -14,6 +14,12 @@ const SILENCE_DBFS = -120;
 export interface LevelMeter {
   /** Feeds one block; the loudness at its end, if a level was due. */
   push: (block: Float32Array) => number | null;
+  /**
+   * Whether the window is exact digital silence: its 2048 newest frames all
+   * exactly 0 (v1 spec #51, "sends no sound"). Quiet noise is not, however
+   * far below the −120 floor it reads.
+   */
+  zero: () => boolean;
 }
 
 export function createLevelMeter(sampleRate: number): LevelMeter {
@@ -22,6 +28,8 @@ export function createLevelMeter(sampleRate: number): LevelMeter {
   let next = 0;
   let frames = 0;
   let lastLevelEnd: number | null = null;
+  /** Exact zeros since the newest non-zero sample, up to the window. */
+  let zeros = 0;
 
   return {
     push(block) {
@@ -29,6 +37,10 @@ export function createLevelMeter(sampleRate: number): LevelMeter {
       for (const sample of keep) {
         ring[next] = sample;
         next = (next + 1) % WINDOW_LEN;
+      }
+      for (const sample of block) {
+        if (sample === 0) zeros = Math.min(WINDOW_LEN, zeros + 1);
+        else zeros = 0;
       }
       frames += block.length;
       if (frames < WINDOW_LEN) return null;
@@ -40,5 +52,6 @@ export function createLevelMeter(sampleRate: number): LevelMeter {
       if (meanSq <= 0) return SILENCE_DBFS;
       return Math.max(SILENCE_DBFS, 10 * Math.log10(meanSq));
     },
+    zero: () => zeros >= WINDOW_LEN,
   };
 }

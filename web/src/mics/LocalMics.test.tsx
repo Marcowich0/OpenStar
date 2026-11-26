@@ -42,6 +42,7 @@ function fakeCapture(
     refresh: vi.fn(() => Promise.resolve()),
     setOpen: vi.fn(() => Promise.resolve()),
     levelDbfs: () => null,
+    digitalZero: () => null,
     setDetecting: vi.fn(),
     subscribeReadings: (listener: ReadingListener) => {
       readingListeners.add(listener);
@@ -320,6 +321,64 @@ describe("the Stage browser's Local mics", () => {
     expect(sent.filter((m) => m.type === "setMicsScreenOpen")).toEqual([]);
   });
 
+  it("report a bridge Local mic in exact digital silence for more than 2 s, and when it sounds again", () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    try {
+      const { becomeStage, server, sent } = setup();
+      const id = "bridge:zeus:mics.wav:0";
+      becomeStage(
+        true,
+        testParty({
+          localMics: [
+            {
+              localMicId: id,
+              name: "",
+              present: true,
+              source: {
+                kind: "bridge",
+                bridgeId: "zeus",
+                deviceName: "mics.wav",
+                label: "mics.wav",
+                channel: 0,
+              },
+            },
+          ],
+        }),
+      );
+      const reports = () =>
+        sent.flatMap((m) =>
+          m.type === "reportSilentLocalMics" ? [m.localMicIds] : [],
+        );
+      const level = (digitalSilence: boolean) => {
+        server({
+          type: "localMicLevels",
+          levels: [{ localMicId: id, levelDbfs: -100, digitalSilence }],
+        });
+      };
+      // Ten levels a second of exact zeros: reported once past 2 s.
+      for (let step = 0; step <= 25; step++) {
+        level(true);
+        act(() => {
+          now += 100;
+          vi.advanceTimersByTime(100);
+        });
+        if (now <= 2000) expect(reports()).toEqual([]);
+      }
+      expect(reports()).toEqual([[id]]);
+      level(false);
+      act(() => {
+        now += 250;
+        vi.advanceTimersByTime(250);
+      });
+      expect(reports()).toEqual([[id], []]);
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    }
+  });
+
   it("keep the Mic bridge levels the server relays for the meters", () => {
     const { becomeStage, api, server } = setup();
     becomeStage(true);
@@ -327,7 +386,7 @@ describe("the Stage browser's Local mics", () => {
     expect(api().bridgeLevelDbfs(id)).toBeNull();
     server({
       type: "localMicLevels",
-      levels: [{ localMicId: id, levelDbfs: -12 }],
+      levels: [{ localMicId: id, levelDbfs: -12, digitalSilence: false }],
     });
     expect(api().bridgeLevelDbfs(id)).toBe(-12);
   });

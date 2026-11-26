@@ -465,6 +465,11 @@ export const en = {
   "stage.pause.skip": "Skip to the next Song",
   "stage.pause.end": "End and show results",
   "stage.pause.hint": "Restart, Skip and End: hold Enter or press and hold",
+  "stage.perf.measuring": "Measuring frame times",
+  "stage.perf.current": "Frame {ms} ms",
+  "stage.perf.mean": "Mean {ms} ms",
+  "stage.perf.worst": "Worst {ms} ms",
+  "stage.perf.budget": "Budget {ms} ms ({hz} Hz)",
   // The results screen (#182).
   "stage.results.endedEarly": "Ended early, so no high scores this time",
   "stage.results.legend": "What the bars are made of",
@@ -885,6 +890,11 @@ export const en = {
   "lineUpWarning.micBlocked": "{name}'s mic is blocked",
   "lineUpWarning.duetNeedsVoice":
     "A duet needs someone on Voice {voice, number}",
+  // Mic warnings (v1 spec #51): only what is certain. {mic} is the Local
+  // mic's name, {host} the Mic bridge's computer.
+  "lineUpWarning.localMicUnplugged": "{mic} is unplugged",
+  "lineUpWarning.bridgeClosed": "{host} mic bridge is closed",
+  "lineUpWarning.localMicSilent": "{mic} sends no sound: check the interface",
   // Toasts that name the Remote's Party member (`toasts/`).
   "toast.list": "Party changes",
   "toast.requestAdded": "{actor} added {song}",

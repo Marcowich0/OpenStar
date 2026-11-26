@@ -114,6 +114,7 @@ fn level(channel: u32, level_dbfs: f64) -> BridgeLevel {
         device_name: WAV.into(),
         channel,
         level_dbfs,
+        digital_silence: false,
     }
 }
 
@@ -207,7 +208,15 @@ async fn levels_from_an_open_bridge_reach_the_stage_under_its_local_mic_ids() {
     bridge
         .send(&ClientMessage::BridgeLevels {
             // Channel 9 is not one the bridge offers: it is dropped.
-            levels: vec![level(0, -12.5), level(9, -3.0), level(3, -100.0)],
+            // Channel 3 sends exact zeros: the Stage is told so.
+            levels: vec![
+                level(0, -12.5),
+                level(9, -3.0),
+                BridgeLevel {
+                    digital_silence: true,
+                    ..level(3, -100.0)
+                },
+            ],
         })
         .await;
     assert_eq!(
@@ -217,10 +226,12 @@ async fn levels_from_an_open_bridge_reach_the_stage_under_its_local_mic_ids() {
                 LocalMicLevel {
                     local_mic_id: bridge_local_mic_id(&bridge_id, WAV, 0),
                     level_dbfs: -12.5,
+                    digital_silence: false,
                 },
                 LocalMicLevel {
                     local_mic_id: bridge_local_mic_id(&bridge_id, WAV, 3),
                     level_dbfs: -100.0,
+                    digital_silence: true,
                 },
             ]
         }

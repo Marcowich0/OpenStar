@@ -35,6 +35,11 @@ export interface PitchWorkletReading {
   /** RMS of the 2048-frame window in dBFS; digital silence is −120. */
   loudness: number;
   /**
+   * Whether the newest 2048 frames are exact digital silence, every sample
+   * exactly 0 (not quiet noise): the "sends no sound" warning's input.
+   */
+  zero: boolean;
+  /**
    * The audio frame just after the newest sample in the window, on the
    * context's frame clock (`currentFrame` plus the block). The window's
    * centre is `endFrame − 1024`.
@@ -53,6 +58,8 @@ export interface PitchWorkletLevel {
   type: "level";
   /** RMS of the 2048-frame window in dBFS; digital silence is −120. */
   loudness: number;
+  /** As a reading's `zero`. */
+  zero: boolean;
   /** As a reading's `endFrame`. */
   endFrame: number;
 }

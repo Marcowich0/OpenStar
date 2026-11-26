@@ -153,8 +153,10 @@ export function fakePitchNodes() {
         port: { close: () => undefined },
       });
     },
-    emit(reading: Omit<PitchWorkletReading, "type">) {
-      onReading?.({ type: "reading", ...reading });
+    emit(
+      reading: Omit<PitchWorkletReading, "type" | "zero"> & { zero?: boolean },
+    ) {
+      onReading?.({ type: "reading", zero: false, ...reading });
     },
     get live() {
       return onReading !== null;
