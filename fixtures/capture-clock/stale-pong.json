@@ -1,0 +1,22 @@
+{
+  "description": "A pong from the old Stage page that was still on its way arrives after the first pong of the new epoch. It answers a ping sent before the one that started the new epoch, so it is stale and ignored: it does not flip the epoch back. A pong of the old epoch that answers a later ping would be a new sample of another epoch and discard everything again. Worked by hand.",
+  "session": "remote",
+  "steps": [
+    ["start", 0, 48000],
+    ["ping", 0, 0],
+    ["pong", 0, 4, 1002, 111],
+    ["offset", 1000],
+    ["ping", 200, 200],
+    ["ping", 400, 400],
+    ["pong", 400, 404, 3402, 222],
+    ["offset", 3000],
+    ["pong", 200, 410, 1305, 111],
+    ["offset", 3000],
+    ["ping", 600, 600],
+    ["pong", 600, 610, 3610, 222],
+    ["offset", 3000],
+    ["ping", 800, 800],
+    ["pong", 800, 802, 1801, 111],
+    ["offset", 1000]
+  ]
+}

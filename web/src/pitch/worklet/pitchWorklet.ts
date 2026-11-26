@@ -5,7 +5,8 @@
 //
 // A node takes one mono input and posts a `PitchWorkletReading` for every
 // Pitch reading. Mapping `endFrame` onto the page's clock (the lower envelope
-// of arrival time − frame time, v1 spec #50) is the caller's job.
+// of arrival time − frame time, v1 spec #50) is the caller's job, with a
+// sender session from `../clock/senderSession` (the same WASM file).
 
 import processorUrl from "./pitchProcessor.ts?worker&url";
 import wasmUrl from "../../../wasm/openstar_detector.wasm?url";
@@ -21,8 +22,11 @@ export type { PitchWorkletReading } from "./pitchMessages";
 let detectorBytes: Promise<ArrayBuffer> | null = null;
 const loadedContexts = new WeakMap<BaseAudioContext, Promise<void>>();
 
-/** The detector module's bytes, fetched once per page (again after a failure). */
-function detector(): Promise<ArrayBuffer> {
+/**
+ * The detector module's bytes, fetched once per page (again after a failure).
+ * The capture clock (`../clock/senderSession`) compiles the same bytes.
+ */
+export function detectorWasm(): Promise<ArrayBuffer> {
   detectorBytes ??= fetch(wasmUrl)
     .then((response) => {
       if (!response.ok)
@@ -62,7 +66,7 @@ export async function createPitchNode(
   context: BaseAudioContext,
   onReading: (reading: PitchWorkletReading) => void,
 ): Promise<AudioWorkletNode> {
-  const [wasm] = await Promise.all([detector(), addWorklet(context)]);
+  const [wasm] = await Promise.all([detectorWasm(), addWorklet(context)]);
   const processorOptions: PitchProcessorOptions = { wasm };
   const node = new AudioWorkletNode(context, PITCH_PROCESSOR_NAME, {
     numberOfInputs: 1,

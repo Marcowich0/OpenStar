@@ -1118,6 +1118,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "openstar-capture-clock"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "openstar-detector"
 version = "0.0.0"
 dependencies = [
@@ -1130,6 +1138,7 @@ name = "openstar-detector-wasm"
 version = "0.0.0"
 dependencies = [
  "insta",
+ "openstar-capture-clock",
  "openstar-detector",
  "proptest",
 ]

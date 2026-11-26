@@ -107,7 +107,7 @@ fn the_only_unsafe_in_detector_wasm_is_no_mangle_on_its_exports() {
 }
 
 /// No JavaScript glue generator on the Rust side either: the crate depends on
-/// the detector alone, which depends on nothing.
+/// the detector and the capture clock alone, which depend on nothing.
 #[test]
 fn detector_wasm_has_no_glue_generator() {
     let manifest =
@@ -123,14 +123,23 @@ fn detector_wasm_has_no_glue_generator() {
         .filter_map(|l| l.split('=').next().map(str::trim))
         .filter(|n| !n.is_empty() && !n.starts_with('#'))
         .collect();
-    assert_eq!(names, ["openstar-detector.workspace"]);
-
-    // …and the detector has no dependencies at all, so the WASM module's
-    // whole dependency tree is these two crates.
-    let detector = std::fs::read_to_string(workspace().join("crates/detector/Cargo.toml"))
-        .expect("crates/detector/Cargo.toml");
-    assert!(
-        !detector.contains("\n[dependencies]"),
-        "openstar-detector must stay free of dependencies"
+    assert_eq!(
+        names,
+        [
+            "openstar-capture-clock.workspace",
+            "openstar-detector.workspace"
+        ]
     );
+
+    // …and they have no dependencies at all, so the WASM module's whole
+    // dependency tree is these three crates.
+    for dependency in ["detector", "capture-clock"] {
+        let manifest =
+            std::fs::read_to_string(workspace().join(format!("crates/{dependency}/Cargo.toml")))
+                .expect("Cargo.toml");
+        assert!(
+            !manifest.contains("\n[dependencies]"),
+            "{dependency} must stay free of dependencies"
+        );
+    }
 }
