@@ -2,18 +2,25 @@
 // in the Line-up, "Turn on my mic" opens it with one tap, and the small
 // diagnostics readout shows readings per second and the detector's cost per
 // window. After the page was hidden (a lost mic, #166) it says "Your mic
-// stopped" and offers Sing again. The full-screen mic takeover (#167)
-// replaces this strip.
+// stopped" and offers Sing again. When the mic is blocked it names why
+// (permission refused, no HTTPS, or neither) above Try again (#129). The
+// full-screen mic takeover (#167) replaces this strip.
 
 import { useSyncExternalStore } from "react";
 
 import type { PhoneId } from "../../generated/PhoneId";
-import { t } from "../../i18n/t";
+import { t, type MessageKey } from "../../i18n/t";
 import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
 import { useLive } from "../../live/useLive";
 import { Button } from "../../ui/Button";
-import type { PhoneMic } from "./phoneMic";
+import type { MicBlockedReason, PhoneMic } from "./phoneMic";
+
+const BLOCKED_TEXT = {
+  permissionRefused: "phoneMic.blocked.permissionRefused",
+  noHttps: "phoneMic.blocked.noHttps",
+  notOpened: "phoneMic.blocked.notOpened",
+} as const satisfies Record<MicBlockedReason, MessageKey>;
 
 /** Whether the Phone `phoneId` is the Mic of a seat in the Line-up. */
 export function isSeatedMic(state: LiveState, phoneId: PhoneId): boolean {
@@ -40,7 +47,7 @@ export function PhoneMicCard({
   // A mic that is on stays shown, so it can still be read.
   if (!seated && snapshot.state === "off") return null;
 
-  const { state, readingsPerSecond, detector } = snapshot;
+  const { state, blocked, readingsPerSecond, detector } = snapshot;
   return (
     <section
       aria-label={t("phoneMic.seated")}
@@ -57,6 +64,9 @@ export function PhoneMicCard({
                 ? t("phoneMic.stopped")
                 : t("phoneMic.seated")}
       </p>
+      {state === "failed" && blocked && (
+        <p className="text-sm text-white/80">{t(BLOCKED_TEXT[blocked])}</p>
+      )}
       {state === "lost" && (
         <>
           <p className="text-sm text-white/80">{t("phoneMic.stoppedBody")}</p>
