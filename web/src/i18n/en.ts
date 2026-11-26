@@ -269,10 +269,11 @@ export const en = {
   "mics.findIt.label": "Find it: {name}",
   "mics.findIt.choose": "Which channel is {name} on now?",
   "mics.findIt.none": "No new channel to pick. Is the mic plugged in?",
-  "stage.queue.count": {
-    one: "{count, number} Request in the Queue",
-    other: "{count, number} Requests in the Queue",
-  },
+  "stage.queue.actions": "What to do with {song}",
+  "stage.queue.singers": "Who sings {song}?",
+  "stage.queue.singersHint":
+    "Enter adds or takes off a singer, up to {seats, number}",
+  "stage.songs.added": "Added {song}",
   "stage.people.count": "{count, number} of 12 colours taken",
   "stage.people.joinCode": "Join with {code}",
   "stage.newParty": "New party",
