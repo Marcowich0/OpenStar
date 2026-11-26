@@ -165,7 +165,7 @@ function Tones() {
       >
         <div
           className="h-full rounded-full bg-white transition-[width] duration-100 ease-linear"
-          style={{ width: `${percent}%` }}
+          style={{ width: `${String(percent)}%` }}
         />
       </div>
       <p className="mt-auto text-3xl font-bold">
