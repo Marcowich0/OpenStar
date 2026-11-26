@@ -121,6 +121,15 @@ export const micBridgesQuery = queryOptions({
 });
 
 /**
+ * `GET /api/jobs`: every kept background job. The Downloads list keeps it
+ * current from the `jobChanged` messages (`DownloadList`).
+ */
+export const jobsQuery = queryOptions({
+  queryKey: ["jobs"],
+  queryFn: ({ signal }) => api("GET /api/jobs", { signal }),
+});
+
+/**
  * `GET /api/usdb/mirror`: where the USDB mirror stands (empty, filling,
  * fresh, ...). The Downloads section asks for a fresh mirror with
  * `POST /api/usdb/mirror/refresh` when it opens.

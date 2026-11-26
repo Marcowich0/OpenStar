@@ -9,7 +9,9 @@
 // here needs the Admin PIN. Tapping a result opens the video picker
 // (`VideoPicker`); pressing Download there starts a Download (#195), which
 // is guarded: without an Unlock the PIN pad opens then, and on a read-only
-// Library the button is disabled with the notice that says why.
+// Library the button is disabled with the notice that says why. The list
+// of Downloads above the search (`DownloadList`, #196) follows each one
+// live and cancels it without a PIN.
 
 import {
   keepPreviousData,
@@ -43,7 +45,9 @@ import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
+import type { LiveStore } from "../live/liveStore";
 import { AdminSection } from "./AdminSection";
+import { DownloadList } from "./DownloadList";
 import { VideoPicker } from "./VideoPicker";
 
 function searchQuery(search: string, sort: UsdbSort): UsdbSearchQuery {
@@ -51,7 +55,12 @@ function searchQuery(search: string, sort: UsdbSort): UsdbSearchQuery {
   return words === "" ? { sort } : { search: words, sort };
 }
 
-export function Downloads() {
+export function Downloads({
+  store,
+}: {
+  /** The live store the list follows; the browser's own by default. */
+  store?: Pick<LiveStore, "onJobChanged"> | undefined;
+} = {}) {
   const status = useQuery(usdbStatusQuery).data?.state;
   const mirror = useQuery(usdbMirrorQuery).data;
   useRefreshOnOpen();
@@ -63,6 +72,7 @@ export function Downloads() {
       notices={<UsdbNotices status={status} mirror={mirror} />}
     >
       <div className="flex flex-col gap-4">
+        <DownloadList store={store} />
         <MirrorLine status={status} mirror={mirror} />
         <Search />
       </div>

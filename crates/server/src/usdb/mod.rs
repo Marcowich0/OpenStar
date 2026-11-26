@@ -16,6 +16,7 @@ mod search;
 mod song_txt;
 mod text;
 pub(crate) mod videos;
+pub(crate) mod ytdlp_progress;
 
 pub use client::{
     FIRST_BACKOFF, MAX_BACKOFF, MAX_TRIES, PACING, SystemTimer, UsdbClient, UsdbTimer,
