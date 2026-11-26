@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
 
 import { expect, test } from "../fixtures";
 
@@ -14,6 +14,7 @@ interface Loaded {
   url: string;
   status: number;
   contentType: string;
+  response: Response;
 }
 
 function recordResponses(page: Page): Loaded[] {
@@ -23,9 +24,24 @@ function recordResponses(page: Page): Loaded[] {
       url: response.url(),
       status: response.status(),
       contentType: response.headers()["content-type"] ?? "",
+      response,
     });
   });
   return loaded;
+}
+
+/**
+ * The worklet file's URL, as the loaded JS names it. (`addModule` fetches it
+ * outside the page's network events, so Playwright never reports it.)
+ */
+async function workletUrlIn(page: Page, loaded: Loaded[]): Promise<string> {
+  const origin = new URL(page.url()).origin;
+  for (const r of loaded.filter((l) => l.url.endsWith(".js"))) {
+    const code = await r.response.text().catch(() => "");
+    const name = /\/assets\/pitchProcessor-[\w-]+\.js/.exec(code)?.[0];
+    if (name) return `${origin}${name}`;
+  }
+  return "";
 }
 
 /**
@@ -94,9 +110,12 @@ test("the Stage's meters run on the pitch worklet, loaded from OpenStar itself",
     .toBeGreaterThan(-60);
 
   const origin = new URL(stage.url()).origin;
-  const worklets = loaded.filter((r) => WORKLET.test(r.url));
+  const workletUrl = await workletUrlIn(stage, loaded);
+  expect(workletUrl).toMatch(WORKLET);
+  const worklet = await stage.request.get(workletUrl);
+  expect(worklet.status()).toBe(200);
+  expect(worklet.headers()["content-type"]).toMatch(/javascript/);
   const wasm = loaded.filter((r) => WASM.test(r.url));
-  expect(worklets.map((r) => r.status)).toEqual([200]);
   expect(wasm.map((r) => [r.status, r.contentType])).toEqual([
     [200, "application/wasm"],
   ]);
@@ -114,7 +133,7 @@ test("the one built worklet file detects a 440 Hz tone on / and on /stage", asyn
   await stage.getByRole("button", { name: "Setup" }).click();
   await stage.getByRole("menuitem", { name: "Mics", exact: true }).click();
   await expect.poll(() => loaded.some((r) => WASM.test(r.url))).toBe(true);
-  const workletUrl = loaded.find((r) => WORKLET.test(r.url))?.url ?? "";
+  const workletUrl = await workletUrlIn(stage, loaded);
   const wasmUrl = loaded.find((r) => WASM.test(r.url))?.url ?? "";
   expect(workletUrl).toMatch(WORKLET);
 
