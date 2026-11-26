@@ -7,6 +7,12 @@
 //! `video.mp4` and `metadata.json` into a temporary folder, checks the text
 //! with the Library's parser before yt-dlp runs, checks the USDB id again,
 //! and moves the folder into the Library, where the Song is at once.
+//!
+//! The Downloads list (#196): every Download over `GET /api/jobs` and live
+//! over the WebSocket with its song, percent, speed and ETA; cancelling
+//! without a PIN; each step retried twice with a 1.5 s backoff that doubles;
+//! the 403 fallback; a failure or cancel removing only the temporary
+//! folder; a restart starting an interrupted Download again from scratch.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -16,15 +22,16 @@ use openstar::clock::ManualClock;
 use openstar::db::DATABASE_FILE;
 use openstar::usdb::{UsdbTimer, VirtualTimer};
 use openstar_protocol::admin::{ApiError, ApiErrorCode};
-use openstar_protocol::jobs::{Job, JobId, JobKind, JobList, JobState};
+use openstar_protocol::jobs::{DownloadRate, Job, JobId, JobKind, JobList, JobState};
 use openstar_protocol::library::{SongIdentity, SongList};
 use openstar_protocol::song::TxtRejection;
 use openstar_protocol::usdb::{
     DownloadStarted, StartDownload, UsdbMirrorState, UsdbMirrorStatus, UsdbTextVersion,
 };
-use openstar_protocol::{PhoneId, UserMessage};
+use openstar_protocol::{ClientMessage, PhoneId, ServerMessage, UserMessage};
 use openstar_test_harness::{
-    AppFolders, FakeSong, FakeUsdb, Media, TestApp, TestAppBuilder, YtDlpStub, YtDlpStubBehaviour,
+    AppFolders, FakeSong, FakeUsdb, Media, TestApp, TestAppBuilder, WsClient, YtDlpStub,
+    YtDlpStubBehaviour,
 };
 use reqwest::StatusCode;
 use sha2::{Digest, Sha256};
@@ -41,11 +48,20 @@ const VIDEO: &str = "https://www.youtube.com/watch?v=AAAAAAAAAAA";
 const SONG_1_FOLDER: &str = "Placeholder Artist - Re_ Stacks";
 
 fn builder(usdb: &FakeUsdb, stub: &YtDlpStub) -> TestAppBuilder {
+    builder_with_timer(usdb, stub, Arc::new(VirtualTimer::new()))
+}
+
+/// [`builder`] with a timer the test keeps, to read the waits.
+fn builder_with_timer(
+    usdb: &FakeUsdb,
+    stub: &YtDlpStub,
+    timer: Arc<VirtualTimer>,
+) -> TestAppBuilder {
     TestApp::builder()
         .usdb(usdb)
         .ytdlp_stub(stub)
         .clock(&ManualClock::new())
-        .usdb_timer(Arc::new(VirtualTimer::new()) as Arc<dyn UsdbTimer>)
+        .usdb_timer(timer as Arc<dyn UsdbTimer>)
 }
 
 /// A fake USDB whose list holds songs 1 to 4; song 1 has a cover.
@@ -378,6 +394,15 @@ async fn yt_dlp_prefers_h264_mp4_up_to_1080p_and_always_writes_video_mp4() {
         "{call:?}"
     );
     assert_eq!(value_of("-o"), "video.%(ext)s");
+    assert!(call.iter().any(|arg| arg == "--newline"));
+    assert_eq!(
+        value_of("--progress-template"),
+        "download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s"
+    );
+    assert!(
+        !call.iter().any(|arg| arg == "--extractor-args"),
+        "no fallback before YouTube refused: {call:?}"
+    );
     assert_eq!(value_of("--merge-output-format"), "mp4");
     assert_eq!(value_of("--remux-video"), "mp4");
     assert!(call.iter().any(|arg| arg == "--no-playlist"));
@@ -574,4 +599,311 @@ async fn the_download_job_is_stored_and_at_most_two_run_at_once() {
     assert_eq!(params["browser"], "browser-that-started-it");
     assert_eq!(state, "done");
     assert_eq!(percent, Some(100));
+}
+
+/// Every update of job `id` on `socket` until it ends, in order.
+async fn follow_job(socket: &mut WsClient, id: JobId) -> Vec<Job> {
+    let mut seen = Vec::new();
+    loop {
+        if let ServerMessage::JobChanged { job } = socket.recv().await
+            && job.id == id
+        {
+            let ended = matches!(job.state, JobState::Done | JobState::Failed { .. });
+            seen.push(job);
+            if ended {
+                return seen;
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn every_browser_sees_each_download_with_its_song_and_live_progress() {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    let app = started(&usdb, &stub).await;
+    let cookie = app.unlock().await;
+    // A Remote (a Phone that said hello) and an Admin area's page.
+    let mut remote = app.connect_ws().await;
+    remote
+        .send(&ClientMessage::Hello {
+            phone_id: PhoneId("a-remote".to_owned()),
+        })
+        .await;
+    let mut admin = app.connect_ws().await;
+
+    let id = download(&app, &cookie, 1).await;
+    for socket in [&mut remote, &mut admin] {
+        let seen = follow_job(socket, id).await;
+        let running: Vec<&Job> = seen
+            .iter()
+            .filter(|job| matches!(job.state, JobState::Running { .. }))
+            .collect();
+        assert!(!running.is_empty(), "{seen:?}");
+        // yt-dlp's 50% line: halfway between the text (10) and the end of
+        // the video (90), at 1 MiB/s with a second to go.
+        let halfway = running
+            .iter()
+            .find(|job| job.state == JobState::Running { percent: Some(50) })
+            .unwrap_or_else(|| panic!("50% in {seen:?}"));
+        let details = halfway.download.as_ref().expect("a Download's details");
+        assert_eq!(details.usdb_id, 1);
+        assert_eq!(details.artist.as_deref(), Some("Placeholder Artist"));
+        assert_eq!(details.title.as_deref(), Some("Re: Stacks"));
+        assert_eq!(details.video_url, VIDEO);
+        assert_eq!(details.browser, browser());
+        assert_eq!(
+            details.rate,
+            Some(DownloadRate {
+                bytes_per_second: Some(1024 * 1024),
+                eta_seconds: Some(1),
+            })
+        );
+        let percents: Vec<u8> = running
+            .iter()
+            .filter_map(|job| match job.state {
+                JobState::Running { percent } => percent,
+                _ => None,
+            })
+            .collect();
+        assert!(percents.is_sorted(), "never backwards: {percents:?}");
+        let last = seen.last().unwrap();
+        assert_eq!(last.state, JobState::Done);
+        assert_eq!(last.download.as_ref().unwrap().rate, None);
+    }
+
+    let listed = job(&app, id).await;
+    assert_eq!(listed.state, JobState::Done);
+    assert_eq!(
+        listed.download.unwrap().title.as_deref(),
+        Some("Re: Stacks")
+    );
+}
+
+/// Waits until yt-dlp call `call` (from 1, `--version` checks counted) has
+/// started, and returns its process id.
+async fn ytdlp_running(stub: &YtDlpStub, call: usize) -> u32 {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+    loop {
+        if let Some(Some(pid)) = stub.call_pids().get(call - 1) {
+            return *pid;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "yt-dlp call {call}: {:?}",
+            stub.calls()
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+/// The number of the yt-dlp call that downloads next (`--version` checks
+/// counted), once `downloads` downloads have run before it.
+async fn next_download_call(stub: &YtDlpStub, downloads: usize) -> usize {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+    loop {
+        let calls = stub.calls();
+        let at = calls
+            .iter()
+            .enumerate()
+            .filter(|(_, call)| !call.iter().any(|arg| arg == "--version"))
+            .nth(downloads)
+            .map(|(at, _)| at + 1);
+        if let Some(at) = at {
+            return at;
+        }
+        assert!(tokio::time::Instant::now() < deadline, "{calls:?}");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+async fn cancel(app: &TestApp, id: JobId) -> StatusCode {
+    app.http()
+        .post(app.url(&format!("/api/downloads/{}/cancel", id.0)))
+        .send()
+        .await
+        .unwrap()
+        .status()
+}
+
+#[tokio::test]
+async fn cancelling_needs_no_pin_stops_yt_dlp_and_removes_only_the_temporary_folder() {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    stub.script(YtDlpStubBehaviour::Hang, 2);
+    let app = started(&usdb, &stub).await;
+    let cookie = app.unlock().await;
+    let mine = app.songs_dir().join("Mine");
+    std::fs::create_dir(&mine).unwrap();
+    std::fs::write(mine.join("notes.md"), b"mine").unwrap();
+
+    // Two run (and hang in yt-dlp); the third waits for a slot.
+    let first = download(&app, &cookie, 1).await;
+    let second = download(&app, &cookie, 2).await;
+    let waiting = download(&app, &cookie, 4).await;
+    let mut pids = Vec::new();
+    for downloads in 0..2 {
+        let call = next_download_call(&stub, downloads).await;
+        pids.push(ytdlp_running(&stub, call).await);
+    }
+    assert_eq!(job(&app, waiting).await.state, JobState::Queued);
+    assert_eq!(staged(&app).len(), 2, "both running ones have a folder");
+
+    // A waiting Download is cancelled before it ever runs: no cookie.
+    assert_eq!(cancel(&app, waiting).await, StatusCode::NO_CONTENT);
+    assert_eq!(
+        ended(&app, waiting).await,
+        JobState::Failed {
+            reason: UserMessage::JobCancelled,
+        }
+    );
+
+    assert_eq!(cancel(&app, first).await, StatusCode::NO_CONTENT);
+    assert_eq!(cancel(&app, second).await, StatusCode::NO_CONTENT);
+    for id in [first, second] {
+        assert_eq!(
+            ended(&app, id).await,
+            JobState::Failed {
+                reason: UserMessage::JobCancelled,
+            }
+        );
+    }
+    for pid in pids {
+        assert!(
+            !Path::new(&format!("/proc/{pid}")).exists(),
+            "the yt-dlp process {pid} is stopped"
+        );
+    }
+    assert_eq!(downloads_run(&stub).len(), 2, "the waiting one never ran");
+    assert!(staged(&app).is_empty(), "the temporary folders are removed");
+    assert_eq!(library_folders(&app), vec!["Mine".to_owned()]);
+    assert_eq!(std::fs::read(mine.join("notes.md")).unwrap(), b"mine");
+
+    // An ended Download, or another kind of job, cannot be cancelled here.
+    assert_eq!(cancel(&app, first).await, StatusCode::NOT_FOUND);
+    assert_eq!(cancel(&app, JobId(9_999)).await, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_failing_video_is_tried_twice_more_with_a_doubling_wait_then_leaves_the_library_untouched()
+ {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    stub.script(
+        YtDlpStubBehaviour::Fail {
+            exit_code: 1,
+            message: "ERROR: [generic] Unable to download webpage".to_owned(),
+        },
+        3,
+    );
+    let timer = Arc::new(VirtualTimer::new());
+    let app = builder_with_timer(&usdb, &stub, timer.clone())
+        .start()
+        .await;
+    wait_for_fresh_mirror(&app).await;
+    let cookie = app.unlock().await;
+    // A Library folder with the very name the Download would take.
+    let taken = app.songs_dir().join(SONG_1_FOLDER);
+    std::fs::create_dir(&taken).unwrap();
+    std::fs::write(taken.join("notes.md"), b"mine").unwrap();
+
+    let id = download(&app, &cookie, 1).await;
+    assert_eq!(
+        ended(&app, id).await,
+        JobState::Failed {
+            reason: UserMessage::VideoDownloadFailed,
+        }
+    );
+    assert_eq!(downloads_run(&stub).len(), 3, "the first try and 2 retries");
+    // USDB's pacing waits are at most a second; the retries' are longer.
+    let retry_waits: Vec<Duration> = timer
+        .waits()
+        .into_iter()
+        .filter(|wait| *wait > Duration::from_secs(1))
+        .collect();
+    assert_eq!(
+        retry_waits,
+        vec![Duration::from_millis(1500), Duration::from_millis(3000)]
+    );
+    assert!(staged(&app).is_empty(), "the temporary folder is removed");
+    assert_eq!(library_folders(&app), vec![SONG_1_FOLDER.to_owned()]);
+    assert_eq!(files_in(&taken), vec!["notes.md"]);
+    assert_eq!(std::fs::read(taken.join("notes.md")).unwrap(), b"mine");
+}
+
+#[tokio::test]
+async fn after_a_403_later_attempts_ask_as_other_youtube_clients() {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    stub.script(
+        YtDlpStubBehaviour::Fail {
+            exit_code: 1,
+            message: "ERROR: [youtube] AAAAAAAAAAA: Unable to download video data: HTTP Error 403: Forbidden".to_owned(),
+        },
+        1,
+    );
+    stub.script(
+        YtDlpStubBehaviour::Fail {
+            exit_code: 1,
+            message: "ERROR: [youtube] AAAAAAAAAAA: Read timed out".to_owned(),
+        },
+        1,
+    );
+    let app = started(&usdb, &stub).await;
+    let cookie = app.unlock().await;
+
+    let id = download(&app, &cookie, 1).await;
+    assert_eq!(ended(&app, id).await, JobState::Done);
+    let calls = downloads_run(&stub);
+    assert_eq!(calls.len(), 3, "{calls:?}");
+    let fallback = |call: &Vec<String>| {
+        call.windows(2)
+            .position(|pair| {
+                pair[0] == "--extractor-args" && pair[1] == "youtube:player_client=tv,web_embedded"
+            })
+            .is_some_and(|at| at < call.iter().position(|arg| arg == "--").unwrap())
+    };
+    assert!(!fallback(&calls[0]), "{:?}", calls[0]);
+    assert!(fallback(&calls[1]), "{:?}", calls[1]);
+    assert!(fallback(&calls[2]), "it stays: {:?}", calls[2]);
+    assert_eq!(
+        library_folders(&app),
+        vec![SONG_1_FOLDER.to_owned()],
+        "the retried Download is in the Library"
+    );
+}
+
+#[tokio::test]
+async fn a_restart_in_the_middle_removes_the_temporary_folder_and_starts_again_from_scratch() {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    stub.script(YtDlpStubBehaviour::Hang, 1);
+    let app = started(&usdb, &stub).await;
+    let cookie = app.unlock().await;
+
+    let id = download(&app, &cookie, 1).await;
+    let call = next_download_call(&stub, 0).await;
+    let pid = ytdlp_running(&stub, call).await;
+    let folders = app.stop().await;
+    assert!(
+        !Path::new(&format!("/proc/{pid}")).exists(),
+        "stopping stops yt-dlp"
+    );
+    // What a hard stop would leave: a half-written temporary folder.
+    let leftover = folders.appdata_dir().join("tmp/new-songs/leftover");
+    std::fs::create_dir_all(&leftover).unwrap();
+    std::fs::write(leftover.join("video.f137.mp4.part"), b"half").unwrap();
+    std::fs::write(leftover.join("song.txt"), b"#TITLE:half").unwrap();
+
+    let app = builder(&usdb, &stub).folders(folders).start().await;
+    assert_eq!(ended(&app, id).await, JobState::Done);
+    assert!(!leftover.exists(), "the leftover folder is removed");
+    assert!(staged(&app).is_empty());
+    let runs = downloads_run(&stub);
+    assert_eq!(runs.len(), 2, "yt-dlp ran again: {runs:?}");
+    assert_eq!(library_folders(&app), vec![SONG_1_FOLDER.to_owned()]);
+    assert_eq!(
+        files_in(&app.songs_dir().join(SONG_1_FOLDER)),
+        vec!["cover.jpg", "metadata.json", "song.txt", "video.mp4"]
+    );
 }

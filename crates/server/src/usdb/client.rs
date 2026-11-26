@@ -238,6 +238,12 @@ impl UsdbClient {
         Self::new(base_url, credentials, Arc::new(SystemTimer))
     }
 
+    /// Waits `duration` on the client's timer (virtual in tests), outside
+    /// the queue: a Download's retry waits.
+    pub(crate) async fn wait(&self, duration: Duration) {
+        self.shared.timer.sleep(duration).await;
+    }
+
     /// Where the login stands now.
     pub fn status(&self) -> UsdbState {
         *self

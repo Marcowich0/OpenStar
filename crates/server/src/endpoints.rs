@@ -388,6 +388,14 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             Guarded(Writes),
             usdb::download::start,
         )
+        // Anyone may stop a Download: it removes only the Download's own
+        // temporary folder, never the Library's files or kept data.
+        .add(
+            Method::POST,
+            "/api/downloads/{id}/cancel",
+            NotGuarded,
+            usdb::download::cancel,
+        )
         // Which USDB version of a text the Library holds; reads only.
         .add(
             Method::GET,
