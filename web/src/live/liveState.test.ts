@@ -203,6 +203,28 @@ describe("the OpenStar volume", () => {
   });
 });
 
+describe("Check A/V sync", () => {
+  it("does not run until the server says it does, and follows it", () => {
+    expect(initialLiveState.avSync).toBe(false);
+    const started = receive(synced(false), { type: "avSync", running: true });
+    expect(started.avSync).toBe(true);
+    expect(receive(started, { type: "avSync", running: false }).avSync).toBe(
+      false,
+    );
+  });
+
+  it("is forgotten when the live state comes again, until the server repeats it", () => {
+    const started = receive(synced(true), { type: "avSync", running: true });
+    const again = receive(started, {
+      type: "liveState",
+      stageId: "main",
+      party,
+      isStage: true,
+    });
+    expect(again.avSync).toBe(false);
+  });
+});
+
 describe("Song progress on a Remote", () => {
   const playing = (requestId: number, paused = false): PartySnapshot => ({
     ...party,
@@ -284,5 +306,15 @@ describe("Song progress on a Remote", () => {
       isStage: false,
     });
     expect(state.songProgress).toBeNull();
+  });
+});
+
+describe("the seat's Score on its Phone", () => {
+  it("is unknown until the server passes on a Line end, then keeps the latest", () => {
+    expect(initialLiveState.lineScore).toBeNull();
+    let state = synced(false);
+    state = receive(state, { type: "lineScore", requestId: 1, total: 800 });
+    state = receive(state, { type: "lineScore", requestId: 1, total: 1450 });
+    expect(state.lineScore).toEqual({ requestId: 1, total: 1450 });
   });
 });

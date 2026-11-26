@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::UserMessage;
+use crate::party::PhoneId;
 
 /// Names one background job while it is kept.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -71,6 +72,43 @@ pub struct Job {
     pub id: JobId,
     pub kind: JobKind,
     pub state: JobState,
+    /// What a Download fetches, and how fast while yt-dlp runs. Only on
+    /// Download jobs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub download: Option<DownloadDetails>,
+}
+
+/// A Download job's details, for the Downloads list and the browser that
+/// started it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct DownloadDetails {
+    pub usdb_id: u32,
+    /// The song's artist and title as the USDB mirror held them when the
+    /// Download started; `None` when the mirror did not hold the song.
+    pub artist: Option<String>,
+    pub title: Option<String>,
+    /// The chosen video.
+    pub video_url: String,
+    /// The browser that started it.
+    pub browser: PhoneId,
+    /// How fast yt-dlp is fetching the video, while it runs; `None` before
+    /// and after.
+    pub rate: Option<DownloadRate>,
+}
+
+/// yt-dlp's last progress report for a running Download.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct DownloadRate {
+    /// `None` while yt-dlp does not know it yet.
+    #[ts(type = "number | null")]
+    pub bytes_per_second: Option<u64>,
+    /// Seconds until the file being fetched is complete, when known.
+    pub eta_seconds: Option<u32>,
 }
 
 /// Body of `GET /api/jobs`: every kept job, oldest first.

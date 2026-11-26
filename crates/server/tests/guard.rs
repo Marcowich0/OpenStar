@@ -387,6 +387,11 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::StepVolume {
             step: openstar_protocol::volume::VolumeStep::Up,
         },
+        ClientMessage::StartAvSync,
+        ClientMessage::StepAvSync {
+            step: openstar_protocol::av_offset::AvSyncStep::Up,
+        },
+        ClientMessage::EndAvSync,
         ClientMessage::LeaveParty,
         ClientMessage::RemoveMember {
             member_id: PartyMemberId(1),
@@ -408,6 +413,11 @@ fn every_client_message() -> Vec<ClientMessage> {
             position_seconds: 0.0,
             rate: 1.0,
             length_seconds: None,
+        },
+        ClientMessage::ReportLineScore {
+            request_id: openstar_protocol::RequestId(1),
+            seat: 0,
+            total: 0,
         },
         ClientMessage::BridgeHello {
             build: "dev".into(),

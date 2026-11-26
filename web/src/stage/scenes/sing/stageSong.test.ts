@@ -759,3 +759,46 @@ describe("a Song with separate audio and video files (ticket 212)", () => {
     expect(t.playbackArgs()?.video).toBeNull();
   });
 });
+
+describe("the Score on each seat's Phone", () => {
+  const lineScores = (sent: ClientMessage[]) =>
+    sent.filter((message) => message.type === "reportLineScore");
+
+  it("reports each Player's running total at each Line end, not between", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+
+    sing(t, 0, 3);
+    t.frames(2300);
+    // Mid-Line: the Score moved, but nothing is reported yet.
+    expect(view.state.lanes[0]?.player?.score).toBeGreaterThan(0);
+    expect(lineScores(t.sent)).toEqual([]);
+
+    sing(t, 4, 7);
+    t.frames(4500); // the first Line ends at Beat 10
+    const total = view.state.lanes[0]?.player?.score ?? -1;
+    expect(lineScores(t.sent)).toEqual([
+      { type: "reportLineScore", requestId: 5, seat: 0, total },
+    ]);
+  });
+
+  it("reports 0 after a Restart", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 7);
+    t.frames(4500);
+    t.control("restart");
+    expect(lineScores(t.sent).at(-1)).toEqual({
+      type: "reportLineScore",
+      requestId: 5,
+      seat: 0,
+      total: 0,
+    });
+  });
+});

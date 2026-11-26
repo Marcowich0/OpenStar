@@ -110,6 +110,8 @@ export interface Endpoints {
   };
   /** Guarded, and refused on a read-only Library. */
   "POST /api/downloads": { body: StartDownload; response: DownloadStarted };
+  /** Not guarded: stops a waiting or running Download; `204`, no body. */
+  "POST /api/downloads/{id}/cancel": { response: null };
   "GET /api/usdb/songs/{id}/version": { response: UsdbTextVersion };
 }
 
@@ -245,6 +247,8 @@ const REFUSAL_CODES = {
   songFileChanged: true,
   songPlaying: true,
   noOriginal: true,
+  notWhileSongPlays: true,
+  avSyncNotRunning: true,
 } as const satisfies Record<ApiErrorCode | UserMessage["code"], true>;
 
 /** A body with a code this build knows; its parameters are the server's. */

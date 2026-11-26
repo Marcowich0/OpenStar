@@ -48,6 +48,7 @@ const ARROWS: Readonly<Record<string, FocusDirection>> = {
 };
 
 const selectStage = (live: LiveState) => live.stage;
+const selectAvSync = (live: LiveState) => live.avSync;
 
 function reloadAsStage() {
   window.location.reload();
@@ -74,6 +75,15 @@ export function StageFrame({
   const [overlay, setOverlay] = useState<OverlayId | null>(null);
   // A scene that refuses overlays (a Song plays) closes the open one.
   if (!rules.overlays && overlay !== null) setOverlay(null);
+  // Check A/V sync (#163) shows while the server says it runs, whoever
+  // started it; the Setup menu only asks the server to start it.
+  const avSync = useLive(selectAvSync, store);
+  const [shownAvSync, setShownAvSync] = useState(false);
+  if (avSync !== shownAvSync) {
+    setShownAvSync(avSync);
+    if (avSync && rules.overlays) setOverlay("avSync");
+    else if (!avSync && overlay === "avSync") setOverlay(null);
+  }
 
   const frameRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<FrameInternals["layersRef"]["current"]>([]);
@@ -85,9 +95,17 @@ export function StageFrame({
       scene,
       overlay,
       openOverlay: (id) => {
-        if (allowOverlays) setOverlay(id);
+        if (!allowOverlays) return;
+        if (id === "avSync") {
+          store.send({ type: "startAvSync" });
+          return;
+        }
+        if (overlay === "avSync") store.send({ type: "endAvSync" });
+        setOverlay(id);
       },
       closeOverlay: () => {
+        // Done, Esc or the close button ends the check for every browser.
+        if (overlay === "avSync") store.send({ type: "endAvSync" });
         setOverlay(null);
       },
       store,

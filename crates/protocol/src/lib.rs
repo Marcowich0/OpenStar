@@ -176,6 +176,24 @@ pub enum ClientMessage {
     /// joined, and [`UserMessage::NoStage`] while no Stage has reported its
     /// output.
     StepVolume { step: volume::VolumeStep },
+    /// Starts Check A/V sync on the Stage, from the Stage (its Setup pill) or
+    /// any joined Remote, with no Admin PIN. Every connection is told
+    /// [`ServerMessage::AvSync`]. Refused with [`UserMessage::NotInParty`]
+    /// for a Phone that has not joined, [`UserMessage::NoStage`] with no
+    /// Stage open, and [`UserMessage::NotWhileSongPlays`] while a Song plays.
+    /// Starting it while it runs changes nothing.
+    StartAvSync,
+    /// One press during Check A/V sync from a Remote: relayed to the Stage
+    /// as [`ServerMessage::StepAvSync`], which saves the new value under its
+    /// own browser id. Refused with [`UserMessage::AvSyncNotRunning`] while
+    /// the check does not run, and [`UserMessage::NotInParty`] for a Phone
+    /// that has not joined.
+    StepAvSync { step: av_offset::AvSyncStep },
+    /// Done: ends Check A/V sync, from the Stage or any joined Remote. Every
+    /// connection is told [`ServerMessage::AvSync`]. Ending it when it does
+    /// not run changes nothing. It also ends when the Stage closes, another
+    /// browser becomes the Stage, or a Song starts.
+    EndAvSync,
     /// Presents the browser's Phone id. A Phone sends it every time its
     /// WebSocket opens, before anything else. A Phone already in the current
     /// Party is back in at once with the same identity (silent rejoin). The
@@ -285,6 +303,20 @@ pub enum ClientMessage {
         rate: f64,
         length_seconds: Option<f64>,
     },
+    /// The active Stage reports, at the end of a Line, the running total of
+    /// seat `seat` (its index in the Line-up fixed at Start) of the playing
+    /// Request `request_id`. The server passes it only to that seat's Phone,
+    /// as [`ServerMessage::LineScore`] (a seat with a Local mic or no Mic
+    /// has no Phone to tell). Refused with [`UserMessage::NotTheStage`] from
+    /// anyone but the active Stage, with [`UserMessage::NoSongPlaying`] when
+    /// Request `request_id` is not playing, and with
+    /// [`UserMessage::InvalidMessage`] for a seat the Line-up does not have
+    /// or a total over 10000.
+    ReportLineScore {
+        request_id: RequestId,
+        seat: u32,
+        total: u32,
+    },
     /// Next (or Done, with an empty Queue) on the results: the next
     /// Request's Line-up comes up prefilled, or the song browser. A Remote
     /// command; [`UserMessage::NoResults`] when no results show.
@@ -391,6 +423,14 @@ pub enum ServerMessage {
     /// [`ClientMessage::StepVolume`] changed it (the Stage shows its volume
     /// pill then), false when the output changed or a browser connected.
     Volume { volume: u8, stepped: bool },
+    /// Whether Check A/V sync runs on the Stage, sent to every connection
+    /// when it starts and ends, and to a new connection after its
+    /// [`ServerMessage::LiveState`] while it runs. A Remote shows its big
+    /// −/+ and Done while it runs.
+    AvSync { running: bool },
+    /// Stage only: a Remote's press during Check A/V sync (see
+    /// [`ClientMessage::StepAvSync`]).
+    StepAvSync { step: av_offset::AvSyncStep },
     /// A background job was queued, started, made progress or ended (sent to
     /// every connection).
     JobChanged { job: jobs::Job },
@@ -410,6 +450,11 @@ pub enum ServerMessage {
     /// [`ServerMessage::LiveState`] while a Song plays. Never sent
     /// continuously. A report whose Request no longer plays is stale.
     SongProgress { progress: SongProgress },
+    /// To a seat's Phone alone: that seat's running total at its latest
+    /// Line end in the playing Request `request_id`, as the Stage's scorer
+    /// reported it ([`ClientMessage::ReportLineScore`]). The mic takeover's
+    /// Score; never sent continuously.
+    LineScore { request_id: RequestId, total: u32 },
     /// To a Mic bridge without a valid token: it waits for approval on the
     /// Stage, which shows the same 4-digit `code`.
     BridgeWaiting { code: String },
@@ -619,6 +664,10 @@ pub enum UserMessage {
     /// The Song has no Original (`<name>.txt.orig`) to restore. Sent with
     /// `404`.
     NoOriginal,
+    /// A Song plays on the Stage, so this (Check A/V sync) cannot start.
+    NotWhileSongPlays,
+    /// Check A/V sync does not run, so there is nothing to step.
+    AvSyncNotRunning,
 }
 
 #[cfg(test)]

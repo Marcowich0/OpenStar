@@ -68,9 +68,7 @@ export const en = {
   "remote.waitingForStart": "Waiting for Start",
   "remote.pause": "Pause",
   "remote.resume": "Resume",
-  // The Phone's mic strip while this Phone is a seat's Mic (#128; the mic
-  // takeover, #167, replaces it).
-  "phoneMic.seated": "This phone is your mic",
+  // The Phone's mic, shown in the mic takeover (#128, #129, #166).
   "phoneMic.turnOn": "Turn on my mic",
   "phoneMic.opening": "Opening the mic…",
   "phoneMic.on": "Mic is on",
@@ -90,6 +88,22 @@ export const en = {
   "phoneMic.detectorCost":
     "Detector {p50, number} ms p50, {p95, number} ms p95",
   "phoneMic.detectorMeasuring": "Detector: measuring",
+  // The mic takeover while this Phone is a seat's Mic (#167).
+  "phoneTakeover.label": "Your mic",
+  "phoneTakeover.micChip": "Mic · {name}",
+  "phoneTakeover.voiceDifficulty": "Voice {voice, number} · {difficulty}",
+  "phoneTakeover.difficulty": "Difficulty",
+  "phoneTakeover.changeDifficulty": "{current}: change the Difficulty",
+  "phoneTakeover.youreUp": "You're up, {name}!",
+  "phoneTakeover.isNext": "{song} is next. This phone is your mic",
+  "phoneTakeover.singANote": "Sing a note to check",
+  "phoneTakeover.level": "Mic level",
+  "phoneTakeover.keepOpen": "Keep this screen open while you sing",
+  "phoneTakeover.singIt": "Sing it!",
+  "phoneTakeover.score": "Score",
+  "phoneTakeover.screenOn": "Screen stays on while you sing",
+  "phoneTakeover.queueAndControls": "Queue & controls",
+  "phoneTakeover.backToMic": "Back to my mic",
   // The Remote's Stage tab and its seat sheet.
   "stageTab.title": "On the Stage",
   "stageTab.upNext": "Up next: who sings?",
@@ -282,6 +296,22 @@ export const en = {
   "stage.overlay.avSync": "Check A/V sync",
   "stage.overlay.close": "Close",
   "stage.overlay.comingSoon": "This screen is still being built.",
+  // Check A/V sync (#163), on the Stage and on a Remote's Stage tab.
+  "avSync.later": "+{ms, number} ms",
+  "avSync.earlier": "−{ms, number} ms",
+  "avSync.zero": "0 ms",
+  "avSync.value": "A/V offset",
+  "avSync.pattern":
+    "A ball bouncing once a second, with a click each time it lands",
+  "avSync.stageHint":
+    "Press ← or → until the click and the landing match. Every change is saved at once.",
+  "avSync.down": "A/V offset down",
+  "avSync.up": "A/V offset up",
+  "avSync.reset": "Reset to 0",
+  "avSync.done": "Done",
+  "avSync.start": "Check A/V sync",
+  "avSync.remoteHint":
+    "Watch the ball on the Stage. Press − or + until the click and the landing match.",
   // The Mics screen (Setup › Mics) and Local mic names.
   "mics.group.thisBrowser": "This browser",
   "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
@@ -483,6 +513,19 @@ export const en = {
   "admin.downloads.picker.download": "Download",
   "admin.downloads.picker.downloadFailed": "The Download could not start",
   "admin.downloads.started": "Download started",
+  "admin.downloads.jobs": "Started Downloads",
+  "admin.downloads.job.unknownSong": "USDB song {id}",
+  "admin.downloads.job.waiting": "Waiting for a free slot",
+  "admin.downloads.job.starting": "Starting…",
+  "admin.downloads.job.percent": "{percent, number}%",
+  "admin.downloads.job.speedKiB": "{speed, number} KiB/s",
+  "admin.downloads.job.speedMiB": "{speed, number} MiB/s",
+  "admin.downloads.job.eta": "{minutes, number}:{seconds} left",
+  "admin.downloads.job.done": "In the Library",
+  "admin.downloads.job.cancelled": "Cancelled",
+  "admin.downloads.job.failed": "Failed: {reason}",
+  "admin.downloads.job.cancel": "Cancel",
+  "admin.downloads.job.cancelFailed": "The Download could not be cancelled",
   "admin.songs.search": "Search by artist or title",
   "admin.songs.list": "Songs in the Library",
   "admin.songs.none": "No Songs match",
@@ -621,6 +664,8 @@ export const en = {
     "This Song's file changed on disk since it was opened. Open it again and redo the edit",
   "userMessage.songPlaying": "This Song is playing on the Stage now",
   "userMessage.noOriginal": "This Song has no Original to restore",
+  "userMessage.notWhileSongPlays": "Not while a Song is playing",
+  "userMessage.avSyncNotRunning": "Check A/V sync is not running",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",

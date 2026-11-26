@@ -106,11 +106,19 @@ test("a Phone seats itself on its own Mic from the Stage tab and presses Start",
     const start = mine.getByRole("button", { name: "Start" });
     await expect(start).toHaveAttribute("aria-disabled", "true");
 
-    // Add a singer opens the new seat's sheet; Who puts this Phone's member
-    // in it, and the Mic prefill gives it this Phone.
+    // Add a singer seats the first free member, this Phone's own, and the
+    // Mic prefill gives it this Phone. Seated on this Phone, it is a Mic: the
+    // mic takeover replaces the Remote (#167), which opens again on top with
+    // Queue & controls, and the seat's sheet opens from its row.
     await mine.getByRole("button", { name: "Add a singer" }).click();
-    const who = mine.getByRole("group", { name: "Who" });
-    await who.getByRole("button", { name: singer, exact: true }).click();
+    await expect(
+      mine.getByRole("heading", { name: `You're up, ${singer}!` }),
+    ).toBeVisible();
+    await mine.getByRole("button", { name: "Queue & controls" }).click();
+    await expect(
+      mine.getByRole("button", { name: "Back to my mic" }),
+    ).toBeVisible();
+    await mine.getByRole("button", { name: new RegExp(`^${singer}`) }).click();
     const sheet = mine.getByRole("dialog", { name: singer });
     const mic = sheet.getByRole("group", { name: "Mic" });
     await expect(
@@ -195,6 +203,11 @@ test("every Phone's Stage tab follows the playing Song, its results and the empt
     ).not.toHaveAttribute("aria-disabled", "true");
     await stage.keyboard.press(" ");
     await expect(frame).toHaveAttribute("data-scene", "sing");
+
+    // The singer's Phone is singing in its mic takeover (#167); its Remote
+    // opens on top.
+    await expect(mine.getByRole("heading", { name: "Sing it!" })).toBeVisible();
+    await mine.getByRole("button", { name: "Queue & controls" }).click();
 
     // Both Stage tabs show the playing Song, its Player and its progress.
     for (const phone of phones) {

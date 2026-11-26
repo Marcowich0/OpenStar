@@ -23,6 +23,11 @@ import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
 import { Cover } from "../../ui/Cover";
 import { Icon } from "../../ui/Icon";
+import {
+  AvSyncCard,
+  AvSyncStartButton,
+  useAvSyncRunning,
+} from "../onStage/AvSyncCard";
 import { PlayingCard } from "../onStage/PlayingCard";
 import { EmptyQueueCard, ResultsCard } from "../onStage/ResultsCard";
 import { VolumeControl } from "../onStage/VolumeControl";
@@ -88,10 +93,12 @@ export function StageTab({
 
   const mine = myResult(party?.results ?? null, myPhoneId);
   const state = stageState(party);
+  const avSync = useAvSyncRunning(store);
 
   return (
     <div className="flex flex-col gap-3 pt-1">
       <h1 className="text-3xl font-bold">{t("stageTab.title")}</h1>
+      {avSync && <AvSyncCard store={store} />}
       {state?.kind === "results" && (
         <ResultsCard store={store} results={state}>
           {mine && (
@@ -207,6 +214,9 @@ export function StageTab({
             {t("stageTab.start")}
           </Button>
         </section>
+      )}
+      {!avSync && (state?.kind === "lineUp" || state?.kind === "empty") && (
+        <AvSyncStartButton store={store} />
       )}
       <VolumeControl store={store} />
       <SeatSheet
