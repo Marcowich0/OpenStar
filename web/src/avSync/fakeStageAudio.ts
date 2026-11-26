@@ -24,10 +24,13 @@ export function fakeStageAudioModule(): {
   createStageAudio: () => StageAudio;
 } {
   const context = fakeToneContext();
-  context.state = "running";
-  context.currentTime = 3;
-  // The context has output up to 2.95 s, which reached the output at 10 000 ms.
-  context.timestamp = { contextTime: 2.95, performanceTime: 10_000 };
+  // Running at 3 s; it has output up to 2.95 s, which reached the output at
+  // 10 000 ms.
+  Object.assign(context, {
+    state: "running",
+    currentTime: 3,
+    timestamp: { contextTime: 2.95, performanceTime: 10_000 },
+  });
   made = context;
   const chain = createGainChain(asAudioContext(context));
   const stage: StageAudio = {
