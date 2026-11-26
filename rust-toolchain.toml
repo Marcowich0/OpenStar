@@ -1,4 +1,7 @@
 [toolchain]
 channel = "1.100.0"
 components = ["rustfmt", "clippy"]
+# The detector's WASM build (crates/detector-wasm) for the pitch-detection
+# AudioWorklet; `just wasm` builds it.
+targets = ["wasm32-unknown-unknown"]
 profile = "minimal"
