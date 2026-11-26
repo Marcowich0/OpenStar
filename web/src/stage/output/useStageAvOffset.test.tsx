@@ -29,12 +29,20 @@ function fakeWatcher() {
   return watcher;
 }
 
+function urlOf(input: RequestInfo | URL): string {
+  return input instanceof Request ? input.url : input.toString();
+}
+
+function bodyOf(init: RequestInit | undefined): string {
+  return typeof init?.body === "string" ? init.body : "";
+}
+
 /** The server's kept A/V offsets of browser `stage-1`, by output key. */
 function serverKeeps(kept: Record<string, number>) {
   const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input), "http://openstar.test");
+    const url = new URL(urlOf(input), "http://openstar.test");
     if (init?.method === "PUT") {
-      const body = JSON.parse(String(init.body)) as AvOffset;
+      const body = JSON.parse(bodyOf(init)) as AvOffset;
       kept[body.output] = body.avOffsetMs;
       return Promise.resolve(Response.json(body));
     }
@@ -114,11 +122,15 @@ describe("the Stage's A/V offset", () => {
     const fetchMock = serverKeeps({ Speakers: 120, "HDMI (LG TV)": -40 });
     const t = setup();
 
-    act(() => t.watcher.read("Speakers"));
-    await waitFor(() => expect(t.offset().ms).toBe(120));
+    act(() => {
+      t.watcher.read("Speakers");
+    });
+    await waitFor(() => {
+      expect(t.offset().ms).toBe(120);
+    });
     expect(t.offset().seconds()).toBeCloseTo(0.12, 9);
     const asked = new URL(
-      String(fetchMock.mock.calls[0]?.[0]),
+      urlOf(fetchMock.mock.calls[0]?.[0] ?? ""),
       "http://openstar.test",
     );
     expect(asked.pathname).toBe("/api/av-offset");
@@ -126,13 +138,21 @@ describe("the Stage's A/V offset", () => {
     expect(asked.searchParams.get("output")).toBe("Speakers");
 
     // A new output never draws with the old output's value meanwhile.
-    act(() => t.watcher.read("HDMI (LG TV)"));
+    act(() => {
+      t.watcher.read("HDMI (LG TV)");
+    });
     expect(t.offset().ms).toBe(0);
-    await waitFor(() => expect(t.offset().ms).toBe(-40));
+    await waitFor(() => {
+      expect(t.offset().ms).toBe(-40);
+    });
 
     // An output nothing is kept for starts at 0.
-    act(() => t.watcher.read("JBL Flip"));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    act(() => {
+      t.watcher.read("JBL Flip");
+    });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
     expect(t.offset().ms).toBe(0);
   });
 
@@ -140,15 +160,19 @@ describe("the Stage's A/V offset", () => {
     const kept: Record<string, number> = {};
     const fetchMock = serverKeeps(kept);
     const t = setup();
-    act(() => t.watcher.read("Speakers"));
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    act(() => {
+      t.watcher.read("Speakers");
+    });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
 
     await act(() => t.offset().save(200));
     expect(kept).toEqual({ Speakers: 200 });
     expect(t.offset().ms).toBe(200);
     const [, init] = fetchMock.mock.calls[1] ?? [];
     expect(init?.method).toBe("PUT");
-    expect(JSON.parse(String(init?.body))).toEqual({
+    expect(JSON.parse(bodyOf(init))).toEqual({
       browser: "stage-1",
       output: "Speakers",
       avOffsetMs: 200,
@@ -159,7 +183,9 @@ describe("the Stage's A/V offset", () => {
     const kept: Record<string, number> = {};
     serverKeeps(kept);
     const t = setup();
-    act(() => t.watcher.read("Speakers"));
+    act(() => {
+      t.watcher.read("Speakers");
+    });
     await act(() => t.offset().save(640));
     expect(kept.Speakers).toBe(500);
     await act(() => t.offset().save(-1000));

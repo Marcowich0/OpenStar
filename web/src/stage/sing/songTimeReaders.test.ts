@@ -81,9 +81,7 @@ describe("who reads the Song's position", () => {
       "src/stage/sing/renderLoop.ts",
     ]);
     // The kept value is loaded only to be handed to that getter.
-    expect(
-      filesMatching(/from "[^"]*\/(avOffset|use\w*AvOffset)"/),
-    ).toEqual([
+    expect(filesMatching(/from "[^"]*\/(avOffset|use\w*AvOffset)"/)).toEqual([
       "src/avOffset/useAvOffset.ts",
       "src/stage/output/useStageAvOffset.ts",
       "src/stage/scenes/sing/SingScene.tsx",

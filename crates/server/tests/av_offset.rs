@@ -67,7 +67,9 @@ async fn each_browser_and_output_keeps_its_own_value_across_a_restart() {
     assert_eq!(read(&app, "stage", "Speakers").await.av_offset_ms, 130);
     assert_eq!(read(&app, "stage", "LG TV (HDMI)").await.av_offset_ms, -300);
     assert_eq!(
-        read(&app, "stage", "JBL Flip (Bluetooth)").await.av_offset_ms,
+        read(&app, "stage", "JBL Flip (Bluetooth)")
+            .await
+            .av_offset_ms,
         500
     );
     assert_eq!(read(&app, "editor", "Speakers").await.av_offset_ms, 40);

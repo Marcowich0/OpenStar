@@ -6,7 +6,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 
-import { AV_OFFSET, avOffsetKey, avOffsetQuery, saveAvOffset } from "./avOffset";
+import {
+  AV_OFFSET,
+  avOffsetKey,
+  avOffsetQuery,
+  saveAvOffset,
+} from "./avOffset";
 
 export interface BrowserAvOffset {
   /** The value in ms; 0 while the output is unknown or still loading. */
@@ -31,7 +36,9 @@ export function useAvOffset(
     enabled: known,
   });
   // Never the previous output's value while a new one loads.
-  const ms = known ? (data?.avOffsetMs ?? AV_OFFSET.defaultMs) : AV_OFFSET.defaultMs;
+  const ms = known
+    ? (data?.avOffsetMs ?? AV_OFFSET.defaultMs)
+    : AV_OFFSET.defaultMs;
   const latest = useRef(ms);
   useEffect(() => {
     latest.current = ms;

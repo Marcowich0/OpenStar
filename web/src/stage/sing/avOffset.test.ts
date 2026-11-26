@@ -5,8 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import type { DrawList, LyricEntry, PillEntry, PlayheadEntry } from "./frame";
-import type { HeadBallEntry, PitchLineEntry } from "./pitchTrace";
+import type { DrawList, LyricEntry, PillEntry } from "./frame";
 import { laneLayout } from "./laneLayout";
 import { createRenderLoop } from "./renderLoop";
 import { syntheticSing } from "./syntheticSing";
@@ -65,7 +64,7 @@ describe("drawing with an A/V offset", () => {
   });
 
   it("keeps the playhead where it is, at the shifted Song time: the Note at Beat 10 starts just after it", () => {
-    const [playhead] = only(shifted, "playhead") as PlayheadEntry[];
+    const [playhead] = only(shifted, "playhead");
     expect(playhead?.x).toBe(only(still, "playhead")[0]?.x);
     // At 0 the Note at Beat 10 (6 s) starts on the playhead; 120 ms behind,
     // it is 120 ms of scrolling to the right of it.
@@ -82,26 +81,24 @@ describe("drawing with an A/V offset", () => {
   it("fills the lyric as at the shifted time", () => {
     // Beat 10 is a 2-Beat Note: at 6 s it has just started; at 5.88 s the
     // Note before it (Beats 6–9, golden) is still the current one, fully sung.
-    const [atZero] = only(still, "lyric") as LyricEntry[];
-    const [behind] = only(shifted, "lyric") as LyricEntry[];
+    const [atZero] = only(still, "lyric");
+    const [behind] = only(shifted, "lyric");
     expect(atZero).toMatchObject({ note: 2, fraction: 0, singing: true });
     expect(behind).toMatchObject({ note: 1, fraction: 1, singing: false });
 
     // 0.62 s into a 1 s Note at 0, half of it at 120 ms behind.
     const later = (avOffset: number) =>
-      drawnAt(6.62, avOffset).find(
-        (e): e is LyricEntry => e.type === "lyric",
-      );
+      drawnAt(6.62, avOffset).find((e): e is LyricEntry => e.type === "lyric");
     expect(later(0)?.fraction).toBeCloseTo(0.62, 6);
     expect(later(OFFSET)?.fraction).toBeCloseTo(0.5, 6);
   });
 
   it("holds the pitch trace to the playhead at the shifted time, and moves the rest with the Notes", () => {
     const line = (list: DrawList) =>
-      (only(list, "pitchLine") as PitchLineEntry[]).flatMap((e) => e.points);
+      only(list, "pitchLine").flatMap((e) => e.points);
     const before = line(still);
     const after = line(shifted);
-    const [playhead] = only(shifted, "playhead") as PlayheadEntry[];
+    const [playhead] = only(shifted, "playhead");
 
     // The held part ends on the playhead, at Song time 6 − 0.12.
     const held = after.at(-1);
@@ -120,8 +117,7 @@ describe("drawing with an A/V offset", () => {
       expect(same?.x).toBeCloseTo(point.x + OFFSET * pixelsPerSecond, 6);
     }
 
-    const ball = (list: DrawList) =>
-      (only(list, "headBall") as HeadBallEntry[])[0];
+    const ball = (list: DrawList) => only(list, "headBall")[0];
     expect(ball(shifted)?.x).toBeCloseTo(playhead?.x ?? 0, 6);
   });
 });
