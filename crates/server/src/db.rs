@@ -366,6 +366,14 @@ const MIGRATIONS: &[&str] = &[
         last_full_ms      INTEGER
     ) STRICT;
     INSERT INTO usdb_mirror (id, refetch) VALUES (1, 0);",
+    // 23: remembered Stage browsers (see `stage_trust`): a hash of each
+    // browser's Stage token and the fingerprint of the Admin PIN it gave,
+    // never the PIN. Separate from `unlocks`.
+    "CREATE TABLE stage_browsers (
+        token_hash      BLOB PRIMARY KEY NOT NULL,
+        pin_fingerprint BLOB NOT NULL,
+        trusted_at_ms   INTEGER NOT NULL
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.
