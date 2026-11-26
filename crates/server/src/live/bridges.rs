@@ -192,7 +192,9 @@ fn detecting_local_mics(party: Option<&PartySnapshot>) -> HashSet<String> {
         .seats
         .iter()
         .filter_map(|seat| match &seat.mic {
-            Some(MicKey::LocalMic { local_mic_id }) if switched_on.contains(local_mic_id.as_str()) => {
+            Some(MicKey::LocalMic { local_mic_id })
+                if switched_on.contains(local_mic_id.as_str()) =>
+            {
                 Some(local_mic_id.clone())
             }
             _ => None,

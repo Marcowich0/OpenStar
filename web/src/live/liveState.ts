@@ -210,6 +210,7 @@ export function receive(
     case "bridgeConnected":
     case "bridgeChannels":
     case "bridgeMicsScreen":
+    case "bridgeDetecting":
       // Only a Mic bridge's own socket gets these.
       return state;
     case "jobChanged":

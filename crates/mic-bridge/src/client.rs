@@ -1,21 +1,26 @@
 //! Joining the server: say hello with the token (if any) and the
 //! interfaces, wait for approval with a code, keep the token handed out,
 //! then show each channel as the Stage set it, open the interfaces the
-//! Stage needs and send their meter levels ten times a second.
+//! Stage needs, send their meter levels ten times a second, and send Pitch
+//! readings for the channels the server says are seated in the Song that
+//! plays.
 //!
-//! [`Joining`] and [`crate::levels::Metering`] are the pure parts: what the
-//! bridge shows and keeps for each [`ServerMessage`], and which interfaces
-//! are open and which channels metered. [`run`] drives them over a
+//! [`Joining`], [`crate::levels::Metering`] and
+//! [`crate::detecting::Detecting`] are the pure parts: what the bridge shows
+//! and keeps for each [`ServerMessage`], which interfaces are open and which
+//! channels metered, and which detect. [`run`] drives them over a
 //! WebSocket and connects again whenever the connection ends; it tells a
 //! [`Report`] what happens (headless prints lines, the window keeps
 //! [`Event`]s).
 
 use std::time::Duration;
 
-use crate::levels::{LEVEL_INTERVAL, Metering};
+use crate::detecting::Detecting;
+use crate::levels::{LEVEL_INTERVAL, Metering, channel_levels_dbfs};
+use crate::sender::MonotonicClock;
 use anyhow::Context as _;
 use futures_util::{SinkExt as _, StreamExt as _};
-use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInterface};
+use openstar_protocol::bridge::{BridgeChannelSettings, BridgeInputDelay, BridgeInterface};
 use openstar_protocol::{ClientMessage, ServerMessage};
 use tokio_tungstenite::tungstenite::Message;
 
@@ -29,6 +34,10 @@ const RETRY: [Duration; 4] = [
     Duration::from_secs(5),
     Duration::from_secs(10),
 ];
+
+/// How often open interfaces are read: often enough that every 10 ms of new
+/// samples makes a reading soon after it arrived.
+pub const CAPTURE_INTERVAL: Duration = Duration::from_millis(10);
 
 /// The name a channel shows when the Stage left it empty (the Stage builds
 /// the same one with `t()`): "<device> · Input n", n from 1.
@@ -85,6 +94,12 @@ impl Joining {
                 }
                 .into(),
             )],
+            ServerMessage::BridgeDetecting { channels } => {
+                vec![Effect::Show(format!(
+                    "Detecting {} channel(s)",
+                    channels.len()
+                ))]
+            }
             ServerMessage::Rejected { reason } => {
                 vec![Effect::Show(format!("The server refused: {reason:?}"))]
             }
@@ -162,12 +177,37 @@ impl Report for PrintLines {
 pub trait Input: Send {
     /// What the bridge offers the server.
     fn interface(&self) -> &BridgeInterface;
-    /// Called every [`LEVEL_INTERVAL`] while the interface is open: the
-    /// level of each of its channels (index = hardware channel) since the
-    /// last call, in dBFS.
-    fn read_levels(&mut self) -> Vec<f64>;
+    /// Its stream's sample rate, in Hz.
+    fn sample_rate(&self) -> f64;
+    /// Called about every [`CAPTURE_INTERVAL`] while the interface is
+    /// open, at `now_ms` on the bridge's monotonic clock (the first call
+    /// after [`Input::close`] opens a new stream): every frame captured
+    /// since the last call, each with every channel (index = hardware
+    /// channel), interleaved.
+    fn read(&mut self, now_ms: f64) -> Vec<f32>;
+    /// The input delay its capture backend reports for `channel`, in ms;
+    /// `None` when it reports none (always for a WAV file).
+    fn input_delay_ms(&self, _channel: u32) -> Option<f64> {
+        None
+    }
     /// The interface is no longer needed.
     fn close(&mut self) {}
+}
+
+/// What to tell the server about `input`'s input delays when it opens:
+/// nothing when its capture backend reports none.
+pub fn input_delays(input: &dyn Input) -> Option<ClientMessage> {
+    let interface = input.interface();
+    let delays: Vec<BridgeInputDelay> = (0..interface.channels)
+        .filter_map(|channel| {
+            Some(BridgeInputDelay {
+                device_name: interface.device_name.clone(),
+                channel,
+                delay_ms: input.input_delay_ms(channel)?,
+            })
+        })
+        .collect();
+    (!delays.is_empty()).then_some(ClientMessage::BridgeInputDelays { delays })
 }
 
 /// Connects to the server in `config` and stays connected, connecting again
@@ -187,11 +227,22 @@ pub async fn run_reporting(
     let interfaces = inputs.iter().map(|i| i.interface().clone()).collect();
     let joining = Joining::new(interfaces);
     let host_name = host_name();
+    let clock = MonotonicClock::new();
     let mut attempt = 0;
     loop {
         report.event(Event::Connecting { server: &server });
         report.line(&format!("Connecting to {server}"));
-        match session(&config, &url, &joining, &host_name, &mut inputs, report).await {
+        let ran = session(
+            &config,
+            &url,
+            &joining,
+            &host_name,
+            &mut inputs,
+            &clock,
+            report,
+        )
+        .await;
+        match ran {
             Ok(()) => {
                 report.event(Event::Disconnected);
                 report.line("Disconnected");
@@ -211,6 +262,17 @@ pub async fn run_reporting(
     }
 }
 
+/// Sends one message on `socket`.
+async fn send<S>(socket: &mut S, message: &ClientMessage) -> anyhow::Result<()>
+where
+    S: futures_util::Sink<Message, Error = tokio_tungstenite::tungstenite::Error> + Unpin,
+{
+    socket
+        .send(Message::text(serde_json::to_string(message)?))
+        .await?;
+    Ok(())
+}
+
 /// One connection, until it ends.
 async fn session(
     config: &ConfigDir,
@@ -218,16 +280,21 @@ async fn session(
     joining: &Joining,
     host_name: &str,
     inputs: &mut [Box<dyn Input>],
+    clock: &MonotonicClock,
     report: &mut dyn Report,
 ) -> anyhow::Result<()> {
     let (mut socket, _) = tokio_tungstenite::connect_async(url)
         .await
         .with_context(|| format!("connecting to {url}"))?;
-    let hello = serde_json::to_string(&joining.hello(host_name, config.token()))?;
-    socket.send(Message::text(hello)).await?;
+    send(&mut socket, &joining.hello(host_name, config.token())).await?;
     let mut metering = Metering::default();
+    // Fresh per connection: every Local mic syncs afresh.
+    let mut detecting = Detecting::new();
     let mut connected = false;
-    let mut was_open = vec![false; inputs.len()];
+    // While an interface is open: the frames it gave since the last levels.
+    let mut streams: Vec<Option<Vec<f32>>> = vec![None; inputs.len()];
+    let mut capture = tokio::time::interval(CAPTURE_INTERVAL);
+    capture.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut tick = tokio::time::interval(LEVEL_INTERVAL);
     tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     loop {
@@ -248,6 +315,7 @@ async fn session(
                     ServerMessage::BridgeMicsScreen { open } => metering.set_mics_screen_open(*open),
                     _ => {}
                 }
+                detecting.received(&message, clock.now_ms());
                 report.event(Event::Received(&message));
                 for effect in joining.received(message) {
                     match effect {
@@ -262,35 +330,62 @@ async fn session(
                     }
                 }
             }
+            _ = capture.tick() => {
+                if !connected {
+                    continue;
+                }
+                let mut out = Vec::new();
+                for (input, stream) in inputs.iter_mut().zip(&mut streams) {
+                    let interface = input.interface().clone();
+                    let device_name = interface.device_name.as_str();
+                    let open = metering.is_open(&interface) || detecting.wants(device_name);
+                    if open != stream.is_some() {
+                        report.event(Event::InterfaceOpen { device_name, open });
+                        let state = if open { "open" } else { "closed" };
+                        report.line(&format!("Interface {device_name}: {state}"));
+                        if open {
+                            *stream = Some(Vec::new());
+                            detecting.opened(device_name, input.sample_rate(), clock.now_ms());
+                            out.extend(input_delays(input.as_ref()));
+                        } else {
+                            *stream = None;
+                            input.close();
+                            detecting.closed(device_name);
+                        }
+                    }
+                    if let Some(frames) = stream {
+                        let now_ms = clock.now_ms();
+                        let block = input.read(now_ms);
+                        out.extend(detecting.captured(device_name, &block, interface.channels, now_ms));
+                        frames.extend_from_slice(&block);
+                    }
+                }
+                out.extend(detecting.pings(clock.now_ms()));
+                for message in &out {
+                    send(&mut socket, message).await?;
+                }
+            }
             _ = tick.tick() => {
                 if !connected {
                     continue;
                 }
                 let mut levels = Vec::new();
-                for (input, was_open) in inputs.iter_mut().zip(&mut was_open) {
-                    let open = metering.is_open(input.interface());
-                    if open != *was_open {
-                        *was_open = open;
-                        let device_name = &input.interface().device_name;
-                        report.event(Event::InterfaceOpen { device_name, open });
-                        let state = if open { "open" } else { "closed" };
-                        report.line(&format!("Interface {device_name}: {state}"));
-                        if !open {
-                            input.close();
-                        }
-                    }
-                    if open {
-                        let read = input.read_levels();
-                        report.event(Event::Levels {
-                            device_name: &input.interface().device_name,
-                            levels_dbfs: &read,
-                        });
-                        levels.extend(metering.levels_to_send(input.interface(), &read));
-                    }
+                for (input, stream) in inputs.iter().zip(&mut streams) {
+                    // Nothing read since the last levels: no level yet.
+                    let Some(frames) = stream.as_mut().filter(|frames| !frames.is_empty()) else {
+                        continue;
+                    };
+                    let interface = input.interface();
+                    let read = channel_levels_dbfs(frames, interface.channels as usize);
+                    frames.clear();
+                    report.event(Event::Levels {
+                        device_name: &interface.device_name,
+                        levels_dbfs: &read,
+                    });
+                    levels.extend(metering.levels_to_send(interface, &read));
                 }
                 if !levels.is_empty() {
-                    let message = ClientMessage::BridgeLevels { levels };
-                    socket.send(Message::text(serde_json::to_string(&message)?)).await?;
+                    send(&mut socket, &ClientMessage::BridgeLevels { levels }).await?;
                 }
             }
         }
@@ -383,6 +478,75 @@ mod tests {
         assert_eq!(
             wav().received(ServerMessage::BridgeMicsScreen { open: false }),
             vec![Effect::Show("Mics screen closed".into())]
+        );
+    }
+
+    /// An interface whose backend reports a delay for channels 1 and 3.
+    struct Reporting(BridgeInterface);
+
+    impl Input for Reporting {
+        fn interface(&self) -> &BridgeInterface {
+            &self.0
+        }
+        fn sample_rate(&self) -> f64 {
+            48_000.0
+        }
+        fn read(&mut self, _now_ms: f64) -> Vec<f32> {
+            Vec::new()
+        }
+        fn input_delay_ms(&self, channel: u32) -> Option<f64> {
+            (channel % 2 == 1).then_some(f64::from(channel) + 0.5)
+        }
+    }
+
+    #[test]
+    fn input_delays_are_reported_per_channel_when_the_backend_reports_them() {
+        let interface = BridgeInterface {
+            device_name: "alsa_card.usb-X-00".into(),
+            label: "Scarlett 4i4".into(),
+            channels: 4,
+        };
+        let delay = |channel, delay_ms| BridgeInputDelay {
+            device_name: "alsa_card.usb-X-00".into(),
+            channel,
+            delay_ms,
+        };
+        assert_eq!(
+            input_delays(&Reporting(interface)),
+            Some(ClientMessage::BridgeInputDelays {
+                delays: vec![delay(1, 1.5), delay(3, 3.5)]
+            })
+        );
+    }
+
+    #[test]
+    fn a_wav_input_reports_no_input_delay() {
+        let audio = crate::wav::WavAudio {
+            format: crate::wav::WavFormat {
+                channels: 4,
+                sample_rate: 48_000,
+                bits_per_sample: 16,
+                float: false,
+            },
+            samples: vec![0.0; 16],
+        };
+        assert_eq!(
+            input_delays(&crate::wav::WavInput::new("x.wav".into(), audio)),
+            None
+        );
+    }
+
+    #[test]
+    fn detecting_channels_are_shown_as_a_count() {
+        let input = |channel| openstar_protocol::BridgeInput {
+            device_name: "alsa_card.usb-X-00".into(),
+            channel,
+        };
+        assert_eq!(
+            wav().received(ServerMessage::BridgeDetecting {
+                channels: vec![input(0), input(2)]
+            }),
+            vec![Effect::Show("Detecting 2 channel(s)".into())]
         );
     }
 
