@@ -286,3 +286,13 @@ describe("Song progress on a Remote", () => {
     expect(state.songProgress).toBeNull();
   });
 });
+
+describe("the seat's Score on its Phone", () => {
+  it("is unknown until the server passes on a Line end, then keeps the latest", () => {
+    expect(initialLiveState.lineScore).toBeNull();
+    let state = synced(false);
+    state = receive(state, { type: "lineScore", requestId: 1, total: 800 });
+    state = receive(state, { type: "lineScore", requestId: 1, total: 1450 });
+    expect(state.lineScore).toEqual({ requestId: 1, total: 1450 });
+  });
+});

@@ -9,7 +9,8 @@
  *   over its media element (`attach`). While the Song plays, one animation
  *   frame loop ticks the scoring session; each Player's running Score goes
  *   into their lane (`onScoring` lets the scene write the header without a
- *   React render).
+ *   React render). At each Line end each seat's running total goes to the
+ *   server (`reportLineScore`), which passes it to that seat's Phone (#167).
  * - **Pause, Resume, Restart** go to the Song controls (#158: freeze, 3-2-1,
  *   seek to `#START` with the buffers cleared and the scoring reset).
  * - **End** stops the Song. A Song that plays out or is ended reports its
@@ -487,8 +488,23 @@ export function createStageSong(options: StageSongOptions): StageSong {
         },
       });
       const state = setup.state(s.buffers);
+      // The last running total each seat's Phone was told (#167).
+      const told: (number | null)[] = setup.players.map(() => null);
       scoring.onChange((change) => {
         if (session !== s) return;
+        // The seat's Phone shows its Score at each Line end, and 0 again
+        // after a Restart (the only way a total drops).
+        const total = change.score.total;
+        const last = told[change.player] ?? null;
+        if (change.lineEnds.length > 0 || (last !== null && total < last)) {
+          told[change.player] = total;
+          store.send({
+            type: "reportLineScore",
+            requestId: s.requestId,
+            seat: change.player,
+            total,
+          });
+        }
         // The header shows it at its next render; `onScoring` writes it now.
         const lane = state.lanes[change.player];
         const player = lane?.player;

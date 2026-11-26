@@ -239,6 +239,22 @@ describe("the Phone's mic lifecycle", () => {
     mic.turnOff();
   });
 
+  it("tells level listeners the loudness of every reading, synced or not", async () => {
+    // The takeover's ring and meter: they move before the clock is synced.
+    const { mic, nodes } = await setUp();
+    const levels: number[] = [];
+    const unsubscribe = mic.onLevel((dbfs) => levels.push(dbfs));
+    mic.turnOn();
+    await settle();
+    nodes.emit({ ...reading(48000), loudness: -18 });
+    nodes.emit({ ...reading(48512), loudness: -60 });
+    expect(levels).toEqual([-18, -60]);
+    unsubscribe();
+    nodes.emit({ ...reading(49024), loudness: -10 });
+    expect(levels).toHaveLength(2);
+    mic.turnOff();
+  });
+
   it("requests the screen Wake Lock on the tap and lets it go on release", async () => {
     const { mic, wakeLock } = await setUp();
     mic.turnOn();

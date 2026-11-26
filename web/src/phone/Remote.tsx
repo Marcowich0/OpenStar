@@ -9,13 +9,11 @@ import type { IconName } from "../icons/icons";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
+import { tokenVar, type PaletteKey } from "../theme/tokens";
 import { Avatar } from "../ui/Avatar";
 import { Icon } from "../ui/Icon";
 import { TopBar } from "./Logo";
 import { memberLook } from "./memberLook";
-import { phoneMicFor } from "./mic/browserPhoneMic";
-import type { PhoneMic } from "./mic/phoneMic";
-import { PhoneMicCard } from "./mic/PhoneMicCard";
 import { MeButton, type MeActions } from "./people/MeSheet";
 import { PeopleTab } from "./people/PeopleTab";
 import { phoneMember } from "./phonePage";
@@ -53,21 +51,22 @@ function isRemoteTab(key: unknown): key is RemoteTab {
  * opens on the Stage tab while a Line-up waits, on Songs otherwise. The
  * Songs tab is `SongsTab`, the Queue tab `QueueTab`, the Stage tab
  * `StageTab`, the People tab `PeopleTab`, and the avatar opens the Me sheet
- * (`MeButton`). While this Phone is a seat's Mic, the mic strip
- * (`PhoneMicCard`) sits under the top bar on every tab.
+ * (`MeButton`). Opened on top of the mic takeover ("Queue & controls"), it
+ * shows a "Back to my mic" bar in the seated Player's colour under the top
+ * bar on every tab.
  */
 export function Remote({
   store,
   phoneId,
   me,
-  mic,
+  backToMic,
 }: {
   store: LiveStore;
   /** This Phone's own id: its Mic is "This phone" on the Stage tab. */
   phoneId: PhoneId;
   me?: MeActions;
-  /** This Phone's mic (tests pass a fake); the browser's by default. */
-  mic?: PhoneMic;
+  /** Set while the Remote is open on top of the mic takeover. */
+  backToMic?: { colour: PaletteKey; onBack: () => void };
 }) {
   const member = useLive(phoneMember, store);
   const party = useLive(selectParty, store);
@@ -101,11 +100,16 @@ export function Remote({
           />
         ) : null}
       </TopBar>
-      <PhoneMicCard
-        store={store}
-        myPhoneId={phoneId}
-        mic={mic ?? phoneMicFor(store, phoneId)}
-      />
+      {backToMic && (
+        <button
+          type="button"
+          onClick={backToMic.onBack}
+          className="mx-5 mb-3 flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-card-sm text-xl font-bold text-white shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+          style={{ backgroundColor: tokenVar(backToMic.colour) }}
+        >
+          {t("phoneTakeover.backToMic")}
+        </button>
+      )}
       {REMOTE_TABS.map((id) => (
         <TabPanel key={id} id={id} className="grow px-5 pb-4 outline-none">
           {id === "songs" && <SongsTab store={store} />}
