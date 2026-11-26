@@ -109,3 +109,13 @@ export const micBridgesQuery = queryOptions({
   queryKey: ["micBridges"],
   queryFn: ({ signal }) => api("GET /api/mic-bridges", { signal }),
 });
+
+/**
+ * `GET /api/usdb/mirror`: where the USDB mirror stands (empty, filling,
+ * fresh, ...). The Downloads section asks for a fresh mirror with
+ * `POST /api/usdb/mirror/refresh` when it opens.
+ */
+export const usdbMirrorQuery = queryOptions({
+  queryKey: ["usdb", "mirror"],
+  queryFn: ({ signal }) => api("GET /api/usdb/mirror", { signal }),
+});

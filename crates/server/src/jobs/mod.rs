@@ -59,16 +59,25 @@ pub enum Lane {
     Ffmpeg,
     /// The Pitch track job: one at a time, at low CPU priority.
     PitchTrack,
+    /// The USDB mirror's runs: one at a time, so a refetch and an update
+    /// never write the mirror together. Their requests also queue in the
+    /// USDB client, behind and between Downloads' ones.
+    UsdbMirror,
 }
 
 impl Lane {
-    const ALL: [Self; 3] = [Self::Downloads, Self::Ffmpeg, Self::PitchTrack];
+    const ALL: [Self; 4] = [
+        Self::Downloads,
+        Self::Ffmpeg,
+        Self::PitchTrack,
+        Self::UsdbMirror,
+    ];
 
     /// How many of this lane's jobs run at once.
     pub fn cap(self) -> usize {
         match self {
             Self::Downloads | Self::Ffmpeg => 2,
-            Self::PitchTrack => 1,
+            Self::PitchTrack | Self::UsdbMirror => 1,
         }
     }
 
@@ -95,6 +104,8 @@ pub enum JobParams {
     Conversion(crate::library::Conversion),
     Loudness(crate::library::Measurement),
     PitchTrack(crate::library::PitchTrackJob),
+    UsdbMirrorRefetch,
+    UsdbMirrorUpdate,
 }
 
 impl JobParams {
@@ -104,6 +115,8 @@ impl JobParams {
             Self::Conversion(_) => JobKind::Conversion,
             Self::Loudness(_) => JobKind::Loudness,
             Self::PitchTrack(_) => JobKind::PitchTrack,
+            Self::UsdbMirrorRefetch => JobKind::UsdbMirrorRefetch,
+            Self::UsdbMirrorUpdate => JobKind::UsdbMirrorUpdate,
         }
     }
 
@@ -112,6 +125,7 @@ impl JobParams {
             Self::Test(job) => job.lane,
             Self::Conversion(_) | Self::Loudness(_) => Lane::Ffmpeg,
             Self::PitchTrack(_) => Lane::PitchTrack,
+            Self::UsdbMirrorRefetch | Self::UsdbMirrorUpdate => Lane::UsdbMirror,
         }
     }
 
@@ -126,6 +140,9 @@ impl JobParams {
             // It overwrites what an interrupted run left, and finds the
             // track cached when an earlier job already wrote it.
             Self::PitchTrack(_) => AfterRestart::StartAgain,
+            // Rows are stored page by page and a run only ever adds or
+            // updates them until its end, so starting again is safe.
+            Self::UsdbMirrorRefetch | Self::UsdbMirrorUpdate => AfterRestart::StartAgain,
         }
     }
 
@@ -135,6 +152,8 @@ impl JobParams {
             Self::Conversion(job) => job.run(ctx).await,
             Self::Loudness(job) => job.run(ctx).await,
             Self::PitchTrack(job) => job.run(ctx).await,
+            Self::UsdbMirrorRefetch => crate::usdb::mirror::refetch(ctx).await,
+            Self::UsdbMirrorUpdate => crate::usdb::mirror::update(ctx).await,
         }
     }
 }
@@ -144,6 +163,8 @@ pub struct JobContext {
     pub progress: Progress,
     pub slot: Slot,
     pub(crate) env: JobEnv,
+    /// `None` in runners started without it (unit tests of other areas).
+    pub(crate) usdb: Option<UsdbEnv>,
 }
 
 /// What every job may use besides its slot: the database, the live-state
@@ -154,6 +175,14 @@ pub(crate) struct JobEnv {
     pub(crate) live: LiveHandle,
     pub(crate) songs_dir: PathBuf,
     pub(crate) appdata_dir: PathBuf,
+}
+
+/// What the USDB mirror's jobs use besides the [`JobEnv`]: the server's one
+/// USDB client and its clock.
+#[derive(Clone)]
+pub(crate) struct UsdbEnv {
+    pub(crate) usdb: crate::usdb::UsdbClient,
+    pub(crate) clock: crate::clock::Clock,
 }
 
 /// Reports a running job's progress to every browser.
@@ -225,15 +254,27 @@ pub struct Jobs {
 }
 
 impl Jobs {
+    /// A runner whose USDB mirror jobs cannot run, for other areas' tests.
+    #[cfg(test)]
+    pub(crate) async fn start(env: JobEnv, tool_path: Option<String>) -> anyhow::Result<Self> {
+        Self::start_with_usdb(env, None, tool_path).await
+    }
+
     /// Loads the kept jobs, applies each interrupted job's [`AfterRestart`]
     /// rule, then starts the runner, which starts queued jobs at once.
-    /// `tool_path` is the `PATH` child processes run with.
-    pub(crate) async fn start(env: JobEnv, tool_path: Option<String>) -> anyhow::Result<Self> {
+    /// `tool_path` is the `PATH` child processes run with; `usdb` is what the
+    /// USDB mirror's jobs use.
+    pub(crate) async fn start_with_usdb(
+        env: JobEnv,
+        usdb: Option<UsdbEnv>,
+        tool_path: Option<String>,
+    ) -> anyhow::Result<Self> {
         let (commands, receiver) = mpsc::channel(COMMAND_CAPACITY);
         let mut runner = Runner {
             db: env.db.clone(),
             live: env.live.clone(),
             env,
+            usdb,
             tool_path,
             commands: commands.clone(),
             jobs: BTreeMap::new(),
@@ -306,6 +347,7 @@ struct Runner {
     db: Database,
     live: LiveHandle,
     env: JobEnv,
+    usdb: Option<UsdbEnv>,
     tool_path: Option<String>,
     /// Handed to running jobs, so they can report back.
     commands: mpsc::Sender<Command>,
@@ -474,6 +516,7 @@ impl Runner {
                     cancel: cancelled,
                 },
                 env: self.env.clone(),
+                usdb: self.usdb.clone(),
             };
             let commands = self.commands.clone();
             let task = tokio::spawn(async move {
@@ -572,8 +615,10 @@ mod tests {
         assert_eq!(Lane::Downloads.cap(), 2);
         assert_eq!(Lane::Ffmpeg.cap(), 2);
         assert_eq!(Lane::PitchTrack.cap(), 1);
+        assert_eq!(Lane::UsdbMirror.cap(), 1);
         assert!(Lane::PitchTrack.low_priority());
         assert!(!Lane::Downloads.low_priority() && !Lane::Ffmpeg.low_priority());
+        assert!(!Lane::UsdbMirror.low_priority());
     }
 
     #[test]

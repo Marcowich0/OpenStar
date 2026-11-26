@@ -4,10 +4,13 @@ use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
-use openstar::{Config, Server};
+use openstar::clock::ManualClock;
+use openstar::usdb::UsdbTimer;
+use openstar::{Config, Server, StartOptions};
 use openstar_protocol::jobs::JobKind;
 use openstar_protocol::library::ScanStatus;
 use openstar_protocol::{ClientMessage, ServerMessage};
@@ -83,9 +86,46 @@ pub struct TestAppBuilder {
     path_prefix: Option<PathBuf>,
     extra: BTreeMap<String, String>,
     test_routes: bool,
+    times: Times,
+}
+
+/// The time sources a [`TestApp`] runs on, kept across restarts.
+#[derive(Clone, Default)]
+struct Times {
+    clock: Option<ManualClock>,
+    usdb_timer: Option<Arc<dyn UsdbTimer>>,
+}
+
+impl Times {
+    fn options(&self) -> StartOptions {
+        StartOptions {
+            clock: self
+                .clock
+                .as_ref()
+                .map(ManualClock::clock)
+                .unwrap_or_default(),
+            usdb_timer: self.usdb_timer.clone(),
+        }
+    }
 }
 
 impl TestAppBuilder {
+    /// Runs every timed rule, the background jobs' included, on `clock`
+    /// (also after a [`TestApp::restart`]), so a test moves time forward
+    /// instead of waiting.
+    pub fn clock(mut self, clock: &ManualClock) -> Self {
+        self.times.clock = Some(clock.clone());
+        self
+    }
+
+    /// Paces and backs off USDB requests by `timer` (for example an
+    /// `openstar::usdb::VirtualTimer`, whose waits take no real time) instead
+    /// of real time, also after a [`TestApp::restart`].
+    pub fn usdb_timer(mut self, timer: Arc<dyn UsdbTimer>) -> Self {
+        self.times.usdb_timer = Some(timer);
+        self
+    }
+
     /// Mounts the server's test-only routes (`Server::with_test_routes`),
     /// also after a [`TestApp::restart`].
     pub fn test_routes(mut self) -> Self {
@@ -171,10 +211,11 @@ impl TestAppBuilder {
             );
         }
 
-        let serving = serve(&vars, self.test_routes, listener).await;
+        let serving = serve(&vars, self.test_routes, &self.times, listener).await;
         TestApp {
             addr,
             test_routes: self.test_routes,
+            times: self.times,
             folders: Some(folders),
             vars,
             migrations_applied: serving.migrations_applied,
@@ -197,12 +238,15 @@ struct Serving {
 async fn serve(
     vars: &BTreeMap<String, String>,
     test_routes: bool,
+    times: &Times,
     listener: tokio::net::TcpListener,
 ) -> Serving {
     let addr = listener.local_addr().expect("the bound address");
     let config = Config::from_vars(|name| vars.get(name).cloned())
         .expect("the harness's settings are valid");
-    let mut server = Server::start(&config).await.expect("the app starts");
+    let mut server = Server::start_with(&config, times.options())
+        .await
+        .expect("the app starts");
     if test_routes {
         server = server.with_test_routes();
     }
@@ -284,6 +328,7 @@ pub struct TestApp {
     folders: Option<AppFolders>,
     vars: BTreeMap<String, String>,
     test_routes: bool,
+    times: Times,
     migrations_applied: usize,
     http: reqwest::Client,
     shutdown: Option<oneshot::Sender<()>>,
@@ -306,6 +351,7 @@ impl TestApp {
             path_prefix: None,
             extra: BTreeMap::new(),
             test_routes: false,
+            times: Times::default(),
         }
     }
 
@@ -404,7 +450,7 @@ impl TestApp {
     pub async fn restart(&mut self) {
         self.shut_down().await;
         let listener = bind_again(self.addr).await;
-        let serving = serve(&self.vars, self.test_routes, listener).await;
+        let serving = serve(&self.vars, self.test_routes, &self.times, listener).await;
         // Connections kept alive to the stopped app are dead: start afresh.
         self.http = reqwest::Client::new();
         self.migrations_applied = serving.migrations_applied;

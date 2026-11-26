@@ -338,7 +338,35 @@ const MIGRATIONS: &[&str] = &[
         volume        INTEGER NOT NULL CHECK (volume BETWEEN 0 AND 100),
         PRIMARY KEY (stage_browser, stage_output)
     ) STRICT, WITHOUT ROWID;",
-    // 22: the results flow (#175). A round names the Request it sang, so
+    // 22: the USDB mirror (see `usdb::mirror`): one row per USDB song as its
+    // song list shows it (no covers), and the mirror's own facts in a single
+    // row. `refetch` numbers the full refetches: a song's `refetch` is the
+    // latest one that saw it, so a finished refetch drops the songs it did
+    // not see.
+    "CREATE TABLE usdb_songs (
+        usdb_id     INTEGER PRIMARY KEY NOT NULL,
+        artist      TEXT NOT NULL,
+        title       TEXT NOT NULL,
+        genre       TEXT NOT NULL,
+        year        INTEGER,
+        edition     TEXT NOT NULL,
+        golden      INTEGER NOT NULL CHECK (golden IN (0, 1)),
+        language    TEXT NOT NULL,
+        creator     TEXT NOT NULL,
+        rating      REAL NOT NULL,
+        views       INTEGER NOT NULL,
+        last_change INTEGER NOT NULL,
+        refetch     INTEGER NOT NULL
+    ) STRICT;
+    CREATE INDEX usdb_songs_last_change ON usdb_songs (last_change);
+    CREATE TABLE usdb_mirror (
+        id                INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+        refetch           INTEGER NOT NULL,
+        last_refreshed_ms INTEGER,
+        last_full_ms      INTEGER
+    ) STRICT;
+    INSERT INTO usdb_mirror (id, refetch) VALUES (1, 0);",
+    // 23: the results flow (#175). A round names the Request it sang, so
     // the Stage's retry of one outcome stores it once (rounds from before
     // have none). The results a Party shows keep each Player's result as
     // JSON (`PlayerResult`s, ranked).

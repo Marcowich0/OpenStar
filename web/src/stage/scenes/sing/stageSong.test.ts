@@ -194,7 +194,7 @@ function setup(over: Partial<StageSongOptions> = {}) {
     rounds,
     pitch,
     loadSong,
-    reachedResults: reported,
+    reportedRounds: reported,
     setNow: (ms: number) => {
       nowMs = ms;
     },
@@ -299,7 +299,7 @@ describe("the Stage plays the head's Request", () => {
     t.control("end");
     expect(t.log.at(-1)).toBe("end");
     await flush();
-    expect(t.reachedResults()).toEqual([
+    expect(t.reportedRounds()).toEqual([
       {
         songId: 7,
         requestId: 5,
@@ -327,7 +327,7 @@ describe("the Stage plays the head's Request", () => {
     t.control("end");
     t.playedOut();
     await flush();
-    expect(t.reachedResults()).toHaveLength(1);
+    expect(t.reportedRounds()).toHaveLength(1);
     expect(t.pitch.buffers()).toHaveLength(0);
   });
 
@@ -337,7 +337,7 @@ describe("the Stage plays the head's Request", () => {
     t.control("start");
     t.control("end");
     await flush();
-    expect(t.reachedResults()).toEqual([
+    expect(t.reportedRounds()).toEqual([
       expect.objectContaining({
         requestId: 5,
         ended: "ended",
@@ -362,7 +362,7 @@ describe("the Stage plays the head's Request", () => {
     t.playedOut();
     t.playedOut();
     await flush();
-    expect(t.reachedResults()).toEqual([
+    expect(t.reportedRounds()).toEqual([
       expect.objectContaining({ requestId: 5, ended: "played" }),
     ]);
     expect(t.song.lastRound()).toMatchObject({
@@ -379,7 +379,7 @@ describe("the Stage plays the head's Request", () => {
     t.control("skip");
     await flush();
     expect(t.log.at(-1)).toBe("dispose");
-    expect(t.reachedResults()).toEqual([]);
+    expect(t.reportedRounds()).toEqual([]);
     expect(t.rounds).toEqual([
       {
         songId: 7,
@@ -424,7 +424,7 @@ describe("the Stage plays the head's Request", () => {
     await t.start();
     t.connection("reconnecting");
     expect(t.log.at(-1)).toBe("dispose");
-    expect(t.reachedResults()).toEqual([]);
+    expect(t.reportedRounds()).toEqual([]);
     expect(t.rounds).toEqual([]);
     expect(t.song.view().kind).toBe("idle");
   });
@@ -434,7 +434,7 @@ describe("the Stage plays the head's Request", () => {
     await t.start();
     t.party({ playing: null });
     expect(t.log.at(-1)).toBe("dispose");
-    expect(t.reachedResults()).toEqual([]);
+    expect(t.reportedRounds()).toEqual([]);
   });
 
   it("does not play a Song it never heard Start for (a reloaded Stage)", async () => {
@@ -521,7 +521,7 @@ describe("the Stage plays the head's Request", () => {
     t.setNow(9_000);
     t.control("end");
     await flush();
-    expect(t.reachedResults()).toEqual([
+    expect(t.reportedRounds()).toEqual([
       expect.objectContaining({ startedAtMs: 5_000 }),
     ]);
   });

@@ -105,6 +105,18 @@ web-build: web-install
 build: web-build
     cargo build --release --locked -p openstar
 
+# Build the Docker image (Dockerfile, docs/docker-image.md) into the local
+# image store as `tag`, with the given build identifier. Needs Docker with buildx.
+image tag="openstar:local" build_id="dev":
+    docker buildx build --platform linux/amd64 --build-arg OPENSTAR_BUILD_ID={{ build_id }} --load -t {{ tag }} .
+
+# Smoke-test a built image: what it holds, its user, volumes and HEALTHCHECK,
+# and that it starts as 1000:1000 and as 99:100. Then check that a wrong
+# yt-dlp or Deno checksum fails the build.
+image-smoke tag="openstar:local" build_id="dev":
+    scripts/image-smoke.sh {{ tag }} {{ build_id }}
+    scripts/image-checksum.test.sh
+
 # Run the server on OPENSTAR_PORT (default 8080) with ./.appdata and ./.songs.
 run: web-build
     mkdir -p .appdata .songs

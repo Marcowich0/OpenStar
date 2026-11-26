@@ -418,6 +418,10 @@ pub enum ChangeTopic {
     /// `GET /api/mic-bridges`: approved bridges (open or closed, with their
     /// channels) and bridges waiting for approval.
     MicBridges,
+    /// The USDB mirror: `GET /api/usdb/mirror` (and, once #193 adds it, the
+    /// USDB search over the mirror). Sent after every stored list page and
+    /// when a mirror run starts or ends.
+    UsdbMirror,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast

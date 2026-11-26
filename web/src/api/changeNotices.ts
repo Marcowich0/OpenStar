@@ -27,6 +27,8 @@ export const QUERIES_BY_TOPIC: Record<ChangeTopic, readonly QueryKey[]> = {
   micSettings: [["micSettings"]],
   // Approved and waiting Mic bridges (`micBridgesQuery`).
   micBridges: [micBridgesQuery.queryKey],
+  // The mirror's status; #193's USDB search keys start with "usdb" too.
+  usdbMirror: [["usdb"]],
 };
 
 const TOPICS = Object.keys(QUERIES_BY_TOPIC) as ChangeTopic[];

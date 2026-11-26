@@ -4,7 +4,7 @@ use std::path::Path;
 
 use openstar::usdb::{
     Profile, SongListRow, UsdbPageError, comment_links, is_not_logged_in, parse_gettxt,
-    parse_profile, parse_song_list, video_tag_links,
+    parse_profile, parse_song_list, parse_song_list_total, video_tag_links,
 };
 
 fn page(name: &str) -> String {
@@ -70,6 +70,12 @@ fn the_list_page_gives_every_row_with_all_mirror_fields() {
 #[test]
 fn a_page_without_rows_gives_no_rows() {
     assert_eq!(parse_song_list(&page("not-logged-in.html")), vec![]);
+}
+
+#[test]
+fn the_list_page_says_how_many_songs_the_whole_list_has() {
+    assert_eq!(parse_song_list_total(&page("list.html")), Some(3));
+    assert_eq!(parse_song_list_total(&page("not-logged-in.html")), None);
 }
 
 #[test]
