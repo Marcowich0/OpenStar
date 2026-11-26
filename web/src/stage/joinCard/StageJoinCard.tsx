@@ -16,7 +16,7 @@ const selectJoinCode = (live: LiveState) => live.stage?.party?.joinCode ?? null;
 
 export type StageJoinCardProps = Pick<
   JoinCardProps,
-  "hideable" | "storage" | "className"
+  "hideable" | "storage" | "layout" | "className"
 >;
 
 export function StageJoinCard(props: StageJoinCardProps) {

@@ -35,8 +35,8 @@ test("the Stage and a Phone share one Party, and New party reaches both", async 
   await stage.keyboard.down("Enter");
   await stage.waitForTimeout(900);
   await stage.keyboard.up("Enter");
-  await expect(people.getByTestId("people-join-code")).not.toHaveText(
-    `Join with ${code ?? ""}`,
+  await expect(people.getByTestId("party-join-code")).not.toHaveText(
+    code ?? "",
   );
   await stage.keyboard.press("Escape");
   await expect(people).toHaveCount(0);

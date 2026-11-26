@@ -1,18 +1,16 @@
 // What each overlay shows, and the overlay itself: a veil over the whole
-// screen and a cream modal (44 px radius) in the reference frame. Songs and
-// Queue are `../overlays/`; People is a placeholder until its ticket fills it;
-// so is Calibrate mics (#52). Mics is `mics/MicsScreen.tsx`, Check A/V sync
+// screen and a cream modal (44 px radius) in the reference frame. Songs,
+// Queue and People are `../overlays/`; Calibrate mics (#52) is a placeholder
+// until its ticket fills it. Mics is `mics/MicsScreen.tsx`, Check A/V sync
 // `avSync/StageAvSync.tsx`.
 
 import { useId, type ComponentType } from "react";
 
 import { t, type MessageKey } from "../../i18n/t";
-import type { LiveState } from "../../live/liveState";
-import { useLive } from "../../live/useLive";
 import { StageAvSync } from "../../avSync/StageAvSync";
 import { MicsScreen } from "../../mics/MicsScreen";
-import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
+import { PeopleOverlay } from "../overlays/PeopleOverlay";
 import { QueueOverlay } from "../overlays/QueueOverlay";
 import { SongsOverlay } from "../overlays/SongsOverlay";
 import type { OverlayId } from "./overlayIds";
@@ -24,35 +22,8 @@ export interface OverlayDefinition {
   component: ComponentType;
 }
 
-const selectParty = (live: LiveState) => live.stage?.party ?? null;
-
 function ComingSoon() {
   return <p className="text-3xl text-ink-2">{t("stage.overlay.comingSoon")}</p>;
-}
-
-function PeopleOverlay() {
-  const { store } = useStageFrame();
-  const party = useLive(selectParty, store);
-  return (
-    <div className="flex flex-col gap-8">
-      <p className="text-3xl text-ink-2">
-        {t("stage.people.count", { count: party?.members.length ?? 0 })}
-      </p>
-      <div className="flex items-center justify-between gap-6">
-        <p className="text-3xl font-semibold" data-testid="people-join-code">
-          {party ? t("stage.people.joinCode", { code: party.joinCode }) : null}
-        </p>
-        <HoldButton
-          fill="ink"
-          onHold={() => {
-            store.send({ type: "newParty" });
-          }}
-        >
-          {t("stage.newParty")}
-        </HoldButton>
-      </div>
-    </div>
-  );
 }
 
 export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
