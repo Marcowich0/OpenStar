@@ -25,7 +25,13 @@ import {
   type LocalMicsApi,
 } from "../../../mics/LocalMics";
 import type { LocalMicCapture } from "../../../mics/localMicCapture";
+import { stageMicSettings } from "../../../mics/stageMicSettings";
 import { StageFrame } from "../../frame/StageFrame";
+
+// The Stage applies the OpenStar volume to its audio chain; jsdom has none.
+vi.mock("../../playback/stageAudio", () => ({
+  stageAudio: () => ({ chain: () => ({ setVolume: () => {} }) }),
+}));
 
 // jsdom has no layout, so no scrolling; the Who list scrolls a focused entry into view.
 beforeAll(() => {
@@ -218,7 +224,12 @@ function setup(
       h.onMessage({ type: "rejected", reason });
     });
   };
-  return { sent, edits, changeParty, reject };
+  const volume = (v: number) => {
+    live((h) => {
+      h.onMessage({ type: "volume", volume: v, stepped: true });
+    });
+  };
+  return { sent, edits, changeParty, reject, volume };
 }
 
 function press(key: string) {
@@ -424,6 +435,61 @@ describe("Local mics and seat meters", () => {
         within(card).getByRole("meter").getAttribute("aria-valuenow"),
       ),
     ).toEqual(["-40", "-20"]);
+  });
+});
+
+describe("the seat meters' Mic threshold line", () => {
+  afterEach(() => {
+    act(() => {
+      stageMicSettings().set(null);
+    });
+  });
+
+  const lines = () =>
+    seats().map((card) =>
+      Number(
+        card
+          .querySelector("[data-threshold-dbfs]")
+          ?.getAttribute("data-threshold-dbfs"),
+      ),
+    );
+
+  it("draws what Start would hand the scorer: the stored values at the current volume, the defaults otherwise", () => {
+    const { volume } = setup(
+      party({
+        localMics: [red],
+        lineUp: lineUp({
+          seats: [
+            seat(1, "ph-bo"),
+            {
+              ...seat(2, null),
+              mic: { kind: "localMic", localMicId: red.localMicId },
+            },
+          ],
+        }),
+      }),
+    );
+    // Nothing loaded, volume unknown: the defaults at volume 80.
+    expect(lines()).toEqual([-30, -40]);
+
+    act(() => {
+      stageMicSettings().set({
+        stageOutput: "Speakers",
+        mics: [
+          {
+            mic: { kind: "localMic", localMicId: red.localMicId },
+            settings: { micThreshold: { referenceDbfs: -48, setBy: "hand" } },
+          },
+        ],
+      });
+    });
+    expect(lines()).toEqual([-30, -48]);
+
+    // It follows the OpenStar volume: 40·log10(40/80) ≈ −12.04 dB at 40.
+    volume(40);
+    const level = 40 * Math.log10(40 / 80);
+    expect(lines()[0]).toBeCloseTo(-30 + level);
+    expect(lines()[1]).toBeCloseTo(-48 + level);
   });
 });
 

@@ -5,7 +5,8 @@
 // the Song's length; a search hit's details come with the list, the others
 // are read one by one (the server runs those lookups one at a time). The
 // first candidate is preselected. Opening the picker is free; the Download
-// button (guarded) is wired by the Download ticket through `onDownload`.
+// button starts the Download through `onDownload` (guarded, #195), and shows
+// why it was refused. On a read-only Library it is disabled, with the notice.
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -17,6 +18,7 @@ import {
 } from "react-aria-components";
 
 import { ApiFailure } from "../api/api";
+import { LibraryReadOnlyNotice } from "../guarded/LibraryReadOnlyNotice";
 import { videoCandidatesQuery, videoDetailsQuery } from "../api/queries";
 import type { UsdbSong } from "../generated/UsdbSong";
 import type { VideoCandidate } from "../generated/VideoCandidate";
@@ -32,8 +34,10 @@ export interface VideoPickerProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   /** Starts the Download from the chosen video; until it is given, the
-   * Download button is disabled. */
-  onDownload?: (url: string) => void;
+   * Download button is disabled. A rejection is shown as the refusal. */
+  onDownload?: (url: string) => Promise<void>;
+  /** The Download cannot start (the Library is read-only). */
+  isDownloadDisabled?: boolean;
 }
 
 const SOURCE_TEXT: Record<VideoSource, MessageKey> = {
@@ -47,6 +51,7 @@ export function VideoPicker({
   isOpen,
   onOpenChange,
   onDownload,
+  isDownloadDisabled = false,
 }: VideoPickerProps) {
   return (
     <Sheet
@@ -54,7 +59,12 @@ export function VideoPicker({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
     >
-      {isOpen ? <PickerBody song={song} onDownload={onDownload} /> : null}
+      {isOpen ? (
+        <PickerBody
+          song={song}
+          onDownload={isDownloadDisabled ? undefined : onDownload}
+        />
+      ) : null}
     </Sheet>
   );
 }
@@ -64,9 +74,11 @@ function PickerBody({
   onDownload,
 }: {
   song: UsdbSong;
-  onDownload: ((url: string) => void) | undefined;
+  onDownload: ((url: string) => Promise<void>) | undefined;
 }) {
   const found = useQuery(videoCandidatesQuery(song.usdbId));
+  const [starting, setStarting] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
   // `null` until the admin picks one: the first candidate is preselected.
   const [picked, setPicked] = useState<string | null>(null);
   const candidates = found.data?.candidates ?? [];
@@ -120,11 +132,28 @@ function PickerBody({
               ))}
             </RadioGroup>
           )}
+          <LibraryReadOnlyNotice />
+          {refusal !== null ? (
+            <p role="alert" className="rounded-card-sm bg-white p-3">
+              {refusal}
+            </p>
+          ) : null}
           <Button
             fill="green"
-            isDisabled={chosen === null || onDownload === undefined}
+            isDisabled={chosen === null || onDownload === undefined || starting}
             onPress={() => {
-              if (chosen !== null) onDownload?.(chosen);
+              if (chosen === null || onDownload === undefined) return;
+              setStarting(true);
+              setRefusal(null);
+              onDownload(chosen).then(
+                () => {
+                  setStarting(false);
+                },
+                (error: unknown) => {
+                  setStarting(false);
+                  setRefusal(downloadFailureText(error));
+                },
+              );
             }}
             className="w-full"
           >
@@ -186,6 +215,12 @@ function CandidateOption({ candidate }: { candidate: VideoCandidate }) {
       </RadioButton>
     </RadioField>
   );
+}
+
+function downloadFailureText(error: unknown): string {
+  return error instanceof ApiFailure && error.failure.kind === "refused"
+    ? refusalText(error.failure.error)
+    : t("admin.downloads.picker.downloadFailed");
 }
 
 function failureText(error: Error): string {

@@ -377,6 +377,21 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             usdb::videos::details,
         )
+        // Starting a Download writes a new Song into the Library: guarded,
+        // and refused on a read-only Library.
+        .add(
+            Method::POST,
+            "/api/downloads",
+            Guarded(Writes),
+            usdb::download::start,
+        )
+        // Which USDB version of a text the Library holds; reads only.
+        .add(
+            Method::GET,
+            "/api/usdb/songs/{id}/version",
+            NotGuarded,
+            usdb::download::text_version,
+        )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage: the handler refuses a browser without Stage trust
         // (`stage_trust`), which is not an Unlock.
