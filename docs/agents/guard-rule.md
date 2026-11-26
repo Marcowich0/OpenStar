@@ -11,6 +11,7 @@ Every new HTTP endpoint, in every area, is classified by this one rule.
 - A guarded endpoint that writes the Library (the songs folder) is refused with `409 {"code":"libraryReadOnly"}` while the Library is read-only, whatever the Unlock. That check comes before the Unlock check.
 - The client never decides. The frontend shows the PIN pad when it gets `unlockRequired` and the read-only notice when it gets `libraryReadOnly`.
 - The WebSocket carries no guarded action. `endpoints::ws_access` classifies every `ClientMessage`, and every arm must be `Access::NotGuarded`. A guarded action is an HTTP endpoint instead. When you add a `ClientMessage` variant, add a sample to `every_client_message` in `crates/server/tests/guard.rs`.
+- The guard audit (#224) pins this whole document's list as one table, `V1_ACTIONS` in `crates/server/tests/guard.rs`: each action names its endpoints and WebSocket messages and the tests that check it for real. It fails when an action has no endpoint, when an endpoint is classified otherwise than the action, when a mounted endpoint or a `ClientMessage` belongs to no action, or when a cited test is gone. So a new endpoint or message needs a row (or a place in one) there and a line here. `web/src/guardAudit.test.ts` checks that no module reachable from the Remote's four tabs or the Stage's `S`, `Q` and `P` overlays calls a guarded endpoint or uses the guarded-action flow; its `GUARDED` list must equal the server's guarded endpoints.
 - `crates/server/tests/guard.rs` walks every classified endpoint. Every guarded one must refuse without an Unlock and get past the guard with one. Every not-guarded one must answer without one. Every Library write must be refused while the Library is read-only. New endpoints join these tests automatically.
 
 ## Guarded actions (the complete v1 list)
@@ -43,7 +44,7 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 
 ## Not guarded (no PIN, whatever the browser)
 
-- opening the Admin area and looking at any section;
+- opening the Admin area and looking at any section, and every read behind it (`GET /api/songs`, `/api/songs/{id}`, its media and High scores, `/api/library/trash`, `/api/profiles`, `/api/server-info`, `/healthz`);
 - Rescan and the Library problems list;
 - browsing and searching USDB (`GET /api/usdb/songs`, on the mirror alone), its covers (`GET /api/usdb/songs/{id}/cover`: a cover is fetched once into `/appdata/cache`, which is neither the Library nor kept data), and seeing the video candidates (`GET /api/usdb/songs/{id}/videos`, `GET /api/usdb/video-details`: they read USDB and run yt-dlp lookups, writing nothing);
 - the USDB login status (`GET /api/usdb/status`);
@@ -70,6 +71,7 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - Switch to Pro Audio for a Mic bridge's interface, on the Mics screen or in the bridge window (it changes a sound card's profile on the bridge's computer, no Library file and no kept data);
 - Lock, the Unlock status and the PIN attempt itself;
 - the job list (`GET /api/jobs`) and the job updates on the WebSocket;
+- what Mics, the Stage and Mic bridges report over the WebSocket (Pitch readings, clock sync, levels, input delays, which Local mics are present, capture or are silent, the Song position and Line scores): none changes the Library or deletes kept data;
 - storing a round's outcome and its Score records (`POST /api/rounds`), which adds kept data and deletes none.
 
 The test-only routes `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel` (mounted only by `Server::with_test_routes`) are not guarded: a test job runs a harmless child process and touches nothing kept. The test-only route `POST /api/test/songs/{id}/pitch-track?timeoutMs=` is the Pitch track request with a short timeout, so it is not guarded either. The test-only route `POST /api/test/library/new-song` publishes a new Song folder the way a Download does, so it is `Guarded(Library::Writes)`.
