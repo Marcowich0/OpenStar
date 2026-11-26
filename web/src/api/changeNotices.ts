@@ -22,8 +22,7 @@ export const QUERIES_BY_TOPIC: Record<ChangeTopic, readonly QueryKey[]> = {
   profiles: [profilesQuery.queryKey],
   library: [songsKey, libraryProblemsQuery.queryKey, scanStatusQuery.queryKey],
   // Mic settings and Local mics: every such query's key starts with
-  // "micSettings" (`localMicsQuery`; the query of `GET /api/mic-settings`,
-  // once one exists, starts its key with this prefix too).
+  // "micSettings" (`localMicsQuery`, `stageOutputMicSettingsQuery`).
   micSettings: [["micSettings"]],
   // Approved and waiting Mic bridges (`micBridgesQuery`).
   micBridges: [micBridgesQuery.queryKey],

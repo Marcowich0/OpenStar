@@ -9,6 +9,7 @@ import type { JobList } from "../generated/JobList";
 import type { LibraryProblem } from "../generated/LibraryProblem";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridges } from "../generated/MicBridges";
+import type { MicSettingsQuery } from "../generated/MicSettingsQuery";
 import type { NewProfile } from "../generated/NewProfile";
 import type { PitchTrackStart } from "../generated/PitchTrackStart";
 import type { Profile } from "../generated/Profile";
@@ -22,6 +23,7 @@ import type { SongId } from "../generated/SongId";
 import type { SongList } from "../generated/SongList";
 import type { SongQuery } from "../generated/SongQuery";
 import type { RoundStored } from "../generated/RoundStored";
+import type { StageOutputMicSettings } from "../generated/StageOutputMicSettings";
 import type { StageTrustRequest } from "../generated/StageTrustRequest";
 import type { StageTrustStatus } from "../generated/StageTrustStatus";
 import type { TimingEdit } from "../generated/TimingEdit";
@@ -50,6 +52,10 @@ export interface Endpoints {
   "GET /api/server-info": { response: ServerInfo };
   "GET /api/local-mics": { response: LocalMic[] };
   "GET /api/mic-bridges": { response: MicBridges };
+  "GET /api/mic-settings": {
+    query: MicSettingsQuery;
+    response: StageOutputMicSettings;
+  };
   "GET /api/unlock": { response: UnlockStatus };
   "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
   "POST /api/unlock/heartbeat": { response: UnlockStatus };

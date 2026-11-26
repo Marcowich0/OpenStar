@@ -8,12 +8,10 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import type { Avatar as AvatarValue } from "../../../generated/Avatar";
 import type { LineUpEdit } from "../../../generated/LineUpEdit";
-import type { MicKey } from "../../../generated/MicKey";
 import type { PaletteKey } from "../../../generated/PaletteKey";
 import type { Seat } from "../../../generated/Seat";
 import { difficultyName, voiceNumber } from "../../../i18n/seatNames";
 import { t } from "../../../i18n/t";
-import { MIC_THRESHOLD } from "../../../mics/micSettings";
 import { tokenVar } from "../../../theme/tokens";
 import { Avatar } from "../../../ui/Avatar";
 import { Icon } from "../../../ui/Icon";
@@ -35,23 +33,19 @@ function fieldColours(bad: boolean): string {
 
 /**
  * A Mic's live level with its Mic threshold line, redrawn every frame from
- * `read` (dBFS, `null` for silence) without a React render. The line sits
- * at the uncalibrated default until the stored threshold reaches the
- * Line-up (#172 adds it and the adjust mode).
+ * `read` (dBFS, `null` for silence) without a React render. The line is the
+ * effective Mic threshold at the current volume (`useMicThresholdDbfs`);
+ * #172 adds the adjust mode.
  */
 function SeatMeter({
-  mic,
+  threshold,
   label,
   read,
 }: {
-  mic: MicKey | null;
+  threshold: number;
   label: string;
   read: () => number | null;
 }) {
-  const threshold =
-    mic?.kind === "localMic"
-      ? MIC_THRESHOLD.localMicDefaultDbfs
-      : MIC_THRESHOLD.phoneFallbackDbfs;
   const at = (dbfs: number) =>
     `${String(((dbfs - METER_FLOOR_DBFS) / -METER_FLOOR_DBFS) * 100)}%`;
   const meter = useRef<HTMLSpanElement>(null);
@@ -88,8 +82,9 @@ function SeatMeter({
       <span ref={fill} className="block h-full w-0 rounded-full bg-green" />
       <span
         aria-hidden="true"
+        data-threshold-dbfs={threshold}
         className="absolute -top-1.5 -bottom-1.5 w-1 -translate-x-1/2 rounded-full bg-ink"
-        style={{ left: at(threshold) }}
+        style={{ left: at(Math.max(METER_FLOOR_DBFS, Math.min(0, threshold))) }}
       />
     </span>
   );
@@ -112,6 +107,8 @@ export interface SeatCardProps {
   seat: Seat;
   /** The seat's Mic level now, in dBFS (`null`: silence), read every frame. */
   readLevel: () => number | null;
+  /** The seat Mic's effective Mic threshold now, dBFS (its meter's line). */
+  micThresholdDbfs: number;
   duet: boolean;
   /** The member's name and avatar; empty and `null` while a Profile loads. */
   name: string;
@@ -139,6 +136,7 @@ export interface SeatCardProps {
 export function SeatCard({
   seat,
   readLevel,
+  micThresholdDbfs,
   duet,
   name,
   avatar,
@@ -203,7 +201,7 @@ export function SeatCard({
             <span className="truncate">{micText}</span>
           </span>
           <SeatMeter
-            mic={seat.mic}
+            threshold={micThresholdDbfs}
             read={readLevel}
             label={t("stage.lineUp.micLevel", { name })}
           />
