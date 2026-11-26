@@ -279,6 +279,82 @@ async fn the_checklist_ticks_every_joined_phone_and_needs_one_to_continue() {
 }
 
 #[tokio::test]
+async fn a_remote_starts_ticks_and_goes_in_the_one_run_the_stage_shows() {
+    let app = TestApp::start().await;
+    let (mut stage, code) = open_stage(&app).await;
+    let mut one = joined_phone(&app, &code, 1).await;
+    let mut two = joined_phone(&app, &code, 2).await;
+
+    // Phone 1's Remote presses Calibrate mics, with no Admin PIN: the
+    // Stage and every Phone hear the checklist.
+    one.send(&ClientMessage::OpenCalibration).await;
+    let checklist = at(
+        CalibrationPhase::Choosing,
+        vec![mic(1, true, false), mic(2, true, false)],
+    );
+    all_hear(&mut [&mut stage, &mut one, &mut two], &checklist).await;
+
+    // Phone 2's Remote presses it too: it joins that run, nothing changes.
+    two.send(&ClientMessage::OpenCalibration).await;
+    hears_nothing(&mut two).await;
+    hears_nothing(&mut stage).await;
+
+    // A tick from the Remote and one from the Stage land in the same run.
+    one.send(&ClientMessage::ChooseCalibrationMic {
+        mic: key(2),
+        chosen: false,
+    })
+    .await;
+    let unticked = at(
+        CalibrationPhase::Choosing,
+        vec![mic(1, true, false), mic(2, false, false)],
+    );
+    all_hear(&mut [&mut stage, &mut one, &mut two], &unticked).await;
+    stage
+        .send(&ClientMessage::ChooseCalibrationMic {
+            mic: key(2),
+            chosen: true,
+        })
+        .await;
+    all_hear(&mut [&mut stage, &mut one, &mut two], &checklist).await;
+
+    // Continue from Phone 2's Remote; Phone 1 is ready; Go from Phone 2's
+    // Remote starts the tones without it.
+    two.send(&ClientMessage::StartCalibration).await;
+    let waiting = at(
+        CalibrationPhase::Waiting,
+        vec![mic(1, true, false), mic(2, true, false)],
+    );
+    all_hear(&mut [&mut stage, &mut one, &mut two], &waiting).await;
+    one.send(&ClientMessage::CalibrationListening).await;
+    let one_ready = at(
+        CalibrationPhase::Waiting,
+        vec![mic(1, true, true), mic(2, true, false)],
+    );
+    all_hear(&mut [&mut stage, &mut one, &mut two], &one_ready).await;
+    two.send(&ClientMessage::CalibrationGo).await;
+    let tones = at(CalibrationPhase::Tones, vec![mic(1, true, true)]);
+    all_hear(&mut [&mut stage, &mut one, &mut two], &tones).await;
+
+    // The results reach the Remotes too, and Done there closes them.
+    stage
+        .send(&ClientMessage::FinishCalibration {
+            results: vec![success(1, 98.0, -40.0)],
+        })
+        .await;
+    let results = at(
+        CalibrationPhase::Results,
+        vec![CalibrationMic {
+            outcome: Some(CalibrationOutcome::Calibrated { mic_delay_ms: 98.0 }),
+            ..mic(1, true, true)
+        }],
+    );
+    all_hear(&mut [&mut stage, &mut one, &mut two], &results).await;
+    two.send(&ClientMessage::EndCalibration).await;
+    all_hear(&mut [&mut stage, &mut one, &mut two], &None).await;
+}
+
+#[tokio::test]
 async fn the_tones_start_by_themselves_once_every_chosen_mic_is_ready() {
     let app = TestApp::start().await;
     let (mut stage, code) = open_stage(&app).await;
