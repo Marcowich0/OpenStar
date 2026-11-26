@@ -238,6 +238,38 @@ async fn a_duet_alternates_voices_and_a_stage_request_gives_an_empty_line_up() {
 }
 
 #[tokio::test]
+async fn change_singers_on_the_waiting_head_prefills_its_line_up_again() {
+    let (app, solo, _) = app_with_songs().await;
+    let (mut stage, code) = first_stage(&app).await;
+    let (mut bo, bo_id) = joined_phone(&app, &mut stage, &code, 1, "Bo", PaletteKey::Sky).await;
+    let (_ann, ann_id) = joined_phone(&app, &mut stage, &code, 2, "Ann", PaletteKey::Teal).await;
+    party_changed(&mut bo).await;
+
+    bo.send(&add(solo, None)).await;
+    let (party, _) = party_changed(&mut stage).await;
+    let head = party.queue[0].request_id;
+    assert_eq!(
+        party.line_up.unwrap().seats,
+        vec![seat(bo_id, phone_mic(1), SeatVoice::P1)]
+    );
+
+    stage
+        .send(&ClientMessage::SetRequestedPlayers {
+            request_id: head,
+            requested_players: vec![ann_id],
+        })
+        .await;
+    let (party, _) = party_changed(&mut stage).await;
+    assert_eq!(party.queue[0].requested_players, vec![ann_id]);
+    let line_up = party.line_up.unwrap();
+    assert_eq!(line_up.request_id, head);
+    assert_eq!(
+        line_up.seats,
+        vec![seat(ann_id, phone_mic(2), SeatVoice::P1)]
+    );
+}
+
+#[tokio::test]
 async fn a_seated_phone_reports_its_mic_blocked_and_open_again() {
     let (app, solo, _) = app_with_songs().await;
     let (mut stage, code) = first_stage(&app).await;

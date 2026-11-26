@@ -1916,6 +1916,13 @@ impl LiveState {
         let actor = self.remote_actor(id)?;
         let mut party = self.party()?;
         queue::set_players(&mut party, request_id, requested_players)?;
+        // Change singers on the head whose Line-up waits: the Line-up is
+        // prefilled again from the new singers (in `commit_queue`).
+        if party.playing.is_none()
+            && party.line_up.as_ref().map(|line_up| line_up.request_id) == Some(request_id)
+        {
+            party.line_up = None;
+        }
         let change = self.request_change(queue::find(&party, request_id)?).await;
         self.commit_queue(party, actor, PartyEvent::RequestedPlayersChanged(change))
             .await
@@ -2810,8 +2817,9 @@ impl LiveState {
     }
 
     /// Prefills the Line-up of `party`'s head when the head is a Request
-    /// that has none yet (it just reached the head), and drops it when
-    /// there is no head. A Line-up already waiting is kept as it is.
+    /// that has none yet (it just reached the head, or its singers were
+    /// changed), and drops it when there is no head. A Line-up already
+    /// waiting is kept as it is.
     async fn follow_head(&self, party: &mut PartySnapshot) -> Result<(), UserMessage> {
         let Some(head) = party.head else {
             party.line_up = None;
