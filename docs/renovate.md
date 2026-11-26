@@ -30,6 +30,10 @@ Rules that hold across the table:
 - **Weekly** means Monday, 00:00–06:00 UTC; yt-dlp is checked every day in the same hours.
 - **npm bumps wait two days after the release**, because pnpm refuses packages published
   less than a day ago and the lockfile update would fail.
+- **The Caddy example is kept by hand.** The pins inside `dockerfile_inline` in
+  `compose.caddy.yaml` (`caddy:<v>-builder`, `caddy:<v>`, the `caddy-dns/cloudflare`
+  module and the `openstar-caddy:<v>` tag) are no file Renovate reads: bump them
+  together, by hand.
 - **`debian:12` gets digest bumps only.** A newer Debian would raise the Mic bridge's
   glibc floor (2.35, checked by the bridge stage), which was decided. Runner labels (`runs-on: ubuntu-24.04`) are not
   bumped either; change them by hand.

@@ -48,7 +48,7 @@ jobs:
         with:
           tool: cargo-deny@0.22.0
 
-      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
         with:
           just-version: 1.59.0
 
@@ -108,7 +108,7 @@ jobs:
         run: |
           scripts/ci-image-meta.sh "$GITHUB_EVENT_NAME" "$GITHUB_REF" "$GITHUB_SHA" | tee -a "$GITHUB_OUTPUT"
 
-      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
         with:
           just-version: 1.59.0
 

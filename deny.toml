@@ -20,13 +20,15 @@ allow = [
     "BSD-2-Clause",
     "BSD-3-Clause",
     "BSL-1.0",
-    # ISC: MIT-style, permissive. Needed by the TLS stack of the USDB client
-    # (rustls-webpki, untrusted, aws-lc-rs, aws-lc-sys).
+    # ISC: MIT-style, permissive. Needed by the TLS stack (rustls-webpki,
+    # untrusted, aws-lc-rs, aws-lc-sys) of the USDB client and of the Mic
+    # bridge (its self-update download and wss://).
     "ISC",
     "MIT",
     # The Unicode licence: permissive, it only asks that its notice is kept. Needed
-    # by unicode-ident (proc-macro2, syn) and the ICU crates (url, idna) that the
-    # test harness's HTTP client pulls in.
+    # by unicode-ident (proc-macro2, syn) and the ICU crates (url, idna) that
+    # reqwest pulls in: the test harness's, the USDB client's and the Mic
+    # bridge's HTTP client.
     "Unicode-3.0",
     "Unlicense",
     "Zlib",
