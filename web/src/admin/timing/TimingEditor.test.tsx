@@ -5,12 +5,15 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "../../api/queryClient";
 import type { Job } from "../../generated/Job";
 import type { JobState } from "../../generated/JobState";
+import type { LibraryReadOnly } from "../../generated/LibraryReadOnly";
+import type { TimingOperation } from "../../generated/TimingOperation";
+import type { TimingSave } from "../../generated/TimingSave";
 import type { SongDetail } from "../../generated/SongDetail";
 import { song as testSong } from "../../timing/testSong";
 import { TimingEditor } from "./TimingEditor";
@@ -65,30 +68,115 @@ function trackBytes(): ArrayBuffer {
   return view.buffer;
 }
 
-interface Server {
-  calls: string[];
+interface ServerOptions {
+  unlocked?: boolean;
+  libraryReadOnly?: LibraryReadOnly | null;
+  /** The file changed on disk: preview and save answer `409 songFileChanged`. */
+  conflict?: boolean;
 }
 
-function fakeServer(start: unknown): Server {
-  const server: Server = { calls: [] };
+interface Server {
+  calls: string[];
+  /** The JSON bodies sent, by `"METHOD /path"`, in order. */
+  bodies: Record<string, unknown[]>;
+  unlocked: boolean;
+  conflict: boolean;
+}
+
+const ADMIN_PIN = "4321";
+const FILE_VERSION = "a".repeat(64);
+const SAVED_VERSION = "b".repeat(64);
+
+/**
+ * What the patcher would change for `operations` in the test Song's file
+ * (`#GAP` on line 3, `#BPM` on line 4); a stand-in for the server's.
+ */
+function changedLines(operations: TimingOperation[]) {
+  const changed = new Map<number, { line: number; old: string; new: string }>();
+  for (const op of operations) {
+    if (op.op === "setGap")
+      changed.set(3, {
+        line: 3,
+        old: "#GAP:0",
+        new: `#GAP:${String(Math.round(op.seconds * 1000))}`,
+      });
+    if (op.op === "setBpm")
+      changed.set(4, {
+        line: 4,
+        old: "#BPM:150",
+        new: `#BPM:${String(op.beatsPerMinute / 4)}`,
+      });
+  }
+  return [...changed.values()].filter((c) => c.old !== c.new);
+}
+
+function fakeServer(start: unknown, options: ServerOptions = {}): Server {
+  const server: Server = {
+    calls: [],
+    bodies: {},
+    unlocked: options.unlocked ?? false,
+    conflict: options.conflict ?? false,
+  };
   vi.stubGlobal(
     "fetch",
     vi.fn((input: string, init: RequestInit) => {
       const method = init.method ?? "GET";
-      server.calls.push(`${method} ${input}`);
-      const json = (body: unknown) =>
+      const route = `${method} ${input}`;
+      server.calls.push(route);
+      const body =
+        typeof init.body === "string"
+          ? (JSON.parse(init.body) as unknown)
+          : null;
+      (server.bodies[route] ??= []).push(body);
+      const json = (status: number, answer: unknown) =>
         Promise.resolve(
-          new Response(JSON.stringify(body), {
-            status: 200,
+          new Response(JSON.stringify(answer), {
+            status,
             headers: { "Content-Type": "application/json" },
           }),
         );
-      if (input === "/api/songs/7") return json(detail());
-      if (method === "POST" && input === "/api/songs/7/pitch-track")
-        return json(start);
-      if (input === "/api/songs/7/pitch-track")
-        return Promise.resolve(new Response(trackBytes(), { status: 200 }));
-      return Promise.resolve(new Response(null, { status: 404 }));
+      switch (route) {
+        case "GET /api/songs/7":
+          return json(200, detail());
+        case "POST /api/songs/7/pitch-track":
+          return json(200, start);
+        case "GET /api/songs/7/pitch-track":
+          return Promise.resolve(new Response(trackBytes(), { status: 200 }));
+        case "GET /api/server-info":
+          return json(200, {
+            version: "dev",
+            schemaVersion: 1,
+            libraryReadOnly: options.libraryReadOnly ?? null,
+            publicUrl: null,
+          });
+        case "GET /api/unlock":
+          return json(200, { unlocked: server.unlocked });
+        case "POST /api/unlock": {
+          const { pin } = body as { pin: string };
+          if (pin !== ADMIN_PIN) return json(403, { code: "wrongPin" });
+          server.unlocked = true;
+          return json(200, { unlocked: true });
+        }
+        case "POST /api/songs/7/timing/preview": {
+          if (server.conflict) return json(409, { code: "songFileChanged" });
+          const { operations } = body as { operations: TimingOperation[] };
+          return json(200, {
+            base: FILE_VERSION,
+            changed: changedLines(operations),
+          });
+        }
+        case "POST /api/songs/7/timing": {
+          if (!server.unlocked) return json(401, { code: "unlockRequired" });
+          if (server.conflict) return json(409, { code: "songFileChanged" });
+          const { operations } = body as TimingSave;
+          return json(200, {
+            base: SAVED_VERSION,
+            changed: changedLines(operations),
+          });
+        }
+        default:
+          return Promise.resolve(new Response(null, { status: 404 }));
+      }
     }),
   );
   return server;
@@ -119,8 +207,11 @@ async function settle() {
   });
 }
 
-async function open(start: unknown = { state: "ready" }) {
-  const server = fakeServer(start);
+async function open(
+  start: unknown = { state: "ready" },
+  options: ServerOptions = {},
+) {
+  const server = fakeServer(start, options);
   const feed = jobFeed();
   const router = createRouter({
     routeTree: createRootRoute({
@@ -202,9 +293,10 @@ describe("opening a Song's Timing editor", () => {
     expect(detailCanvas()).toHaveAttribute("data-view-start", "1");
   });
 
-  it("never changes the Song: nothing but the Song and its Pitch track is asked for", async () => {
+  it("never changes the Song: nothing but the Song, its Pitch track and the server's state is asked for", async () => {
     const { server } = await open();
-    expect(server.calls.sort()).toEqual([
+    expect([...new Set(server.calls)].sort()).toEqual([
+      "GET /api/server-info",
       "GET /api/songs/7",
       "GET /api/songs/7/pitch-track",
       "POST /api/songs/7/pitch-track",
@@ -268,5 +360,257 @@ describe("moving around the Timing editor", () => {
     expect(Number(detailCanvas().getAttribute("data-view-start"))).toBeLessThan(
       12,
     );
+  });
+});
+
+const gapField = () => screen.getByRole("textbox", { name: "#GAP (ms)" });
+const bpmField = () => screen.getByRole("textbox", { name: "#BPM" });
+const editList = () => screen.getByRole("list", { name: "Edits" });
+const preview = () => screen.getByRole("region", { name: "What Save changes" });
+const saveButton = () => screen.getByRole("button", { name: "Save" });
+
+async function type(field: HTMLElement, value: string) {
+  act(() => {
+    fireEvent.change(field, { target: { value } });
+    fireEvent.keyDown(field, { key: "Enter" });
+  });
+  await settle();
+}
+
+function press(name: string) {
+  act(() => {
+    fireEvent.click(screen.getByRole("button", { name }));
+  });
+}
+
+async function key(init: KeyboardEventInit) {
+  act(() => {
+    fireEvent.keyDown(window, init);
+  });
+  await settle();
+}
+
+function pressOk() {
+  const ok = screen.getByRole("button", { name: "OK" });
+  act(() => {
+    fireEvent.pointerDown(ok, { pointerType: "mouse" });
+    fireEvent.pointerUp(ok, { pointerType: "mouse" });
+    fireEvent.click(ok);
+  });
+}
+
+async function enterPin(pin: string) {
+  for (const digit of pin) press(digit);
+  pressOk();
+  await settle();
+}
+
+const entries = () =>
+  Array.from(editList().querySelectorAll("li")).map((li) => ({
+    text: li.textContent,
+    undone: li.querySelector("del") !== null,
+  }));
+
+describe("typing #GAP and #BPM", () => {
+  it("adds an edit, rounded to whole ms, and moves the Notes", async () => {
+    await open();
+    expect(gapField()).toHaveValue("0");
+    expect(screen.queryByText("file: 0")).toBeNull();
+
+    await type(gapField(), "1000.4");
+
+    expect(gapField()).toHaveValue("1000");
+    expect(screen.getByText("file: 0")).toBeInTheDocument();
+    expect(entries()).toEqual([
+      { text: "GAP typed: 0 → 1,000 ms", undone: false },
+    ]);
+    // The first Note now sits at 1–2 s, where nothing is sung: the share
+    // falls, and the file's own share shows beside it.
+    expect(share()).toHaveAttribute("aria-valuenow", "0");
+    expect(screen.getByText("file: 50 %")).toBeInTheDocument();
+  });
+
+  it("rounds #BPM to two decimals and shows the file's value", async () => {
+    await open();
+    expect(bpmField()).toHaveValue("150");
+    await type(bpmField(), "151.456");
+    expect(bpmField()).toHaveValue("151.46");
+    expect(screen.getByText("file: 150")).toBeInTheDocument();
+    expect(entries()).toEqual([
+      { text: "BPM typed: 150 → 151.46", undone: false },
+    ]);
+  });
+
+  it("ignores a value that is not a number", async () => {
+    await open();
+    await type(gapField(), "soon");
+    expect(gapField()).toHaveValue("0");
+    expect(entries()).toEqual([]);
+  });
+});
+
+describe("the edit list", () => {
+  it("undoes and redoes by button, striking undone edits until a new edit clears them", async () => {
+    await open();
+    await type(gapField(), "100");
+    await type(gapField(), "200");
+
+    press("Undo");
+    await settle();
+    expect(gapField()).toHaveValue("100");
+    expect(entries()).toEqual([
+      { text: "GAP typed: 0 → 100 ms", undone: false },
+      { text: "GAP typed: 100 → 200 ms", undone: true },
+    ]);
+
+    press("Redo");
+    await settle();
+    expect(gapField()).toHaveValue("200");
+    expect(entries().map((e) => e.undone)).toEqual([false, false]);
+
+    press("Undo");
+    await settle();
+    await type(bpmField(), "160");
+    expect(entries()).toEqual([
+      { text: "GAP typed: 0 → 100 ms", undone: false },
+      { text: "BPM typed: 150 → 160", undone: false },
+    ]);
+  });
+
+  it("undoes with Ctrl/Cmd+Z and redoes with Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y", async () => {
+    await open();
+    await type(gapField(), "100");
+
+    await key({ key: "z", ctrlKey: true });
+    expect(gapField()).toHaveValue("0");
+    await key({ key: "Z", metaKey: true, shiftKey: true });
+    expect(gapField()).toHaveValue("100");
+    await key({ key: "z", metaKey: true });
+    expect(gapField()).toHaveValue("0");
+    await key({ key: "y", ctrlKey: true });
+    expect(gapField()).toHaveValue("100");
+  });
+
+  it("goes back to the file, dropping every edit", async () => {
+    await open();
+    await type(gapField(), "100");
+    await type(bpmField(), "160");
+    press("Undo");
+    await settle();
+
+    press("Back to the file");
+    await settle();
+    expect(gapField()).toHaveValue("0");
+    expect(bpmField()).toHaveValue("150");
+    expect(entries()).toEqual([]);
+  });
+});
+
+describe("the save preview", () => {
+  it("says nothing would change before any edit", async () => {
+    await open();
+    expect(preview()).toHaveTextContent(
+      "nothing: the file would stay as it is",
+    );
+    expect(saveButton()).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("asks the server with the current operations and lists only the lines that change", async () => {
+    const { server } = await open();
+    await type(gapField(), "753");
+    await type(bpmField(), "216.26");
+
+    expect(server.bodies["POST /api/songs/7/timing/preview"]?.at(-1)).toEqual({
+      operations: [
+        { op: "setGap", seconds: 0.753 },
+        { op: "setBpm", beatsPerMinute: 865.04 },
+      ],
+    });
+    const rows = within(preview()).getAllByRole("row").slice(1);
+    expect(rows.map((r) => r.textContent)).toEqual([
+      "3#GAP:0#GAP:753",
+      "4#BPM:150#BPM:216.26",
+    ]);
+    expect(preview()).toHaveTextContent(
+      "2 lines changed, everything else byte for byte",
+    );
+  });
+
+  it("says nothing would change when the edits come back to the file's values", async () => {
+    await open();
+    await type(gapField(), "100");
+    await type(gapField(), "0");
+    expect(preview()).toHaveTextContent(
+      "nothing: the file would stay as it is",
+    );
+  });
+});
+
+describe("saving a Timing edit", () => {
+  it("asks for the Admin PIN without an Unlock, then saves the operations against the previewed file", async () => {
+    const { server } = await open();
+    await type(gapField(), "753");
+
+    press("Save");
+    await settle();
+    expect(screen.getByRole("dialog", { name: "Admin PIN" })).toBeVisible();
+    await enterPin(ADMIN_PIN);
+
+    expect(server.bodies["POST /api/songs/7/timing"]?.at(-1)).toEqual({
+      base: FILE_VERSION,
+      operations: [{ op: "setGap", seconds: 0.753 }],
+    });
+    // The saved file is the new base: no edits, no "file:" values.
+    expect(entries()).toEqual([]);
+    expect(gapField()).toHaveValue("753");
+    expect(screen.queryByText("file: 0")).toBeNull();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    expect(screen.getByRole("status", { name: "Saved" })).toHaveTextContent(
+      "Saved: 1 line changed",
+    );
+  });
+
+  it("goes straight through with an Unlock", async () => {
+    const { server } = await open({ state: "ready" }, { unlocked: true });
+    await type(gapField(), "753");
+    press("Save");
+    await settle();
+    expect(screen.queryByRole("dialog", { name: "Admin PIN" })).toBeNull();
+    expect(server.calls).toContain("POST /api/songs/7/timing");
+    expect(entries()).toEqual([]);
+  });
+
+  it("shows the conflict when the file changed since it was loaded, and keeps the edits", async () => {
+    const { server } = await open({ state: "ready" }, { unlocked: true });
+    await type(gapField(), "753");
+    server.conflict = true;
+
+    press("Save");
+    await settle();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "This Song's file changed on disk since it was opened",
+    );
+    expect(entries()).toHaveLength(1);
+  });
+
+  it("is disabled with the read-only notice when the Library is read-only", async () => {
+    const { server } = await open(
+      { state: "ready" },
+      {
+        unlocked: true,
+        libraryReadOnly: { code: "songsFolderNotWritable", songsDir: "/songs" },
+      },
+    );
+    await type(gapField(), "753");
+
+    expect(
+      screen.getByText(
+        "OpenStar cannot write to the songs folder /songs, so the Library is read-only",
+      ),
+    ).toBeInTheDocument();
+    expect(saveButton()).toHaveAttribute("aria-disabled", "true");
+    press("Save");
+    await settle();
+    expect(server.calls).not.toContain("POST /api/songs/7/timing");
   });
 });
