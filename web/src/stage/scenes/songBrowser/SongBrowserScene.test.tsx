@@ -350,6 +350,29 @@ describe("the song browser", () => {
     expect(selectedCover()).toHaveAttribute("data-song-id", "4");
   });
 
+  it("steps once per → however quickly the presses come, and Enter picks the Song shown", async () => {
+    const { sent } = setup();
+    // As in a browser: no act() around the presses, so React renders and
+    // runs its effects on its own schedule between them.
+    const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    const before = env.IS_REACT_ACT_ENVIRONMENT;
+    env.IS_REACT_ACT_ENVIRONMENT = false;
+    const key = (k: string) =>
+      fireEvent.keyDown(document.activeElement ?? document.body, { key: k });
+    try {
+      key("ArrowRight");
+      key("ArrowRight");
+      key("Enter");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    } finally {
+      env.IS_REACT_ACT_ENVIRONMENT = before;
+    }
+    expect(title()).toHaveTextContent("Moon");
+    expect(adds(sent)).toEqual([
+      { type: "addRequest", songId: 3, requestedPlayers: null },
+    ]);
+  });
+
   it("selects a neighbour on a click", () => {
     setup();
     click(screen.getByTestId("carousel-cover-3"));
