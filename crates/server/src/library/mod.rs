@@ -476,7 +476,7 @@ mod tests {
 
     /// A scanner without ffprobe and ffmpeg (an empty `PATH`): these tests
     /// look at `.txt` files only, so their empty media is never probed.
-    async fn scanner(songs: &std::path::Path, appdata: &std::path::Path) -> Scanner {
+    pub(super) async fn scanner(songs: &std::path::Path, appdata: &std::path::Path) -> Scanner {
         let db = Database::open(appdata).await.unwrap().database;
         let live = LiveHandle::start(db.clone()).await.unwrap();
         let env = JobEnv {

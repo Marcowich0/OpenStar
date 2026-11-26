@@ -284,6 +284,20 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             library::media,
         )
+        // The trash: listing it changes nothing; a restore moves a folder
+        // back into the Library (docs/agents/guard-rule.md).
+        .add(
+            Method::GET,
+            "/api/library/trash",
+            NotGuarded,
+            library::trash::list,
+        )
+        .add(
+            Method::POST,
+            "/api/library/trash/{id}/restore",
+            Guarded(Writes),
+            library::trash::restore,
+        )
         .add(
             Method::GET,
             "/api/library/problems",

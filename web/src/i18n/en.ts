@@ -606,6 +606,17 @@ export const en = {
   "admin.songs.delete": "Delete {title}",
   "admin.songs.deleteShort": "Delete",
   "admin.songs.deleteFailed": "The Song could not be deleted",
+  "admin.songs.trash": "Trash",
+  "admin.songs.trash.kept":
+    "Deleted Songs are kept for 30 days, then deleted for good.",
+  "admin.songs.trash.list": "Songs in the trash",
+  "admin.songs.trash.empty": "The trash is empty",
+  "admin.songs.trash.loading": "Loading the trash…",
+  "admin.songs.trash.failed": "The trash could not be loaded",
+  "admin.songs.trash.deleted": "Deleted {when}",
+  "admin.songs.trash.restore": "Restore {path}",
+  "admin.songs.trash.restoreShort": "Restore",
+  "admin.songs.trash.restoreFailed": "The Song could not be restored",
   "admin.songs.timing": "Timing",
   "admin.songs.timingOf": "Timing of {title}",
   "admin.songs.fit.title": "Auto-fit",
@@ -741,6 +752,10 @@ export const en = {
     "Its folder also holds {otherTxt}, which deleting the folder would take with it. Move one of them to a folder of its own first",
   "userMessage.songInLibraryRoot":
     "This Song's .txt sits directly in the Library folder, so it has no folder of its own to delete. Move it into a folder first",
+  "userMessage.notInTrash":
+    "This Song is no longer in the trash: it was restored or purged",
+  "userMessage.restoreFolderExists":
+    "A folder named {path} is in the Library now, and OpenStar never writes into an existing folder. Rename or move that folder first",
   "userMessage.notWhileSongPlays": "Not while a Song is playing",
   "userMessage.avSyncNotRunning": "Check A/V sync is not running",
   "userMessage.avSyncRunning": "Check A/V sync is running",
