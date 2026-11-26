@@ -1,9 +1,9 @@
 // The Phone's mic strip (ticket #128): while this Phone is the Mic of a seat
 // in the Line-up, "Turn on my mic" opens it with one tap, and the small
 // diagnostics readout shows readings per second and the detector's cost per
-// window. The full-screen mic takeover (#167) replaces this strip; the
-// lifecycle around it (release on leaving the Line-up, Wake Lock, Sing
-// again) is #166's.
+// window. After the page was hidden (a lost mic, #166) it says "Your mic
+// stopped" and offers Sing again. The full-screen mic takeover (#167)
+// replaces this strip.
 
 import { useSyncExternalStore } from "react";
 
@@ -53,8 +53,23 @@ export function PhoneMicCard({
             ? t("phoneMic.opening")
             : state === "failed"
               ? t("phoneMic.failed")
-              : t("phoneMic.seated")}
+              : state === "lost"
+                ? t("phoneMic.stopped")
+                : t("phoneMic.seated")}
       </p>
+      {state === "lost" && (
+        <>
+          <p className="text-sm text-white/80">{t("phoneMic.stoppedBody")}</p>
+          <Button
+            fill="green"
+            onPress={() => {
+              mic.singAgain();
+            }}
+          >
+            {t("phoneMic.singAgain")}
+          </Button>
+        </>
+      )}
       {(state === "off" || state === "failed") && (
         <Button
           fill="green"

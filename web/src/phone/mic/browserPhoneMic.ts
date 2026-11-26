@@ -1,4 +1,5 @@
-// The browser's Phone mic: one per live store, on the real devices.
+// The browser's Phone mic: one per live store, on the real devices, with the
+// page's visibility and the screen Wake Lock, following the Line-up.
 
 import type { LiveStore } from "../../live/liveStore";
 import { loadCaptureClock } from "../../pitch/clock/senderSession";
@@ -7,7 +8,14 @@ import {
   createPitchNode,
   detectorWasm,
 } from "../../pitch/worklet/pitchWorklet";
-import { createPhoneMic, type PhoneMic } from "./phoneMic";
+import type { PhoneId } from "../../generated/PhoneId";
+import { followLineUp } from "./micLineUp";
+import {
+  createPhoneMic,
+  type PageVisibility,
+  type PhoneMic,
+  type WakeLockHold,
+} from "./phoneMic";
 
 const mics = new WeakMap<LiveStore, PhoneMic>();
 
@@ -21,7 +29,28 @@ function getUserMedia(constraints: MediaStreamConstraints) {
   return navigator.mediaDevices.getUserMedia(constraints);
 }
 
-export function phoneMicFor(store: LiveStore): PhoneMic {
+const documentPage: PageVisibility = {
+  hidden: () => document.visibilityState === "hidden",
+  onChange(listener) {
+    // `pagehide` too: a page going into the back/forward cache or being
+    // closed tells the Stage while it still can.
+    document.addEventListener("visibilitychange", listener);
+    window.addEventListener("pagehide", listener);
+    return () => {
+      document.removeEventListener("visibilitychange", listener);
+      window.removeEventListener("pagehide", listener);
+    };
+  },
+};
+
+function requestWakeLock(): Promise<WakeLockHold> {
+  // Missing before Chrome 84 and Safari 16.4: the mic works without it.
+  if (!("wakeLock" in navigator))
+    return Promise.reject(new Error("navigator.wakeLock is missing"));
+  return navigator.wakeLock.request("screen");
+}
+
+export function phoneMicFor(store: LiveStore, phoneId: PhoneId): PhoneMic {
   let mic = mics.get(store);
   if (!mic) {
     mic = createPhoneMic({
@@ -39,7 +68,10 @@ export function phoneMicFor(store: LiveStore): PhoneMic {
           module: await WebAssembly.compile(await detectorWasm()),
           sampleRate: COST_SAMPLE_RATE,
         }),
+      page: documentPage,
+      wakeLock: requestWakeLock,
     });
+    followLineUp(store, phoneId, mic);
     mics.set(store, mic);
   }
   return mic;

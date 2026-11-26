@@ -104,7 +104,7 @@ export function Remote({
       <PhoneMicCard
         store={store}
         myPhoneId={phoneId}
-        mic={mic ?? phoneMicFor(store)}
+        mic={mic ?? phoneMicFor(store, phoneId)}
       />
       {REMOTE_TABS.map((id) => (
         <TabPanel key={id} id={id} className="grow px-5 pb-4 outline-none">

@@ -5,9 +5,13 @@
 // this path ever brings Song time, Beats, lyrics or Notes to the Phone.
 //
 // It lives outside React, one per live store, so the mic stays open while
-// the Remote's screens change. Opening it only on a tap, releasing it when
-// the Phone leaves the Line-up and Sing again are #166's; the blocked-mic
-// reasons and their report are #129's.
+// the Remote's screens change. Its lifecycle (#166): the tap opens it and
+// requests the screen Wake Lock, asked for again each time the page is
+// visible again; a hidden page counts as a lost mic (capture stops, the
+// Stage is told with `micPage`), and the Sing again tap reopens it on a new
+// context, so the frame mapping starts afresh. `followLineUp` releases it
+// when the Phone leaves the Line-up. The blocked-mic reasons and their
+// report are #129's.
 
 import type { ClientMessage } from "../../generated/ClientMessage";
 import type { ClockPongFields } from "../../pitch/clock/senderSession";
@@ -21,7 +25,8 @@ import {
   type DetectorCost,
 } from "../../pitch/capture/diagnostics";
 
-export type PhoneMicState = "off" | "opening" | "on" | "failed";
+/** `lost`: the page was hidden while the mic was open; Sing again reopens it. */
+export type PhoneMicState = "off" | "opening" | "on" | "failed" | "lost";
 
 export interface PhoneMicSnapshot {
   state: PhoneMicState;
@@ -36,8 +41,22 @@ export interface PhoneMic {
   subscribe: (listener: () => void) => () => void;
   /** Call from the tap's handler itself: opens the mic and starts sync. */
   turnOn: () => void;
-  /** Releases the mic. */
+  /** Releases the mic (and the Wake Lock) for good. */
   turnOff: () => void;
+  /** The Sing again tap, once `lost`: reopens the mic on a new context. */
+  singAgain: () => void;
+}
+
+/** The page's visibility (`document.visibilityState`). */
+export interface PageVisibility {
+  hidden: () => boolean;
+  /** Subscribes to visibility changes; returns the unsubscribe. */
+  onChange: (listener: () => void) => () => void;
+}
+
+/** A held screen Wake Lock (`WakeLockSentinel`). */
+export interface WakeLockHold {
+  release: () => Promise<void>;
 }
 
 export interface PhoneMicOptions {
@@ -54,6 +73,10 @@ export interface PhoneMicOptions {
   measureCost: () => Promise<DetectorCost>;
   setTimer?: (run: () => void, ms: number) => unknown;
   clearTimer?: (timer: unknown) => void;
+  /** The page's visibility; without it the page counts as always visible. */
+  page?: PageVisibility;
+  /** Requests the screen Wake Lock (`navigator.wakeLock.request("screen")`). */
+  wakeLock?: () => Promise<WakeLockHold>;
 }
 
 /** How often the readout's readings per second is refreshed. */
@@ -79,6 +102,9 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
   let readout: unknown = null;
   /** Bumped on every turn on or off, so a late result is ignored. */
   let attempt = 0;
+  let wakeLock: WakeLockHold | null = null;
+  /** Bumped on every request and release, so a late grant is let go. */
+  let wakeAttempt = 0;
 
   function update(next: Partial<PhoneMicSnapshot>) {
     const merged = { ...snapshot, ...next };
@@ -104,6 +130,101 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
     readout = null;
   }
 
+  function requestWakeLock() {
+    if (!options.wakeLock) return;
+    const mine = ++wakeAttempt;
+    let request: Promise<WakeLockHold>;
+    try {
+      request = options.wakeLock();
+    } catch {
+      return;
+    }
+    // Refused: the mic keeps working, only the screen may go dark.
+    request.then(
+      (hold) => {
+        if (mine !== wakeAttempt) {
+          void hold.release().catch(() => undefined);
+          return;
+        }
+        const old = wakeLock;
+        wakeLock = hold;
+        if (old) void old.release().catch(() => undefined);
+      },
+      () => undefined,
+    );
+  }
+
+  function releaseWakeLock() {
+    wakeAttempt++;
+    const old = wakeLock;
+    wakeLock = null;
+    if (old) void old.release().catch(() => undefined);
+  }
+
+  /** Stops capture and the readout; the state is the caller's. */
+  function stopPipeline() {
+    attempt++;
+    stopReadout();
+    pipeline?.stop();
+    pipeline = null;
+  }
+
+  function open() {
+    const mine = ++attempt;
+    update({ state: "opening" });
+    // Synchronous up to the first await: still inside the tap.
+    startCapture({
+      ...capture,
+      mode: "remote",
+      deliver: (reading) => {
+        store.send({ type: "pitchReading", reading });
+        rate.add(capture.now());
+      },
+      sendPing: (t0) => {
+        store.send({ type: "clockPing", t0 });
+      },
+      onPong: store.onClockPong,
+    }).then(
+      (started) => {
+        if (mine !== attempt) {
+          started.stop();
+          return;
+        }
+        pipeline = started;
+        update({ state: "on" });
+        refreshReadout();
+        if (snapshot.detector === null) {
+          options.measureCost().then(
+            (detector) => {
+              update({ detector });
+            },
+            () => undefined,
+          );
+        }
+      },
+      () => {
+        if (mine === attempt) update({ state: "failed" });
+      },
+    );
+    requestWakeLock();
+  }
+
+  options.page?.onChange(() => {
+    const { state } = snapshot;
+    if (options.page?.hidden()) {
+      // Capture in the background is never relied on: the mic is lost.
+      if (state !== "opening" && state !== "on") return;
+      stopPipeline();
+      update({ state: "lost", readingsPerSecond: 0 });
+      store.send({ type: "micPage", visible: false });
+      return;
+    }
+    if (state === "lost") store.send({ type: "micPage", visible: true });
+    // The browser let the Wake Lock go while the page was hidden.
+    if (state === "opening" || state === "on" || state === "lost")
+      requestWakeLock();
+  });
+
   return {
     getSnapshot: () => snapshot,
     subscribe(listener) {
@@ -113,50 +234,17 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
       };
     },
     turnOn() {
-      if (snapshot.state === "opening" || snapshot.state === "on") return;
-      const mine = ++attempt;
-      update({ state: "opening" });
-      // Synchronous up to the first await: still inside the tap.
-      startCapture({
-        ...capture,
-        mode: "remote",
-        deliver: (reading) => {
-          store.send({ type: "pitchReading", reading });
-          rate.add(capture.now());
-        },
-        sendPing: (t0) => {
-          store.send({ type: "clockPing", t0 });
-        },
-        onPong: store.onClockPong,
-      }).then(
-        (started) => {
-          if (mine !== attempt) {
-            started.stop();
-            return;
-          }
-          pipeline = started;
-          update({ state: "on" });
-          refreshReadout();
-          if (snapshot.detector === null) {
-            options.measureCost().then(
-              (detector) => {
-                update({ detector });
-              },
-              () => undefined,
-            );
-          }
-        },
-        () => {
-          if (mine === attempt) update({ state: "failed" });
-        },
-      );
+      if (snapshot.state !== "off" && snapshot.state !== "failed") return;
+      open();
     },
     turnOff() {
-      attempt++;
-      stopReadout();
-      pipeline?.stop();
-      pipeline = null;
+      stopPipeline();
+      releaseWakeLock();
       update({ state: "off", readingsPerSecond: 0 });
+    },
+    singAgain() {
+      if (snapshot.state !== "lost") return;
+      open();
     },
   };
 }

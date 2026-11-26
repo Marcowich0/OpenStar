@@ -162,6 +162,7 @@ export function receive(
     case "clockPing":
     case "clockPong":
     case "micClosed":
+    case "micPage":
     case "localMicLevels":
       // The Pitch reading relay, clock sync and bridge levels change no live state; they
       // are routed away from the reducer in liveStore.ts (#127).

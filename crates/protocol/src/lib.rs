@@ -106,6 +106,10 @@ pub enum ClientMessage {
         /// epoch: a new value means the Stage's clock is a new one.
         epoch: f64,
     },
+    /// This Phone's page was hidden (its mic is lost: it stops sending
+    /// readings) or is visible again, relayed to the current Stage as a
+    /// [`ServerMessage::MicPage`] (dropped while there is none).
+    MicPage { visible: bool },
     /// Stores a Calibration run's successful results at `stage_output`, one
     /// per Mic included; a Mic left out keeps every value it had. Accepted
     /// only from the active Stage; needs no Admin PIN.
@@ -360,6 +364,9 @@ pub enum ServerMessage {
     ClockPong { t0: f64, ts: f64, epoch: f64 },
     /// Stage only: a Mic's WebSocket closed (one of the lost-Mic signals).
     MicClosed { mic: MicId },
+    /// Stage only: a Phone's page was hidden or is visible again (the
+    /// lost-Mic signals `pageHidden` and `pageVisible`).
+    MicPage { mic: MicId, visible: bool },
     /// The answer to a [`ClientMessage::CheckJoinCode`] with the current code.
     JoinCodeValid { join_code: JoinCode },
     /// Sent to a connection after its [`ClientMessage::Hello`] or accepted

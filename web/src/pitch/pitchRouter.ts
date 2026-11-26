@@ -62,7 +62,7 @@ export interface PitchRouter {
   receive: (mic: MicId, reading: PitchReading) => void;
   /**
    * Takes a Mic's signal: the server's `micClosed`, or a Phone reporting its
-   * page hidden or visible (no wire message carries that yet). Dropped
+   * page hidden or visible (the server's `micPage`). Dropped
    * unless the Mic sings in this Song.
    */
   signal: (mic: MicId, kind: MicSignal) => void;

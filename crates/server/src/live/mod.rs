@@ -561,6 +561,11 @@ impl LiveState {
                     self.send_to_stage(&ServerMessage::ClockPing { mic, t0 });
                 }
             }
+            Ok(ClientMessage::MicPage { visible }) => {
+                if let Some(mic) = self.acting_mic(id) {
+                    self.send_to_stage(&ServerMessage::MicPage { mic, visible });
+                }
+            }
             Ok(ClientMessage::ClockPong { mic, t0, ts, epoch }) => {
                 if self.stage().connection != Some(id) {
                     self.reject(id, UserMessage::NotTheStage);
