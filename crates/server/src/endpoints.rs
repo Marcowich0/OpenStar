@@ -111,6 +111,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // `POST /api/rounds`).
         | ClientMessage::ControlSong { .. }
         | ClientMessage::CloseResults
+        // The Stage's position report only tells Remotes how far the Song
+        // has got; it changes nothing kept.
+        | ClientMessage::ReportSongPosition { .. }
         // A bridge asking to join changes nothing until the Stage approves
         // it; approving needs no Admin PIN (becoming the Stage needed it).
         | ClientMessage::BridgeHello { .. }
