@@ -412,6 +412,7 @@ export const en = {
     "USDB is busy (HTTP {status, number}): OpenStar gave up after waiting",
   "userMessage.usdbUnexpectedStatus":
     "USDB answered with HTTP {status, number}",
+  "userMessage.pitchTrackFailed": "Couldn't listen to this Song",
 
   "apiError.wrongPin": "That is not the Admin PIN",
   "apiError.unlockRequired": "Enter the Admin PIN first",

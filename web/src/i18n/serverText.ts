@@ -97,6 +97,7 @@ export const userMessageText = byCode<UserMessage>({
   usdbGaveUp: ({ params }) => t("userMessage.usdbGaveUp", params),
   usdbUnexpectedStatus: ({ params }) =>
     t("userMessage.usdbUnexpectedStatus", params),
+  pitchTrackFailed: () => t("userMessage.pitchTrackFailed"),
 });
 
 /** An accepted change to the Party, as a toast. */

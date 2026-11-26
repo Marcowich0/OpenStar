@@ -339,3 +339,21 @@ proptest! {
         prop_assert_eq!(serde_json::from_str::<PartySnapshot>(&json).unwrap(), snapshot);
     }
 }
+
+#[test]
+fn pitch_track_start_wire_format() {
+    use openstar_protocol::jobs::JobId;
+    use openstar_protocol::pitch_track::PitchTrackStart;
+    assert_eq!(
+        serde_json::to_string(&PitchTrackStart::Ready).unwrap(),
+        r#"{"state":"ready"}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&PitchTrackStart::Computing { job: JobId(7) }).unwrap(),
+        r#"{"state":"computing","job":7}"#
+    );
+    assert_eq!(
+        serde_json::to_string(&UserMessage::PitchTrackFailed).unwrap(),
+        r#"{"code":"pitchTrackFailed"}"#
+    );
+}

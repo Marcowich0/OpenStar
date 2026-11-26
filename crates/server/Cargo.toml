@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 openstar-protocol.workspace = true
+openstar-detector.workspace = true
 anyhow.workspace = true
 getrandom.workspace = true
 html-escape.workspace = true
