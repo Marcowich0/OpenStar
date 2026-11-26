@@ -22,7 +22,9 @@ repository is public, so nothing copyrighted is committed here.
 5. **Floors only ever rise.** A threshold set from the first passing run (for
    example detector accuracy on real singing, or how many Beats a singing run
    stays voiced) may be raised when the code gets better, never lowered to make
-   a test pass.
+   a test pass. Lowering a floor is a spec change, not a test fix. The floors
+   live as committed values beside their data, for example
+   `readings/floors.json` for the Beat-value regression runs.
 
 ## The guard
 
