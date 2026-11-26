@@ -14,6 +14,13 @@
 # OPENSTAR_E2E_UPDATE_SCREENSHOTS=1; any other run compares against them and
 # refuses Playwright's own update flags.
 #
+# Also starts the fake USDB (`openstar-harness fake-usdb`) and gives the
+# server its fake credentials, so no browser test ever reaches the real USDB;
+# Playwright reads and scripts the fake at OPENSTAR_E2E_USDB_URL. The fixture
+# Song "Sine Melody" gets a metadata.json naming USDB id 900001
+# (E2E_USDB_IN_LIBRARY_ID in e2e/fixtures.ts), so a USDB song can be "In
+# Library".
+#
 # Also starts a headless Mic bridge (`openstar-mic-bridge --wav`) on the fake
 # mic's 4-channel WAV, waiting for approval.
 #
@@ -56,7 +63,12 @@ fi
 work="$(mktemp -d "${TMPDIR:-/tmp}/openstar-e2e.XXXXXX")"
 server_pid=""
 bridge_pid=""
+usdb_pid=""
 cleanup() {
+  if [ -n "$usdb_pid" ]; then
+    kill "$usdb_pid" 2>/dev/null || true
+    wait "$usdb_pid" 2>/dev/null || true
+  fi
   if [ -n "$bridge_pid" ]; then
     kill "$bridge_pid" 2>/dev/null || true
     wait "$bridge_pid" 2>/dev/null || true
@@ -73,6 +85,7 @@ mkdir "$work/appdata"
 # The fixture Library with its generated audio, and the fake mic WAVs the
 # Phones' Chromium plays (e2e/ is mounted into the Playwright container).
 "$harness" fixture-library "$work/songs" >/dev/null
+echo '{"apiId": 900001}' >"$work/songs/Placeholder Artist - Sine Melody/metadata.json"
 rm -rf "$root/e2e/generated/mic"
 "$harness" fake-mic "$root/e2e/generated/mic" >/dev/null
 
@@ -81,6 +94,19 @@ admin_pin=1234
 port="$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')"
 base_url="http://127.0.0.1:$port"
 
+# The fake USDB on a free port; its first stdout line is its base URL.
+"$harness" fake-usdb >"$work/fake-usdb.out" 2>"$work/fake-usdb.log" &
+usdb_pid=$!
+usdb_url=""
+for _ in $(seq 100); do
+  usdb_url="$(head -n 1 "$work/fake-usdb.out" 2>/dev/null || true)"
+  [ -n "$usdb_url" ] && break
+  kill -0 "$usdb_pid" 2>/dev/null || break
+  sleep 0.1
+done
+[ -n "$usdb_url" ] || { echo "e2e: the fake USDB did not start; its log:" >&2; cat "$work/fake-usdb.log" >&2; exit 1; }
+echo "e2e: the fake USDB serves $usdb_url"
+
 # A clean environment, so nothing from the developer's shell reaches the server.
 env -i PATH="$PATH" HOME="$work" \
   OPENSTAR_PORT="$port" \
@@ -88,7 +114,9 @@ env -i PATH="$PATH" HOME="$work" \
   OPENSTAR_SONGS_DIR="$work/songs" \
   OPENSTAR_ADMIN_PIN="$admin_pin" \
   OPENSTAR_YTDLP_AUTOUPDATE=false \
-  OPENSTAR_USDB_BASE_URL=http://127.0.0.1:9 \
+  OPENSTAR_USDB_BASE_URL="$usdb_url" \
+  OPENSTAR_USDB_USERNAME=fake-usdb-user \
+  OPENSTAR_USDB_PASSWORD=fake-usdb-password \
   "$binary" >"$work/openstar.log" 2>&1 &
 server_pid=$!
 
@@ -121,6 +149,7 @@ docker run --rm --init \
   -e CI="${CI:-}" \
   -e OPENSTAR_E2E_BASE_URL="$base_url" \
   -e OPENSTAR_E2E_ADMIN_PIN="$admin_pin" \
+  -e OPENSTAR_E2E_USDB_URL="$usdb_url" \
   -v "$root/e2e:/e2e" -w /e2e \
   "$PLAYWRIGHT_IMAGE" \
   node node_modules/@playwright/test/cli.js test "${update_args[@]}" "$@" || status=$?
@@ -130,6 +159,7 @@ if [ "$status" -ne 0 ]; then
   mkdir -p "$root/e2e/test-results"
   cp "$work/openstar.log" "$root/e2e/test-results/openstar.log"
   cp "$work/mic-bridge.log" "$root/e2e/test-results/mic-bridge.log"
+  cp "$work/fake-usdb.log" "$root/e2e/test-results/fake-usdb.log"
   echo "e2e: failed; report in e2e/playwright-report, traces and the server log in e2e/test-results" >&2
 fi
 exit "$status"

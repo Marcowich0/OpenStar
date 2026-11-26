@@ -386,6 +386,12 @@ const MIGRATIONS: &[&str] = &[
     // read again at the next scan to fill it.
     "ALTER TABLE library_files ADD COLUMN txt_sha256 TEXT;
     UPDATE library_files SET parser_version = 0;",
+    // 26: USDB search (#193). The mirror's artist and title folded like
+    // Song identity (`identity::normalise`), so a search matches in SQL.
+    // NULL until folded: the mirror folds every row it stores, and a search
+    // folds rows stored before this migration first.
+    "ALTER TABLE usdb_songs ADD COLUMN artist_key TEXT;
+    ALTER TABLE usdb_songs ADD COLUMN title_key TEXT;",
 ];
 
 /// The schema version this build migrates to.
@@ -614,7 +620,7 @@ fn record_build(conn: &Connection, build_id: &str) -> rusqlite::Result<()> {
     Ok(())
 }
 
-fn migrate(conn: &mut Connection) -> rusqlite::Result<usize> {
+pub(crate) fn migrate(conn: &mut Connection) -> rusqlite::Result<usize> {
     let current: u32 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     let mut applied = 0;
     for (index, sql) in MIGRATIONS.iter().enumerate().skip(current as usize) {

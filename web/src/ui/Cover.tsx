@@ -14,6 +14,11 @@ export interface CoverProps {
   tileColour: PaletteKey;
   /** The white rim's thickness in px (about 9 on the selected carousel cover). */
   rim: number;
+  /**
+   * Load the image only once it nears the screen (a long list of covers
+   * fetched on demand, such as USDB search results).
+   */
+  lazy?: boolean;
   /** Size and layout utilities from the caller (the cover is square). */
   className?: string;
   /** Laid over the cover (for example a "preparing" label). */
@@ -28,6 +33,7 @@ export function Cover({
   src,
   tileColour,
   rim,
+  lazy = false,
   className = "w-32",
   children,
 }: CoverProps) {
@@ -51,6 +57,7 @@ export function Cover({
           src={image}
           alt=""
           draggable={false}
+          loading={lazy ? "lazy" : undefined}
           className="block size-full object-cover"
           onError={() => {
             setFailed(image);
