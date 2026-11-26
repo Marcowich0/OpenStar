@@ -7,6 +7,10 @@
 // Touch, mouse and the Enter key all drive it: Enter key down starts a hold
 // and key up ends it, so the Stage works it from the keyboard. A plain click
 // does nothing, so a pocket tap never fires it.
+//
+// A disabled hold button (`isDisabled`, for example a Library write while the
+// Library is read-only) never fills or fires; a press shakes it instead, like
+// a disabled `Button` (v1 spec #55).
 
 import {
   useEffect,
@@ -48,6 +52,8 @@ export interface HoldButtonProps {
   "aria-label"?: string;
   /** Layout utilities for the wrapper (position, width). */
   className?: string;
+  /** Greyed and shaking when pressed; `onHold` is never called. */
+  isDisabled?: boolean;
 }
 
 export function HoldButton({
@@ -57,12 +63,14 @@ export function HoldButton({
   size = "medium",
   "aria-label": ariaLabel,
   className = "",
+  isDisabled = false,
 }: HoldButtonProps) {
   const state = useRef(IDLE);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [holding, setHolding] = useState(false);
   const [hint, setHint] = useState(false);
+  const [shaking, setShaking] = useState(false);
   const onHoldRef = useRef(onHold);
   useEffect(() => {
     onHoldRef.current = onHold;
@@ -77,6 +85,10 @@ export function HoldButton({
   );
 
   function dispatch(event: HoldEvent) {
+    if (isDisabled) {
+      if (event.type === "press") setShaking(true);
+      return;
+    }
     const step = holdStep(state.current, event);
     state.current = step.state;
     const isHolding = step.state.phase === "holding";
@@ -120,10 +132,14 @@ export function HoldButton({
 
   const classes = [
     "relative inline-flex w-full items-center justify-center gap-3 overflow-hidden",
-    "cursor-pointer touch-none rounded-full font-sans outline-none select-none",
+    "touch-none rounded-full font-sans outline-none select-none",
     "focus-visible:outline-6 focus-visible:outline-yellow",
     FILL_CLASSES[fill].button,
     SIZE_CLASSES[size],
+    isDisabled
+      ? "cursor-not-allowed opacity-45 grayscale-60"
+      : "cursor-pointer",
+    "data-shaking:animate-shake",
   ].join(" ");
 
   return (
@@ -131,7 +147,12 @@ export function HoldButton({
       <button
         type="button"
         aria-label={ariaLabel}
+        aria-disabled={isDisabled || undefined}
         data-holding={holding || undefined}
+        data-shaking={shaking || undefined}
+        onAnimationEnd={() => {
+          setShaking(false);
+        }}
         className={classes}
         onPointerDown={onPointerDown}
         onPointerUp={() => {

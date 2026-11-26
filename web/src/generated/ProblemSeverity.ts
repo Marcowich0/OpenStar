@@ -3,4 +3,4 @@
 /**
  * Whether a problem keeps the Song from Players.
  */
-export type ProblemSeverity = "rejection" | "warning";
+export type ProblemSeverity = "rejection" | "warning" | "hidden";

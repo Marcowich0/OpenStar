@@ -269,6 +269,9 @@ pub enum ProblemSeverity {
     Rejection,
     /// The Song plays anyway.
     Warning,
+    /// A hidden duplicate: another copy with the same identity is the one
+    /// shown, so Players never see this one.
+    Hidden,
 }
 
 /// Why a file is a Library problem: a code plus parameters. The codes of the
@@ -317,6 +320,10 @@ pub enum FileProblem {
     /// Warning: the Song's video does not play on the Stage and could not be
     /// converted; the Song plays over its background or cover.
     VideoNotConverted { file: String },
+    /// Hidden: another copy of the same Song (same identity) is preferred
+    /// and shown instead. `preferred` is that copy's `.txt`, relative to
+    /// the Library.
+    HiddenDuplicate { preferred: String },
 }
 
 /// What a scan did.

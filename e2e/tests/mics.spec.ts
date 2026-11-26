@@ -167,25 +167,40 @@ test("a Local mic's Mic threshold line moves 1 dB with the arrows, saved at once
   await stage.getByRole("button", { name: "Setup" }).click();
   await stage.getByRole("menuitem", { name: "Mics", exact: true }).click();
   const mics = stage.getByRole("dialog", { name: "Mics" });
-  // The first row with a meter, and its line.
-  const row = mics
+  // The first row with a meter, and its line. Rows keep arriving as the
+  // browser's inputs and the bridge's channels are listed, so "the first row"
+  // is pinned to its Local mic once chosen: a locator is looked up again on
+  // every use, and would otherwise move to a row that turned up above it.
+  const firstRow = mics
     .locator("li")
     .filter({ has: stage.getByRole("slider") })
     .first();
+  await expect(firstRow).toBeVisible();
+  const pinned = (await firstRow.getAttribute("data-local-mic")) ?? "";
+  expect(pinned).not.toBe("");
+  const row = mics.locator(`li[data-local-mic="${pinned}"]`);
   const line = row.getByRole("slider");
   await expect(line).toBeVisible();
   await expect.poll(() => outputs.length).toBeGreaterThan(0);
   const before = Number(await line.getAttribute("data-threshold-dbfs"));
 
+  // A hand setting is dropped until the stored values for this output have
+  // loaded, and nothing on the screen says when that is: press again while
+  // the line has not moved. A press that is dropped never lands later.
   await line.focus();
-  await stage.keyboard.press("ArrowRight");
-  await expect
-    .poll(async () => Number(await line.getAttribute("data-threshold-dbfs")))
-    .toBeCloseTo(before + 1);
+  await expect(async () => {
+    await stage.keyboard.press("ArrowRight");
+    await expect
+      .poll(
+        async () => Number(await line.getAttribute("data-threshold-dbfs")),
+        { timeout: 3_000 },
+      )
+      .toBeCloseTo(before + 1);
+  }).toPass();
   await expect(row.getByText("set by hand")).toBeVisible();
 
   // Kept on the server at once, at the current Stage output, set by hand.
-  const localMicId = await row.getAttribute("data-local-mic");
+  const localMicId = pinned;
   const stored = async () => {
     const response = await stage.request.get("/api/mic-settings", {
       params: { stageOutput: outputs.at(-1) ?? "" },

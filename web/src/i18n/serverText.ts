@@ -295,6 +295,8 @@ const fileProblemHandlers: CodeHandlers<FileProblem> = {
   unreadableMetadata: () => t("fileProblem.unreadableMetadata"),
   audioNotConverted: ({ file }) => t("fileProblem.audioNotConverted", { file }),
   videoNotConverted: ({ file }) => t("fileProblem.videoNotConverted", { file }),
+  hiddenDuplicate: ({ preferred }) =>
+    t("fileProblem.hiddenDuplicate", { preferred }),
 };
 
 /** Something wrong with the files a `.txt` names (a Library problem). */

@@ -55,6 +55,30 @@ describe("the Library problems section", () => {
     expect(media).toHaveTextContent("#COVER names co.jpg, which is not found");
   });
 
+  it("lists a hidden duplicate with the preferred copy's path", async () => {
+    fakeLibraryServer({
+      "GET /api/library/problems": [
+        {
+          path: "Copy/song.txt",
+          severity: "hidden",
+          reason: {
+            code: "hiddenDuplicate",
+            preferred: "Band - Song/song.txt",
+          },
+        },
+      ] satisfies LibraryProblem[],
+      "GET /api/library/scan": idle(1),
+    });
+    await renderLive(<LibraryProblems />);
+
+    const [hidden] = rows();
+    expect(hidden).toHaveTextContent("Copy/song.txt");
+    expect(hidden).toHaveTextContent("Hidden");
+    expect(hidden).toHaveTextContent(
+      "Hidden duplicate of Band - Song/song.txt",
+    );
+  });
+
   it("says so when the Library has no problems", async () => {
     fakeLibraryServer({
       "GET /api/library/problems": [],
