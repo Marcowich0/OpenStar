@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Actor } from "../generated/Actor";
 import type { PartySnapshot } from "../generated/PartySnapshot";
-import type { ServerMessage } from "../generated/ServerMessage";
+import type { LiveStateMessage } from "./liveState";
 import { initialLiveState, receive, type LiveState } from "./liveState";
 import { addStageToast, dismissToast, MAX_TOASTS } from "./toasts";
 
@@ -35,7 +35,7 @@ const phone = browser(false);
 
 const remote: Actor = { kind: "member", memberId: 3 };
 
-const change = (actor: Actor, joinCode = "9133"): ServerMessage => ({
+const change = (actor: Actor, joinCode = "9133"): LiveStateMessage => ({
   type: "partyChanged",
   party: { ...party, partyId: `p-${joinCode}`, joinCode },
   change: { actor, event: { code: "partyStarted", params: { joinCode } } },
@@ -61,7 +61,7 @@ describe("Party changes as toast entries", () => {
   });
 
   it("gives no toast anywhere when only the Local mics changed", () => {
-    const localMics: ServerMessage = {
+    const localMics: LiveStateMessage = {
       type: "partyChanged",
       party,
       change: { actor: { kind: "stage" }, event: { code: "localMicsChanged" } },
@@ -71,7 +71,7 @@ describe("Party changes as toast entries", () => {
   });
 
   it("gives no toast anywhere when only the calibrations changed", () => {
-    const calibration: ServerMessage = {
+    const calibration: LiveStateMessage = {
       type: "partyChanged",
       party,
       change: {

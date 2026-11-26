@@ -81,6 +81,22 @@ export interface LiveStore {
   close: () => void;
 }
 
+/** Listeners of one kind of value; `emit` calls each one once. */
+function emitter<T>() {
+  const listeners = new Set<(value: T) => void>();
+  return {
+    subscribe: (listener: (value: T) => void): (() => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    emit: (value: T) => {
+      for (const listener of [...listeners]) listener(value);
+    },
+  };
+}
+
 /** This page's clock, as the Stage's pong reports it. */
 export interface PageClock {
   now: () => number;
@@ -115,14 +131,12 @@ export function createLiveStore(
   let state = initialLiveState;
   const listeners = new Set<() => void>();
   const topicListeners = new Map<ChangeTopic, Set<() => void>>();
-  const songControlListeners = new Set<(control: SongControlMessage) => void>();
-  const levelListeners = new Set<(levels: readonly LocalMicLevel[]) => void>();
-  const pongListeners = new Set<(pong: ClockPongFields) => void>();
-  const readingListeners = new Set<
-    (mic: MicId, reading: PitchReading) => void
-  >();
-  const jobListeners = new Set<(job: Job) => void>();
-  const avSyncListeners = new Set<(step: AvSyncStep) => void>();
+  const songControls = emitter<SongControlMessage>();
+  const levels = emitter<readonly LocalMicLevel[]>();
+  const pongs = emitter<ClockPongFields>();
+  const readings = emitter<{ mic: MicId; reading: PitchReading }>();
+  const jobs = emitter<Job>();
+  const avSyncSteps = emitter<AvSyncStep>();
 
   function update(next: LiveState) {
     if (next === state) return;
@@ -130,19 +144,22 @@ export function createLiveStore(
     for (const listener of listeners) listener();
   }
 
-  const client = connect({
-    onMessage(message) {
-      // Every server message goes to the reducer, except Pitch readings:
-      // those go to their Player's ring buffer, so they never cause a render.
-      if (message.type === "pitchReading") {
+  /**
+   * Where each server message goes. The live state's messages go to the
+   * reducer; the rest never cause a render: Pitch readings go to their
+   * Player's ring buffer, the rest to the listeners that asked for them.
+   * Exhaustive, like the reducer's own `switch`: a new message type is
+   * refused by the linter until it is routed here.
+   */
+  function route(message: ServerMessage) {
+    switch (message.type) {
+      case "pitchReading":
         pitch?.receive(message.mic, message.reading);
-        for (const listener of readingListeners)
-          listener(message.mic, message.reading);
+        readings.emit({ mic: message.mic, reading: message.reading });
         return;
-      }
-      // Clock sync (v1 spec #50): the Stage answers a Mic's ping at once,
-      // waiting on nothing; a Phone's Mic takes the pong.
-      if (message.type === "clockPing") {
+      case "clockPing":
+        // Clock sync (v1 spec #50): the Stage answers a Mic's ping at once,
+        // waiting on nothing.
         client.send({
           type: "clockPong",
           mic: message.mic,
@@ -151,49 +168,73 @@ export function createLiveStore(
           epoch: pageClock.epoch(),
         });
         return;
-      }
-      if (message.type === "clockPong") {
-        const pong = { t0: message.t0, ts: message.ts, epoch: message.epoch };
-        for (const listener of pongListeners) listener(pong);
+      case "clockPong":
+        // A Phone's Mic takes the pong.
+        pongs.emit({ t0: message.t0, ts: message.ts, epoch: message.epoch });
         return;
-      }
-      // A closed Mic is a lost-Mic signal for the playing Song (#213).
-      if (message.type === "micClosed") {
+      case "micClosed":
+        // A closed Mic is a lost-Mic signal for the playing Song (#213).
         pitch?.signal(message.mic, "connectionClosed");
         return;
-      }
-      // A Phone's page hidden or visible again is a lost-Mic signal too (#166).
-      if (message.type === "micPage") {
+      case "micPage":
+        // A Phone's page hidden or visible again is one too (#166).
         pitch?.signal(
           message.mic,
           message.visible ? "pageVisible" : "pageHidden",
         );
         return;
-      }
-      // Mic bridge levels go to the meters, not the reducer.
-      if (message.type === "localMicLevels") {
-        for (const listener of levelListeners) listener(message.levels);
+      case "localMicLevels":
+        // Mic bridge levels go to the meters.
+        levels.emit(message.levels);
         return;
-      }
-      if (message.type === "stepAvSync") {
-        for (const listener of [...avSyncListeners]) listener(message.step);
+      case "stepAvSync":
+        avSyncSteps.emit(message.step);
         return;
-      }
-      if (message.type === "jobChanged") {
-        for (const listener of [...jobListeners]) listener(message.job);
+      case "jobChanged":
+        jobs.emit(message.job);
         return;
-      }
-      if (message.type === "changed") {
+      case "changed":
+        // Change notices invalidate HTTP data; they change no live state.
         for (const topic of message.topics) {
           for (const listener of topicListeners.get(topic) ?? []) listener();
         }
-      }
-      // A Song progress report is pinned to when it arrived (#159).
-      update(receive(state, message, performance.now()));
-      if (message.type === "controlSong") {
-        for (const listener of [...songControlListeners]) listener(message);
-      }
-    },
+        return;
+      case "controlSong":
+        // Stage only: the Stage's playback acts on it (#164); the Party's
+        // `playing` state came with the `partyChanged` before it.
+        songControls.emit(message);
+        return;
+      case "bridgeUpdate":
+      case "bridgeWaiting":
+      case "bridgeApproved":
+      case "bridgeConnected":
+      case "bridgeChannels":
+      case "bridgeMicsScreen":
+      case "bridgeDetecting":
+      case "bridgeSwitchProfile":
+        // Only a Mic bridge's own socket gets these.
+        return;
+      case "liveState":
+      case "partyChanged":
+      case "stageMoved":
+      case "rejected":
+      case "pong":
+      case "phoneStatus":
+      case "leftParty":
+      case "joinCodeValid":
+      case "volume":
+      case "songProgress":
+      case "lineScore":
+      case "avSync":
+      case "avSyncCheck":
+      case "calibration":
+        // A Song progress report is pinned to when it arrived (#159).
+        update(receive(state, message, performance.now()));
+    }
+  }
+
+  const client = connect({
+    onMessage: route,
     onConnection(connection) {
       if (connection === "open" && hello) client.send(hello());
       update(connectionChanged(state, connection));
@@ -217,42 +258,15 @@ export function createLiveStore(
         set.delete(listener);
       };
     },
-    onSongControl(listener) {
-      songControlListeners.add(listener);
-      return () => {
-        songControlListeners.delete(listener);
-      };
-    },
-    onLocalMicLevels(listener) {
-      levelListeners.add(listener);
-      return () => {
-        levelListeners.delete(listener);
-      };
-    },
-    onPitchReading(listener) {
-      readingListeners.add(listener);
-      return () => {
-        readingListeners.delete(listener);
-      };
-    },
-    onClockPong(listener) {
-      pongListeners.add(listener);
-      return () => {
-        pongListeners.delete(listener);
-      };
-    },
-    onJobChanged(listener) {
-      jobListeners.add(listener);
-      return () => {
-        jobListeners.delete(listener);
-      };
-    },
-    onAvSyncStep(listener) {
-      avSyncListeners.add(listener);
-      return () => {
-        avSyncListeners.delete(listener);
-      };
-    },
+    onSongControl: songControls.subscribe,
+    onLocalMicLevels: levels.subscribe,
+    onPitchReading: (listener) =>
+      readings.subscribe(({ mic, reading }) => {
+        listener(mic, reading);
+      }),
+    onClockPong: pongs.subscribe,
+    onJobChanged: jobs.subscribe,
+    onAvSyncStep: avSyncSteps.subscribe,
     dismissToast(id) {
       update(dismissToast(state, id));
     },
