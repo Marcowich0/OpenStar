@@ -64,10 +64,11 @@ jobs:
 
       # The server tests generate tiny media with the real ffmpeg (and the
       # yt-dlp stub uses it too); they fail with a message naming ffmpeg without it.
-      - name: ffmpeg
+      # The Mic bridge links PipeWire (pipewire-sys runs bindgen, so libclang).
+      - name: ffmpeg and PipeWire
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          sudo apt-get install -y --no-install-recommends ffmpeg libpipewire-0.3-dev libclang-dev
 
       - run: just ci
 
@@ -135,6 +136,13 @@ jobs:
           no-cache-filters: ${{ steps.meta.outputs.no_cache_runtime == 'true' && 'runtime' || '' }}
           cache-from: type=gha,scope=openstar-image
           cache-to: type=gha,scope=openstar-image,mode=max
+
+      # The smoke test runs the Mic bridge it fetches from the image on this
+      # runner, as a desktop would: it needs the PipeWire library there.
+      - name: PipeWire library for the Mic bridge
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpipewire-0.3-0
 
       # scripts/image-smoke.sh (/healthz, ffmpeg, ffprobe, yt-dlp, deno, the
       # build identifier, users 1000:1000 and 99:100, the Mic bridge fetched

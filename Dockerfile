@@ -88,8 +88,12 @@ FROM --platform=linux/amd64 ubuntu:22.04@sha256:b000e69a50ff940390233025e7a337fb
 ARG OPENSTAR_BUILD_ID
 ARG GITHUB_REF
 ARG GITHUB_SHA
+# libpipewire-0.3-dev and libclang-dev: capture links the system's PipeWire
+# library (pipewire-sys runs bindgen), the one library the bridge links
+# besides glibc. Ubuntu 22.04's PipeWire 0.3.48 keeps that floor low too.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev pkg-config \
+        libpipewire-0.3-dev libclang-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=toolchain /usr/local/rustup /usr/local/rustup
 COPY --from=toolchain /usr/local/cargo /usr/local/cargo
