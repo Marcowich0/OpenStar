@@ -2,8 +2,8 @@
 // resting scene whenever the Queue is empty. The logo, the big cover
 // carousel, the selected Song's info and the breathing Sing!, which adds it
 // as a Request from the Stage; the head of the Queue then shows its Line-up.
-// The join card in the corner is a placeholder until #178 builds it (keep
-// `data-testid="party-join-code"`: the e2e tests read it).
+// The join card (`../joinCard/`) sits in the bottom-right corner; it holds
+// `data-testid="party-join-code"`, which the e2e tests read.
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -14,18 +14,15 @@ import type { SongSummary } from "../../generated/SongSummary";
 import type { UserMessage } from "../../generated/UserMessage";
 import { userMessageText } from "../../i18n/serverText";
 import { t } from "../../i18n/t";
-import type { LiveState } from "../../live/liveState";
-import { useLive } from "../../live/useLive";
 import { tokenVar } from "../../theme/tokens";
 import { Button } from "../../ui/Button";
 import { Chip } from "../../ui/Chip";
 import { useStageFrame } from "../frame/stageFrameContext";
+import { StageJoinCard } from "../joinCard/StageJoinCard";
 import { CAROUSEL_ARROWS, SongCarousel } from "./songBrowser/SongCarousel";
 import { SongInfo } from "./songBrowser/SongInfo";
 import { addStageRequest } from "./songBrowser/stageRequest";
 import { useCarouselPreview } from "./songBrowser/useCarouselPreview";
-
-const selectJoinCode = (live: LiveState) => live.stage?.party?.joinCode ?? null;
 
 /** The logo's star, on a 64-unit grid. */
 const STAR = "M32 4l8 18 19 2-14 13 4 19-17-10-17 10 4-19L5 24l19-2z";
@@ -129,29 +126,7 @@ export function SongBrowserScene() {
         </>
       )}
 
-      <JoinCardPlaceholder />
+      <StageJoinCard className="absolute right-12 bottom-12" />
     </section>
-  );
-}
-
-/** Until the join card (#178): the Join code in the bottom-right corner. */
-function JoinCardPlaceholder() {
-  const { store } = useStageFrame();
-  const joinCode = useLive(selectJoinCode, store);
-  return (
-    <aside className="absolute right-12 bottom-12 flex flex-col items-center gap-1 rounded-card bg-white px-8 py-5 shadow-ledge">
-      <p className="text-2xl font-semibold text-ink-2">
-        {t("stage.browser.joinCode")}
-      </p>
-      <p
-        className="text-6xl font-bold tracking-widest tabular-nums"
-        data-testid="party-join-code"
-      >
-        {joinCode}
-      </p>
-      <p className="text-2xl font-semibold">
-        {t("stage.browser.pickFromPhone")}
-      </p>
-    </aside>
   );
 }

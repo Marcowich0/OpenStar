@@ -15,9 +15,10 @@ const NEVER_FETCHED = new Set([
   "localhost",
 ]);
 
-const ABSOLUTE = /\bhttps?:\/\/([a-z0-9.-]+)/gi;
+// A host name starts with a letter or digit, so "http://." in a sentence is no host.
+const ABSOLUTE = /\bhttps?:\/\/([a-z0-9][a-z0-9.-]*)/gi;
 const PROTOCOL_RELATIVE =
-  /(?:url\(\s*["']?|@import\s+["']|(?:src|href)\s*=\s*["']?)\/\/([a-z0-9.-]+)/gi;
+  /(?:url\(\s*["']?|@import\s+["']|(?:src|href)\s*=\s*["']?)\/\/([a-z0-9][a-z0-9.-]*)/gi;
 
 /**
  * Every external host `code` references, in order, except the never-fetched ones.

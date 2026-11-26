@@ -279,10 +279,19 @@ export const en = {
   // The Stage's scenes (#120 placeholders; #124, #164, #182 fill them).
   "stage.logo": "OpenStar",
   "stage.browser.pickFromPhone": "Pick a song from your phone",
-  "stage.browser.joinCode": "Join code",
   "stage.browser.carousel": "Songs",
   "stage.browser.best": "Best {total, number} · {name}",
   "stage.browser.empty": "No Songs in the Library yet",
+  // The join card (`stage/joinCard/`): song browser and People overlay.
+  "stage.joinCard.qr": "QR code to join the Party",
+  "stage.joinCard.goTo": "Go to {address}",
+  "stage.joinCard.hide": "Hide",
+  "stage.joinCard.chip": "Join · {code}",
+  "stage.joinCard.cantSing": "Phones can't sing yet",
+  "stage.joinCard.notHttps":
+    "This Stage was opened over plain http://. Set up HTTPS (see the Caddy example), then reload.",
+  "stage.joinCard.localhost":
+    "Phones and other computers can't reach localhost. Set OPENSTAR_PUBLIC_URL to the server's HTTPS address.",
   "stage.lineUp.artistDuet": "{artist} · duet",
   "stage.lineUp.thenOne": "Then {first}",
   "stage.lineUp.thenTwo": "Then {first}, {second}",
@@ -338,10 +347,23 @@ export const en = {
   "admin.lock": "Lock",
   "admin.downloads.placeholder":
     "Search USDB and download Songs here. Coming soon.",
-  "admin.songs.placeholder":
-    "Fix a Song's timing, restore it to the original, delete it or bring it back from the trash here. Coming soon.",
-  "admin.libraryProblems.placeholder":
-    "See why a Song does not show up, and rescan the Library, here. Coming soon.",
+  "admin.songs.search": "Search by artist or title",
+  "admin.songs.list": "Songs in the Library",
+  "admin.songs.none": "No Songs match",
+  "admin.songs.empty": "The Library has no playable Songs yet",
+  "admin.songs.loading": "Loading the Songs…",
+  "admin.songs.failed": "The Songs could not be loaded",
+  "admin.libraryProblems.intro":
+    "Why a file does not show up as a Song. Rejected files are hidden from Players; Songs with warnings still play.",
+  "admin.libraryProblems.rescan": "Rescan",
+  "admin.libraryProblems.scanning": "Scanning the Library…",
+  "admin.libraryProblems.rescanFailed": "The Rescan could not be started",
+  "admin.libraryProblems.list": "Library problems",
+  "admin.libraryProblems.none": "The Library has no problems",
+  "admin.libraryProblems.loading": "Loading the Library problems…",
+  "admin.libraryProblems.failed": "The Library problems could not be loaded",
+  "admin.libraryProblems.rejection": "Rejected",
+  "admin.libraryProblems.warning": "Warning",
   "admin.profiles.placeholder": "Delete Profiles here. Coming soon.",
   "admin.testGuarded": "Test guarded action",
   "admin.testGuardedDone": "The guarded action is done",
