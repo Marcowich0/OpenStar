@@ -64,7 +64,9 @@ describe("StageTrustGate", () => {
   it("shows a browser that is not remembered the Admin PIN pad before anything else", async () => {
     fakeServer(false);
     renderGate();
-    expect(await screen.findByRole("dialog", { name: "Admin PIN" })).toBeVisible();
+    expect(
+      await screen.findByRole("dialog", { name: "Admin PIN" }),
+    ).toBeVisible();
     expect(screen.queryByText("the Stage")).toBeNull();
 
     enter("0000");
@@ -97,6 +99,8 @@ describe("StageTrustGate", () => {
     act(() => {
       fireEvent.click(again);
     });
-    expect(await screen.findByRole("dialog", { name: "Admin PIN" })).toBeVisible();
+    expect(
+      await screen.findByRole("dialog", { name: "Admin PIN" }),
+    ).toBeVisible();
   });
 });

@@ -1,4 +1,10 @@
-import { ADMIN_PIN, STAGE_VIEWPORT, becomeStageWithPin, expect, test } from "../fixtures";
+import {
+  ADMIN_PIN,
+  STAGE_VIEWPORT,
+  becomeStageWithPin,
+  expect,
+  test,
+} from "../fixtures";
 
 // Becoming the Stage needs the Admin PIN once per browser (#186). This spec
 // uses a browser context of its own that is not remembered yet; every other

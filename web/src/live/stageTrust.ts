@@ -17,17 +17,17 @@ import { ApiFailure, api } from "../api/api";
 export type StageTrustState = "checking" | "pinNeeded" | "trusted";
 
 export interface StageTrust {
-  getSnapshot(): StageTrustState;
-  subscribe(listener: () => void): () => void;
+  getSnapshot: () => StageTrustState;
+  subscribe: (listener: () => void) => () => void;
   /**
    * Asks the server whether this browser is trusted, and resolves once it is:
    * at once for a remembered browser, after a correct PIN otherwise. When
    * the server cannot be reached it resolves too, so the socket tries (and
    * retries with its backoff).
    */
-  whenTrusted(): Promise<void>;
+  whenTrusted: () => Promise<void>;
   /** One Admin PIN attempt; the pad's `check`. Rejects with `ApiFailure`. */
-  giveAdminPin(pin: string): Promise<void>;
+  giveAdminPin: (pin: string) => Promise<void>;
 }
 
 export function createStageTrust(): StageTrust {

@@ -58,7 +58,9 @@ function adminPin(): string {
  * fixtures already do this, so specs just open `/stage`. A correct PIN
  * resets the shared wrong-guess count.
  */
-export async function trustStageBrowser(context: BrowserContext): Promise<void> {
+export async function trustStageBrowser(
+  context: BrowserContext,
+): Promise<void> {
   const response = await context.request.post("/api/stage/trust", {
     data: { pin: ADMIN_PIN },
   });
