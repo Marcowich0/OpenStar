@@ -68,9 +68,7 @@ export const en = {
   "remote.waitingForStart": "Waiting for Start",
   "remote.pause": "Pause",
   "remote.resume": "Resume",
-  // The Phone's mic strip while this Phone is a seat's Mic (#128; the mic
-  // takeover, #167, replaces it).
-  "phoneMic.seated": "This phone is your mic",
+  // The Phone's mic, shown in the mic takeover (#128, #129, #166).
   "phoneMic.turnOn": "Turn on my mic",
   "phoneMic.opening": "Opening the mic…",
   "phoneMic.on": "Mic is on",
@@ -90,6 +88,22 @@ export const en = {
   "phoneMic.detectorCost":
     "Detector {p50, number} ms p50, {p95, number} ms p95",
   "phoneMic.detectorMeasuring": "Detector: measuring",
+  // The mic takeover while this Phone is a seat's Mic (#167).
+  "phoneTakeover.label": "Your mic",
+  "phoneTakeover.micChip": "Mic · {name}",
+  "phoneTakeover.voiceDifficulty": "Voice {voice, number} · {difficulty}",
+  "phoneTakeover.difficulty": "Difficulty",
+  "phoneTakeover.changeDifficulty": "{current}: change the Difficulty",
+  "phoneTakeover.youreUp": "You're up, {name}!",
+  "phoneTakeover.isNext": "{song} is next. This phone is your mic",
+  "phoneTakeover.singANote": "Sing a note to check",
+  "phoneTakeover.level": "Mic level",
+  "phoneTakeover.keepOpen": "Keep this screen open while you sing",
+  "phoneTakeover.singIt": "Sing it!",
+  "phoneTakeover.score": "Score",
+  "phoneTakeover.screenOn": "Screen stays on while you sing",
+  "phoneTakeover.queueAndControls": "Queue & controls",
+  "phoneTakeover.backToMic": "Back to my mic",
   // The Remote's Stage tab and its seat sheet.
   "stageTab.title": "On the Stage",
   "stageTab.upNext": "Up next: who sings?",

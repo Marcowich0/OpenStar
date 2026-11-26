@@ -4,7 +4,8 @@ import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
 import { writeSungWav } from "../wav";
 
 // A Phone's mic reaches the Stage (#128): the Phone joins, its Profile is
-// seated on its own Phone, one tap turns its mic on, the clock syncs with
+// seated on its own Phone (the mic takeover shows, #167), one tap turns its
+// mic on, the clock syncs with
 // the Stage, and the Song plays out with that Player's Score above 0.
 // Chromium's fake mic sings 440 Hz, the pitch class of every scored Note of
 // the steady-tone Song. Not `FAKE_MIC.steadyTone`: the Phone's noise
@@ -111,6 +112,18 @@ test("a Phone's mic sends readings the Stage scores: the seated Player's Score e
     await stage.keyboard.press(" ");
     playing = true;
     await expect(frame).toHaveAttribute("data-scene", "sing");
+    // The mic takeover goes on to Singing (#167).
+    await expect(
+      phone.getByRole("heading", { name: "Sing it!" }),
+    ).toBeVisible();
+    // At each Line end the Stage's running total reaches this Phone (#167).
+    await expect
+      .poll(
+        async () =>
+          Number(await phone.getByTestId("takeover-score").textContent()),
+        { timeout: 15_000 },
+      )
+      .toBeGreaterThan(0);
     // The seat hears its Mic: it never goes "mic lost".
     await stage.waitForTimeout(2500);
     await expect(stage.locator("[data-lane-header][data-lost]")).toHaveCount(0);

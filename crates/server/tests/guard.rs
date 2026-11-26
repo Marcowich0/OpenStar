@@ -413,6 +413,11 @@ fn every_client_message() -> Vec<ClientMessage> {
             rate: 1.0,
             length_seconds: None,
         },
+        ClientMessage::ReportLineScore {
+            request_id: openstar_protocol::RequestId(1),
+            seat: 0,
+            total: 0,
+        },
         ClientMessage::BridgeHello {
             build: "dev".into(),
             host_name: "hermes".into(),

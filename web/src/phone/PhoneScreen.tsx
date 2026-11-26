@@ -1,5 +1,5 @@
 import { useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { browserStorage } from "../live/browserLive";
 import type { LiveState } from "../live/liveState";
@@ -12,10 +12,13 @@ import { JoinForm } from "./JoinForm";
 import type { MemberLook } from "./memberLook";
 import type { MeActions } from "./people/MeSheet";
 import { editMember } from "./people/memberRequests";
+import { phoneMicFor } from "./mic/browserPhoneMic";
+import type { PhoneMic } from "./mic/phoneMic";
 import { phoneMember, phonePage } from "./phonePage";
 import { Remote } from "./Remote";
-
-const selectPage = (state: LiveState) => phonePage(state);
+import { isSeatedMic } from "./takeover/micTakeover";
+import { MicTakeover } from "./takeover/MicTakeover";
+import { useMicTakeover } from "./takeover/useMicTakeover";
 /** The server answered that this Phone is in no Party: it has to join. */
 const selectOutside = (state: LiveState) =>
   state.connection === "open" && state.phone?.memberId === null;
@@ -33,6 +36,8 @@ export interface PhonePageViewProps {
   storage?: PhoneStorage;
   /** The join form's picture source (tests pass a fixed one). */
   random?: () => number;
+  /** This Phone's mic (tests pass a fake); the browser's by default. */
+  mic?: PhoneMic;
 }
 
 /** The Phone page: one of its states, picked from the store by `phonePage`. */
@@ -41,8 +46,24 @@ export function PhonePageView({
   store = liveStore(),
   storage = browserStorage(),
   random,
+  mic: givenMic,
 }: PhonePageViewProps) {
+  const myPhoneId = phoneId(storage);
+  const selectPage = useCallback(
+    (state: LiveState) =>
+      phonePage(state, {
+        calibrating: () => false,
+        micTakeover: (s) => isSeatedMic(s, myPhoneId),
+      }),
+    [myPhoneId],
+  );
   const page = useLive(selectPage, store);
+  const mic = givenMic ?? phoneMicFor(store, myPhoneId);
+  const takeover = useMicTakeover(store, myPhoneId, mic);
+  // "Queue & controls": the Remote on top of the takeover, until "Back to
+  // my mic"; it closes with the takeover.
+  const [remoteOnTop, setRemoteOnTop] = useState(false);
+  if (page !== "micTakeover" && remoteOnTop) setRemoteOnTop(false);
   const member = useLive(phoneMember, store);
   const outside = useLive(selectOutside, store);
   // The favourite-colour notice is for a Phone that joined through the flow
@@ -56,7 +77,7 @@ export function PhonePageView({
   >(null);
   if (page === "joinFlow" && meScreen !== null) setMeScreen(null);
   const me: MeActions = {
-    phoneId: phoneId(storage),
+    phoneId: myPhoneId,
     onSomeoneElse: () => {
       setMeScreen({ kind: "switch" });
     },
@@ -78,12 +99,39 @@ export function PhonePageView({
           {...(random ? { random } : {})}
         />
       );
-    // Calibrating and the mic takeover come with their tickets; until then
-    // the Remote shows.
+    // Calibrating comes with its ticket; until then the Remote shows.
     case "calibrating":
-      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
+      return <Remote store={store} phoneId={myPhoneId} me={me} />;
     case "micTakeover":
-      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
+      if (takeover && !remoteOnTop)
+        return (
+          <MicTakeover
+            store={store}
+            takeover={takeover}
+            mic={mic}
+            myMemberId={member?.memberId ?? null}
+            onOpenRemote={() => {
+              setRemoteOnTop(true);
+            }}
+          />
+        );
+      return (
+        <Remote
+          store={store}
+          phoneId={myPhoneId}
+          me={me}
+          {...(takeover
+            ? {
+                backToMic: {
+                  colour: takeover.colour,
+                  onBack: () => {
+                    setRemoteOnTop(false);
+                  },
+                },
+              }
+            : {})}
+        />
+      );
     case "remote":
       if (meScreen?.kind === "switch")
         return (
@@ -125,6 +173,6 @@ export function PhonePageView({
             }}
           />
         );
-      return <Remote store={store} phoneId={phoneId(storage)} me={me} />;
+      return <Remote store={store} phoneId={myPhoneId} me={me} />;
   }
 }

@@ -6,11 +6,11 @@ use std::path::Path;
 
 use openstar_protocol::song::{Note, ParsedSong};
 use openstar_test_harness::fixture_library::{
-    self, DUET, REJECTED, SINE_MELODY, STEADY_TONE, read_song,
+    self, DUET, REJECTED, SEPARATE_VIDEO, SINE_MELODY, STEADY_TONE, read_song,
 };
 use support::{decode, frequency, midi};
 
-const PLAYABLE: [&str; 3] = [STEADY_TONE, SINE_MELODY, DUET];
+const PLAYABLE: [&str; 4] = [STEADY_TONE, SINE_MELODY, DUET, SEPARATE_VIDEO];
 
 fn installed() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
@@ -51,7 +51,7 @@ fn solo_notes(song: &ParsedSong) -> Vec<&Note> {
 }
 
 #[test]
-fn the_fixture_library_holds_three_songs_and_a_rejected_file() {
+fn the_fixture_library_holds_four_songs_and_a_rejected_file() {
     let dir = fixture_library::source_dir();
     for txt in PLAYABLE {
         let song = read_song(&dir.join(txt)).unwrap();
@@ -102,6 +102,62 @@ fn every_playable_song_gets_audio_that_sings_its_own_notes() {
             "{txt}: GAP is not silent"
         );
     }
+}
+
+/// The streams (`codec_type`, `codec_name`) and duration ffprobe reports.
+fn probe(path: &Path) -> (Vec<(String, String)>, f64) {
+    let output = std::process::Command::new("ffprobe")
+        .args(["-v", "error", "-show_entries"])
+        .arg("stream=codec_type,codec_name:format=duration")
+        .args(["-of", "json"])
+        .arg(path)
+        .output()
+        .expect("ffprobe (part of ffmpeg) runs");
+    assert!(output.status.success(), "ffprobe {}", path.display());
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let streams = json["streams"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| {
+            (
+                s["codec_type"].as_str().unwrap().to_owned(),
+                s["codec_name"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
+    let duration = json["format"]["duration"]
+        .as_str()
+        .unwrap()
+        .parse()
+        .unwrap();
+    (streams, duration)
+}
+
+#[test]
+fn a_song_with_a_separate_video_gets_a_silent_video_as_long_as_it_follows_the_audio() {
+    let library = installed();
+    let song = read_song(&library.path().join(SEPARATE_VIDEO))
+        .unwrap()
+        .unwrap();
+    let folder = library
+        .path()
+        .join(Path::new(SEPARATE_VIDEO).parent().unwrap());
+    let gap = song.headers.video_gap_seconds.unwrap();
+    assert!(
+        gap < 0.0,
+        "the video starts after the audio, behind the background"
+    );
+    let (audio_streams, audio_seconds) = probe(&audio_path(library.path(), SEPARATE_VIDEO, &song));
+    assert_eq!(audio_streams.len(), 1);
+    let (streams, video_seconds) = probe(&folder.join(song.headers.video.as_deref().unwrap()));
+    // One VP8 stream and no sound: the Stage plays it natively, and muted.
+    assert_eq!(streams, [("video".to_owned(), "vp8".to_owned())]);
+    // It covers the audio from where it starts (audio position + #VIDEOGAP).
+    assert!(
+        (video_seconds - (audio_seconds + gap)).abs() < 0.2,
+        "video {video_seconds} s, audio {audio_seconds} s, #VIDEOGAP {gap} s"
+    );
 }
 
 #[test]

@@ -128,6 +128,8 @@ function setup(over: Partial<StageSongOptions> = {}) {
   const rounds: RoundOutcome[] = [];
   const loadSong = vi.fn(() => Promise.resolve(testDetail()));
   let playback: ReturnType<typeof fakePlayback> | null = null;
+  let playbackArgs: Parameters<StageSongOptions["createPlayback"]>[0] | null =
+    null;
   let stageMs = 0;
   let nextFrame: (() => void) | null = null;
   const song = createStageSong({
@@ -135,7 +137,9 @@ function setup(over: Partial<StageSongOptions> = {}) {
     loadSong,
     profiles: () => PROFILES,
     pitch,
-    createPlayback: ({ onEnded, onReport }) => {
+    createPlayback: (args) => {
+      const { onEnded, onReport } = args;
+      playbackArgs = args;
       ended = onEnded;
       report = onReport;
       playback = fakePlayback(onEnded, log);
@@ -218,6 +222,8 @@ function setup(over: Partial<StageSongOptions> = {}) {
       resumeLater?.();
     },
     playback: () => playback,
+    /** What the playback was made with. */
+    playbackArgs: () => playbackArgs,
     /** Moves the Stage clock to `ms`, running an animation frame every 20 ms. */
     frames(ms: number) {
       while (stageMs < ms) {
@@ -677,5 +683,122 @@ describe("the Stage plays the head's Request", () => {
     // A Restart is not a return: no second toast.
     t.control("restart");
     expect(t.store.getSnapshot().toasts).toHaveLength(1);
+  });
+});
+
+describe("a Song with separate audio and video files (ticket 212)", () => {
+  /** The test Song, its video a separate file that starts 2 s into the audio. */
+  function separate() {
+    const detail = testDetail();
+    return {
+      ...detail,
+      media: {
+        ...detail.media,
+        video: {
+          kind: "file" as const,
+          file: { url: "/api/songs/7/media/video", native: true },
+          gapSeconds: -2,
+        },
+      },
+    };
+  }
+
+  it("plays once both the audio and the following video are there, and hands the video over", async () => {
+    const t = setup({ loadSong: vi.fn(() => Promise.resolve(separate())) });
+    t.party({ playing: PLAYING });
+    t.control("start");
+    await flush();
+    t.song.attach({} as HTMLMediaElement);
+    await flush();
+    expect(t.log).toEqual([]);
+    const video = { muted: false } as HTMLVideoElement;
+    t.song.attachVideo(video);
+    await flush();
+    expect(t.log).toEqual(["start"]);
+    expect(t.playbackArgs()?.video).toBe(video);
+    expect(t.playbackArgs()?.plan.follow).toEqual({
+      url: "/api/songs/7/media/video",
+      gapSeconds: -2,
+    });
+  });
+
+  it("shows the background until the playback says the video reached 0", async () => {
+    const t = setup({ loadSong: vi.fn(() => Promise.resolve(separate())) });
+    t.party({ playing: PLAYING });
+    t.control("start");
+    await flush();
+    t.song.attachVideo({} as HTMLVideoElement);
+    t.song.attach({} as HTMLMediaElement);
+    await flush();
+    const shown = () => {
+      const view = t.song.view();
+      return view.kind === "singing" ? view.videoShown : null;
+    };
+    expect(shown()).toBe(false);
+    t.playbackArgs()?.onVideoShown(true);
+    expect(shown()).toBe(true);
+    // A Restart before position 0 puts the background back.
+    t.playbackArgs()?.onVideoShown(false);
+    expect(shown()).toBe(false);
+  });
+
+  it("shows a video in the audio file at once, and needs no second element", async () => {
+    const detail = testDetail();
+    const t = setup({
+      loadSong: vi.fn(() =>
+        Promise.resolve({
+          ...detail,
+          media: { ...detail.media, video: { kind: "inAudio" as const } },
+        }),
+      ),
+    });
+    await t.start();
+    expect(t.log).toEqual(["start"]);
+    const view = t.song.view();
+    expect(view.kind === "singing" && view.videoShown).toBe(true);
+    expect(t.playbackArgs()?.video).toBeNull();
+  });
+});
+
+describe("the Score on each seat's Phone", () => {
+  const lineScores = (sent: ClientMessage[]) =>
+    sent.filter((message) => message.type === "reportLineScore");
+
+  it("reports each Player's running total at each Line end, not between", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+
+    sing(t, 0, 3);
+    t.frames(2300);
+    // Mid-Line: the Score moved, but nothing is reported yet.
+    expect(view.state.lanes[0]?.player?.score).toBeGreaterThan(0);
+    expect(lineScores(t.sent)).toEqual([]);
+
+    sing(t, 4, 7);
+    t.frames(4500); // the first Line ends at Beat 10
+    const total = view.state.lanes[0]?.player?.score ?? -1;
+    expect(lineScores(t.sent)).toEqual([
+      { type: "reportLineScore", requestId: 5, seat: 0, total },
+    ]);
+  });
+
+  it("reports 0 after a Restart", async () => {
+    const t = setup();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 7);
+    t.frames(4500);
+    t.control("restart");
+    expect(lineScores(t.sent).at(-1)).toEqual({
+      type: "reportLineScore",
+      requestId: 5,
+      seat: 0,
+      total: 0,
+    });
   });
 });

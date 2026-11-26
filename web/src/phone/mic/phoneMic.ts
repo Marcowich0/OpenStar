@@ -82,6 +82,13 @@ export interface PhoneMic {
   turnOff: () => void;
   /** The Sing again tap, once `lost`: reopens the mic on a new context. */
   singAgain: () => void;
+  /**
+   * Calls `listener` with the loudness (dBFS) of every reading the mic
+   * makes, synced to the Stage's clock or not: the takeover's ring and level
+   * meter. Many times a second, so listeners write the DOM, not React state.
+   * Returns the unsubscribe.
+   */
+  onLevel: (listener: (loudnessDbfs: number) => void) => () => void;
 }
 
 /** The page's visibility (`document.visibilityState`). */
@@ -134,6 +141,7 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
       clearTimeout(timer as ReturnType<typeof setTimeout>);
     });
   const listeners = new Set<() => void>();
+  const levelListeners = new Set<(loudnessDbfs: number) => void>();
   const rate = createRateCounter();
   let snapshot: PhoneMicSnapshot = {
     state: "off",
@@ -236,6 +244,9 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
         store.send({ type: "clockPing", t0 });
       },
       onPong: store.onClockPong,
+      onWorkletReading: (reading) => {
+        for (const listener of [...levelListeners]) listener(reading.loudness);
+      },
     }).then(
       (started) => {
         if (mine !== attempt) {
@@ -310,6 +321,12 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
     singAgain() {
       if (snapshot.state !== "lost") return;
       open();
+    },
+    onLevel(listener) {
+      levelListeners.add(listener);
+      return () => {
+        levelListeners.delete(listener);
+      };
     },
   };
 }

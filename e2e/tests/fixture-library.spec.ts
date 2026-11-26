@@ -47,6 +47,7 @@ test("the Library is the fixture Library, with one rejected file", async ({
       FIXTURE_SONGS.steadyTone,
       FIXTURE_SONGS.sineMelody,
       FIXTURE_SONGS.duet,
+      FIXTURE_SONGS.separateVideo,
     ].sort(),
   );
   const problems = (await (

@@ -300,6 +300,20 @@ pub enum ClientMessage {
         rate: f64,
         length_seconds: Option<f64>,
     },
+    /// The active Stage reports, at the end of a Line, the running total of
+    /// seat `seat` (its index in the Line-up fixed at Start) of the playing
+    /// Request `request_id`. The server passes it only to that seat's Phone,
+    /// as [`ServerMessage::LineScore`] (a seat with a Local mic or no Mic
+    /// has no Phone to tell). Refused with [`UserMessage::NotTheStage`] from
+    /// anyone but the active Stage, with [`UserMessage::NoSongPlaying`] when
+    /// Request `request_id` is not playing, and with
+    /// [`UserMessage::InvalidMessage`] for a seat the Line-up does not have
+    /// or a total over 10000.
+    ReportLineScore {
+        request_id: RequestId,
+        seat: u32,
+        total: u32,
+    },
     /// Next (or Done, with an empty Queue) on the results: the next
     /// Request's Line-up comes up prefilled, or the song browser. A Remote
     /// command; [`UserMessage::NoResults`] when no results show.
@@ -434,6 +448,11 @@ pub enum ServerMessage {
     /// [`ServerMessage::LiveState`] while a Song plays. Never sent
     /// continuously. A report whose Request no longer plays is stale.
     SongProgress { progress: SongProgress },
+    /// To a seat's Phone alone: that seat's running total at its latest
+    /// Line end in the playing Request `request_id`, as the Stage's scorer
+    /// reported it ([`ClientMessage::ReportLineScore`]). The mic takeover's
+    /// Score; never sent continuously.
+    LineScore { request_id: RequestId, total: u32 },
     /// To a Mic bridge without a valid token: it waits for approval on the
     /// Stage, which shows the same 4-digit `code`.
     BridgeWaiting { code: String },

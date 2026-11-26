@@ -13,6 +13,14 @@
  * seek. Pause, resume and stalls never seek, so the media and the clock carry
  * on from where they stopped.
  *
+ * With separate audio and video files (#212) the audio is the clock and the
+ * adapter also moves the muted video that follows it: each animation frame
+ * it aims the video at *Song time + `#VIDEOGAP`* (`videoFollow.ts`: a small
+ * `playbackRate` change for small drift, a seek over 50 ms), holds it at its
+ * start while that is before position 0 (`onVideoShown(false)`: the
+ * background shows), and pauses it whenever the audio does not really play
+ * (pause, stall, a Restart's seek, the end).
+ *
  * It also reports where the Song stands (`onReport`, #159), only on events:
  * when the Song really starts, pauses, really resumes, lands a Restart's
  * seek and ends. Never per frame, and not on a stall or its recovery: the
@@ -22,6 +30,7 @@
 import { createSongClock, type SongClock } from "../clock/songClock";
 import type { GainChain } from "./gainChain";
 import type { PlaybackPlan } from "./playbackPlan";
+import { followVideo } from "./videoFollow";
 
 /** The part of an `HTMLMediaElement` (or `HTMLVideoElement`) the adapter uses. */
 export interface PlaybackElement extends Pick<
@@ -34,6 +43,18 @@ export interface PlaybackElement extends Pick<
   pause(): void;
   requestVideoFrameCallback?(callback: VideoFrameRequestCallback): number;
   cancelVideoFrameCallback?(handle: number): void;
+}
+
+/** The part of the following `<video>` (#212) the adapter uses. */
+export interface FollowingVideoElement {
+  currentTime: number;
+  readonly paused: boolean;
+  readonly seeking: boolean;
+  readonly duration: number;
+  playbackRate: number;
+  muted: boolean;
+  play(): Promise<void>;
+  pause(): void;
 }
 
 /**
@@ -68,6 +89,16 @@ export interface MediaPlaybackOptions {
   onReport?: (report: PositionReport) => void;
   /** Raised once when the Song ends; never after `dispose()`. */
   onEnded: (how: SongEnding) => void;
+  /**
+   * The muted video that follows the audio, for a plan with `follow`
+   * (separate audio and video files, #212). Ignored without `plan.follow`.
+   */
+  video?: FollowingVideoElement | null;
+  /**
+   * Whether the following video shows (`true` once its position reached 0),
+   * raised on each change; it starts hidden, behind the background.
+   */
+  onVideoShown?: (shown: boolean) => void;
   /** The Song clock to feed; a new one for the plan's media by default. */
   clock?: SongClock;
   /** The Stage clock in ms; `performance.now()` by default. */
@@ -131,6 +162,61 @@ export function createMediaPlayback(
   let reportWhenPlaying = false;
   /** A `pause()` is reported once the element's `pause` lands. */
   let pausing = false;
+  /** The audio really plays (the clock runs): the following video may play. */
+  let audioPlays = false;
+  const video = plan.follow ? (options.video ?? null) : null;
+  const gapSeconds = plan.follow?.gapSeconds ?? 0;
+  let videoShown = false;
+
+  function showVideo(shown: boolean) {
+    if (shown === videoShown) return;
+    videoShown = shown;
+    options.onVideoShown?.(shown);
+  }
+
+  /** One step of the following video after the audio (#212). */
+  function follow() {
+    if (!video) return;
+    if (!audioPlays) {
+      if (!video.paused) video.pause();
+      return;
+    }
+    // A resync is still landing: its position says nothing yet.
+    if (video.seeking) return;
+    const step = followVideo({
+      audioSeconds: clock.songTime(),
+      videoSeconds: video.currentTime,
+      gapSeconds,
+      videoDurationSeconds: video.duration,
+    });
+    switch (step.kind) {
+      case "before":
+        if (!video.paused) video.pause();
+        if (video.currentTime !== 0) video.currentTime = 0;
+        showVideo(false);
+        return;
+      case "after":
+        return;
+      case "seek":
+        video.playbackRate = 1;
+        video.currentTime = step.toSeconds;
+        break;
+      case "rate":
+        video.playbackRate = step.rate;
+        break;
+    }
+    showVideo(true);
+    if (video.paused) {
+      // Muted, so the browser lets it play; a refusal is retried next frame.
+      video.play().catch(() => undefined);
+    }
+  }
+
+  /** The audio stops really playing: the video stops with it. */
+  function audioStops() {
+    audioPlays = false;
+    follow();
+  }
 
   function report(rate: number) {
     options.onReport?.({ positionSeconds: clock.songTime(), rate });
@@ -139,6 +225,8 @@ export function createMediaPlayback(
   /** The media really plays: the clock starts, and a pending event is reported. */
   function played() {
     clock.play();
+    audioPlays = true;
+    follow();
     if (reportWhenPlaying) {
       reportWhenPlaying = false;
       report(clock.rate);
@@ -167,6 +255,7 @@ export function createMediaPlayback(
         });
       }
     }
+    follow();
     animationFrame = requestFrame(onAnimationFrame);
   }
 
@@ -198,9 +287,11 @@ export function createMediaPlayback(
     },
     waiting: () => {
       clock.stall();
+      audioStops();
     },
     pause: () => {
       clock.pause();
+      audioStops();
       if (pausing) {
         pausing = false;
         reportWhenPlaying = false;
@@ -230,6 +321,8 @@ export function createMediaPlayback(
     }
     element.pause();
     clock.pause();
+    audioStops();
+    if (video) video.playbackRate = 1;
   }
 
   function finish(how: SongEnding) {
@@ -244,6 +337,8 @@ export function createMediaPlayback(
     clock,
     async start() {
       disconnect = chain.connectMedia(element as unknown as HTMLMediaElement);
+      // The audio carries the sound; the video never plays its own.
+      if (video) video.muted = true;
       chain.setSongLoudness(plan.loudnessLufs);
       for (const [type, listener] of Object.entries(listeners)) {
         element.addEventListener(type, listener);
@@ -270,6 +365,7 @@ export function createMediaPlayback(
       if (finished || !running) return;
       // Freeze first, so Song time jumps back to `#START` and waits there.
       clock.pause();
+      audioStops();
       seeking = true;
       pausing = false;
       reportWhenPlaying = true;

@@ -107,9 +107,10 @@ export function PlayingCard({
 
 /**
  * The bar and the times. Re-renders on a timer while the Song runs, and
- * shows the Song's own length until the Stage's first report.
+ * shows the Song's own length until the Stage's first report. The mic
+ * takeover's Singing step shows it too.
  */
-function Progress({
+export function Progress({
   store,
   fallbackLength,
 }: {

@@ -27,6 +27,8 @@ export const FIXTURE_SONGS = {
   steadyTone: "Placeholder Artist - Steady Tone/steady-tone.txt",
   sineMelody: "Placeholder Artist - Sine Melody/sine-melody.txt",
   duet: "Placeholder Duo - Two Voices/duet.txt",
+  /** Separate audio and video files (#212): the video starts 1.5 s in (`#VIDEOGAP:-1.5`). */
+  separateVideo: "Placeholder Artist - Separate Video/separate-video.txt",
   /** Rejected by the parser (`#VERSION:2.0.0`): a Library problem. */
   rejected: "Placeholder Artist - Rejected/rejected.txt",
 } as const;

@@ -67,7 +67,15 @@ export function stageSongFor(
       },
       profiles: () => queryClient.getQueryData(profilesQuery.queryKey),
       pitch: stagePitch(),
-      createPlayback: ({ element, plan, clock, onEnded, onReport }) => {
+      createPlayback: ({
+        element,
+        video,
+        plan,
+        clock,
+        onEnded,
+        onReport,
+        onVideoShown,
+      }) => {
         // The song browser's preview never plays under a Song.
         stagePreview().stop();
         return createMediaPlayback({
@@ -78,6 +86,8 @@ export function stageSongFor(
           outputLatencyMs: () => stageAudio().outputLatencyMs(),
           onEnded,
           onReport,
+          video,
+          onVideoShown,
         });
       },
       resumeAudio,

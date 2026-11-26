@@ -48,6 +48,7 @@ async function stage(startSeconds = 0) {
       startSeconds,
       endSeconds: null,
       loudnessLufs: null,
+      follow: null,
     },
     chain: { connectMedia: () => () => undefined, setSongLoudness: () => {} },
     outputLatencyMs: () => 0,

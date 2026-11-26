@@ -35,6 +35,7 @@ describe("how the Stage plays a Song", () => {
       startSeconds: 0,
       endSeconds: null,
       loudnessLufs: null,
+      follow: null,
     });
   });
 
@@ -63,7 +64,7 @@ describe("how the Stage plays a Song", () => {
     ).toMatchObject({ element: "audio", clock: "audio" });
   });
 
-  it("plays only the audio of separate audio and video files (ticket 212 makes the video follow)", () => {
+  it("plays separate audio and video files from the audio, with the muted video following at #VIDEOGAP", () => {
     const plan = playbackPlan(
       input({
         video: {
@@ -77,7 +78,26 @@ describe("how the Stage plays a Song", () => {
       element: "audio",
       url: AUDIO.url,
       clock: "audio",
+      follow: { url: "/api/songs/7/media/video", gapSeconds: 1.5 },
     });
+  });
+
+  it("has no following video without a video, for one file, or while the video converts", () => {
+    expect(playbackPlan(input()).follow).toBeNull();
+    expect(
+      playbackPlan(input({ video: { kind: "inAudio" } })).follow,
+    ).toBeNull();
+    expect(
+      playbackPlan(
+        input({
+          video: {
+            kind: "file",
+            file: { url: "/api/songs/7/media/video", native: false },
+            gapSeconds: 0,
+          },
+        }),
+      ).follow,
+    ).toBeNull();
   });
 
   it("begins at #START and stops at #END", () => {

@@ -89,6 +89,7 @@ test("a Phone finds a Song on the Songs tab and adds it with the Request sheet",
     // Every listed Song, with its tags; the duet is tagged.
     const songs = mine.getByRole("list", { name: "Songs" });
     await expect(songs.getByRole("listitem")).toHaveText([
+      /Separate Video.*Placeholder Artist/,
       /Sine Melody.*Placeholder Artist/,
       /Steady Tone.*Placeholder Artist/,
       /Two Voices.*Placeholder Duo.*Duet/,
@@ -101,7 +102,7 @@ test("a Phone finds a Song on the Songs tab and adds it with the Request sheet",
     await search.fill("duo");
     await expect(songs.getByRole("listitem")).toHaveText([/Two Voices/]);
     await search.fill("");
-    await expect(songs.getByRole("listitem")).toHaveCount(3);
+    await expect(songs.getByRole("listitem")).toHaveCount(4);
 
     // The Duets chip.
     const chips = mine.getByRole("group", { name: "Filters" });
@@ -132,6 +133,9 @@ test("a Phone finds a Song on the Songs tab and adds it with the Request sheet",
     await expect(
       theirs.getByRole("status", { name: "Party changes" }),
     ).toContainText(`${picker} added Two Voices`);
+    // Both are seated in the duet's Line-up, so each Phone shows its mic
+    // takeover (#167); the Remote opens on top.
+    await theirs.getByRole("button", { name: "Queue & controls" }).click();
     await expect(
       theirs.getByRole("tab", { name: "Queue, 1 Request" }),
     ).toBeVisible();

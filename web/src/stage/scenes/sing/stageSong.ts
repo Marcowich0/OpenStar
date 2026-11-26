@@ -9,7 +9,8 @@
  *   over its media element (`attach`). While the Song plays, one animation
  *   frame loop ticks the scoring session; each Player's running Score goes
  *   into their lane (`onScoring` lets the scene write the header without a
- *   React render).
+ *   React render). At each Line end each seat's running total goes to the
+ *   server (`reportLineScore`), which passes it to that seat's Phone (#167).
  * - **Pause, Resume, Restart** go to the Song controls (#158: freeze, 3-2-1,
  *   seek to `#START` with the buffers cleared and the scoring reset).
  * - **End** stops the Song. A Song that plays out or is ended reports its
@@ -39,6 +40,7 @@ import type { SongId } from "../../../generated/SongId";
 import type { LiveStore, SongControlMessage } from "../../../live/liveStore";
 import type {
   MediaPlayback,
+  FollowingVideoElement,
   PlaybackElement,
   PositionReport,
   SongEnding,
@@ -98,6 +100,11 @@ export type StageSongView =
       playFailed: boolean;
       /** Set once the Song played out or was ended. */
       ended: SongEnding | null;
+      /**
+       * The video shows over the background: always for a video in the audio
+       * file; a separate video file (#212) once its position reached 0.
+       */
+      videoShown: boolean;
     };
 
 /** A Song that played out or was ended, for the results flow (#175). */
@@ -129,11 +136,15 @@ export interface StageSongOptions {
   pitch: Pick<PitchRouter, "start" | "stop">;
   createPlayback: (args: {
     element: PlaybackElement;
+    /** The muted video following the audio, for a plan with `follow` (#212). */
+    video: FollowingVideoElement | null;
     plan: PlaybackPlan;
     clock: SongClock;
     onEnded: (how: SongEnding) => void;
     /** Where the Song stands, on start, pause, resume, Restart and end only (#159). */
     onReport: (report: PositionReport) => void;
+    /** The following video shows (it reached position 0), or not any more. */
+    onVideoShown: (shown: boolean) => void;
   }) => Pick<
     MediaPlayback,
     "start" | "pause" | "resume" | "restart" | "end" | "dispose"
@@ -165,6 +176,11 @@ export interface StageSong {
   subscribe(listener: () => void): () => void;
   /** The sing scene's media element (the video, or an `<audio>`), or `null`. */
   attach(element: PlaybackElement | null): void;
+  /**
+   * The backdrop's following video for separate audio and video files
+   * (#212), or `null`. Such a Song plays once both elements are there.
+   */
+  attachVideo(video: FollowingVideoElement | null): void;
   /** Plays again after the browser refused to (call from a user gesture). */
   retryPlay(): void;
   /** The last Song that played out or was ended. */
@@ -222,6 +238,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
   let view: StageSongView = IDLE;
   let session: Session | null = null;
   let element: PlaybackElement | null = null;
+  let video: FollowingVideoElement | null = null;
   let round: StageRound | null = null;
 
   function show(next: StageSongView) {
@@ -267,8 +284,11 @@ export function createStageSong(options: StageSongOptions): StageSong {
     if (s.playback || s.stopped || !s.setup || !s.clock || !element) return;
     if (view.kind !== "singing") return;
     const { plan, detail } = view;
+    // Separate audio and video files: the video follows, so wait for it too.
+    if (plan.follow && !video) return;
     const playback = options.createPlayback({
       element,
+      video: plan.follow ? video : null,
       plan,
       clock: s.clock,
       onEnded: (how) => {
@@ -283,6 +303,9 @@ export function createStageSong(options: StageSongOptions): StageSong {
           rate,
           lengthSeconds: plan.endSeconds ?? detail.lengthSeconds,
         });
+      },
+      onVideoShown: (videoShown) => {
+        if (session === s) update({ videoShown });
       },
     });
     s.playback = playback;
@@ -486,8 +509,23 @@ export function createStageSong(options: StageSongOptions): StageSong {
         },
       });
       const state = setup.state(s.buffers);
+      // The last running total each seat's Phone was told (#167).
+      const told: (number | null)[] = setup.players.map(() => null);
       scoring.onChange((change) => {
         if (session !== s) return;
+        // The seat's Phone shows its Score at each Line end, and 0 again
+        // after a Restart (the only way a total drops).
+        const total = change.score.total;
+        const last = told[change.player] ?? null;
+        if (change.lineEnds.length > 0 || (last !== null && total < last)) {
+          told[change.player] = total;
+          store.send({
+            type: "reportLineScore",
+            requestId: s.requestId,
+            seat: change.player,
+            total,
+          });
+        }
         // The header shows it at its next render; `onScoring` writes it now.
         const lane = state.lanes[change.player];
         const player = lane?.player;
@@ -515,6 +553,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
         controls: { phase: "playing" },
         playFailed: false,
         ended: null,
+        videoShown: plan.element === "video",
       });
       begin(s);
       scoreFrames(s);
@@ -602,6 +641,10 @@ export function createStageSong(options: StageSongOptions): StageSong {
     },
     attach(next) {
       element = next;
+      if (session && next) begin(session);
+    },
+    attachVideo(next) {
+      video = next;
       if (session && next) begin(session);
     },
     retryPlay() {
