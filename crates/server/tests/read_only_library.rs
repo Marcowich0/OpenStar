@@ -16,7 +16,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use openstar_protocol::admin::{ApiError, ApiErrorCode};
+use openstar_protocol::UserMessage;
 use openstar_protocol::jobs::{JobKind, JobList, JobState};
 use openstar_protocol::library::{ScanStatus, SongDetail, SongId, SongList, SongVideo, TrashList};
 use openstar_protocol::song::{TimingEdit, TimingOperation, TimingPreview, TimingSave};
@@ -271,10 +271,10 @@ async fn a_read_only_library_plays_scans_converts_and_measures() {
 }
 
 /// The answer to `request`: status and the API error code, if any.
-async fn answer(request: reqwest::RequestBuilder) -> (StatusCode, Option<ApiErrorCode>) {
+async fn answer(request: reqwest::RequestBuilder) -> (StatusCode, Option<UserMessage>) {
     let response = request.send().await.unwrap();
     let status = response.status();
-    let code = response.json::<ApiError>().await.ok().map(|e| e.code);
+    let code = response.json::<UserMessage>().await.ok();
     (status, code)
 }
 
@@ -379,7 +379,7 @@ async fn a_read_only_library_refuses_each_write_whatever_the_unlock() {
             }
             assert_eq!(
                 answer(request).await,
-                (StatusCode::CONFLICT, Some(ApiErrorCode::LibraryReadOnly)),
+                (StatusCode::CONFLICT, Some(UserMessage::LibraryReadOnly)),
                 "{what}, unlocked: {}",
                 unlock.is_some()
             );

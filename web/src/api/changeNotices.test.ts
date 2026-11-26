@@ -236,18 +236,25 @@ describe("change notices", () => {
     });
   });
 
-  it("refetch nothing when the first connection opens", async () => {
-    const server = mockServer({ "/api/server-info": () => info("1") });
+  it("refetch what was fetched before the first connection opened, since a notice sent between was missed", async () => {
+    // A reloaded page fetches over HTTP while its WebSocket is still
+    // opening; the server changes the data and notifies only the sockets
+    // already open.
+    let version = "1";
+    const server = mockServer({ "/api/server-info": () => info(version) });
     const queryClient = createQueryClient();
     const serverInfo = watch(queryClient, serverInfoQuery);
     await vi.waitFor(() => {
       expect(serverInfo.data?.version).toBe("1");
     });
+    version = "2";
 
     connect(queryClient);
-    await new Promise((resolve) => setTimeout(resolve, 20));
 
-    expect(server.count("/api/server-info")).toBe(1);
+    await vi.waitFor(() => {
+      expect(serverInfo.data?.version).toBe("2");
+    });
+    expect(server.count("/api/server-info")).toBe(2);
   });
 
   it("stop invalidating once stopped", async () => {

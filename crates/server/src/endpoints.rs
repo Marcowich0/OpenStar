@@ -25,7 +25,7 @@ use axum::middleware::{self, Next};
 use axum::response::Response;
 use axum::routing::{MethodFilter, on};
 use openstar_protocol::ClientMessage;
-use openstar_protocol::admin::ApiErrorCode;
+use openstar_protocol::UserMessage;
 use tower_http::trace::TraceLayer;
 
 use crate::{
@@ -585,7 +585,7 @@ async fn guard(
     next: Next,
 ) -> Response {
     if library == Library::Writes && state.library_read_only.is_some() {
-        return unlock::refusal(StatusCode::CONFLICT, ApiErrorCode::LibraryReadOnly);
+        return unlock::refusal(StatusCode::CONFLICT, UserMessage::LibraryReadOnly);
     }
     if let Some(refused) = unlock::refusal_without_unlock(&state, request.headers()).await {
         return refused;

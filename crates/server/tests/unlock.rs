@@ -7,7 +7,8 @@ use std::time::Duration;
 
 use openstar::clock::ManualClock;
 use openstar::{Config, Server};
-use openstar_protocol::admin::{ApiError, ApiErrorCode, UnlockRequest, UnlockStatus};
+use openstar_protocol::UserMessage;
+use openstar_protocol::admin::{UnlockRequest, UnlockStatus};
 use reqwest::StatusCode;
 
 const PIN: &str = "1234";
@@ -142,10 +143,10 @@ fn cookie_pair(response: &reqwest::Response) -> Option<String> {
     set_cookie(response).map(|value| value.split(';').next().unwrap().trim().to_owned())
 }
 
-async fn assert_refused(response: reqwest::Response, code: ApiErrorCode) {
+async fn assert_refused(response: reqwest::Response, message: UserMessage) {
     let status = response.status();
-    let body: ApiError = response.json().await.unwrap();
-    assert_eq!(body.code, code, "status {status}");
+    let body: UserMessage = response.json().await.unwrap();
+    assert_eq!(body, message, "status {status}");
 }
 
 struct Dirs {
@@ -202,7 +203,7 @@ async fn a_wrong_pin_sets_no_cookie_and_answers_with_a_code() {
         let response = app.attempt(wrong).await;
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
         assert_eq!(set_cookie(&response), None);
-        assert_refused(response, ApiErrorCode::WrongPin).await;
+        assert_refused(response, UserMessage::WrongPin).await;
     }
     assert!(!app.status(None).await);
 }
@@ -215,7 +216,7 @@ async fn a_guarded_endpoint_needs_an_unlock() {
 
     let response = app.guarded(None).await;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    assert_refused(response, ApiErrorCode::UnlockRequired).await;
+    assert_refused(response, UserMessage::UnlockRequired).await;
 
     let cookie = app.unlock().await;
     assert_eq!(
@@ -239,7 +240,7 @@ async fn a_guarded_endpoint_refuses_an_unknown_cookie() {
     ] {
         let response = app.guarded(Some(&forged)).await;
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{forged}");
-        assert_refused(response, ApiErrorCode::UnlockRequired).await;
+        assert_refused(response, UserMessage::UnlockRequired).await;
         assert!(!app.status(Some(&forged)).await, "{forged}");
     }
 }
@@ -260,7 +261,7 @@ async fn an_unlock_expires_after_30_idle_minutes_of_server_clock() {
     assert!(!app.status(Some(&cookie)).await, "ended at 30 minutes");
     let response = app.guarded(Some(&cookie)).await;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    assert_refused(response, ApiErrorCode::UnlockRequired).await;
+    assert_refused(response, UserMessage::UnlockRequired).await;
 }
 
 #[tokio::test]
@@ -330,13 +331,13 @@ async fn a_heartbeat_never_creates_or_revives_an_unlock() {
     let response = app.heartbeat(None).await;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(set_cookie(&response), None);
-    assert_refused(response, ApiErrorCode::UnlockRequired).await;
+    assert_refused(response, UserMessage::UnlockRequired).await;
 
     let cookie = app.unlock().await;
     clock.advance(Duration::from_secs(30 * 60));
     let response = app.heartbeat(Some(&cookie)).await;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    assert_refused(response, ApiErrorCode::UnlockRequired).await;
+    assert_refused(response, UserMessage::UnlockRequired).await;
     assert!(!app.status(Some(&cookie)).await);
     assert_eq!(
         app.guarded(Some(&cookie)).await.status(),
@@ -364,7 +365,7 @@ async fn lock_ends_the_unlock_at_once() {
     assert!(!app.status(Some(&cookie)).await);
     let response = app.guarded(Some(&cookie)).await;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    assert_refused(response, ApiErrorCode::UnlockRequired).await;
+    assert_refused(response, UserMessage::UnlockRequired).await;
     assert!(
         app.status(Some(&other_browser)).await,
         "Lock ends only this browser's Unlock"
@@ -411,7 +412,7 @@ async fn a_restart_with_a_different_pin_ends_the_unlock() {
     assert!(!app.status(Some(&cookie)).await);
     let response = app.guarded(Some(&cookie)).await;
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-    assert_refused(response, ApiErrorCode::UnlockRequired).await;
+    assert_refused(response, UserMessage::UnlockRequired).await;
     app.stop().await;
 
     // Going back to the old PIN does not revive it either.

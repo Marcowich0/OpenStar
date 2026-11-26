@@ -104,16 +104,16 @@ function QueueRow({
 }) {
   const song = useQuery(songQuery(request.songId)).data;
   const head = headState(party, request.requestId);
-  const singers = request.requestedPlayers.flatMap((id) => {
+  const players = request.requestedPlayers.flatMap((id) => {
     const member = party.members.find((m) => m.memberId === id);
     const look = member ? memberLook(member, profiles) : null;
     return member && look ? [{ member, look }] : [];
   });
   const adder = memberName(party.members, profiles, request.adder);
   const who =
-    singers.length === 0
+    players.length === 0
       ? t("queue.anyone")
-      : NAMES.format(singers.map((s) => s.look.name));
+      : NAMES.format(players.map((s) => s.look.name));
   const by =
     request.adder === null
       ? t("queue.fromStage")
@@ -157,9 +157,9 @@ function QueueRow({
           </span>
           <span className="truncate text-2xl text-ink-2">{line}</span>
         </span>
-        {singers.length > 0 && (
+        {players.length > 0 && (
           <span aria-hidden="true" className="flex shrink-0">
-            {singers.map(({ member, look }) => (
+            {players.map(({ member, look }) => (
               <span
                 key={member.memberId}
                 className="-ml-3 rounded-full ring-4 ring-white first:ml-0"
@@ -205,7 +205,7 @@ function RequestPickList({
   profiles: readonly Profile[] | undefined;
   onClose: () => void;
 }) {
-  const [singers, setSingers] = useState(false);
+  const [pickingPlayers, setPickingPlayers] = useState(false);
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState<UserMessage | "noAnswer" | null>(null);
   const actions = requestActions(party, request.requestId);
@@ -232,7 +232,7 @@ function RequestPickList({
     </p>
   );
 
-  if (singers) {
+  if (pickingPlayers) {
     const chosen = request.requestedPlayers;
     // Each Enter sends at once, from the singers the snapshot shows.
     const toggle = (memberId: PartyMemberId) => {
@@ -319,7 +319,7 @@ function RequestPickList({
         <StagePickListEntry
           onPick={() => {
             setProblem(null);
-            setSingers(true);
+            setPickingPlayers(true);
           }}
         >
           {t("queue.changeSingers")}

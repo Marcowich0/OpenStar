@@ -89,7 +89,7 @@ pub fn source(info: &SourceInfo) -> Source {
         sample_rate: info.sample_spec.sample_rate,
         // Microseconds to ms; µs counts stay far below f64's exact range.
         #[expect(clippy::cast_precision_loss, reason = "µs of latency")]
-        latency_ms: (latency_us > 0).then(|| latency_us as f64 / 1000.0),
+        source_latency_ms: (latency_us > 0).then(|| latency_us as f64 / 1000.0),
         monitor: info.monitor_of_sink_index.is_some(),
     }
 }

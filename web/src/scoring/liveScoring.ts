@@ -144,7 +144,7 @@ export interface LiveScoring {
 }
 
 /** One Player's running state. */
-interface Seat {
+interface ScoringSeat {
   input: Readonly<LiveScoringPlayer>;
   scorer: Scorer;
   range: BeatRange;
@@ -172,7 +172,7 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
   const players = options.players.map((p) => Object.freeze({ ...p }));
   const listeners = new Set<(change: LiveScoringChange) => void>();
 
-  const seats: Seat[] = players.map((input) => {
+  const seats: ScoringSeat[] = players.map((input) => {
     const scorer = createScorer({
       voice: song.voices[input.voice] ?? { lines: [] },
       headers: grid,
@@ -214,7 +214,11 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
     gathered.push(reading);
   };
 
-  function valueOf(seat: Seat, buffer: PitchBuffer | undefined, beat: number) {
+  function valueOf(
+    seat: ScoringSeat,
+    buffer: PitchBuffer | undefined,
+    beat: number,
+  ) {
     if (seat.lostBeats[beat - seat.range.firstBeat] === 1) return NO_VOICE;
     if (!buffer) return NO_VOICE;
     gathered.length = 0;
@@ -223,7 +227,7 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
     return beatValue(gathered, seat.input.micThresholdDbfs);
   }
 
-  function markLost(seat: Seat, songTime: number) {
+  function markLost(seat: ScoringSeat, songTime: number) {
     const beat = beatAt(grid, songTime);
     const from = seat.lostFromBeat ?? beat;
     const { firstBeat, lastBeat } = seat.range;
@@ -280,7 +284,7 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
     });
   }
 
-  function seat(player: number): Seat {
+  function seat(player: number): ScoringSeat {
     const found = seats[player];
     if (!found) throw new RangeError(`No Player ${String(player)}`);
     return found;

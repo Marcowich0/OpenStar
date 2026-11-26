@@ -154,6 +154,8 @@ async fn a_host_that_is_not_a_plain_address_never_reaches_the_script() {
     for host in ["evil'$(rm -rf ~)'", "a b", "x\"y"] {
         let response = get(app.addr, "/bridge/install.sh", &[("host", host)]).await;
         assert_eq!(response.status(), 400, "{host}");
+        // Codes, not English: a bare 400.
+        assert_eq!(response.text().await.unwrap(), "", "{host}");
     }
 }
 

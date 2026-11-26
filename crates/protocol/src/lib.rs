@@ -28,7 +28,7 @@ pub use party::{
     PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind, SEATS, Seat, SeatVoice,
     SeatWho, SongControl, SongEnd, SongProgress, SongResults,
 };
-pub use pitch::{BridgeInput, MicId, PitchReading};
+pub use pitch::{BridgeLocalMic, MicId, PitchReading};
 pub use scoring::BeatValue;
 
 /// Body of `GET /api/server-info`.
@@ -98,7 +98,7 @@ pub enum ClientMessage {
         /// the reading is from; a Phone leaves it out.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        input: Option<BridgeInput>,
+        local_mic: Option<BridgeLocalMic>,
     },
     /// A clock-sync ping, relayed to the current Stage (dropped while there
     /// is none). `t0` is the send time on the sender's own clock, in ms.
@@ -108,7 +108,7 @@ pub enum ClientMessage {
         /// its own); a Phone leaves it out.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        input: Option<BridgeInput>,
+        local_mic: Option<BridgeLocalMic>,
     },
     /// The Stage's answer to a [`ServerMessage::ClockPing`], relayed to the
     /// Mic named in `mic` alone. Accepted only from the active Stage.
@@ -270,7 +270,9 @@ pub enum ClientMessage {
     /// Presents the browser's Phone id. A Phone sends it every time its
     /// WebSocket opens, before anything else. A Phone already in the current
     /// Party is back in at once with the same identity (silent rejoin). The
-    /// answer is a [`ServerMessage::PhoneStatus`].
+    /// answer is a [`ServerMessage::PhoneStatus`], or
+    /// [`ServerMessage::LeftParty`] for a Phone that was in the Party and is
+    /// out (it may have been asleep when it left) and has not joined since.
     Hello { phone_id: PhoneId },
     /// Asks whether this is the current Party's Join code, before the Phone
     /// picks who it is. Answered with [`ServerMessage::JoinCodeValid`], or
@@ -520,7 +522,7 @@ pub enum ServerMessage {
         /// To a Mic bridge only: the Local mic whose ping this answers.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        input: Option<BridgeInput>,
+        local_mic: Option<BridgeLocalMic>,
     },
     /// Stage only: a Mic's WebSocket closed (one of the lost-Mic signals).
     MicClosed { mic: MicId },
@@ -535,7 +537,9 @@ pub enum ServerMessage {
     PhoneStatus { member_id: Option<PartyMemberId> },
     /// Sent to every connection of a Phone that was in the Party and no
     /// longer is (a new Party started, or its Party member left or was
-    /// removed): it needs the Join code to come back.
+    /// removed): it needs the Join code to come back. A Phone that was not
+    /// connected then hears it in answer to its next
+    /// [`ClientMessage::Hello`].
     LeftParty,
     /// The Stage's current OpenStar volume (0 to 100), sent to every
     /// connection when the Stage reports its output and on every step, and to
@@ -589,7 +593,9 @@ pub enum ServerMessage {
     /// To a seat's Phone alone: that seat's running total at its latest
     /// Line end in the playing Request `request_id`, as the Stage's scorer
     /// reported it ([`ClientMessage::ReportLineScore`]). The mic takeover's
-    /// Score; never sent continuously.
+    /// Score; never sent continuously. A Phone back after a reload or a
+    /// drop hears the last one again right after its
+    /// [`ServerMessage::PhoneStatus`], while that Request plays.
     LineScore { request_id: RequestId, total: u32 },
     /// To a Mic bridge whose hello named another build than the server's
     /// (newer or older): the server's `build`. The bridge is neither
@@ -620,7 +626,7 @@ pub enum ServerMessage {
     /// each a switched-on Local mic seated in the Song that plays (paused
     /// included). Sent whenever that set changes (not on connect while it
     /// is empty). The bridge sends Pitch readings for exactly these.
-    BridgeDetecting { channels: Vec<BridgeInput> },
+    BridgeDetecting { channels: Vec<BridgeLocalMic> },
     /// To a connected Mic bridge: Switch to Pro Audio was pressed on the
     /// Stage for its interface `device_name`. The bridge tries the switch
     /// itself, as if its own button had been pressed; it never switches
@@ -670,6 +676,16 @@ pub enum ChangeTopic {
 )]
 #[ts(export)]
 pub enum UserMessage {
+    /// The Admin PIN attempt was wrong.
+    WrongPin,
+    /// The action is guarded and this browser holds no live Unlock.
+    UnlockRequired,
+    /// The action writes the Library and the Library is read-only, whatever
+    /// the Unlock.
+    LibraryReadOnly,
+    /// Becoming the Stage needs the Admin PIN: this browser is not a
+    /// remembered Stage browser.
+    StagePinRequired,
     /// The text was not a valid [`ClientMessage`].
     InvalidMessage,
     /// Only the active Stage may do this.
@@ -796,6 +812,9 @@ pub enum UserMessage {
     /// id), so it is not downloaded again. Checked when a Download starts
     /// and again just before it moves into the Library.
     UsdbSongInLibrary,
+    /// A Download of the same USDB song is already waiting or running, so a
+    /// second one is not started.
+    UsdbSongDownloading,
     /// USDB's text page for the song held no text (no such song, or a page
     /// OpenStar does not know).
     UsdbNoSongText,
@@ -866,6 +885,25 @@ mod tests {
             serde_json::to_string(&ServerMessage::Pong { nonce: 7 }).unwrap(),
             r#"{"type":"pong","nonce":7}"#
         );
+    }
+
+    #[test]
+    fn the_guard_and_pin_refusals_keep_their_json() {
+        // What `ApiError` sent before it was folded into `UserMessage`.
+        for (message, json) in [
+            (UserMessage::WrongPin, r#"{"code":"wrongPin"}"#),
+            (UserMessage::UnlockRequired, r#"{"code":"unlockRequired"}"#),
+            (
+                UserMessage::LibraryReadOnly,
+                r#"{"code":"libraryReadOnly"}"#,
+            ),
+            (
+                UserMessage::StagePinRequired,
+                r#"{"code":"stagePinRequired"}"#,
+            ),
+        ] {
+            assert_eq!(serde_json::to_string(&message).unwrap(), json);
+        }
     }
 
     #[test]

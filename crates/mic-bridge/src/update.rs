@@ -379,6 +379,9 @@ mod tests {
         }
     }
 
+    /// Debug builds only, like the marker itself: `cargo test --release`
+    /// skips it.
+    #[cfg(debug_assertions)]
     #[test]
     fn a_test_build_names_itself_from_the_end_of_its_file() {
         let (_dir, me) = installed(b"\x7fELF...");

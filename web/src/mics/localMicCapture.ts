@@ -7,7 +7,8 @@
 // Song); its meter shows the loudness of the newest reading or level. Each
 // channel's readings are stamped on the page's `performance.now()` with its
 // own Local sender session (offset 0, the lower envelope of arrival − frame
-// time, afresh for every new stream) and handed to `subscribeReadings`.
+// time, afresh for every new stream and each time the channel starts
+// detecting) and handed to `subscribeReadings`.
 // The capture keeps an `AudioContext` of its own, apart from the Song's: the
 // envelope maps any context's frames onto the page clock, and the meters run
 // without waiting for the Song chain.
@@ -364,8 +365,12 @@ export function createLocalMicCapture({
       for (const [deviceId, device] of opened) {
         device.nodes.forEach((node, channel) => {
           const key = channelKey(deviceId, channel);
-          if (next.has(key) !== detecting.has(key))
-            setNodeDetecting(node, next.has(key));
+          if (next.has(key) === detecting.has(key)) return;
+          setNodeDetecting(node, next.has(key));
+          // A Song starts with this channel: its frame mapping starts
+          // afresh, as a Phone's does at Sing again. While it only meters,
+          // no reading kept the envelope up to date.
+          if (next.has(key)) device.sessions[channel]?.startCapture(now());
         });
       }
       detecting = next;

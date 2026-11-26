@@ -118,6 +118,41 @@ describe("the Me sheet", () => {
     ).toBeInTheDocument();
   });
 
+  it("tells a Phone back by silent rejoin that switched identity its favourite was taken", async () => {
+    const { sheet, server } = await openMe();
+    act(() => {
+      fireEvent.click(
+        within(sheet).getByRole("button", {
+          name: "Someone else is using this phone",
+        }),
+      );
+    });
+    const grid = screen.getByRole("list", { name: "Who's singing?" });
+    act(() => {
+      fireEvent.click(within(grid).getByRole("button", { name: /Ada/ }));
+    });
+    // Ada's favourite Teal is held: she is Lime tonight.
+    const ada = profileMember(3, 9, "lime", { favouriteTaken: true });
+    server(
+      {
+        type: "partyChanged",
+        party: partyOf([bo, lukas, ada]),
+        change: {
+          actor: { kind: "member", memberId: 3 },
+          event: {
+            code: "memberJoined",
+            params: { memberId: 3, name: "Ada", colour: "lime" },
+          },
+        },
+      },
+      { type: "phoneStatus", memberId: 3 },
+    );
+    expect(await screen.findByText("You're Lime tonight")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Let's go" }),
+    ).toBeInTheDocument();
+  });
+
   it("can go back to the Remote from Who's singing", async () => {
     const { sheet } = await openMe();
     act(() => {

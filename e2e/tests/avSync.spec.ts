@@ -58,8 +58,9 @@ test("the Stage and a Phone set the A/V offset by eye and ear", async ({
   // The ball moves: two frames of the canvas differ.
   const pattern = check.getByRole("img", { name: /ball bouncing/ });
   const first = await pattern.screenshot();
-  await stage.waitForTimeout(300);
-  expect((await pattern.screenshot()).equals(first)).toBe(false);
+  await expect
+    .poll(async () => (await pattern.screenshot()).equals(first))
+    .toBe(false);
 
   await stage.keyboard.press("ArrowRight");
   await stage.keyboard.press("ArrowRight");

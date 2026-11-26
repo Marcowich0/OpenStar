@@ -342,6 +342,22 @@ describe("the readings", () => {
     expect(heard.at(-1)?.[2].captureMs).toBeCloseTo(130 - HALF_WINDOW_MS, 9);
   });
 
+  it("start a fresh envelope each time a channel starts detecting (each Song)", async () => {
+    const { capture, pitchNodes, clock, heard } = await listening();
+    const first = { deviceId: "dongle", channel: 0 };
+    capture.setDetecting([first]);
+    clock.now = 101;
+    pitchNodes[0]?.post({ endFrame: 4800 });
+    // The Song ends; the next one seats the same channel. Its readings
+    // arrive 10 ms after their frame time: with the old envelope they would
+    // be stamped 9 ms early.
+    capture.setDetecting([]);
+    clock.now = 130;
+    capture.setDetecting([first]);
+    pitchNodes[0]?.post({ endFrame: 5760 });
+    expect(heard.at(-1)?.[2].captureMs).toBeCloseTo(130 - HALF_WINDOW_MS, 9);
+  });
+
   it("reach every subscriber with their device and channel", async () => {
     const { capture, pitchNodes } = fakeBrowser([DONGLE]);
     await capture.setOpen(new Set(["dongle"]));

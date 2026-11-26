@@ -10,7 +10,6 @@ import {
 } from "@tanstack/react-router";
 
 import { createQueryClient } from "./api/queryClient";
-import { validateAdminSearch } from "./adminSearch";
 import { validatePhoneSearch } from "./phone/phoneSearch";
 import { validateStageSearch } from "./stageSearch";
 
@@ -87,7 +86,6 @@ const adminRoute = createRoute({
 const adminIndexRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "/",
-  validateSearch: validateAdminSearch,
   component: lazyRouteComponent(() => import("./admin/AdminHome"), "AdminHome"),
 });
 

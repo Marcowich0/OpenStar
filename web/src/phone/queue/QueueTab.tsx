@@ -43,7 +43,7 @@ export function QueueTab({ store }: { store: LiveStore }) {
   const party = useLive(selectParty, store);
   const profiles = useQuery(profilesQuery).data;
   const [opened, setOpened] = useState<RequestId | null>(null);
-  const [singers, setSingers] = useState<Request | null>(null);
+  const [changing, setChanging] = useState<Request | null>(null);
   const queue = party?.queue ?? [];
 
   return (
@@ -82,14 +82,16 @@ export function QueueTab({ store }: { store: LiveStore }) {
         }}
         onChangeSingers={(request) => {
           setOpened(null);
-          setSingers(request);
+          setChanging(request);
         }}
       />
       <RequestSheet
         store={store}
-        target={singers === null ? null : { kind: "change", request: singers }}
+        target={
+          changing === null ? null : { kind: "change", request: changing }
+        }
         onClose={() => {
-          setSingers(null);
+          setChanging(null);
         }}
       />
     </section>
@@ -111,16 +113,16 @@ function RequestCard({
 }) {
   const song = useQuery(songQuery(request.songId)).data;
   const head = headState(party, request.requestId);
-  const singers = request.requestedPlayers.flatMap((id) => {
+  const players = request.requestedPlayers.flatMap((id) => {
     const member = party.members.find((m) => m.memberId === id);
     const look = member ? memberLook(member, profiles) : null;
     return member && look ? [{ member, look }] : [];
   });
   const adder = memberName(party.members, profiles, request.adder);
   const who =
-    singers.length === 0
+    players.length === 0
       ? t("queue.anyone")
-      : NAMES.format(singers.map((s) => s.look.name));
+      : NAMES.format(players.map((s) => s.look.name));
   const by =
     request.adder === null
       ? t("queue.fromStage")
@@ -159,9 +161,9 @@ function RequestCard({
           </span>
           <span className="truncate text-sm text-ink-2">{line}</span>
         </span>
-        {singers.length > 0 && (
+        {players.length > 0 && (
           <span aria-hidden="true" className="flex shrink-0">
-            {singers.slice(0, 3).map(({ member, look }) => (
+            {players.slice(0, 3).map(({ member, look }) => (
               <span
                 key={member.memberId}
                 className="-ml-2 rounded-full ring-2 ring-white first:ml-0"

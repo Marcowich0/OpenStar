@@ -355,13 +355,34 @@ async fn a_kind_that_does_not_run_again_fails_when_a_restart_interrupts_it() {
     );
 }
 
+/// How long a `Ping` takes to be answered on `socket`, past job updates.
+async fn round_trip(socket: &mut WsClient, nonce: u32) -> Duration {
+    let sent = Instant::now();
+    socket.send(&ClientMessage::Ping { nonce }).await;
+    loop {
+        match socket.recv().await {
+            ServerMessage::Pong { nonce: n } if n == nonce => return sent.elapsed(),
+            ServerMessage::JobChanged { .. } => {}
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+}
+
 /// One worker thread for the whole app, so spare threads cannot hide a job
 /// that holds the runtime.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn a_websocket_round_trip_is_answered_promptly_while_every_lane_is_full() {
-    const BOUND: Duration = Duration::from_millis(100);
     let app = start().await;
     let mut socket = connect(&app).await;
+    // The bound is relative to idle round trips measured here first, so a
+    // loaded machine slows both alike: 100 ms, or ten times the slowest
+    // idle one when that is more. A job that held the runtime would hold a
+    // round trip for as long as it runs (seconds).
+    let mut slowest_idle = Duration::ZERO;
+    for nonce in 0..20 {
+        slowest_idle = slowest_idle.max(round_trip(&mut socket, 1000 + nonce).await);
+    }
+    let bound = Duration::from_millis(100).max(slowest_idle * 10);
     let mut ids = BTreeSet::new();
     // Each child keeps a CPU busy and floods its output with progress.
     for (lane, cap) in [
@@ -382,17 +403,11 @@ async fn a_websocket_round_trip_is_answered_promptly_while_every_lane_is_full() 
     }
 
     for nonce in 0..20 {
-        let sent = Instant::now();
-        socket.send(&ClientMessage::Ping { nonce }).await;
-        loop {
-            match socket.recv().await {
-                ServerMessage::Pong { nonce: n } if n == nonce => break,
-                ServerMessage::JobChanged { .. } => {}
-                other => panic!("unexpected {other:?}"),
-            }
-        }
-        let took = sent.elapsed();
-        assert!(took < BOUND, "round trip {nonce} took {took:?}");
+        let took = round_trip(&mut socket, nonce).await;
+        assert!(
+            took < bound,
+            "round trip {nonce} took {took:?}, the bound is {bound:?} (slowest idle {slowest_idle:?})"
+        );
     }
     for id in ids {
         cancel(&app, id).await;

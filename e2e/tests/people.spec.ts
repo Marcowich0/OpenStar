@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, newParty, test } from "../fixtures";
+import { holdToConfirm } from "../flows";
 
 // The People tab, the Me sheet and leaving the Party (#119): one Phone
 // changes its colour from the Me sheet, removes the other Phone's member
@@ -85,10 +86,7 @@ test("a Phone manages itself from the Me sheet and frees colours from the People
   // the removed Phone is out of the Party.
   await mine.getByRole("tab", { name: "People" }).click();
   const remove = mine.getByRole("button", { name: `Remove ${guest}` });
-  await remove.focus();
-  await mine.keyboard.down("Enter");
-  await mine.waitForTimeout(1000);
-  await mine.keyboard.up("Enter");
+  await holdToConfirm(remove);
   await expect(
     mine.getByRole("status", { name: "Party changes" }),
   ).toContainText(`${guest} left the Party. Forest is free`);

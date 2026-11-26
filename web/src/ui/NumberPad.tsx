@@ -28,6 +28,7 @@ import {
   type PadAction,
   type PadForm,
 } from "./numberPad";
+import { isFormField } from "./formField";
 
 export type PadAnswer = "refused" | "accepted";
 
@@ -62,17 +63,6 @@ const GRID = [
   "0",
   "delete",
 ] as const;
-
-/** A text field keeps its own keys. */
-function isTextField(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      target instanceof HTMLSelectElement)
-  );
-}
 
 export function NumberPad({
   form,
@@ -135,7 +125,7 @@ export function NumberPad({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
-      if (isTextField(event.target)) return;
+      if (isFormField(event.target)) return;
       if (/^[0-9]$/.test(event.key))
         dispatchRef.current({ type: "digit", digit: event.key });
       else if (event.key === "Backspace" || event.key === "Delete")

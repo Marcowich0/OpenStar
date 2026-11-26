@@ -13,7 +13,7 @@ import { ApiFailure, api } from "../api/api";
 import { trashQuery } from "../api/queries";
 import type { TrashedSong } from "../generated/TrashedSong";
 import { useGuardedAction } from "../guarded/useGuardedAction";
-import { refusalText } from "../i18n/serverText";
+import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import { HoldButton } from "../ui/HoldButton";
 
@@ -122,6 +122,6 @@ function TrashRow({ song }: { song: TrashedSong }) {
 
 function failureText(error: unknown): string {
   if (error instanceof ApiFailure && error.failure.kind === "refused")
-    return refusalText(error.failure.error);
+    return userMessageText(error.failure.error);
   return t("admin.songs.trash.restoreFailed");
 }

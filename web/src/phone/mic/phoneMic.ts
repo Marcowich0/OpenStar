@@ -67,6 +67,11 @@ export interface PhoneMicSnapshot {
   state: PhoneMicState;
   /** Set exactly while `failed`. */
   blocked: MicBlockedReason | null;
+  /**
+   * An offset to the Stage's clock exists, so readings leave: only while
+   * `on`, from the first pong (and again after a reconnect's first pong).
+   */
+  synced: boolean;
   /** Readings that left in the last second. */
   readingsPerSecond: number;
   /** The detector's cost per window, once measured. */
@@ -146,6 +151,7 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
   let snapshot: PhoneMicSnapshot = {
     state: "off",
     blocked: null,
+    synced: false,
     readingsPerSecond: 0,
     detector: null,
   };
@@ -164,6 +170,7 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
     if (
       merged.state === snapshot.state &&
       merged.blocked === snapshot.blocked &&
+      merged.synced === snapshot.synced &&
       merged.readingsPerSecond === snapshot.readingsPerSecond &&
       merged.detector === snapshot.detector
     )
@@ -223,6 +230,11 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
     pipeline = null;
   }
 
+  /** Whether the open capture has an offset to the Stage's clock now. */
+  function refreshSynced() {
+    update({ synced: pipeline?.offsetMs() != null });
+  }
+
   function reportBlocked(blocked: boolean) {
     if (!blocked && !reportedBlocked) return;
     reportedBlocked = blocked;
@@ -243,7 +255,11 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
       sendPing: (t0) => {
         store.send({ type: "clockPing", t0 });
       },
-      onPong: store.onClockPong,
+      onPong: (listener) =>
+        store.onClockPong((pong) => {
+          listener(pong);
+          refreshSynced();
+        }),
       onWorkletReading: (reading) => {
         for (const listener of [...levelListeners]) listener(reading.loudness);
       },
@@ -254,7 +270,7 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
           return;
         }
         pipeline = started;
-        update({ state: "on" });
+        update({ state: "on", synced: started.offsetMs() !== null });
         reportBlocked(false);
         refreshReadout();
         if (snapshot.detector === null) {
@@ -282,6 +298,7 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
       store.send({ type: "reportMicBlocked", blocked: true });
     }
     pipeline?.restartSync();
+    refreshSynced();
   });
 
   options.page?.onChange(() => {
@@ -290,7 +307,7 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
       // Capture in the background is never relied on: the mic is lost.
       if (state !== "opening" && state !== "on") return;
       stopPipeline();
-      update({ state: "lost", readingsPerSecond: 0 });
+      update({ state: "lost", synced: false, readingsPerSecond: 0 });
       store.send({ type: "micPage", visible: false });
       return;
     }
@@ -315,7 +332,12 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
     turnOff() {
       stopPipeline();
       releaseWakeLock();
-      update({ state: "off", blocked: null, readingsPerSecond: 0 });
+      update({
+        state: "off",
+        blocked: null,
+        synced: false,
+        readingsPerSecond: 0,
+      });
       reportBlocked(false);
     },
     singAgain() {

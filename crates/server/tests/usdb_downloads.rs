@@ -24,7 +24,7 @@ use std::time::Duration;
 use openstar::clock::ManualClock;
 use openstar::db::DATABASE_FILE;
 use openstar::usdb::{UsdbTimer, VirtualTimer};
-use openstar_protocol::admin::{ApiError, ApiErrorCode};
+
 use openstar_protocol::jobs::{DownloadRate, Job, JobId, JobKind, JobList, JobState};
 use openstar_protocol::library::{SongIdentity, SongList};
 use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
@@ -272,8 +272,8 @@ async fn starting_a_download_needs_an_unlock_but_the_picker_does_not() {
 
     let refused = start_download(&app, None, 1).await;
     assert_eq!(refused.status(), StatusCode::UNAUTHORIZED);
-    let error: ApiError = refused.json().await.unwrap();
-    assert_eq!(error.code, ApiErrorCode::UnlockRequired);
+    let error: UserMessage = refused.json().await.unwrap();
+    assert_eq!(error, UserMessage::UnlockRequired);
     let list: JobList = app.get_json("/api/jobs").await;
     assert!(
         list.jobs.iter().all(|job| job.kind != JobKind::Download),
@@ -467,6 +467,33 @@ async fn a_usdb_id_already_in_the_library_is_refused_when_the_download_starts() 
 }
 
 #[tokio::test]
+async fn a_usdb_id_already_downloading_is_refused_when_another_download_starts() {
+    let usdb = fake_usdb().await;
+    let stub = YtDlpStub::new();
+    stub.script(YtDlpStubBehaviour::Delay(Duration::from_secs(1)), 1);
+    let app = started(&usdb, &stub).await;
+    let cookie = app.unlock().await;
+
+    let id = download(&app, &cookie, 1).await;
+    let (status, body) = refusal(start_download(&app, Some(&cookie), 1).await).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(
+        serde_json::from_value::<UserMessage>(body).unwrap(),
+        UserMessage::UsdbSongDownloading
+    );
+    let list: JobList = app.get_json("/api/jobs").await;
+    assert_eq!(
+        list.jobs
+            .iter()
+            .filter(|job| job.kind == JobKind::Download)
+            .count(),
+        1
+    );
+    assert_eq!(ended(&app, id).await, JobState::Done);
+    assert_eq!(library_folders(&app).len(), 1);
+}
+
+#[tokio::test]
 async fn a_usdb_id_that_reaches_the_library_meanwhile_is_refused_before_the_move() {
     let usdb = fake_usdb().await;
     let stub = YtDlpStub::new();
@@ -530,8 +557,8 @@ async fn a_read_only_library_refuses_a_download_even_with_an_unlock() {
 
     let refused = start_download(&app, Some(&cookie), 1).await;
     assert_eq!(refused.status(), StatusCode::CONFLICT);
-    let error: ApiError = refused.json().await.unwrap();
-    assert_eq!(error.code, ApiErrorCode::LibraryReadOnly);
+    let error: UserMessage = refused.json().await.unwrap();
+    assert_eq!(error, UserMessage::LibraryReadOnly);
     assert!(downloads_run(&stub).is_empty());
 }
 

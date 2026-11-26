@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ApiFailure, api } from "../api/api";
 import type { SongId } from "../generated/SongId";
 import { GuardedButton } from "../guarded/GuardedButton";
-import { refusalText } from "../i18n/serverText";
+import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 
 export function RestoreOriginal({
@@ -52,6 +52,6 @@ export function RestoreOriginal({
 
 function failureText(error: unknown): string {
   if (error instanceof ApiFailure && error.failure.kind === "refused")
-    return refusalText(error.failure.error);
+    return userMessageText(error.failure.error);
   return t("admin.songs.restoreOriginal.failed");
 }

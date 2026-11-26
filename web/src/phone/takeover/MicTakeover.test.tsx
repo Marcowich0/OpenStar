@@ -36,6 +36,7 @@ function fakeMic(state: PhoneMicSnapshot["state"] = "off") {
   let snapshot: PhoneMicSnapshot = {
     state,
     blocked: null,
+    synced: state === "on",
     readingsPerSecond: 0,
     detector: null,
   };
@@ -70,6 +71,7 @@ function fakeMic(state: PhoneMicSnapshot["state"] = "off") {
 function renderPage(
   party: PartySnapshot,
   mic: ReturnType<typeof fakeMic> = fakeMic(),
+  diagnostics = false,
 ) {
   const rendered = renderWithParty(party, (store) => (
     <PhonePageView
@@ -77,6 +79,7 @@ function renderPage(
       store={store}
       storage={memoryStorage()}
       mic={mic}
+      diagnostics={diagnostics}
     />
   ));
   return { ...rendered, mic };
@@ -275,6 +278,20 @@ describe("the mic takeover", () => {
     expect(within(takeover()).getByText("Medium")).toBeTruthy();
   });
 
+  it("shows the Player no diagnostics", async () => {
+    renderPage(PARTY, fakeMic("on"));
+    await screen.findByText("Sing a note to check");
+    expect(screen.queryByTestId("phone-mic-diagnostics")).toBeNull();
+    expect(screen.queryByText(/readings\/s/)).toBeNull();
+  });
+
+  it("shows readings per second and the detector's cost with ?perf", async () => {
+    renderPage(PARTY, fakeMic("on"), true);
+    expect(
+      await screen.findByTestId("phone-mic-diagnostics"),
+    ).toHaveTextContent("0 readings/s");
+  });
+
   it("opens the Remote on top with Queue & controls, and Back to my mic returns", async () => {
     renderPage(PARTY, fakeMic("on"));
     fireEvent.click(
@@ -282,6 +299,36 @@ describe("the mic takeover", () => {
     );
     expect(screen.getByRole("tablist")).toBeTruthy();
     expect(screen.queryByRole("main", { name: "Your mic" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Back to my mic" }));
+    expect(takeover()).toBeTruthy();
+  });
+
+  it("opens the Me sheet's screens from the Remote on top of the takeover", async () => {
+    renderPage(PARTY, fakeMic("on"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Queue & controls" }),
+    );
+    const openMe = async () => {
+      fireEvent.click(await screen.findByRole("button", { name: /^Me/ }));
+      return screen.getByRole("dialog", { name: "Me" });
+    };
+    fireEvent.click(
+      within(await openMe()).getByRole("button", {
+        name: "Someone else is using this phone",
+      }),
+    );
+    expect(screen.getByRole("list", { name: "Who's singing?" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("tablist")).toBeTruthy();
+
+    fireEvent.click(
+      within(await openMe()).getByRole("button", {
+        name: "Change name, look or colour",
+      }),
+    );
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByRole("tablist")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Back to my mic" }));
     expect(takeover()).toBeTruthy();
   });
@@ -370,6 +417,25 @@ describe("after the Song", () => {
     ).toBeTruthy();
     // The mic stays held for a next Line-up that seats this Phone.
     expect(mic.turnOff).not.toHaveBeenCalled();
+  });
+
+  it("opens the Stage tab once after Done: a Remote opened again later picks its tab as usual", async () => {
+    renderPage(RESULTS, fakeMic("on"));
+    fireEvent.click(await screen.findByRole("button", { name: "Done" }));
+    expect(
+      screen.getByRole("tab", { name: "Stage", selected: true }),
+    ).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /^Me/ }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Me" })).getByRole("button", {
+        name: "Change name, look or colour",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    // No Line-up waits: a Remote opens on Songs.
+    expect(
+      screen.getByRole("tab", { name: "Songs", selected: true }),
+    ).toBeTruthy();
   });
 
   it("shows the result to a Phone back after the Song while the Stage is on the results", async () => {

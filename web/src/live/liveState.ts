@@ -130,13 +130,45 @@ function progressFor(
 }
 
 /**
- * Applies a server message. The `switch` is exhaustive over the generated union.
- * `receivedAtMs` is this browser's clock when the message arrived; only a
- * Song progress report uses it.
+ * The server messages that carry live state. The others never reach the
+ * reducer: `liveStore.ts` routes them to their listeners (Pitch readings,
+ * clock sync, Mic signals, Mic bridge levels, Check A/V sync presses, job
+ * updates, change notices, Song controls) or drops them (a Mic bridge's own
+ * messages).
+ */
+export type LiveStateMessage = Exclude<
+  ServerMessage,
+  {
+    type:
+      | "pitchReading"
+      | "clockPing"
+      | "clockPong"
+      | "micClosed"
+      | "micPage"
+      | "localMicLevels"
+      | "stepAvSync"
+      | "jobChanged"
+      | "changed"
+      | "controlSong"
+      | "bridgeUpdate"
+      | "bridgeWaiting"
+      | "bridgeApproved"
+      | "bridgeConnected"
+      | "bridgeChannels"
+      | "bridgeMicsScreen"
+      | "bridgeDetecting"
+      | "bridgeSwitchProfile";
+  }
+>;
+
+/**
+ * Applies a server message. The `switch` is exhaustive over
+ * [`LiveStateMessage`]. `receivedAtMs` is this browser's clock when the
+ * message arrived; only a Song progress report uses it.
  */
 export function receive(
   state: LiveState,
-  message: ServerMessage,
+  message: LiveStateMessage,
   receivedAtMs = 0,
 ): LiveState {
   switch (message.type) {
@@ -221,39 +253,6 @@ export function receive(
       };
     case "calibration":
       return { ...state, calibration: message.run };
-    case "stepAvSync":
-      // Stage only: routed to the Check A/V sync screen in liveStore.ts.
-      return state;
-    case "changed":
-      // Change notices invalidate HTTP data; they change no live state.
-      return state;
-    case "pitchReading":
-    case "clockPing":
-    case "clockPong":
-    case "micClosed":
-    case "micPage":
-    case "localMicLevels":
-      // The Pitch reading relay, clock sync and bridge levels change no live state; they
-      // are routed away from the reducer in liveStore.ts (#127).
-      return state;
-    case "controlSong":
-      // Stage only: the Stage's playback acts on it (#164); the Party's
-      // 'playing' state comes with the `partyChanged` before it.
-      return state;
-    case "bridgeUpdate":
-    case "bridgeWaiting":
-    case "bridgeApproved":
-    case "bridgeConnected":
-    case "bridgeChannels":
-    case "bridgeMicsScreen":
-    case "bridgeDetecting":
-    case "bridgeSwitchProfile":
-      // Only a Mic bridge's own socket gets these.
-      return state;
-    case "jobChanged":
-      // Job updates belong to the screens that show jobs (Downloads, the
-      // Timing editor); the live state does not keep them.
-      return state;
     default:
       return unreachable(message);
   }

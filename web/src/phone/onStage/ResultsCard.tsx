@@ -10,7 +10,7 @@ import { songQuery } from "../../api/queries";
 import { t } from "../../i18n/t";
 import type { LiveStore } from "../../live/liveStore";
 import { Button } from "../../ui/Button";
-import type { StageState } from "../remoteFrame";
+import type { StageCard } from "../remoteFrame";
 
 export function ResultsCard({
   store,
@@ -18,7 +18,7 @@ export function ResultsCard({
   children,
 }: {
   store: LiveStore;
-  results: Extract<StageState, { kind: "results" }>;
+  results: Extract<StageCard, { kind: "results" }>;
   children?: ReactNode;
 }) {
   const song = useQuery(songQuery(results.songId)).data;

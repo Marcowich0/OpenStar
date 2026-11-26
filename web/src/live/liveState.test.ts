@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { CalibrationRun } from "../generated/CalibrationRun";
 import type { PartySnapshot } from "../generated/PartySnapshot";
-import type { ServerMessage } from "../generated/ServerMessage";
-import { connectionChanged, initialLiveState, receive } from "./liveState";
+import {
+  connectionChanged,
+  initialLiveState,
+  receive,
+  type LiveStateMessage,
+} from "./liveState";
 
 const party: PartySnapshot = {
   partyId: "p1",
@@ -28,7 +32,7 @@ const synced = (isStage: boolean, current: PartySnapshot | null = party) =>
     isStage,
   });
 
-const started = (next: PartySnapshot): ServerMessage => ({
+const started = (next: PartySnapshot): LiveStateMessage => ({
   type: "partyChanged",
   party: next,
   change: {
@@ -125,30 +129,6 @@ describe("live state reducer", () => {
     expect(receive(initialLiveState, { type: "pong", nonce: 7 }).lastPong).toBe(
       7,
     );
-  });
-
-  it("leaves the state alone on a change notice", () => {
-    expect(receive(initialLiveState, { type: "changed", topics: [] })).toBe(
-      initialLiveState,
-    );
-  });
-
-  it("leaves the state alone on relayed Pitch readings, clock sync and Mic-closed notices", () => {
-    const state = synced(true);
-    const mic = { kind: "phone", phoneId: "phone-4" } as const;
-    const relayed: ServerMessage[] = [
-      {
-        type: "pitchReading",
-        mic,
-        reading: { captureMs: 10, pitch: 69, clarity: 0.9, loudness: -20 },
-      },
-      { type: "clockPing", mic, t0: 1 },
-      { type: "clockPong", t0: 1, ts: 2, epoch: 3 },
-      { type: "micClosed", mic },
-    ];
-    for (const message of relayed) {
-      expect(receive(state, message)).toBe(state);
-    }
   });
 
   it("keeps the last known Stage state while reconnecting", () => {
@@ -316,11 +296,11 @@ describe("Song progress on a Remote", () => {
     positionSeconds: number,
     rate: number,
     ageMs = 0,
-  ): ServerMessage => ({
+  ): LiveStateMessage => ({
     type: "songProgress",
     progress: { requestId, positionSeconds, rate, lengthSeconds: 200, ageMs },
   });
-  const changed = (next: PartySnapshot): ServerMessage => ({
+  const changed = (next: PartySnapshot): LiveStateMessage => ({
     type: "partyChanged",
     party: next,
     change: {

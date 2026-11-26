@@ -1,6 +1,7 @@
 import type { APIRequestContext, Locator, Page } from "@playwright/test";
 
 import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
+import { holdToConfirm } from "../flows";
 
 // The Queue tab (#149): numbered Request cards, and each card's sheet sends
 // its action to the server, every Phone's Queue follows and the toasts name
@@ -188,10 +189,7 @@ test("the Queue tab reorders, changes singers and removes, and every Phone follo
     // Remove from the Queue is a press and hold.
     sheet = await openCard(theirs, third.title);
     const remove = sheet.getByRole("button", { name: "Remove from the Queue" });
-    await remove.focus();
-    await theirs.keyboard.down("Enter");
-    await theirs.waitForTimeout(1000);
-    await theirs.keyboard.up("Enter");
+    await holdToConfirm(remove);
     await expect(
       mine.getByRole("status", { name: "Party changes" }),
     ).toContainText(`${mover} removed ${third.title}`);

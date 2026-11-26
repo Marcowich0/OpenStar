@@ -402,6 +402,24 @@ describe("the Phone's mic after a network drop", () => {
     mic.turnOff();
   });
 
+  it("is synced only once an offset to the Stage's clock exists, and not again until a new one does", async () => {
+    const { mic, store, time } = await setUp();
+    mic.turnOn();
+    await settle();
+    expect(mic.getSnapshot()).toMatchObject({ state: "on", synced: false });
+    time.advanceTo(1200);
+    expect(mic.getSnapshot().synced).toBe(true);
+
+    store.drop();
+    time.advanceTo(5000);
+    store.reconnect();
+    expect(mic.getSnapshot().synced).toBe(false);
+    time.advanceTo(5200);
+    expect(mic.getSnapshot().synced).toBe(true);
+    mic.turnOff();
+    expect(mic.getSnapshot().synced).toBe(false);
+  });
+
   it("does nothing on a reconnect while the mic is off", async () => {
     const { mic, store } = await setUp();
     store.drop();

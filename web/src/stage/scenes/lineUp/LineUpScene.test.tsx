@@ -594,6 +594,16 @@ describe("setting a Local mic's Mic threshold on its seat", () => {
     expect(thresholds(sent)).toHaveLength(3);
   });
 
+  it("has no adjust mode before the Stage output's stored values have loaded", () => {
+    const { sent } = setup(twoSeats());
+    const mia = seats()[1] as HTMLElement;
+    focusMeter(mia);
+    press("Enter");
+    expect(line(mia)).not.toHaveAttribute("data-adjusting");
+    press("ArrowRight");
+    expect(thresholds(sent)).toEqual([]);
+  });
+
   it("Esc ends the adjust mode", () => {
     const { sent } = setup(twoSeats());
     loaded();

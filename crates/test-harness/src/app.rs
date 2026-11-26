@@ -656,7 +656,7 @@ const STAGE_COOKIE_PREFIX: &str = "openstar_stage=";
 #[derive(Debug)]
 pub struct WsRefusal {
     pub status: reqwest::StatusCode,
-    /// The answer's body, as text (an `ApiError` as JSON, for example).
+    /// The answer's body, as text (a `UserMessage` as JSON, for example).
     pub body: String,
 }
 

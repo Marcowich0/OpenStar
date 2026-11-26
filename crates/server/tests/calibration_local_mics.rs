@@ -15,8 +15,8 @@ use openstar_protocol::mics::{
 };
 use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
 use openstar_protocol::{
-    BridgeInput, ClientMessage, JoinAs, JoinCode, NewGuest, PartySnapshot, PhoneId, ServerMessage,
-    UserMessage,
+    BridgeLocalMic, ClientMessage, JoinAs, JoinCode, NewGuest, PartySnapshot, PhoneId,
+    ServerMessage, UserMessage,
 };
 use openstar_test_harness::{TestApp, WsClient};
 
@@ -458,7 +458,7 @@ async fn a_bridge_local_mic_is_ready_while_its_bridge_is_connected_and_detects_f
     assert_eq!(
         bridge_recv(&mut bridge).await,
         ServerMessage::BridgeDetecting {
-            channels: vec![BridgeInput {
+            channels: vec![BridgeLocalMic {
                 device_name: DEVICE.into(),
                 channel: 1,
             }],
@@ -515,7 +515,7 @@ async fn the_bridge_stops_detecting_when_the_run_ends() {
     assert_eq!(
         bridge_recv(&mut bridge).await,
         ServerMessage::BridgeDetecting {
-            channels: vec![BridgeInput {
+            channels: vec![BridgeLocalMic {
                 device_name: DEVICE.into(),
                 channel: 0,
             }],

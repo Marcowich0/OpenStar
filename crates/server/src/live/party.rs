@@ -265,9 +265,6 @@ pub fn leave(party: &mut PartySnapshot, member_id: PartyMemberId) -> Result<Left
         request
             .requested_players
             .retain(|&player| player != member_id);
-        if request.adder == Some(member_id) {
-            request.adder = None;
-        }
     }
     if let Some(line_up) = party.line_up.as_mut() {
         for seat in &mut line_up.seats {
@@ -355,9 +352,16 @@ fn use_on_phone(party: &mut PartySnapshot, phone_id: PhoneId, member_id: PartyMe
     refresh_on_phone(party);
 }
 
-/// The id the next member to enter gets: one past the highest in use.
+/// The id the next member to enter gets: one past the highest in use, by a
+/// member or as the adder of a Request (an adder who left keeps the id, so
+/// a newcomer never seems to have added that Request).
 fn next_member_id(party: &PartySnapshot) -> PartyMemberId {
-    let highest = party.members.iter().map(|m| m.member_id.0).max();
+    let highest = party
+        .members
+        .iter()
+        .map(|m| m.member_id.0)
+        .chain(party.queue.iter().filter_map(|r| r.adder.map(|a| a.0)))
+        .max();
     PartyMemberId(highest.map_or(1, |id| id + 1))
 }
 
@@ -755,16 +759,30 @@ mod tests {
         ];
         party.head = Some(RequestId(10));
         leave(&mut party, PartyMemberId(2)).unwrap();
-        // A Request the member added stays, with no adder left to name.
+        // A Request the member added stays, still naming who added it (the
+        // Remotes show no adder for a member no longer in the Party; it is
+        // never shown as the Stage's).
         assert_eq!(
             party.queue,
             vec![
-                request(10, &[1], None),
+                request(10, &[1], Some(2)),
                 request(11, &[], None),
                 request(12, &[3, 1], Some(1)),
             ]
         );
         assert_eq!(party.head, Some(RequestId(10)));
+    }
+
+    #[test]
+    fn a_new_member_never_takes_the_id_of_an_adder_who_left() {
+        let mut party = party();
+        for n in 1..=2 {
+            join_phone(&mut party, phone(n), ProfileId(n), Teal).unwrap();
+        }
+        party.queue = vec![request(10, &[], Some(2))];
+        leave(&mut party, PartyMemberId(2)).unwrap();
+        let joined = join_phone(&mut party, phone(3), ProfileId(3), Teal).unwrap();
+        assert_eq!(joined.member_id, PartyMemberId(3));
     }
 
     fn seat(member: u32, phone_id: Option<PhoneId>) -> Seat {
@@ -859,7 +877,7 @@ mod tests {
         assert_eq!(colours(&party), vec![Lime]);
         // Its seat is gone, and its Phone is no other seat's Mic.
         assert_eq!(party.line_up, Some(line_up(vec![seat(2, None)])));
-        assert_eq!(party.queue, vec![request(10, &[2], None)]);
+        assert_eq!(party.queue, vec![request(10, &[2], Some(1))]);
         // A Profile that is no member changes nothing.
         let before = party.clone();
         assert_eq!(delete_profile(&mut party, ProfileId(9)), Ok(None));

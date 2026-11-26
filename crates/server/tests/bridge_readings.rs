@@ -7,7 +7,7 @@
 
 use futures_util::StreamExt;
 use openstar_protocol::bridge::{BridgeId, BridgeInterface, bridge_local_mic_id};
-use openstar_protocol::{BridgeInput, ClientMessage, MicId, PitchReading, ServerMessage};
+use openstar_protocol::{BridgeLocalMic, ClientMessage, MicId, PitchReading, ServerMessage};
 use openstar_test_harness::{TestApp, WsClient};
 
 const WAV: &str = "multichannel.wav";
@@ -28,8 +28,8 @@ fn hello(token: Option<String>) -> ClientMessage {
     }
 }
 
-fn input(channel: u32) -> BridgeInput {
-    BridgeInput {
+fn input(channel: u32) -> BridgeLocalMic {
+    BridgeLocalMic {
         device_name: WAV.into(),
         channel,
     }
@@ -55,7 +55,7 @@ fn reading(capture_ms: f64) -> PitchReading {
 fn bridge_reading(channel: u32, capture_ms: f64) -> ClientMessage {
     ClientMessage::PitchReading {
         reading: reading(capture_ms),
-        input: Some(input(channel)),
+        local_mic: Some(input(channel)),
     }
 }
 
@@ -173,7 +173,7 @@ async fn a_bridges_ping_reaches_the_stage_and_the_pong_goes_back_to_that_bridge_
     bridge
         .send(&ClientMessage::ClockPing {
             t0: 12.5,
-            input: Some(input(3)),
+            local_mic: Some(input(3)),
         })
         .await;
     assert_eq!(
@@ -197,7 +197,7 @@ async fn a_bridges_ping_reaches_the_stage_and_the_pong_goes_back_to_that_bridge_
             t0: 12.5,
             ts: 98_765.125,
             epoch: 1.7e12,
-            input: Some(input(3)),
+            local_mic: Some(input(3)),
         }
     );
     heard_nothing(&mut stage).await;
@@ -213,7 +213,7 @@ async fn readings_and_pings_for_a_channel_the_bridge_does_not_offer_are_dropped(
     bridge
         .send(&ClientMessage::PitchReading {
             reading: reading(2.0),
-            input: Some(BridgeInput {
+            local_mic: Some(BridgeLocalMic {
                 device_name: "another.wav".into(),
                 channel: 0,
             }),
@@ -223,13 +223,13 @@ async fn readings_and_pings_for_a_channel_the_bridge_does_not_offer_are_dropped(
     bridge
         .send(&ClientMessage::PitchReading {
             reading: reading(3.0),
-            input: None,
+            local_mic: None,
         })
         .await;
     bridge
         .send(&ClientMessage::ClockPing {
             t0: 1.0,
-            input: None,
+            local_mic: None,
         })
         .await;
     heard_nothing(&mut bridge).await;
@@ -247,7 +247,7 @@ async fn readings_from_a_bridge_without_a_valid_approval_token_never_reach_the_s
     waiting
         .send(&ClientMessage::ClockPing {
             t0: 1.0,
-            input: Some(input(0)),
+            local_mic: Some(input(0)),
         })
         .await;
     heard_nothing(&mut waiting).await;
@@ -348,7 +348,7 @@ async fn a_bridge_that_connects_again_is_the_same_mics_and_its_old_connection_cl
             t0: 1.0,
             ts: 2.0,
             epoch: 3.0,
-            input: Some(input(1)),
+            local_mic: Some(input(1)),
         }
     );
 }

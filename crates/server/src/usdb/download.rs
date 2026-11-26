@@ -4,7 +4,8 @@
 //!
 //! The job's steps, in order:
 //!
-//! 1. it is refused when the USDB id is already in the Library;
+//! 1. it is refused when the USDB id is already in the Library, or when a
+//!    Download of it is already waiting or running (at the start only);
 //! 2. the text (`gettxt`, rewritten into `song.txt`) and the cover when USDB
 //!    has one (`cover.jpg`, never a zero-byte file);
 //! 3. the finished `song.txt` through the Library's parser: a rejected text
@@ -13,7 +14,8 @@
 //!    1080p;
 //! 5. `metadata.json` (`{"apiId": <USDB id>, "video": "<chosen URL>"}`);
 //! 6. the USDB id checked again, then the folder moved in and applied to the
-//!    index, so the Song is in the Library at once;
+//!    index, so the Song is in the Library at once (one Download at a time
+//!    from that check to the end of the move);
 //! 7. USDB's `lastchange` and the SHA-256 of `song.txt` as written stored
 //!    against the USDB id ([`UsdbTextVersion`]).
 //!
@@ -101,6 +103,15 @@ fn is_web_link(url: &str) -> bool {
     let lower = url.trim_start().to_ascii_lowercase();
     url == url.trim() && (lower.starts_with("https://") || lower.starts_with("http://"))
 }
+
+/// Held from a Download's last "already in the Library?" check until its
+/// folder is in the Library, so two Downloads of one USDB id never both
+/// move in. One per process: moves are short and rare.
+static MOVING_IN: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+/// Held from the "already downloading?" check until the Download is
+/// queued, so two starts at once of one USDB id never both queue.
+static STARTING: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Whether a Library Song has the USDB id `usdb_id`.
 async fn in_library(db: &Database, usdb_id: u32) -> anyhow::Result<bool> {
@@ -222,6 +233,7 @@ impl DownloadJob {
         }
 
         // 3. Into the Library: past this point a cancel waits for the end.
+        let _moving_in = MOVING_IN.lock().await;
         if in_library(&db, id)
             .await
             .map_err(|e| server_error(e, "checking the Library for a USDB id"))?
@@ -549,6 +561,21 @@ pub(crate) async fn start(
             tracing::error!(?error, "checking the Library for a USDB id");
             return refused(StatusCode::INTERNAL_SERVER_ERROR, UserMessage::ServerError);
         }
+    }
+    let _starting = STARTING.lock().await;
+    let Some(jobs) = state.jobs.list().await else {
+        return refused(StatusCode::SERVICE_UNAVAILABLE, UserMessage::ServerError);
+    };
+    let downloading = jobs.iter().any(|job| {
+        job.kind == JobKind::Download
+            && matches!(job.state, JobState::Queued | JobState::Running { .. })
+            && job
+                .download
+                .as_ref()
+                .is_some_and(|details| details.usdb_id == body.usdb_id)
+    });
+    if downloading {
+        return refused(StatusCode::CONFLICT, UserMessage::UsdbSongDownloading);
     }
     let (artist, title) = match mirrored_name(&state.db, body.usdb_id).await {
         Ok(Some((artist, title))) => (Some(artist), Some(title)),

@@ -6,7 +6,6 @@ import type { PartyLocalMic } from "../generated/PartyLocalMic";
 import type { PaletteKey } from "../theme/tokens";
 import { t } from "./t";
 import {
-  apiErrorText,
   byCode,
   libraryReadOnlyText,
   lineUpWarningText,
@@ -197,8 +196,8 @@ describe("server texts", () => {
     );
   });
 
-  it("turns an HTTP error code into text", () => {
-    expect(apiErrorText({ code: "wrongPin" })).toBe(
+  it("turns the guard's and the Admin PIN's codes into text", () => {
+    expect(userMessageText({ code: "wrongPin" })).toBe(
       "That is not the Admin PIN",
     );
   });

@@ -158,7 +158,7 @@ impl Input for PipeWireInput {
 
     fn input_delay_ms(&self, channel: u32) -> Option<f64> {
         (channel < self.found.interface.channels)
-            .then_some(self.found.latency_ms)
+            .then_some(self.found.source_latency_ms)
             .flatten()
     }
 
@@ -169,7 +169,7 @@ impl Input for PipeWireInput {
             interface,
             node_name,
             sample_rate,
-            latency_ms: _,
+            source_latency_ms: _,
         } = &self.found;
         format!("{interface:?} {node_name} {sample_rate}")
     }
@@ -330,7 +330,7 @@ mod tests {
             },
             node_name: "alsa_input.usb-X-00.pro-input-0".into(),
             sample_rate: 48_000,
-            latency_ms: Some(5.3),
+            source_latency_ms: Some(5.3),
         });
         assert_eq!(input.input_delay_ms(0), Some(5.3));
         assert_eq!(input.input_delay_ms(1), Some(5.3));

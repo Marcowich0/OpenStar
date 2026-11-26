@@ -2,10 +2,11 @@
 
 /**
  * Which of a Mic bridge's Local mics a reading, ping or pong is for: one
- * hardware channel of one interface it offered in its hello. Only a bridge
+ * hardware channel of one interface it offered in its hello (on the wire
+ * as `localMic`). Only a bridge
  * sends it; a Phone, which is one Mic, never does.
  */
-export type BridgeInput = { 
+export type BridgeLocalMic = { 
 /**
  * The interface's `device.name`, as in its `BridgeInterface`.
  */

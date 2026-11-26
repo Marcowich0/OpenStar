@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { LineUp } from "../generated/LineUp";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { Request } from "../generated/Request";
-import { defaultTab, queueCount, stageState, statusStrip } from "./remoteFrame";
+import { defaultTab, queueCount, stageCard, statusStrip } from "./remoteFrame";
 
 const request = (requestId: number, songId: number): Request => ({
   requestId,
@@ -63,7 +63,7 @@ const results = (queue: Request[]): PartySnapshot => ({
 
 describe("what the Stage is doing", () => {
   it("is the results, with Next Song while Requests are left", () => {
-    expect(stageState(results([request(2, 41)]))).toEqual({
+    expect(stageCard(results([request(2, 41)]))).toEqual({
       kind: "results",
       songId: 40,
       queueEmpty: false,
@@ -71,7 +71,7 @@ describe("what the Stage is doing", () => {
   });
 
   it("is the results, with Done when the Queue holds nothing more", () => {
-    expect(stageState(results([]))).toEqual({
+    expect(stageCard(results([]))).toEqual({
       kind: "results",
       songId: 40,
       queueEmpty: true,
@@ -79,26 +79,26 @@ describe("what the Stage is doing", () => {
   });
 
   it("is the playing Song with its Players, in seat order", () => {
-    expect(stageState(playing())).toEqual({
+    expect(stageCard(playing())).toEqual({
       kind: "playing",
       requestId: 1,
       songId: 40,
       paused: false,
       players: [3, 5],
     });
-    expect(stageState(playing(true))).toMatchObject({ paused: true });
+    expect(stageCard(playing(true))).toMatchObject({ paused: true });
   });
 
   it("is the waiting Line-up while its Song has not started", () => {
-    expect(stageState(waiting)).toEqual({ kind: "lineUp", songId: 40 });
+    expect(stageCard(waiting)).toEqual({ kind: "lineUp", songId: 40 });
   });
 
   it("is waiting with an empty Queue", () => {
-    expect(stageState(idle)).toEqual({ kind: "empty" });
+    expect(stageCard(idle)).toEqual({ kind: "empty" });
   });
 
   it("is unknown before the Party is known", () => {
-    expect(stageState(null)).toBeNull();
+    expect(stageCard(null)).toBeNull();
   });
 });
 

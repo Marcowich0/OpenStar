@@ -245,4 +245,37 @@ async fn a_line_end_total_reaches_only_the_phone_of_its_seat() {
         refused(everyone[0], line_score(request, 0, 10_001)).await,
         UserMessage::InvalidMessage
     );
+
+    // Bo's Phone reloads mid-Song: right after its status it hears its
+    // last total again, not 0 until the next Line end.
+    let mut back = app.connect_ws().await;
+    assert!(matches!(
+        recv(&mut back).await,
+        ServerMessage::LiveState { .. }
+    ));
+    back.send(&ClientMessage::Hello {
+        phone_id: phone_id(1),
+    })
+    .await;
+    assert!(matches!(
+        recv(&mut back).await,
+        ServerMessage::PhoneStatus { member_id: Some(_) }
+    ));
+    assert_eq!(
+        recv(&mut back).await,
+        ServerMessage::LineScore {
+            request_id: request,
+            total: 1200
+        }
+    );
+    // Sara's Phone, no seat's Mic, hears none.
+    let mut watcher = app.connect_ws().await;
+    recv(&mut watcher).await;
+    watcher
+        .send(&ClientMessage::Hello {
+            phone_id: phone_id(3),
+        })
+        .await;
+    recv(&mut watcher).await;
+    hears_nothing(&mut watcher).await;
 }

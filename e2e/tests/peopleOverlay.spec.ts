@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, newParty, test } from "../fixtures";
+import { holdToConfirm } from "../flows";
 
 // The Stage's People overlay, "Tonight's Party" (#181): the twelve Party
 // colours with who holds each, the join card that always shows the code,
@@ -61,10 +62,9 @@ test("the Stage's People overlay shows the twelve colours and removes a member w
   });
   await stage.screenshot({ path: testInfo.outputPath("people-overlay.png") });
 
-  await adaSpot.getByRole("button", { name: `Hold to remove ${ada}` }).focus();
-  await stage.keyboard.down("Enter");
-  await stage.waitForTimeout(900);
-  await stage.keyboard.up("Enter");
+  await holdToConfirm(
+    adaSpot.getByRole("button", { name: `Hold to remove ${ada}` }),
+  );
   await expect(
     people.getByRole("listitem", { name: "Sky is free" }),
   ).toBeVisible();

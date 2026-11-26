@@ -32,6 +32,7 @@ function fakeMic(state: PhoneMicSnapshot["state"] = "off") {
   let snapshot: PhoneMicSnapshot = {
     state,
     blocked: null,
+    synced: state === "on",
     readingsPerSecond: 0,
     detector: null,
   };
@@ -153,7 +154,10 @@ describe("the Calibrating takeover", () => {
     expect(screen.getByText("Opening the mic…")).toBeTruthy();
     expect(sent).not.toContainEqual({ type: "calibrationListening" });
 
-    mic.set({ state: "on" });
+    // Open, but with no offset to the Stage's clock yet: not ready.
+    mic.set({ state: "on", synced: false });
+    expect(sent).not.toContainEqual({ type: "calibrationListening" });
+    mic.set({ synced: true });
     expect(sent).toContainEqual({ type: "calibrationListening" });
     server({ type: "calibration", run: run("waiting", true) });
     expect(screen.getByText("Ready. Waiting for the others…")).toBeTruthy();
@@ -182,7 +186,7 @@ describe("the Calibrating takeover", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(mic.turnOn).toHaveBeenCalledTimes(2);
-    mic.set({ state: "on", blocked: null });
+    mic.set({ state: "on", blocked: null, synced: true });
     expect(sent).toContainEqual({ type: "calibrationListening" });
   });
 

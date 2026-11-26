@@ -145,7 +145,11 @@ test("a Song with separate audio and video files plays end to end, the video fol
       .toBe(false);
     expect((await media(stage)).audio?.time ?? 0).toBeGreaterThan(1.4);
     await expect.poll(() => drift(stage)).toBeLessThan(IN_STEP);
-    await stage.waitForTimeout(500);
+    // And still in step half a second of Song later.
+    const inStepAt = (await media(stage)).audio?.time ?? 0;
+    await expect
+      .poll(async () => (await media(stage)).audio?.time ?? 0)
+      .toBeGreaterThan(inStepAt + 0.5);
     expect(await drift(stage)).toBeLessThan(IN_STEP);
 
     // Pause stops both; Resume (after its 3-2-1) plays both on, in step.

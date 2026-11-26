@@ -71,16 +71,23 @@ export function placeWarnings(lineUp: LineUp): PlacedWarnings {
   return { bySeat, songWide };
 }
 
+/**
+ * Which warnings make a seat's Mic field a bad field. Every code is named,
+ * so a new one fails `tsc` here until it is decided.
+ */
+const MIC_PROBLEM = {
+  noMic: true,
+  micBlocked: true,
+  localMicUnplugged: true,
+  bridgeClosed: true,
+  localMicSilent: true,
+  notCalibrated: false,
+  duetNeedsVoice: false,
+} as const satisfies Record<LineUpWarning["code"], boolean>;
+
 /** Whether a seat's warnings make its Mic field a bad field (warn colours). */
 export function micHasProblem(warnings: readonly LineUpWarning[]): boolean {
-  return warnings.some(
-    (w) =>
-      w.code === "noMic" ||
-      w.code === "micBlocked" ||
-      w.code === "localMicUnplugged" ||
-      w.code === "bridgeClosed" ||
-      w.code === "localMicSilent",
-  );
+  return warnings.some((w) => MIC_PROBLEM[w.code]);
 }
 
 /** A switched-on Local mic the Mic list may offer. */

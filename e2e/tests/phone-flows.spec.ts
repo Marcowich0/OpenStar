@@ -50,7 +50,10 @@ async function pick(phone: Page, name: string) {
   await expect(radio).toBeChecked();
 }
 
-/** Taps Turn on my mic in the takeover and waits for readings to leave. */
+/**
+ * Taps Turn on my mic in the takeover and waits for readings to leave (the
+ * readout shows on a Phone page opened with `?perf`).
+ */
 async function turnOnMic(phone: Page) {
   const turnOn = phone.getByRole("button", { name: "Turn on my mic" });
   await expect(turnOn).toBeVisible();
@@ -81,9 +84,9 @@ test("flow 1: two Phones join by code, sing Steady Tone together, and the result
 
   const sung = await writeSungWav(testInfo.outputPath("sung-440.wav"), 440, 6);
   const singing = await openPhone({ wav: sung });
-  await joinByPad(singing, code, singer);
+  await joinByPad(singing, code, singer, "?perf");
   const silent = await openPhone({ wav: FAKE_MIC.silence });
-  await joinByPad(silent, code, quiet);
+  await joinByPad(silent, code, quiet, "?perf");
 
   // The singing Phone queues Steady Tone from its Songs tab, with both.
   await singing.getByRole("button", { name: "Add Steady Tone" }).click();

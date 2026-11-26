@@ -14,7 +14,7 @@ use openstar_protocol::library::{SongId, SongList};
 use openstar_protocol::mics::{LocalMicSource, MicKey};
 use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
 use openstar_protocol::{
-    BridgeInput, ChangeTopic, ClientMessage, LineUpEdit, NewGuest, PartySnapshot, RequestId,
+    BridgeLocalMic, ChangeTopic, ClientMessage, LineUpEdit, NewGuest, PartySnapshot, RequestId,
     SeatWho, ServerMessage, SongControl,
 };
 use openstar_test_harness::{TestApp, WsClient};
@@ -40,8 +40,8 @@ async fn app_with_song() -> (TestApp, SongId) {
     (app, songs[0].id)
 }
 
-fn input(channel: u32) -> BridgeInput {
-    BridgeInput {
+fn input(channel: u32) -> BridgeLocalMic {
+    BridgeLocalMic {
         device_name: DEVICE.into(),
         channel,
     }

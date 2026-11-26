@@ -119,4 +119,12 @@ describe("the production build", () => {
       ids.filter((id) => id.startsWith(path.join(src, "singTest"))),
     ).toEqual([]);
   });
+
+  // Nor the test-only Admin page's guarded action (`admin-test.html`, #185).
+  it("contains no module of the test-only Admin page", () => {
+    const ids = chunks.flatMap((c) => c.moduleIds);
+    expect(
+      ids.filter((id) => id.startsWith(path.join(src, "adminTest"))),
+    ).toEqual([]);
+  });
 });

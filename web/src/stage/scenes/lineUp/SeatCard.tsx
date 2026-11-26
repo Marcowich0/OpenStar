@@ -304,7 +304,7 @@ export function SeatCard({
 }
 
 /** The dashed "Add a singer" spot with a big +. */
-export function AddSingerCard({
+export function AddPlayerCard({
   order,
   isDefault,
   onPress,

@@ -2,6 +2,7 @@ import type {
   APIRequestContext,
   Browser,
   BrowserContext,
+  Locator,
   Page,
   Response,
 } from "@playwright/test";
@@ -43,9 +44,17 @@ export async function createProfile(
   return name;
 }
 
-/** Joins on `/` by typing the Join code on the pad, as the Profile `name`. */
-export async function joinByPad(phone: Page, code: string, name: string) {
-  await phone.goto("/");
+/**
+ * Joins on `/` by typing the Join code on the pad, as the Profile `name`.
+ * `search` is added to the address (`"?perf"`: the mic takeover's readout).
+ */
+export async function joinByPad(
+  phone: Page,
+  code: string,
+  name: string,
+  search = "",
+) {
+  await phone.goto(`/${search}`);
   await expect(
     phone.getByRole("heading", { name: "Join the Party" }),
   ).toBeVisible();
@@ -153,4 +162,33 @@ export async function startSong(stage: Page): Promise<{
 async function storedRound(response: Response): Promise<StoredRound> {
   expect(response.status()).toBe(201);
   return (await response.json()) as StoredRound;
+}
+
+/**
+ * A press and hold is 700 ms (`HOLD_DURATION_MS` in `web/src/ui/hold.ts`);
+ * the helpers hold a little longer. A hold is a time by definition, so this
+ * is the one wait in the suite that is not a poll.
+ */
+const HOLD_MS = 1000;
+
+/**
+ * Presses and holds `button` past the hold: with the Enter key on it focused
+ * (the Stage's keyboard, or a Phone's), or with the mouse over it.
+ */
+export async function holdToConfirm(
+  button: Locator,
+  { with: by = "keyboard" }: { with?: "keyboard" | "pointer" } = {},
+) {
+  const page = button.page();
+  if (by === "keyboard") {
+    await button.focus();
+    await page.keyboard.down("Enter");
+    await page.waitForTimeout(HOLD_MS);
+    await page.keyboard.up("Enter");
+  } else {
+    await button.hover();
+    await page.mouse.down();
+    await page.waitForTimeout(HOLD_MS);
+    await page.mouse.up();
+  }
 }

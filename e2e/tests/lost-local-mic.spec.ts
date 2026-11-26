@@ -73,7 +73,10 @@ async function bridgeGroup(stage: Page) {
 /** Switches the bridge's channel 0 on or off on the Mics screen, then closes it. */
 async function switchChannel0(stage: Page, on: boolean) {
   const bridge = await bridgeGroup(stage);
-  const input1 = bridge.getByRole("switch").first();
+  // Channel 0 by its name, wherever switching it puts its row.
+  const input1 = bridge.getByRole("switch", {
+    name: /· Input 1 switched on$/,
+  });
   if ((await input1.getAttribute("aria-checked")) !== String(on))
     await input1.click();
   await expect(input1).toHaveAttribute("aria-checked", String(on));

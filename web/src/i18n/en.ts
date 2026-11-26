@@ -271,11 +271,8 @@ export const en = {
   "live.stageMoved": "Another browser is the Stage now",
 
   // The Stage, the Mic bridge page and the Admin area.
-  "stage.title": "Stage",
   "stage.sing": "Sing!",
   "stage.start": "Start",
-  "stage.end": "End",
-  "stage.back": "Back",
   "stage.volume": "Volume {volume, number}",
   "stage.takeBack": "Make this the Stage again",
   "chip.duet": "Duet",
@@ -778,6 +775,7 @@ export const en = {
   "userMessage.usdbUnexpectedStatus":
     "USDB answered with HTTP {status, number}",
   "userMessage.usdbSongInLibrary": "This song is already in the Library",
+  "userMessage.usdbSongDownloading": "This song is already downloading",
   "userMessage.usdbNoSongText": "USDB sent no text for this song",
   "userMessage.usdbTextRejected":
     "USDB's text for this song can't be played: {reason}",
@@ -808,10 +806,10 @@ export const en = {
   "userMessage.noMicReady": "No Mic is ready yet",
   "userMessage.notInCalibration": "This Phone is not in Calibrate mics",
 
-  "apiError.wrongPin": "That is not the Admin PIN",
-  "apiError.unlockRequired": "Enter the Admin PIN first",
-  "apiError.libraryReadOnly": "The Library is read-only",
-  "apiError.stagePinRequired": "Enter the Admin PIN to make this the Stage",
+  "userMessage.wrongPin": "That is not the Admin PIN",
+  "userMessage.unlockRequired": "Enter the Admin PIN first",
+  "userMessage.libraryReadOnly": "The Library is read-only",
+  "userMessage.stagePinRequired": "Enter the Admin PIN to make this the Stage",
 
   "libraryReadOnly.songsFolderNotWritable":
     "OpenStar cannot write to the songs folder {songsDir}, so the Library is read-only",
@@ -947,7 +945,6 @@ export const en = {
   // Toasts whose sender is not built yet: the server ticket that adds the
   // `PartyEvent` code maps it to one of these in `toasts/toastContent.ts`.
   "toast.backOnMic": "{actor} is back on the mic",
-  "toast.localMicBack": "{mic} is back on {actor}'s seat",
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",
   "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",
   "toast.youAutoFitAccepted": "You accepted the Auto-fit of {song}",

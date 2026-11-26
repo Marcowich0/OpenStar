@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest";
 import { isJoinCode, validatePhoneSearch } from "./phoneSearch";
 
 describe("the Phone route's search validator", () => {
+  it("keeps ?perf, the mic takeover's diagnostics, beside a Join code", () => {
+    expect(validatePhoneSearch({ join: "0427", perf: "" })).toEqual({
+      join: "0427",
+      perf: true,
+    });
+    expect(validatePhoneSearch({ perf: false }).perf).toBeUndefined();
+    expect(validatePhoneSearch({}).perf).toBeUndefined();
+  });
+
   it("keeps a well-formed Join code", () => {
     expect(validatePhoneSearch({ join: "0427" })).toEqual({ join: "0427" });
   });

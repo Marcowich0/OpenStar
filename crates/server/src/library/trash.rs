@@ -6,14 +6,19 @@
 //! Deluxe finds `.txt` files at any depth, so a hidden trash there would
 //! bring the Song back. Across filesystems the move is a copy, then a
 //! delete. The trash ledger (table `trash`) records the folder's original
-//! path and the time of deletion.
+//! path and the time of deletion. A delete that stops after the whole copy
+//! (part of the folder could not be removed from the Library) keeps its
+//! ledger row and answers `500`: the trash holds the complete folder, and a
+//! restore replaces what was left behind.
 //!
 //! `GET /api/library/trash` lists the trash. `POST
 //! /api/library/trash/{id}/restore` (guarded, writes the Library) moves a
 //! trashed folder back to its original path and applies it straight to the
 //! index, unless a folder of that name exists there now (`409
 //! restoreFolderExists`, nothing written: OpenStar never writes into an
-//! existing folder). A trashed folder and its ledger row are deleted for good
+//! existing folder; the one exception is a folder holding only files the
+//! trashed copy has, byte for byte, which is what such a stopped delete
+//! leaves). A trashed folder and its ledger row are deleted for good
 //! [`KEPT_FOR_MS`] after the delete, by [`purge`], which runs at start and
 //! daily ([`purge_daily`]).
 //!
@@ -107,26 +112,44 @@ enum Move {
     Copy,
 }
 
+/// Why a move out of the Library failed.
+#[derive(Debug)]
+enum MoveFailed {
+    /// Nothing moved: `folder` is as it was and `target` is not there.
+    NothingMoved(io::Error),
+    /// The whole folder is at `target`, but deleting `folder` stopped
+    /// partway, so part of it is still in the Library.
+    LeftBehind(io::Error),
+}
+
+impl MoveFailed {
+    fn into_io(self) -> io::Error {
+        match self {
+            Self::NothingMoved(error) | Self::LeftBehind(error) => error,
+        }
+    }
+}
+
 /// Copies `folder` into the empty folder `target` and then deletes
 /// `folder`; a failed copy removes what it copied and `target`, and leaves
 /// `folder` as it was.
-fn copy_then_delete(folder: &Path, target: &Path) -> io::Result<()> {
+fn copy_then_delete(folder: &Path, target: &Path) -> Result<(), MoveFailed> {
     if let Err(error) = publish::copy_in(folder, target) {
         let _ = std::fs::remove_dir(target);
-        return Err(error);
+        return Err(MoveFailed::NothingMoved(error));
     }
-    std::fs::remove_dir_all(folder)
+    std::fs::remove_dir_all(folder).map_err(MoveFailed::LeftBehind)
 }
 
 /// Moves `folder` onto `claimed`, an empty folder the caller just made (so
 /// nobody else writes there): a rename replaces it, and across filesystems
 /// the files are copied into it, then `folder` is deleted. A failed copy
 /// removes `claimed` too. Blocks on the filesystem.
-fn move_onto_claimed(folder: &Path, claimed: &Path, how: Move) -> io::Result<()> {
+fn move_onto_claimed(folder: &Path, claimed: &Path, how: Move) -> Result<(), MoveFailed> {
     if how == Move::Rename {
         match std::fs::rename(folder, claimed) {
             Err(error) if error.kind() == io::ErrorKind::CrossesDevices => {}
-            other => return other,
+            other => return other.map_err(MoveFailed::NothingMoved),
         }
     }
     copy_then_delete(folder, claimed)
@@ -136,15 +159,58 @@ fn move_onto_claimed(folder: &Path, claimed: &Path, how: Move) -> io::Result<()>
 /// files are copied into a new `target` and `folder` is deleted after the
 /// whole copy succeeded; a failed copy removes what it copied and leaves
 /// `folder` as it was. Blocks on the filesystem.
-fn move_out(folder: &Path, target: &Path, how: Move) -> io::Result<()> {
+fn move_out(folder: &Path, target: &Path, how: Move) -> Result<(), MoveFailed> {
     if how == Move::Rename {
         match std::fs::rename(folder, target) {
             Err(error) if error.kind() == io::ErrorKind::CrossesDevices => {}
-            other => return other,
+            other => return other.map_err(MoveFailed::NothingMoved),
         }
     }
-    std::fs::create_dir(target)?;
+    std::fs::create_dir(target).map_err(MoveFailed::NothingMoved)?;
     copy_then_delete(folder, target)
+}
+
+/// Whether `left` holds only what a delete of `whole` that stopped partway
+/// leaves behind: at least one file, every file in it is in `whole` with the
+/// same bytes, and every folder in it is a folder in `whole`. An empty
+/// folder is not: someone may have just made it. Blocks on the filesystem.
+fn is_left_behind_by(left: &Path, whole: &Path) -> io::Result<bool> {
+    Ok(holds_only_files_of(left, whole)? == Some(true))
+}
+
+/// `None` when `left` holds no file at any depth; otherwise whether every
+/// file and folder in it is also in `whole` (files with the same bytes).
+fn holds_only_files_of(left: &Path, whole: &Path) -> io::Result<Option<bool>> {
+    let mut any_file = false;
+    for entry in std::fs::read_dir(left)? {
+        let entry = entry?;
+        let there = whole.join(entry.file_name());
+        let kind = entry.file_type()?;
+        let same = if kind.is_dir() {
+            if !there.is_dir() {
+                false
+            } else {
+                match holds_only_files_of(&entry.path(), &there)? {
+                    None => true,
+                    Some(same) => {
+                        any_file = true;
+                        same
+                    }
+                }
+            }
+        } else if kind.is_file() {
+            any_file = true;
+            there.is_file()
+                && std::fs::metadata(&there)?.len() == entry.metadata()?.len()
+                && std::fs::read(&there)? == std::fs::read(entry.path())?
+        } else {
+            false
+        };
+        if !same {
+            return Ok(Some(false));
+        }
+    }
+    Ok(any_file.then_some(true))
 }
 
 /// The folder holding the `.txt` at `path` (relative to the Library), or
@@ -200,18 +266,30 @@ pub(crate) async fn delete(State(state): State<AppState>, UrlPath(id): UrlPath<u
         let source = inner.songs_dir.join(&folder);
         let trash = inner.appdata_dir.join(TRASH_DIR);
         let moved = tokio::task::spawn_blocking(move || {
-            std::fs::create_dir_all(&trash)?;
+            std::fs::create_dir_all(&trash).map_err(MoveFailed::NothingMoved)?;
             move_out(&source, &trash.join(trash_id.to_string()), Move::Rename)
         })
         .await?;
-        if let Err(error) = moved {
-            inner
-                .db
-                .call(move |conn| conn.execute("DELETE FROM trash WHERE id = ?1", [trash_id]))
-                .await?;
-            return Err(error.into());
+        // A delete that stopped after the whole copy keeps its ledger row:
+        // the trash holds the complete folder, and a restore replaces what
+        // was left behind in the Library.
+        let left_behind = match moved {
+            Ok(()) => None,
+            Err(MoveFailed::NothingMoved(error)) => {
+                inner
+                    .db
+                    .call(move |conn| conn.execute("DELETE FROM trash WHERE id = ?1", [trash_id]))
+                    .await?;
+                return Err(error.into());
+            }
+            Err(MoveFailed::LeftBehind(error)) => {
+                tracing::error!(%folder, trash_id, %error, "a Song was copied to the trash, but part of its folder is still in the Library");
+                Some(error)
+            }
+        };
+        if left_behind.is_none() {
+            tracing::info!(%folder, trash_id, "a Song was deleted to the trash");
         }
-        tracing::info!(%folder, trash_id, "a Song was deleted to the trash");
 
         let title = inner
             .db
@@ -238,7 +316,12 @@ pub(crate) async fn delete(State(state): State<AppState>, UrlPath(id): UrlPath<u
             state.live.songs_left(vec![(id, title)]).await;
         }
         state.live.changed(vec![ChangeTopic::Library]).await;
-        Ok(())
+        // The Song is in the trash; what was left behind is still worth an
+        // error (the next scan indexes it again if it holds the `.txt`).
+        match left_behind {
+            None => Ok(()),
+            Some(error) => Err(Refused::Failed(error.into())),
+        }
     }
     .await;
     match result {
@@ -341,13 +424,19 @@ enum Restored {
 }
 
 /// Moves `source` (a trashed folder) to `target`, its original path, making
-/// the parent folders it needs. Blocks on the filesystem.
+/// the parent folders it needs. A folder at `target` holding only what a
+/// delete that stopped partway left behind (see [`MoveFailed::LeftBehind`])
+/// is replaced; any other is refused. Blocks on the filesystem.
 fn move_back(source: &Path, target: &Path) -> io::Result<Restored> {
     if !source.is_dir() {
         return Ok(Restored::Missing);
     }
-    if target.symlink_metadata().is_ok() {
-        return Ok(Restored::Exists);
+    if let Ok(meta) = target.symlink_metadata() {
+        if !meta.is_dir() || !is_left_behind_by(target, source)? {
+            return Ok(Restored::Exists);
+        }
+        tracing::info!(target = %target.display(), "a restore replaces what a half-done delete left behind");
+        std::fs::remove_dir_all(target)?;
     }
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent)?;
@@ -361,7 +450,7 @@ fn move_back(source: &Path, target: &Path) -> io::Result<Restored> {
     }
     if let Err(error) = move_onto_claimed(source, target, Move::Rename) {
         let _ = std::fs::remove_dir(target);
-        return Err(error);
+        return Err(error.into_io());
     }
     Ok(Restored::Moved)
 }
@@ -549,6 +638,91 @@ mod tests {
         assert!(!target.exists());
         assert_eq!(std::fs::read(folder.join("song.txt")).unwrap(), b"text");
         assert_eq!(std::fs::read(folder.join("song.mp3")).unwrap(), b"audio");
+    }
+
+    /// A folder whose `locked` subfolder cannot be emptied (no write
+    /// permission), so a delete of it stops halfway.
+    fn lock(folder: &Path) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt as _;
+        let locked = folder.join("locked");
+        std::fs::create_dir(&locked).unwrap();
+        std::fs::write(locked.join("cover.jpg"), b"cover").unwrap();
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
+        locked
+    }
+
+    fn unlock(locked: &Path) {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(locked, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[test]
+    fn a_delete_that_stops_after_a_whole_copy_says_the_copy_is_in_the_trash() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = song_folder_with_files(dir.path());
+        let locked = lock(&folder);
+        let target = dir.path().join("trash-1");
+        let failed = move_out(&folder, &target, Move::Copy).unwrap_err();
+        unlock(&locked);
+        assert!(matches!(failed, MoveFailed::LeftBehind(_)), "{failed:?}");
+        assert_eq!(std::fs::read(target.join("song.txt")).unwrap(), b"text");
+        assert_eq!(
+            std::fs::read(target.join("locked/cover.jpg")).unwrap(),
+            b"cover"
+        );
+    }
+
+    #[test]
+    fn a_failed_copy_says_nothing_moved() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = song_folder_with_files(dir.path());
+        std::os::unix::fs::symlink(dir.path().join("nothing"), folder.join("z.mp3")).unwrap();
+        let failed = move_out(&folder, &dir.path().join("trash-1"), Move::Copy).unwrap_err();
+        assert!(matches!(failed, MoveFailed::NothingMoved(_)), "{failed:?}");
+    }
+
+    #[test]
+    fn a_move_back_replaces_what_a_half_done_delete_left_in_the_library() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = song_folder_with_files(dir.path());
+        let locked = lock(&folder);
+        let trashed = dir.path().join("trash-1");
+        assert!(move_out(&folder, &trashed, Move::Copy).is_err());
+        unlock(&locked);
+        assert!(folder.exists(), "the half-deleted original is still there");
+
+        assert!(matches!(
+            move_back(&trashed, &folder).unwrap(),
+            Restored::Moved
+        ));
+        assert!(!trashed.exists());
+        assert_eq!(std::fs::read(folder.join("song.txt")).unwrap(), b"text");
+        assert_eq!(std::fs::read(folder.join("song.mp3")).unwrap(), b"audio");
+        assert_eq!(
+            std::fs::read(folder.join("locked/cover.jpg")).unwrap(),
+            b"cover"
+        );
+    }
+
+    #[test]
+    fn a_move_back_still_refuses_a_folder_holding_anything_the_trash_does_not() {
+        let dir = tempfile::tempdir().unwrap();
+        let folder = song_folder_with_files(dir.path());
+        let trashed = dir.path().join("trash-1");
+        move_out(&folder, &trashed, Move::Copy).unwrap();
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join("song.txt"), b"other text").unwrap();
+        assert!(matches!(
+            move_back(&trashed, &folder).unwrap(),
+            Restored::Exists
+        ));
+        std::fs::remove_file(folder.join("song.txt")).unwrap();
+        std::fs::write(folder.join("new.txt"), b"new").unwrap();
+        assert!(matches!(
+            move_back(&trashed, &folder).unwrap(),
+            Restored::Exists
+        ));
+        assert_eq!(std::fs::read(folder.join("new.txt")).unwrap(), b"new");
     }
 
     #[test]

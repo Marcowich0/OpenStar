@@ -60,7 +60,7 @@ export function setRequestedPlayers(
         (r) => r.requestId === requestId,
       );
       if (!changed) return refused({ code: "requestNotFound" });
-      return sameSingers(changed.requestedPlayers, requestedPlayers)
+      return samePlayers(changed.requestedPlayers, requestedPlayers)
         ? { ok: true }
         : undefined;
     },
@@ -69,7 +69,7 @@ export function setRequestedPlayers(
   );
 }
 
-export function sameSingers(
+export function samePlayers(
   a: readonly PartyMemberId[],
   b: readonly PartyMemberId[],
 ): boolean {

@@ -4,7 +4,7 @@ import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ClientMessage } from "../generated/ClientMessage";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { LiveClientOptions } from "./liveClient";
-import { initialLiveState, receive } from "./liveState";
+import { initialLiveState, receive, type LiveStateMessage } from "./liveState";
 import { createLiveStore } from "./liveStore";
 
 function start(hello?: () => ClientMessage) {
@@ -189,15 +189,35 @@ describe("live store", () => {
     });
   });
 
+  it("routes relayed readings, clock sync and Mic signals away from the reducer", () => {
+    const { store, server } = start();
+    const before = store.getSnapshot();
+    const mic = { kind: "phone", phoneId: "phone-4" } as const;
+    const pongs = vi.fn();
+    const readings = vi.fn();
+    store.onClockPong(pongs);
+    store.onPitchReading(readings);
+    const reading = { captureMs: 10, pitch: 69, clarity: 0.9, loudness: -20 };
+    server({ type: "pitchReading", mic, reading });
+    server({ type: "clockPong", t0: 1, ts: 2, epoch: 3 });
+    server({ type: "micClosed", mic });
+    server({ type: "micPage", mic, visible: false });
+    server({ type: "localMicLevels", levels: [] });
+    server({ type: "bridgeMicsScreen", open: true });
+    expect(store.getSnapshot()).toBe(before);
+    expect(readings).toHaveBeenCalledWith(mic, reading);
+    expect(pongs).toHaveBeenCalledWith({ t0: 1, ts: 2, epoch: 3 });
+  });
+
   it("sends through the client", () => {
     const { store, sent } = start();
     store.send({ type: "newParty" });
     expect(sent).toEqual([{ type: "newParty" }]);
   });
 
-  it("hands every server message to the reducer", () => {
+  it("hands every live state message to the reducer", () => {
     const { store, server } = start();
-    const messages: ServerMessage[] = [
+    const messages: LiveStateMessage[] = [
       { type: "liveState", stageId: "main", party: null, isStage: true },
       { type: "rejected", reason: { code: "notTheStage" } },
       {
@@ -222,7 +242,6 @@ describe("live store", () => {
         },
       },
       { type: "stageMoved" },
-      { type: "changed", topics: [] },
       { type: "pong", nonce: 9 },
     ];
     for (const message of messages) server(message);

@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, FIXTURE_SONGS, newParty, test } from "../fixtures";
+import { holdToConfirm } from "../flows";
 
 // The Phone's Stage tab (#118): the waiting Line-up edited from the sofa
 // through the seat sheet, seen on a second Phone, and Start. The Request is
@@ -264,10 +265,7 @@ test("every Phone's Stage tab follows the playing Song, its results and the empt
     await end.click();
     await expect(mine.getByText("Hold for a moment")).toBeVisible();
     await expect(frame).toHaveAttribute("data-scene", "sing");
-    await end.hover();
-    await mine.mouse.down();
-    await mine.waitForTimeout(1000);
-    await mine.mouse.up();
+    await holdToConfirm(end, { with: "pointer" });
     state = "results";
 
     // Both Stage tabs show the results; the Queue is empty, so Done.

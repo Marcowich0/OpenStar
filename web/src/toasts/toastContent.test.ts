@@ -471,9 +471,6 @@ describe("toasts whose sender is not built yet", () => {
     expect(join(tParts("toast.backOnMic", { actor: "Mia" }))).toBe(
       "Mia is back on the mic",
     );
-    expect(
-      join(tParts("toast.localMicBack", { mic: "Mic 2", actor: "Mia" })),
-    ).toBe("Mic 2 is back on Mia's seat");
   });
 
   it("asks for calibration when the sound output changed", () => {

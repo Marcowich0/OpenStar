@@ -7,6 +7,7 @@
  * volume; the effective Mic threshold adds the OpenStar volume's level.
  */
 
+import type { MicKind } from "../generated/MicKind";
 import type { StoredMicSettings } from "../generated/StoredMicSettings";
 import type { ThresholdSetBy } from "../generated/ThresholdSetBy";
 
@@ -56,7 +57,8 @@ export const CALIBRATION = {
 /** Volume 0 uses this volume's level, so no threshold is ever −∞. */
 const SILENT_VOLUME_STAND_IN = 5;
 
-export type MicKind = "phone" | "localMic";
+/** What a Player sang into (generated from Rust). */
+export type { MicKind };
 
 /** What the server keeps for one Mic at one Stage output (generated from Rust). */
 export type { StoredMicSettings, ThresholdSetBy };

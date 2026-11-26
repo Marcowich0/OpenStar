@@ -6,10 +6,11 @@ import { defineConfig } from "vitest/config";
 // (default 8080), so the browser still sees one origin.
 const server = `http://localhost:${process.env.OPENSTAR_PORT ?? "8080"}`;
 
-// `vite build --mode screenshots` builds only the test-only painter
-// screenshot page (`sing-test.html`, #203) into e2e/generated/, for
-// `just e2e` and `just update-screenshots`. The production build has the one
-// entry `index.html` and never contains that page.
+// `vite build --mode screenshots` builds only the test-only pages into
+// e2e/generated/, for `just e2e` and `just update-screenshots`: the painter
+// screenshot page (`sing-test.html`, #203) and the Admin area with its
+// test-only guarded action (`admin-test.html`, #185). The production build
+// has the one entry `index.html` and never contains them.
 const SCREENSHOTS_OUT_DIR = "../e2e/generated/screenshot-page";
 
 export default defineConfig(({ mode }) => ({
@@ -22,7 +23,7 @@ export default defineConfig(({ mode }) => ({
       ? {
           outDir: SCREENSHOTS_OUT_DIR,
           emptyOutDir: true,
-          rolldownOptions: { input: "sing-test.html" },
+          rolldownOptions: { input: ["sing-test.html", "admin-test.html"] },
         }
       : {}),
   },

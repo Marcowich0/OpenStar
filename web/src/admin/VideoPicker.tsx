@@ -23,7 +23,7 @@ import { videoCandidatesQuery, videoDetailsQuery } from "../api/queries";
 import type { UsdbSong } from "../generated/UsdbSong";
 import type { VideoCandidate } from "../generated/VideoCandidate";
 import type { VideoSource } from "../generated/VideoSource";
-import { refusalText } from "../i18n/serverText";
+import { userMessageText } from "../i18n/serverText";
 import { type MessageKey, t } from "../i18n/t";
 import { songLength } from "../phone/songs/SongTags";
 import { Button } from "../ui/Button";
@@ -219,12 +219,12 @@ function CandidateOption({ candidate }: { candidate: VideoCandidate }) {
 
 function downloadFailureText(error: unknown): string {
   return error instanceof ApiFailure && error.failure.kind === "refused"
-    ? refusalText(error.failure.error)
+    ? userMessageText(error.failure.error)
     : t("admin.downloads.picker.downloadFailed");
 }
 
 function failureText(error: Error): string {
   return error instanceof ApiFailure && error.failure.kind === "refused"
-    ? refusalText(error.failure.error)
+    ? userMessageText(error.failure.error)
     : t("admin.downloads.picker.failed");
 }

@@ -1,6 +1,9 @@
 //! The live-state task and the WebSocket hub, driven from outside through
 //! the test harness: the real app in-process over real HTTP and WebSocket.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use futures_util::{SinkExt, StreamExt};
 use openstar_protocol::{ClientMessage, PartySnapshot, ServerMessage, StageId, UserMessage};
 use openstar_test_harness::{TestApp, WsClient};
@@ -76,23 +79,52 @@ async fn a_stalled_connection_does_not_hold_back_the_others() {
     // About 300 bytes per change to every connection: more than the stalled
     // socket's kernel buffers and its queue on the server hold.
     const CHANGES: usize = 12_000;
+    // The two connections that read are ordinary ones, with the same queue
+    // on the server as the stalled one: the sender keeps at most this many
+    // changes ahead of what both have read, so on a loaded machine a reader
+    // starved of CPU is never the one dropped. The stalled socket still gets
+    // every change.
+    const AHEAD: usize = 200;
+    let reader_seen = Arc::new(AtomicUsize::new(0));
+    let stage_seen = Arc::new(AtomicUsize::new(0));
     let (mut stage_sink, mut stage_stream) = stage.into_socket().split();
-    let drain = tokio::spawn(async move { while stage_stream.next().await.is_some() {} });
-    let sender = tokio::spawn(async move {
-        let text = serde_json::to_string(&ClientMessage::NewParty).unwrap();
-        for _ in 0..CHANGES {
-            stage_sink.send(Message::text(text.clone())).await.unwrap();
+    let drain = tokio::spawn({
+        let stage_seen = Arc::clone(&stage_seen);
+        async move {
+            while let Some(Ok(message)) = stage_stream.next().await {
+                if let Message::Text(text) = message
+                    && text.contains(r#""type":"partyChanged""#)
+                {
+                    stage_seen.fetch_add(1, Ordering::Relaxed);
+                }
+            }
         }
-        stage_sink
+    });
+    let sender = tokio::spawn({
+        let reader_seen = Arc::clone(&reader_seen);
+        async move {
+            let text = serde_json::to_string(&ClientMessage::NewParty).unwrap();
+            for sent in 0..CHANGES {
+                while sent
+                    >= AHEAD
+                        + reader_seen
+                            .load(Ordering::Relaxed)
+                            .min(stage_seen.load(Ordering::Relaxed))
+                {
+                    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                }
+                stage_sink.send(Message::text(text.clone())).await.unwrap();
+            }
+            stage_sink
+        }
     });
 
-    let mut seen = 0;
     let mut previous = None;
-    while seen < CHANGES {
+    while reader_seen.load(Ordering::Relaxed) < CHANGES {
         if let ServerMessage::PartyChanged { party, .. } = reader.recv().await {
             assert_ne!(Some(&party.party_id), previous.as_ref());
             previous = Some(party.party_id);
-            seen += 1;
+            reader_seen.fetch_add(1, Ordering::Relaxed);
         }
     }
     drop(sender.await.unwrap());

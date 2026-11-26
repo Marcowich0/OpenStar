@@ -113,7 +113,7 @@ impl Watch {
             .map(|found| {
                 let before = self.seen.found.iter().find(|old| {
                     Found {
-                        latency_ms: old.latency_ms,
+                        source_latency_ms: old.source_latency_ms,
                         ..found.clone()
                     } == **old
                 });
@@ -305,7 +305,7 @@ mod tests {
             },
             node_name: "alsa_input.usb-Focusrite-00.pro-input-0".into(),
             sample_rate: 48_000,
-            latency_ms: None,
+            source_latency_ms: None,
         }
     }
 
@@ -416,7 +416,7 @@ mod tests {
             self.0 += 0.25;
             Ok(Discovered {
                 interfaces: vec![Found {
-                    latency_ms: Some(self.0),
+                    source_latency_ms: Some(self.0),
                     ..found()
                 }],
                 not_pro_audio: vec![],
@@ -436,7 +436,7 @@ mod tests {
         for _ in 0..5 {
             assert!(!watch.read(&mut server));
         }
-        assert_eq!(watch.seen().found[0].latency_ms, Some(8.25));
+        assert_eq!(watch.seen().found[0].source_latency_ms, Some(8.25));
     }
 
     #[test]

@@ -40,7 +40,7 @@ import {
   type MicLabel,
   type MicLevels,
 } from "./lineUpView";
-import { AddSingerCard, SeatCard } from "./SeatCard";
+import { AddPlayerCard, SeatCard } from "./SeatCard";
 import { MicPickList, WhoPickList } from "./SeatPickLists";
 
 /** v1 seats at most 4 Players (v1 spec #48). */
@@ -166,7 +166,9 @@ function LineUpBody({
       return true;
     },
     // Enter on a Local mic seat's meter starts and ends its adjust mode,
-    // in which ←/→ move the Mic threshold line 1 dB; Esc ends it too.
+    // in which ←/→ move the Mic threshold line 1 dB; Esc ends it too. Not
+    // before the Stage output's stored values have loaded: a hand setting
+    // would have no output to be kept for.
     Enter: () => {
       if (adjustingMic !== null) {
         setAdjusting(null);
@@ -174,7 +176,7 @@ function LineUpBody({
       }
       const seat = focusedSeatMeter();
       if (seat === null) return false;
-      setAdjusting(seat);
+      if (thresholds.ready) setAdjusting(seat);
       return true;
     },
     Escape: () => {
@@ -334,7 +336,7 @@ function LineUpBody({
         })}
         {lineUp.seats.length < SEATS && (
           <li>
-            <AddSingerCard
+            <AddPlayerCard
               order={lineUp.seats.length}
               isDefault={lineUp.seats.length === 0}
               onPress={() => {
@@ -359,7 +361,7 @@ function LineUpBody({
                   }}
                 />
               )}
-            </AddSingerCard>
+            </AddPlayerCard>
           </li>
         )}
       </ol>

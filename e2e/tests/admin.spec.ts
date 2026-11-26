@@ -1,13 +1,15 @@
 import type { Browser, Page } from "@playwright/test";
 
 import { expect, test } from "../fixtures";
+import { serveTestBuild } from "../testBuild";
 
 // The Admin area at Phone width (#185): every section without horizontal
 // scrolling, and the guarded-action flow against the real server's guard.
 //
-// The test-only guarded action (`/admin?test=guarded`) sends
-// `POST /api/unlock/heartbeat`, which the real binary guards, so the check
-// needs no test-only route on the server.
+// The test-only guarded action is on a test build of the Admin area
+// (`web/admin-test.html`, served from e2e/generated/ by `serveTestBuild`),
+// never in the binary. It sends `POST /api/unlock/heartbeat`, which the real
+// binary guards, so the check needs no test-only route on the server.
 
 /** The Admin PIN `scripts/e2e.sh` starts the server with. */
 const ADMIN_PIN = "1234";
@@ -36,6 +38,23 @@ async function expectNoSideways(page: Page) {
   expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
 }
 
+test("the production binary does not serve the test-only Admin page", async ({
+  browser,
+}) => {
+  const page = await openPhoneBrowser(browser);
+  // Any unknown path gets the app's own index.html.
+  const app = await (await page.request.get("/")).text();
+  expect(await (await page.request.get("/admin-test.html")).text()).toBe(app);
+  await page.goto("/admin");
+  await expect(
+    page.getByRole("navigation", { name: "Admin sections" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Test guarded action" }),
+  ).toHaveCount(0);
+  await page.context().close();
+});
+
 test("every Admin area section opens at Phone width without a PIN", async ({
   browser,
 }) => {
@@ -63,7 +82,9 @@ test("a guarded action asks for the PIN once, completes, and Lock ends the Unloc
   page.on("request", (request) => {
     if (request.url().endsWith("/api/unlock/heartbeat")) sent.push("action");
   });
-  await page.goto("/admin?test=guarded");
+  await serveTestBuild(page.context());
+  await page.goto("/admin-test.html");
+  await expect(page).toHaveURL(/\/admin$/);
 
   const action = page.getByRole("button", { name: "Test guarded action" });
   await action.click();

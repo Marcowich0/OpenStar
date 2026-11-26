@@ -414,16 +414,24 @@ async fn new_party_clears_members_and_phones_tells_each_old_phone_and_issues_a_n
     // A browser that was never in the Party is not told it left.
     assert_eq!(party_changed(&mut watcher).await.0, new);
 
-    // Reconnecting no longer rejoins; the old code no longer works.
+    // Reconnecting no longer rejoins: the Phone is told it left, and a
+    // browser that was never in a Party is told only that it is not in.
     joined
         .send(&ClientMessage::Hello {
             phone_id: phone_id(1),
         })
         .await;
+    assert_eq!(recv(&mut joined).await, ServerMessage::LeftParty);
+    watcher
+        .send(&ClientMessage::Hello {
+            phone_id: phone_id(9),
+        })
+        .await;
     assert_eq!(
-        recv(&mut joined).await,
+        recv(&mut watcher).await,
         ServerMessage::PhoneStatus { member_id: None }
     );
+    // The old code no longer works.
     joined.send(&join(1, &party.join_code, &bo)).await;
     assert_eq!(
         recv(&mut joined).await,
@@ -434,4 +442,42 @@ async fn new_party_clears_members_and_phones_tells_each_old_phone_and_issues_a_n
     let (again, _) = join_ok(&mut joined, 1, &new.join_code, &bo).await;
     assert_eq!(member(&again, &bo).colour, PaletteKey::Teal);
     assert_eq!(member(&again, &bo).member_id, PartyMemberId(1));
+}
+
+#[tokio::test]
+async fn a_phone_asleep_during_new_party_is_told_it_left_when_it_wakes() {
+    let app = TestApp::start().await;
+    let (mut stage, party) = first_stage(&app).await;
+    let bo = create_profile(&app, "Bo", PaletteKey::Teal).await;
+    let mut asleep = phone(&app).await;
+    join_ok(&mut asleep, 1, &party.join_code, &bo).await;
+    party_changed(&mut stage).await;
+    // The Phone locks: its WebSocket closes before New party.
+    drop(asleep);
+
+    stage.send(&ClientMessage::NewParty).await;
+    let (new, _) = party_changed(&mut stage).await;
+
+    let mut awake = phone(&app).await;
+    awake
+        .send(&ClientMessage::Hello {
+            phone_id: phone_id(1),
+        })
+        .await;
+    assert_eq!(recv(&mut awake).await, ServerMessage::LeftParty);
+
+    // Once it joins again, waking is a silent rejoin as before.
+    let (again, _) = join_ok(&mut awake, 1, &new.join_code, &bo).await;
+    drop(awake);
+    let mut back = phone(&app).await;
+    back.send(&ClientMessage::Hello {
+        phone_id: phone_id(1),
+    })
+    .await;
+    assert_eq!(
+        recv(&mut back).await,
+        ServerMessage::PhoneStatus {
+            member_id: Some(member(&again, &bo).member_id)
+        }
+    );
 }

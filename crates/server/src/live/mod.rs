@@ -39,7 +39,7 @@ use openstar_protocol::mics::{LocalMic, LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::volume::VolumeStep;
 use openstar_protocol::{
-    Actor, BridgeInput, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode,
+    Actor, BridgeLocalMic, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode,
     JoinedPhone, LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMember, PartyMemberId,
     PartySnapshot, PhoneId, PlayingSong, QueueMove, Request, RequestChange, RequestId, RequestKind,
     SeatVoice, SeatWho, ServerMessage, SongControl, SongEnd, SongProgress, SongResults, StageId,
@@ -413,6 +413,16 @@ struct LiveState {
     /// Phones that reported their mic could not open. Kept while the
     /// server runs; a Phone reports again after a restart.
     blocked_phones: HashSet<PhoneId>,
+    /// Phones that were in the Party and are out (a new Party started, or
+    /// their Party member left or was removed) and have not joined since. A
+    /// Phone asleep at the time hears [`ServerMessage::LeftParty`] in answer
+    /// to its next Hello. Kept while the server runs.
+    left_phones: HashSet<PhoneId>,
+    /// The last Line-end total the Stage reported for each Phone that is a
+    /// seat's Mic, with its Request: a Phone back after a reload or a drop
+    /// hears it again at once (while that Request plays), not 0 until the
+    /// next Line ends.
+    line_totals: HashMap<PhoneId, (RequestId, u32)>,
     /// The Mics with a Mic delay stored at the Stage output last reported
     /// (`None` until one is): a seated Mic not in it is "Not calibrated".
     /// Kept when the Stage closes, so the warnings do not flicker.
@@ -476,6 +486,8 @@ impl LiveState {
             capturing_browser_mics: HashSet::new(),
             silent_local_mics: HashSet::new(),
             blocked_phones: HashSet::new(),
+            left_phones: HashSet::new(),
+            line_totals: HashMap::new(),
             calibrated_mics: None,
             bridges,
             last_started_ms: HashMap::new(),
@@ -827,8 +839,15 @@ impl LiveState {
                     return;
                 }
                 let left = self.joined_connections();
+                let left_phones: Vec<PhoneId> = self
+                    .stage()
+                    .party
+                    .iter()
+                    .flat_map(|party| party.phones.iter().map(|phone| phone.phone_id.clone()))
+                    .collect();
                 match self.start_party(now_ms).await {
                     Some(change) => {
+                        self.left_phones.extend(left_phones);
                         // The run's Phones were the old Party's.
                         self.calibration_ended();
                         for connection in left {
@@ -839,13 +858,13 @@ impl LiveState {
                     None => self.reject(id, UserMessage::ServerError),
                 }
             }
-            Ok(ClientMessage::PitchReading { reading, input }) => {
-                if let Some(mic) = self.sending_mic(id, input.as_ref()) {
+            Ok(ClientMessage::PitchReading { reading, local_mic }) => {
+                if let Some(mic) = self.sending_mic(id, local_mic.as_ref()) {
                     self.send_to_stage(&ServerMessage::PitchReading { mic, reading });
                 }
             }
-            Ok(ClientMessage::ClockPing { t0, input }) => {
-                if let Some(mic) = self.sending_mic(id, input.as_ref()) {
+            Ok(ClientMessage::ClockPing { t0, local_mic }) => {
+                if let Some(mic) = self.sending_mic(id, local_mic.as_ref()) {
                     self.send_to_stage(&ServerMessage::ClockPing { mic, t0 });
                 }
             }
@@ -869,7 +888,7 @@ impl LiveState {
                                     t0,
                                     ts,
                                     epoch,
-                                    input: None,
+                                    local_mic: None,
                                 },
                             );
                         }
@@ -1018,7 +1037,17 @@ impl LiveState {
                     return;
                 }
                 self.phones.insert(id, phone_id);
-                self.send_phone_status(id);
+                if self.joined_phone(id).is_none()
+                    && self
+                        .phones
+                        .get(&id)
+                        .is_some_and(|phone| self.left_phones.contains(phone))
+                {
+                    self.hub.send_to(id, &ServerMessage::LeftParty);
+                } else {
+                    self.send_phone_status(id);
+                    self.send_line_total(id);
+                }
             }
             Ok(ClientMessage::CheckJoinCode { join_code }) => {
                 if self.is_current_code(&join_code) {
@@ -1038,7 +1067,12 @@ impl LiveState {
                     return;
                 }
                 self.phones.insert(id, phone_id.clone());
-                let joined = self.join(phone_id, &join_code, join_as, now_ms).await;
+                let joined = self
+                    .join(phone_id.clone(), &join_code, join_as, now_ms)
+                    .await;
+                if joined.is_ok() {
+                    self.left_phones.remove(&phone_id);
+                }
                 self.refuse_on_error(id, joined);
             }
             Ok(ClientMessage::SwitchIdentity { join_as }) => {
@@ -1364,9 +1398,13 @@ impl LiveState {
     /// The Mic a reading or ping from connection `id` is relayed as: one of
     /// an approved bridge's Local mics on a bridge socket (never a Phone),
     /// otherwise the Phone's ([`Self::acting_mic`]).
-    fn sending_mic(&mut self, id: ConnectionId, input: Option<&BridgeInput>) -> Option<MicId> {
+    fn sending_mic(
+        &mut self,
+        id: ConnectionId,
+        local_mic: Option<&BridgeLocalMic>,
+    ) -> Option<MicId> {
         if self.bridges.sockets.contains(&id) {
-            self.bridge_mic(id, input)
+            self.bridge_mic(id, local_mic)
         } else {
             self.acting_mic(id)
         }
@@ -1889,6 +1927,13 @@ impl LiveState {
         let actor = self.remote_actor(id)?;
         let mut party = self.party()?;
         queue::set_players(&mut party, request_id, requested_players)?;
+        // Change singers on the head whose Line-up waits: the Line-up is
+        // prefilled again from the new requested Players (in `commit_queue`).
+        if party.playing.is_none()
+            && party.line_up.as_ref().map(|line_up| line_up.request_id) == Some(request_id)
+        {
+            party.line_up = None;
+        }
         let change = self.request_change(queue::find(&party, request_id)?).await;
         self.commit_queue(party, actor, PartyEvent::RequestedPlayersChanged(change))
             .await
@@ -2023,6 +2068,7 @@ impl LiveState {
         self.stage_mut().last_local_mics.remove(&member_id);
         for phone in phones {
             self.blocked_phones.remove(phone);
+            self.left_phones.insert(phone.clone());
         }
         let out: Vec<ConnectionId> = self
             .phones
@@ -2720,17 +2766,43 @@ impl LiveState {
         let Some(MicKey::Phone { phone_id }) = &seat.mic else {
             return Ok(());
         };
+        let phone_id = PhoneId(phone_id.clone());
         let phones: Vec<ConnectionId> = self
             .phones
             .iter()
-            .filter(|(_, phone)| &phone.0 == phone_id)
+            .filter(|(_, phone)| **phone == phone_id)
             .map(|(&connection, _)| connection)
             .collect();
+        self.line_totals.insert(phone_id, (request_id, total));
         for connection in phones {
             self.hub
                 .send_to(connection, &ServerMessage::LineScore { request_id, total });
         }
         Ok(())
+    }
+
+    /// Tells connection `id` the last Line-end total of its Phone's seat,
+    /// while that Request still plays (see `line_totals`).
+    fn send_line_total(&mut self, id: ConnectionId) {
+        let Some(phone_id) = self.phones.get(&id) else {
+            return;
+        };
+        let Some(&(request_id, total)) = self.line_totals.get(phone_id) else {
+            return;
+        };
+        let plays = self
+            .stage()
+            .party
+            .as_ref()
+            .and_then(|party| party.playing.as_ref())
+            .is_some_and(|playing| playing.request_id == request_id);
+        if plays {
+            self.hub
+                .send_to(id, &ServerMessage::LineScore { request_id, total });
+        } else {
+            let phone_id = phone_id.clone();
+            self.line_totals.remove(&phone_id);
+        }
     }
 
     /// The latest position report, aged to `now_ms`, while its Request
@@ -2782,8 +2854,9 @@ impl LiveState {
     }
 
     /// Prefills the Line-up of `party`'s head when the head is a Request
-    /// that has none yet (it just reached the head), and drops it when
-    /// there is no head. A Line-up already waiting is kept as it is.
+    /// that has none yet (it just reached the head, or its requested
+    /// Players were changed), and drops it when there is no head. A Line-up
+    /// already waiting is kept as it is.
     async fn follow_head(&self, party: &mut PartySnapshot) -> Result<(), UserMessage> {
         let Some(head) = party.head else {
             party.line_up = None;

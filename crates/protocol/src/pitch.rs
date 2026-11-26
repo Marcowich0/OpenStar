@@ -59,12 +59,13 @@ pub enum MicId {
 }
 
 /// Which of a Mic bridge's Local mics a reading, ping or pong is for: one
-/// hardware channel of one interface it offered in its hello. Only a bridge
+/// hardware channel of one interface it offered in its hello (on the wire
+/// as `localMic`). Only a bridge
 /// sends it; a Phone, which is one Mic, never does.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct BridgeInput {
+pub struct BridgeLocalMic {
     /// The interface's `device.name`, as in its `BridgeInterface`.
     pub device_name: String,
     /// The hardware channel, from 0.
@@ -93,7 +94,7 @@ mod tests {
             loudness in finite(),
         ) {
             let sent = PitchReading { capture_ms, pitch, clarity, loudness };
-            let text = serde_json::to_string(&ClientMessage::PitchReading { reading: sent, input: None }).unwrap();
+            let text = serde_json::to_string(&ClientMessage::PitchReading { reading: sent, local_mic: None }).unwrap();
             let ClientMessage::PitchReading { reading, .. } = serde_json::from_str(&text).unwrap() else {
                 panic!("not a reading");
             };
@@ -115,35 +116,35 @@ mod tests {
     }
 
     #[test]
-    fn a_phones_messages_carry_no_bridge_input_and_a_bridges_do() {
+    fn a_phones_messages_carry_no_bridge_local_mic_and_a_bridges_do() {
         let phone: ClientMessage =
             serde_json::from_str(r#"{"type":"clockPing","t0":1.5}"#).unwrap();
         assert_eq!(
             phone,
             ClientMessage::ClockPing {
                 t0: 1.5,
-                input: None
+                local_mic: None
             }
         );
         let to_phone = ServerMessage::ClockPong {
             t0: 1.0,
             ts: 2.0,
             epoch: 3.0,
-            input: None,
+            local_mic: None,
         };
         assert_eq!(
             serde_json::to_string(&to_phone).unwrap(),
             r#"{"type":"clockPong","t0":1.0,"ts":2.0,"epoch":3.0}"#
         );
         let bridge: ClientMessage = serde_json::from_str(
-            r#"{"type":"clockPing","t0":1.5,"input":{"deviceName":"usb","channel":2}}"#,
+            r#"{"type":"clockPing","t0":1.5,"localMic":{"deviceName":"usb","channel":2}}"#,
         )
         .unwrap();
         assert_eq!(
             bridge,
             ClientMessage::ClockPing {
                 t0: 1.5,
-                input: Some(BridgeInput {
+                local_mic: Some(BridgeLocalMic {
                     device_name: "usb".into(),
                     channel: 2
                 }),

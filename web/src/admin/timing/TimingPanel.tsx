@@ -22,7 +22,7 @@ import type { TimingOperation } from "../../generated/TimingOperation";
 import type { TimingPreview } from "../../generated/TimingPreview";
 import { LibraryReadOnlyNotice } from "../../guarded/LibraryReadOnlyNotice";
 import { useGuardedAction } from "../../guarded/useGuardedAction";
-import { refusalText } from "../../i18n/serverText";
+import { userMessageText } from "../../i18n/serverText";
 import { t } from "../../i18n/t";
 import { describeEdit } from "../../timing/describeEdit";
 import type { EditListEntry } from "../../timing/timingModel";
@@ -218,7 +218,7 @@ function usePreview(song: SongId, operations: readonly TimingOperation[]) {
 
 function failureText(error: unknown, fallback: "preview" | "save"): string {
   if (error instanceof ApiFailure && error.failure.kind === "refused")
-    return refusalText(error.failure.error);
+    return userMessageText(error.failure.error);
   return t(
     fallback === "preview"
       ? "timing.panel.previewFailed"

@@ -274,14 +274,10 @@ async fn an_unknown_song_has_no_track() {
     assert_eq!(pitch_track_jobs(&app).await, []);
 }
 
-#[tokio::test]
-async fn the_job_records_the_loudness_the_index_lacks() {
-    let tools = stand_in_ffmpeg();
-    let app = start(&tools).await;
-    let song = sine_melody(&app).await;
-
-    // The scan's measurements wait at the gate: cancel them all, so the
-    // index has no loudness for any Song.
+/// The scan's measurements wait at the gate: cancels them all, so the
+/// index has no loudness for any Song, and waits until they ended. Returns
+/// their ids.
+async fn cancel_the_scans_measurements(app: &TestApp) -> Vec<JobId> {
     let measurements: Vec<JobId> = app
         .get_json::<JobList>("/api/jobs")
         .await
@@ -314,6 +310,16 @@ async fn the_job_records_the_loudness_the_index_lacks() {
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
+    measurements
+}
+
+#[tokio::test]
+async fn the_job_records_the_loudness_the_index_lacks() {
+    let tools = stand_in_ffmpeg();
+    let app = start(&tools).await;
+    let song = sine_melody(&app).await;
+
+    let measurements = cancel_the_scans_measurements(&app).await;
     let detail: SongDetail = app.get_json(&format!("/api/songs/{}", song.0)).await;
     assert_eq!(detail.loudness_lufs, None);
 
@@ -333,6 +339,39 @@ async fn the_job_records_the_loudness_the_index_lacks() {
         .filter(|job| job.kind == JobKind::Loudness)
         .count();
     assert_eq!(loudness_jobs, measurements.len(), "no measurement job ran");
+}
+
+#[tokio::test]
+async fn a_slow_loudness_measurement_after_the_track_is_saved_is_not_a_timeout() {
+    let tools = stand_in_ffmpeg();
+    let app = start(&tools).await;
+    let song = sine_melody(&app).await;
+    cancel_the_scans_measurements(&app).await;
+    let mut ws = app.connect_ws().await;
+
+    let timeout = Duration::from_secs(5);
+    let started = tokio::time::Instant::now();
+    let job = computing(
+        request(
+            &app,
+            &format!(
+                "/api/test/songs/{}/pitch-track?timeoutMs={}",
+                song.0,
+                timeout.as_millis()
+            ),
+        )
+        .await,
+    );
+    // The track is saved; its loudness measurement waits at the gate past
+    // the job's timeout.
+    while !cache_file(&app, song).exists() {
+        assert!(started.elapsed() < timeout, "the track was saved in time");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    tokio::time::sleep_until(started + timeout + Duration::from_millis(500)).await;
+    mark(&tools, "open-loudness");
+    assert_eq!(ended(&mut ws, job).await.0, JobState::Done);
+    assert!(!download(&app, song).await.is_empty());
 }
 
 #[tokio::test]

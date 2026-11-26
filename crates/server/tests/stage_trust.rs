@@ -3,7 +3,7 @@
 //! Stage's WebSocket upgrade (`GET /ws/stage`) requires. Stage trust is not an
 //! Unlock, and an Unlock is not Stage trust.
 
-use openstar_protocol::admin::{ApiError, ApiErrorCode, StageTrustRequest, StageTrustStatus};
+use openstar_protocol::admin::{StageTrustRequest, StageTrustStatus};
 use openstar_protocol::{ServerMessage, UserMessage};
 use openstar_test_harness::{AppFolders, DEFAULT_ADMIN_PIN, TestApp};
 use reqwest::StatusCode;
@@ -40,8 +40,8 @@ fn set_cookie(response: &reqwest::Response, name: &str) -> Option<String> {
         .map(|v| v.split(';').next().unwrap().to_owned())
 }
 
-async fn api_error(response: reqwest::Response) -> ApiErrorCode {
-    response.json::<ApiError>().await.unwrap().code
+async fn refusal(response: reqwest::Response) -> UserMessage {
+    response.json::<UserMessage>().await.unwrap()
 }
 
 /// A correct PIN: the browser is now trusted. Returns its Cookie header value.
@@ -74,15 +74,13 @@ async fn a_browser_that_is_not_remembered_cannot_become_the_stage_without_the_pi
     let refused = app.try_connect_ws_at("/ws/stage", None).await.unwrap_err();
     assert_eq!(refused.status, StatusCode::FORBIDDEN);
     assert_eq!(
-        serde_json::from_str::<ApiError>(&refused.body)
-            .unwrap()
-            .code,
-        ApiErrorCode::StagePinRequired
+        serde_json::from_str::<UserMessage>(&refused.body).unwrap(),
+        UserMessage::StagePinRequired
     );
 
     let asked = ask_for_trust(&app, None, None).await;
     assert_eq!(asked.status(), StatusCode::FORBIDDEN);
-    assert_eq!(api_error(asked).await, ApiErrorCode::StagePinRequired);
+    assert_eq!(refusal(asked).await, UserMessage::StagePinRequired);
 
     let made_up = format!("{STAGE_COOKIE}={}", "ab".repeat(32));
     let refused = app
@@ -116,7 +114,7 @@ async fn a_wrong_pin_is_refused_and_remembers_nothing() {
     let wrong = ask_for_trust(&app, Some("0000"), None).await;
     assert_eq!(wrong.status(), StatusCode::FORBIDDEN);
     assert_eq!(set_cookie(&wrong, STAGE_COOKIE), None);
-    assert_eq!(api_error(wrong).await, ApiErrorCode::WrongPin);
+    assert_eq!(refusal(wrong).await, UserMessage::WrongPin);
 }
 
 #[tokio::test]
@@ -131,7 +129,7 @@ async fn a_remembered_stage_browser_holds_no_unlock() {
         .await
         .unwrap();
     assert_eq!(guarded.status(), StatusCode::UNAUTHORIZED);
-    assert_eq!(api_error(guarded).await, ApiErrorCode::UnlockRequired);
+    assert_eq!(refusal(guarded).await, UserMessage::UnlockRequired);
 }
 
 #[tokio::test]
@@ -155,7 +153,7 @@ async fn a_browser_that_holds_an_unlock_still_needs_the_pin_to_become_the_stage(
         .unwrap_err();
     assert_eq!(refused.status, StatusCode::FORBIDDEN);
     let asked = ask_for_trust(&app, None, Some(&unlock_cookie)).await;
-    assert_eq!(api_error(asked).await, ApiErrorCode::StagePinRequired);
+    assert_eq!(refusal(asked).await, UserMessage::StagePinRequired);
 }
 
 #[tokio::test]
@@ -224,7 +222,7 @@ async fn a_restart_with_a_different_pin_forgets_every_stage_browser() {
         .unwrap_err();
     assert_eq!(refused.status, StatusCode::FORBIDDEN);
     let asked = ask_for_trust(&app, None, Some(&cookie)).await;
-    assert_eq!(api_error(asked).await, ApiErrorCode::StagePinRequired);
+    assert_eq!(refusal(asked).await, UserMessage::StagePinRequired);
 
     // The new PIN trusts it again.
     let cookie = trusted_with_pin(&app, "98765").await;
