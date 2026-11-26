@@ -28,6 +28,11 @@ export interface PitchSession {
   /** Readings per buffer (`pitchBufferCapacity`). */
   capacity: number;
   place: Placement;
+  /**
+   * Told of every reading that arrives from a Mic of this Song, before
+   * placement drops any (the lost-Mic rule: a paused Song's Mic still sends).
+   */
+  heard?: (player: number) => void;
 }
 
 export interface PitchRouter {
@@ -70,6 +75,7 @@ export function createPitchRouter(): PitchRouter {
   let buffers = noBuffers;
   let players = new Map<string, number>();
   let place: Placement = () => null;
+  let heard: ((player: number) => void) | undefined;
 
   return {
     start(session) {
@@ -93,12 +99,14 @@ export function createPitchRouter(): PitchRouter {
       buffers = fresh;
       players = assigned;
       place = session.place;
+      heard = session.heard;
       return buffers;
     },
     stop() {
       buffers = noBuffers;
       players = new Map();
       place = () => null;
+      heard = undefined;
     },
     buffers: () => buffers,
     receive(mic, reading) {
@@ -106,6 +114,7 @@ export function createPitchRouter(): PitchRouter {
       if (player === undefined) return;
       const buffer = buffers[player];
       if (buffer === undefined) return;
+      heard?.(player);
       const songTime = place(reading, player);
       if (songTime !== null) buffer.push(reading, songTime);
     },

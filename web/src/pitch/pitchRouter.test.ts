@@ -81,6 +81,24 @@ describe("Pitch router", () => {
     expect(captures(buffers[0])).toEqual([600]);
   });
 
+  it("tells the session of every reading from a Mic of the Song, also one placement drops", () => {
+    const router = createPitchRouter();
+    const heard: number[] = [];
+    router.start({
+      players: 2,
+      mics: [[phone(7), 1]],
+      capacity: 8,
+      place: () => null,
+      heard: (player) => heard.push(player),
+    });
+    router.receive(phone(7), reading(10));
+    router.receive(phone(3), reading(20));
+    expect(heard).toEqual([1]);
+    router.stop();
+    router.receive(phone(7), reading(30));
+    expect(heard).toEqual([1]);
+  });
+
   it("tells placement which Player the reading belongs to", () => {
     const router = createPitchRouter();
     const seen: number[] = [];
