@@ -342,10 +342,23 @@ export const en = {
   "admin.lock": "Lock",
   "admin.downloads.placeholder":
     "Search USDB and download Songs here. Coming soon.",
-  "admin.songs.placeholder":
-    "Fix a Song's timing, restore it to the original, delete it or bring it back from the trash here. Coming soon.",
-  "admin.libraryProblems.placeholder":
-    "See why a Song does not show up, and rescan the Library, here. Coming soon.",
+  "admin.songs.search": "Search by artist or title",
+  "admin.songs.list": "Songs in the Library",
+  "admin.songs.none": "No Songs match",
+  "admin.songs.empty": "The Library has no playable Songs yet",
+  "admin.songs.loading": "Loading the Songs…",
+  "admin.songs.failed": "The Songs could not be loaded",
+  "admin.libraryProblems.intro":
+    "Why a file does not show up as a Song. Rejected files are hidden from Players; Songs with warnings still play.",
+  "admin.libraryProblems.rescan": "Rescan",
+  "admin.libraryProblems.scanning": "Scanning the Library…",
+  "admin.libraryProblems.rescanFailed": "The Rescan could not be started",
+  "admin.libraryProblems.list": "Library problems",
+  "admin.libraryProblems.none": "The Library has no problems",
+  "admin.libraryProblems.loading": "Loading the Library problems…",
+  "admin.libraryProblems.failed": "The Library problems could not be loaded",
+  "admin.libraryProblems.rejection": "Rejected",
+  "admin.libraryProblems.warning": "Warning",
   "admin.profiles.placeholder": "Delete Profiles here. Coming soon.",
   "admin.testGuarded": "Test guarded action",
   "admin.testGuardedDone": "The guarded action is done",
