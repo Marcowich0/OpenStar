@@ -24,9 +24,11 @@ describe("who reads the Song's position", () => {
   });
 
   it("reads songTime() only in the render loop", () => {
-    // And in the playback view's readout (#155), until the sing scene plays
-    // Songs (#164).
+    // And in the playback view's readout (#155, kept as a debug page), and in
+    // the live scoring session (#165), which finalises Beats on Song time
+    // itself: drawing runs behind by the A/V offset, scoring never does.
     expect(filesMatching(/\.songTime\s*\(/)).toEqual([
+      "src/scoring/liveScoring.ts",
       "src/stage/playback/PlaybackCheck.tsx",
       "src/stage/sing/renderLoop.ts",
     ]);

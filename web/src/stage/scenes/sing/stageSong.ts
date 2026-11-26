@@ -2,12 +2,16 @@
  * The Stage's playing Song (#164): acts on every `controlSong` the server
  * sends the Stage, from the Stage itself or any Remote.
  *
- * - **Start** loads the head's Song, builds the sing screen's state, the
- *   Mic-to-Player map and the scorers once from the Line-up fixed at Start
- *   (`singSetup.ts`), starts the Pitch router, and plays from `#START` as soon
- *   as the sing scene hands over its media element (`attach`).
+ * - **Start** loads the head's Song, builds the sing screen's state and the
+ *   Mic-to-Player map once from the Line-up fixed at Start (`singSetup.ts`),
+ *   starts the live scoring session (#165, `scoring/liveScoring.ts`) and the
+ *   Pitch router, and plays from `#START` as soon as the sing scene hands
+ *   over its media element (`attach`). While the Song plays, one animation
+ *   frame loop ticks the scoring session; each Player's running Score goes
+ *   into their lane (`onScoring` lets the scene write the header without a
+ *   React render).
  * - **Pause, Resume, Restart** go to the Song controls (#158: freeze, 3-2-1,
- *   seek to `#START` with the buffers cleared and the scorers reset).
+ *   seek to `#START` with the buffers cleared and the scoring reset).
  * - **End** stops the Song; a Song that plays out or is ended raises one end
  *   of the Song, `reachedResults`, and its round stays in `lastRound()` for
  *   the results flow (#175).
@@ -40,8 +44,16 @@ import {
   playbackPlan,
   type PlaybackPlan,
 } from "../../../playback/playbackPlan";
+import type { MicId } from "../../../generated/MicId";
+import type { MicKey } from "../../../generated/MicKey";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
-import { clockPlacement, type PitchRouter } from "../../../pitch/pitchRouter";
+import type { PitchRouter } from "../../../pitch/pitchRouter";
+import {
+  createLiveScoring,
+  type LiveScoring,
+  type LiveScoringChange,
+  type LiveScoringOutcome,
+} from "../../../scoring/liveScoring";
 import type { SingState } from "../../sing/frame";
 import {
   createSongControls,
@@ -79,6 +91,11 @@ export interface StageRound {
   setup: SingSetup;
   /** Each Player's readings, as they were when the Song ended. */
   buffers: readonly PitchBuffer[];
+  /**
+   * Each Player's live-scored outcome (in `setup.players` order) and the
+   * Song's Note fingerprint: what the Score records need.
+   */
+  scoring: LiveScoringOutcome;
   /** When the Song last started from its beginning (after the last Restart), Unix ms. */
   startedAtMs: number;
   ended: SongEnding;
@@ -111,6 +128,16 @@ export interface StageSongOptions {
   now?: () => number;
   /** The countdown's timer (`SongControlsOptions.schedule`). */
   schedule?: SongControlsOptions["schedule"];
+  /** The Stage clock in ms (`performance.now`), for the Song clock and lost Mics. */
+  stageNow?: () => number;
+  /** The animation frame loop that ticks the scoring (`requestAnimationFrame`). */
+  requestFrame?: (callback: () => void) => number;
+  cancelFrame?: (handle: number) => void;
+  /**
+   * The relayed Mic id each seated Mic's readings arrive with
+   * (`SingSetupInput.micIdFor`); none can be named yet (the #164 note).
+   */
+  micIdFor?: (mic: MicKey) => MicId | null;
 }
 
 export interface StageSong {
@@ -122,6 +149,8 @@ export interface StageSong {
   retryPlay(): void;
   /** The last Song that played out or was ended. */
   lastRound(): StageRound | null;
+  /** Each change to a Player's running Score, Line results or lost state. */
+  onScoring(listener: (change: LiveScoringChange) => void): () => void;
   dispose(): void;
 }
 
@@ -132,6 +161,9 @@ interface Session {
   load: Promise<SongDetail | null>;
   detail: SongDetail | null;
   setup: SingSetup | null;
+  scoring: LiveScoring | null;
+  /** The animation frame ticking the scoring, while the Song plays. */
+  frame: number | null;
   buffers: readonly PitchBuffer[];
   clock: SongClock | null;
   playback: ReturnType<StageSongOptions["createPlayback"]> | null;
@@ -150,7 +182,17 @@ const IDLE: StageSongView = { kind: "idle" };
 export function createStageSong(options: StageSongOptions): StageSong {
   const { store, pitch } = options;
   const now = options.now ?? (() => Date.now());
+  const stageNow = options.stageNow ?? (() => performance.now());
+  const requestFrame =
+    options.requestFrame ??
+    ((callback) => window.requestAnimationFrame(callback));
+  const cancelFrame =
+    options.cancelFrame ??
+    ((handle) => {
+      window.cancelAnimationFrame(handle);
+    });
   const listeners = new Set<() => void>();
+  const scoringListeners = new Set<(change: LiveScoringChange) => void>();
   let view: StageSongView = IDLE;
   let session: Session | null = null;
   let element: PlaybackElement | null = null;
@@ -165,10 +207,29 @@ export function createStageSong(options: StageSongOptions): StageSong {
     if (view.kind === "singing") show({ ...view, ...patch });
   }
 
+  /** Ticks the scoring once per animation frame until the Song stops or ends. */
+  function scoreFrames(s: Session) {
+    const scoring = s.scoring;
+    if (!scoring) return;
+    const onFrame = () => {
+      s.frame = null;
+      if (s.stopped || s.ended !== null) return;
+      scoring.tick();
+      s.frame = requestFrame(onFrame);
+    };
+    s.frame = requestFrame(onFrame);
+  }
+
+  function stopFrames(s: Session) {
+    if (s.frame !== null) cancelFrame(s.frame);
+    s.frame = null;
+  }
+
   /** Stops the Song: no sound, no readings, no signal. */
   function stop(s: Session, next: StageSongView = IDLE) {
     if (!s.stopped) {
       s.stopped = true;
+      stopFrames(s);
       s.controls?.dispose();
       s.playback?.dispose();
       if (s.ended === null) pitch.stop();
@@ -188,11 +249,11 @@ export function createStageSong(options: StageSongOptions): StageSong {
       },
     });
     s.playback = playback;
-    const setup = s.setup;
+    const scoring = s.scoring;
     s.controls = createSongControls({
       playback,
       buffers: () => s.buffers,
-      scorers: () => setup.scorers,
+      scorers: () => (scoring ? [scoring] : []),
       onChange: (controls) => {
         if (session === s) update({ controls });
       },
@@ -229,15 +290,19 @@ export function createStageSong(options: StageSongOptions): StageSong {
     if (s.ended !== null || s.stopped) return;
     s.ended = how;
     s.controls?.dispose();
+    stopFrames(s);
+    // Score what is due before the readings stop.
+    const scoring = s.scoring?.outcome() ?? null;
     pitch.stop();
     // Ended before it loaded: the end of the Song still goes out, with no round.
     round =
-      s.detail && s.setup
+      s.detail && s.setup && scoring
         ? {
             requestId: s.requestId,
             detail: s.detail,
             setup: s.setup,
             buffers: s.buffers,
+            scoring,
             startedAtMs: s.startedAtMs,
             ended: how,
             partyId: s.party?.partyId ?? "",
@@ -260,6 +325,8 @@ export function createStageSong(options: StageSongOptions): StageSong {
       ),
       detail: null,
       setup: null,
+      scoring: null,
+      frame: null,
       buffers: [],
       clock: null,
       playback: null,
@@ -286,33 +353,58 @@ export function createStageSong(options: StageSongOptions): StageSong {
         party,
         profiles: options.profiles(),
         ...(volume === null ? {} : { volume }),
+        ...(options.micIdFor ? { micIdFor: options.micIdFor } : {}),
       });
       const plan = playbackPlan(detail);
-      const clock = createSongClock({ media: plan.clock });
-      const players = setup.players;
+      const clock = createSongClock({ media: plan.clock, now: stageNow });
+      // Each Player's scoring inputs, taken once for the whole Song.
+      const scoring = createLiveScoring({
+        song: detail.song,
+        noteFingerprint: detail.noteFingerprint,
+        players: setup.players.map((player) => ({
+          voice: player.voice,
+          difficulty: player.difficulty,
+          micKind: player.micKind,
+          micDelayMs: player.micDelayMs,
+          micThresholdDbfs: player.micThresholdDbfs,
+        })),
+        clock,
+        buffers: () => s.buffers,
+        now: stageNow,
+      });
       s.setup = setup;
       s.clock = clock;
+      s.scoring = scoring;
       s.buffers = pitch.start({
-        players: players.length,
+        players: setup.players.length,
         mics: setup.mics,
         capacity: setup.capacity,
-        place: clockPlacement(
-          clock,
-          (player) => players[player]?.micDelayMs ?? 0,
-        ),
+        place: scoring.placement,
+        heard: (player) => {
+          scoring.micEvent(player, "reading");
+        },
+      });
+      const state = setup.state(s.buffers);
+      scoring.onChange((change) => {
+        if (session !== s) return;
+        // The header shows it at its next render; `onScoring` writes it now.
+        const player = state.lanes[change.player]?.player;
+        if (player) player.score = change.score.total;
+        for (const listener of [...scoringListeners]) listener(change);
       });
       show({
         kind: "singing",
         requestId: s.requestId,
         detail,
         plan,
-        state: setup.state(s.buffers),
+        state,
         clock,
         controls: { phase: "playing" },
         playFailed: false,
         ended: null,
       });
       begin(s);
+      scoreFrames(s);
     });
   }
 
@@ -403,6 +495,12 @@ export function createStageSong(options: StageSongOptions): StageSong {
       if (s && !s.stopped && s.ended === null) play(s);
     },
     lastRound: () => round,
+    onScoring(listener) {
+      scoringListeners.add(listener);
+      return () => {
+        scoringListeners.delete(listener);
+      };
+    },
     dispose() {
       unsubscribeControls();
       unsubscribeLive();
