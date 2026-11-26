@@ -53,6 +53,11 @@ impl Slot {
         }
     }
 
+    /// Whether the job has been cancelled (or the server is stopping).
+    pub fn is_cancelled(&self) -> bool {
+        *self.cancel.borrow()
+    }
+
     /// Completes once the job is cancelled (or the server stops), for a job
     /// that also does work outside its child processes.
     pub async fn cancelled(&self) {

@@ -167,6 +167,21 @@ where
     }
 }
 
+/// Runs `work` unless the job is cancelled first: then `work` is dropped
+/// (with any temporary folder it made) and the job ends cancelled. Not for
+/// a child process, which [`crate::jobs::ToolCommand`] kills and reaps
+/// itself.
+async fn unless_cancelled<T>(
+    ctx: &JobContext,
+    work: impl Future<Output = Result<T, UserMessage>>,
+) -> Result<T, UserMessage> {
+    tokio::select! {
+        biased;
+        () = ctx.slot.cancelled() => Err(UserMessage::JobCancelled),
+        done = work => done,
+    }
+}
+
 /// The Download's percentage for yt-dlp's `percent` of the video.
 fn video_percent(percent: f32) -> u8 {
     let span = f32::from(VIDEO_DONE - TEXT_DONE);
@@ -199,12 +214,11 @@ impl DownloadJob {
         };
         let db = ctx.env.db.clone();
         let id = self.usdb_id;
-        // A cancel drops the steps, and with them the temporary folder.
-        let prepared = tokio::select! {
-            biased;
-            () = ctx.slot.cancelled() => return Err(UserMessage::JobCancelled),
-            prepared = self.prepare(ctx, &usdb) => prepared?,
-        };
+        // A cancel ends the steps, and drops the temporary folder with them.
+        let prepared = self.prepare(ctx, &usdb).await?;
+        if ctx.slot.is_cancelled() {
+            return Err(UserMessage::JobCancelled);
+        }
 
         // 3. Into the Library: past this point a cancel waits for the end.
         if in_library(&db, id)
@@ -235,27 +249,28 @@ impl DownloadJob {
         ctx: &JobContext,
         usdb: &crate::jobs::UsdbEnv,
     ) -> Result<Prepared, UserMessage> {
-        let db = &ctx.env.db;
         let id = self.usdb_id;
-        if in_library(db, id)
-            .await
-            .map_err(|e| server_error(e, "checking the Library for a USDB id"))?
-        {
-            return Err(UserMessage::UsdbSongInLibrary);
-        }
-        let scanner = usdb.scanner().await;
-        let folder = tokio::task::spawn_blocking(move || scanner.new_song_folder())
-            .await
-            .map_err(|e| server_error(e, "creating a Download's temporary folder"))?
-            .map_err(|e| server_error(e, "creating a Download's temporary folder"))?;
-
-        // 1. The text and the cover.
         let client = &usdb.usdb;
-        let page = with_retries(client, "text", || client.song_text_page(id)).await?;
+        // 1. The text and the cover; a cancel stops waiting for USDB.
+        let (folder, page, cover) = unless_cancelled(ctx, async {
+            if in_library(&ctx.env.db, id)
+                .await
+                .map_err(|e| server_error(e, "checking the Library for a USDB id"))?
+            {
+                return Err(UserMessage::UsdbSongInLibrary);
+            }
+            let scanner = usdb.scanner().await;
+            let folder = tokio::task::spawn_blocking(move || scanner.new_song_folder())
+                .await
+                .map_err(|e| server_error(e, "creating a Download's temporary folder"))?
+                .map_err(|e| server_error(e, "creating a Download's temporary folder"))?;
+            let page = with_retries(client, "text", || client.song_text_page(id)).await?;
+            let cover = with_retries(client, "cover", || client.cover(id)).await?;
+            Ok((folder, page, cover))
+        })
+        .await?;
         let text = parse_gettxt(&page).map_err(|_| UserMessage::UsdbNoSongText)?;
-        let cover = with_retries(client, "cover", || client.cover(id))
-            .await?
-            .filter(|bytes| !bytes.is_empty());
+        let cover = cover.filter(|bytes| !bytes.is_empty());
         let has_cover = if cover.is_some() {
             UsdbCover::Present
         } else {
@@ -269,7 +284,7 @@ impl DownloadJob {
         let folder = write_files(folder, song_txt, cover).await?;
         ctx.progress.report(TEXT_DONE);
 
-        // 2. The video.
+        // 2. The video: a cancel kills yt-dlp (and waits for it to end).
         let ytdlp = usdb.ytdlp.program().await;
         let mut forbidden = false;
         let mut highest = TEXT_DONE;
@@ -300,7 +315,11 @@ impl DownloadJob {
                         "a Download's video failed: trying again"
                     );
                     remove_partial_video(folder.path()).await;
-                    client.wait(wait).await;
+                    unless_cancelled(ctx, async {
+                        client.wait(wait).await;
+                        Ok(())
+                    })
+                    .await?;
                     retry += 1;
                 }
             }
