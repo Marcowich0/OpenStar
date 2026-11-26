@@ -396,6 +396,7 @@ fn every_client_message() -> Vec<ClientMessage> {
             step: openstar_protocol::av_offset::AvSyncStep::Up,
         },
         ClientMessage::EndAvSync,
+        ClientMessage::ReportAvSyncOffset { av_offset_ms: 120 },
         ClientMessage::OpenCalibration,
         ClientMessage::ChooseCalibrationMic {
             mic: openstar_protocol::mics::MicKey::Phone {

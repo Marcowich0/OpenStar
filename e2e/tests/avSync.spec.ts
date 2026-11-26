@@ -6,7 +6,8 @@ import { expect, newParty, test } from "../fixtures";
 // pill with no Admin PIN, the ball bounces on the canvas while the clicks
 // play, ←/→ on the Stage and −/+ on a Phone's Stage tab step the Stage's
 // own A/V offset (saved at once, so a reopened check shows it), and Done on
-// the Phone ends it everywhere.
+// the Phone ends it everywhere. Started from a Phone (#168), that Phone shows
+// the value, −/+ and Done as its page, and every other Phone on its Stage tab.
 
 async function createProfile(
   request: APIRequestContext,
@@ -40,6 +41,9 @@ test("the Stage and a Phone set the A/V offset by eye and ear", async ({
   const phone = await openPhone();
   await joinAs(phone, code, name);
   await phone.getByRole("tab", { name: "Stage" }).click();
+  const other = await openPhone();
+  await joinAs(other, code, await createProfile(request, "lime"));
+  await other.getByRole("tab", { name: "Stage" }).click();
 
   // From the Stage's Setup pill.
   await stage.getByRole("button", { name: "Setup" }).click();
@@ -63,9 +67,10 @@ test("the Stage and a Phone set the A/V offset by eye and ear", async ({
   await stage.keyboard.press("ArrowLeft");
   await expect(value).toHaveText("+10 ms");
 
-  // The Phone shows its big −/+ while the check runs.
+  // The Phone shows its big −/+ while the check runs, and the value.
   const card = phone.getByTestId("av-sync-card");
   await expect(card).toBeVisible();
+  await expect(card.getByTestId("av-sync-value")).toHaveText("+10 ms");
   await card.getByRole("button", { name: "A/V offset up" }).click();
   await card.getByRole("button", { name: "A/V offset up" }).click();
   await expect(value).toHaveText("+30 ms");
@@ -77,13 +82,26 @@ test("the Stage and a Phone set the A/V offset by eye and ear", async ({
   await expect(check).toHaveCount(0);
   await expect(card).toHaveCount(0);
 
-  // Started from the Phone, it opens on the Stage with the saved value.
+  // Started from the Phone, it opens on the Stage with the saved value, and
+  // that Phone shows the controls as its page.
   await phone.getByRole("button", { name: "Check A/V sync" }).click();
   await expect(check).toBeVisible();
   await expect(value).toHaveText("+20 ms");
+  const page = phone.getByRole("main", { name: "Check A/V sync" });
+  await expect(page.getByTestId("av-sync-value")).toHaveText("+20 ms");
+  await expect(phone.getByRole("tab")).toHaveCount(0);
+  // Every other Phone has them on its Stage tab, with the same value.
+  const otherCard = other.getByTestId("av-sync-card");
+  await expect(otherCard.getByTestId("av-sync-value")).toHaveText("+20 ms");
+  await page.getByRole("button", { name: "A/V offset down" }).click();
+  await expect(value).toHaveText("+10 ms");
+  await expect(otherCard.getByTestId("av-sync-value")).toHaveText("+10 ms");
   await check.getByRole("button", { name: "Reset to 0" }).click();
   await expect(value).toHaveText("0 ms");
+  await expect(page.getByTestId("av-sync-value")).toHaveText("0 ms");
   await stage.keyboard.press("Escape");
   await expect(check).toHaveCount(0);
-  await expect(card).toHaveCount(0);
+  await expect(page).toHaveCount(0);
+  await expect(otherCard).toHaveCount(0);
+  await expect(phone.getByRole("tab", { name: "Stage" })).toBeVisible();
 });

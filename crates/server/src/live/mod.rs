@@ -355,6 +355,9 @@ struct Stage {
     progress: Option<(SongProgress, i64)>,
     /// Check A/V sync runs on the active Stage (`av_sync.rs`).
     av_sync: bool,
+    /// What is known about the running check: the Phone that started it
+    /// (`None` for the Stage) and the Stage's reported A/V offset.
+    av_sync_check: av_sync::AvSyncCheck,
     /// The open Calibrate mics run (`calibration.rs`).
     calibration: Option<calibration::Calibration>,
 }
@@ -419,6 +422,7 @@ impl LiveState {
                 output: None,
                 progress: None,
                 av_sync: false,
+                av_sync_check: av_sync::AvSyncCheck::default(),
                 calibration: None,
             },
         );
@@ -845,6 +849,10 @@ impl LiveState {
             }
             Ok(ClientMessage::EndAvSync) => {
                 let result = self.end_av_sync(id);
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::ReportAvSyncOffset { av_offset_ms }) => {
+                let result = self.report_av_sync_offset(id, av_offset_ms);
                 self.refuse_on_error(id, result);
             }
             Ok(ClientMessage::OpenCalibration) => {

@@ -16,6 +16,8 @@ import {
 export interface BrowserAvOffset {
   /** The value in ms; 0 while the output is unknown or still loading. */
   ms: number;
+  /** Whether `ms` is the value kept for the current output (it has loaded). */
+  loaded: boolean;
   /**
    * The value in seconds, read when called: give it as the render loop's
    * `avOffset` getter, so a new value applies from the next frame.
@@ -52,5 +54,5 @@ export function useAvOffset(
     },
     [client, browser, output],
   );
-  return { ms, seconds, save };
+  return { ms, loaded: known && data !== undefined, seconds, save };
 }

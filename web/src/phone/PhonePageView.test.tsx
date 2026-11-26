@@ -766,3 +766,46 @@ describe("the Remote", () => {
     expect(screen.getAllByTestId("code-box")).toHaveLength(4);
   });
 });
+
+describe("Check A/V sync on the Phone", () => {
+  it("is the page of the Phone that started it: the value, −/+ and Done, until it ends", async () => {
+    const { connect, server, sent } = renderPhone();
+    connect(1, party([[1, 2]]));
+    expect(await screen.findByRole("img", { name: "Bo" })).toBeInTheDocument();
+
+    server(
+      { type: "avSync", running: true },
+      { type: "avSyncCheck", startedBy: PHONE_ID, avOffsetMs: 120 },
+    );
+    const page = screen.getByRole("main", { name: "Check A/V sync" });
+    expect(screen.queryAllByRole("tab")).toEqual([]);
+    expect(within(page).getByTestId("av-sync-value").textContent).toBe(
+      "+120 ms",
+    );
+    fireEvent.click(
+      within(page).getByRole("button", { name: "A/V offset up" }),
+    );
+    fireEvent.click(within(page).getByRole("button", { name: "Done" }));
+    expect(sent.slice(-2)).toEqual([
+      { type: "stepAvSync", step: "up" },
+      { type: "endAvSync" },
+    ]);
+
+    server({ type: "avSync", running: false });
+    expect(screen.queryByRole("main", { name: "Check A/V sync" })).toBeNull();
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+  });
+
+  it("stays on the Remote's Stage tab for every other Phone", async () => {
+    const { connect, server } = renderPhone();
+    connect(1, party([[1, 2]]));
+    expect(await screen.findByRole("img", { name: "Bo" })).toBeInTheDocument();
+
+    server(
+      { type: "avSync", running: true },
+      { type: "avSyncCheck", startedBy: "phone-b", avOffsetMs: 120 },
+    );
+    expect(screen.queryByRole("main", { name: "Check A/V sync" })).toBeNull();
+    expect(screen.getAllByRole("tab")).toHaveLength(4);
+  });
+});

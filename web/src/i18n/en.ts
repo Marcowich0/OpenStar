@@ -308,6 +308,7 @@ export const en = {
   "avSync.earlier": "−{ms, number} ms",
   "avSync.zero": "0 ms",
   "avSync.value": "A/V offset",
+  "avSync.valueUnknown": "–",
   "avSync.pattern":
     "A ball bouncing once a second, with a click each time it lands",
   "avSync.stageHint":

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import { initialLiveState, type LiveState } from "../live/liveState";
-import { phonePage, type PhonePageConditions } from "./phonePage";
+import {
+  phonePage,
+  startedAvSync,
+  type PhonePageConditions,
+} from "./phonePage";
 
 const party: PartySnapshot = {
   partyId: "p1",
@@ -39,6 +43,7 @@ function live(memberId: number | null): LiveState {
 
 const none: PhonePageConditions = {
   calibrating: () => false,
+  avSync: () => false,
   micTakeover: () => false,
 };
 
@@ -67,14 +72,25 @@ describe("the Phone page's state", () => {
 
   it("is Calibrating (or Check A/V sync) over the mic takeover", () => {
     expect(
-      phonePage(live(1), { calibrating: () => true, micTakeover: () => true }),
+      phonePage(live(1), {
+        ...none,
+        calibrating: () => true,
+        micTakeover: () => true,
+      }),
     ).toBe("calibrating");
+  });
+
+  it("is the Check A/V sync controls over the mic takeover", () => {
+    expect(
+      phonePage(live(1), { ...none, avSync: () => true, micTakeover: () => true }),
+    ).toBe("avSync");
   });
 
   it("is the join flow over everything else", () => {
     expect(
       phonePage(live(null), {
         calibrating: () => true,
+        avSync: () => true,
         micTakeover: () => true,
       }),
     ).toBe("joinFlow");
@@ -82,5 +98,29 @@ describe("the Phone page's state", () => {
 
   it("is the Remote with the store's own conditions, which later tickets fill in", () => {
     expect(phonePage(live(1))).toBe("remote");
+  });
+});
+
+describe("whether this Phone shows Check A/V sync as its page", () => {
+  const running = (startedBy: string | null): LiveState => ({
+    ...live(1),
+    avSync: true,
+    avSyncCheck: { startedBy, avOffsetMs: 40 },
+  });
+
+  it("is so for the Phone that started it, while it runs", () => {
+    expect(startedAvSync(running("phone-a"), "phone-a")).toBe(true);
+    expect(phonePage(running("phone-a"), { ...none, avSync: (s) => startedAvSync(s, "phone-a") })).toBe("avSync");
+  });
+
+  it("is not so for any other Phone, nor when the Stage started it", () => {
+    expect(startedAvSync(running("phone-b"), "phone-a")).toBe(false);
+    expect(startedAvSync(running(null), "phone-a")).toBe(false);
+  });
+
+  it("is not so once it has ended", () => {
+    expect(
+      startedAvSync({ ...running("phone-a"), avSync: false }, "phone-a"),
+    ).toBe(false);
   });
 });
