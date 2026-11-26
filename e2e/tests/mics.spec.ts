@@ -177,11 +177,19 @@ test("a Local mic's Mic threshold line moves 1 dB with the arrows, saved at once
   await expect.poll(() => outputs.length).toBeGreaterThan(0);
   const before = Number(await line.getAttribute("data-threshold-dbfs"));
 
+  // A hand setting is dropped until the stored values for this output have
+  // loaded, and nothing on the screen says when that is: press again while
+  // the line has not moved. A press that is dropped never lands later.
   await line.focus();
-  await stage.keyboard.press("ArrowRight");
-  await expect
-    .poll(async () => Number(await line.getAttribute("data-threshold-dbfs")))
-    .toBeCloseTo(before + 1);
+  await expect(async () => {
+    await stage.keyboard.press("ArrowRight");
+    await expect
+      .poll(
+        async () => Number(await line.getAttribute("data-threshold-dbfs")),
+        { timeout: 3_000 },
+      )
+      .toBeCloseTo(before + 1);
+  }).toPass();
   await expect(row.getByText("set by hand")).toBeVisible();
 
   // Kept on the server at once, at the current Stage output, set by hand.
