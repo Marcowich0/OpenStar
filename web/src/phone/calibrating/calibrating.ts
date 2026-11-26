@@ -86,26 +86,32 @@ function waitingStep(
 /**
  * "I'm listening": opens the mic exactly as for singing (the same
  * `PhoneMic`, so the same constraints, capture clock and relay), then tells
- * the server this Mic is ready. A mic already on (a seated Phone) says so at
- * once. Returns a cancel for a tap whose mic has not opened yet.
+ * the server this Mic is ready once it is synced to the Stage's clock (its
+ * readings leave; before the first pong they would be dropped). A mic
+ * already on and synced (a seated Phone) says so at once. Returns a cancel
+ * for a tap whose mic is not ready yet.
  */
 export function imListening(
   mic: Pick<PhoneMic, "getSnapshot" | "subscribe" | "turnOn" | "singAgain">,
   send: (message: { type: "calibrationListening" }) => void,
 ): () => void {
-  const state = mic.getSnapshot().state;
-  if (state === "on") {
+  const ready = () => {
+    const { state, synced } = mic.getSnapshot();
+    return state === "on" && synced;
+  };
+  if (ready()) {
     send({ type: "calibrationListening" });
     return () => {};
   }
+  const state = mic.getSnapshot().state;
   const unsubscribe = mic.subscribe(() => {
     const next = mic.getSnapshot().state;
-    if (next === "opening") return;
+    if (next === "opening" || (next === "on" && !ready())) return;
     unsubscribe();
     if (next === "on") send({ type: "calibrationListening" });
   });
   if (state === "lost") mic.singAgain();
-  else mic.turnOn();
+  else if (state !== "on") mic.turnOn();
   return unsubscribe;
 }
 

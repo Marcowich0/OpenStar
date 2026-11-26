@@ -36,6 +36,7 @@ function fakeMic(state: PhoneMicSnapshot["state"] = "off") {
   let snapshot: PhoneMicSnapshot = {
     state,
     blocked: null,
+    synced: state === "on",
     readingsPerSecond: 0,
     detector: null,
   };
