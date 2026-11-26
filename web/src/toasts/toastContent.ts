@@ -350,6 +350,12 @@ export function toastContent(
         (song) => tParts("partyEvent.songSkipped", { song }),
         (song) => tParts("toast.youSongSkipped", { song }),
       );
+    case "songAborted":
+      // Only the Stage's drop aborts a Song.
+      return {
+        actor,
+        parts: tParts("partyEvent.songAborted", { song: event.params.title }),
+      };
     case "resultsShown":
       // Only the Stage reports results.
       return {

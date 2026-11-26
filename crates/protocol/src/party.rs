@@ -686,6 +686,10 @@ pub enum PartyEvent {
     /// Someone pressed Next or Done on the results: the next Request's
     /// Line-up waits, or the song browser shows.
     ResultsClosed,
+    /// The Stage dropped (reload, crash or takeover) while the Song played:
+    /// it was aborted with no results and no Score records, and its
+    /// Request's Line-up waits again as it was. The actor is the Stage.
+    SongAborted(RequestChange),
     /// A Phone's Auto-fit of a Song was accepted and saved (#223). `title`
     /// is the Song's title in the saved file.
     AutoFitAccepted { song_id: SongId, title: String },

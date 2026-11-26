@@ -128,6 +128,17 @@ describe("a toast's content", () => {
     expect(text(shown)).toBe("The results of Africa");
   });
 
+  it("says a Song stopped because the Stage dropped", () => {
+    const aborted: Toast = {
+      id: 0,
+      actor: { kind: "stage" },
+      event: { code: "songAborted", params: africa },
+    };
+    expect(text(aborted)).toBe(
+      "The Stage dropped, so Africa stopped. Its Line-up waits to start again",
+    );
+  });
+
   it("says who edited the Line-up, and how", () => {
     expect(text(byMember(2, { code: "lineUpChanged" }))).toBe(
       "Mia changed the Line-up",

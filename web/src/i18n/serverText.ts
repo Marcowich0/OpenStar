@@ -197,6 +197,8 @@ export const partyEventText = byCode<PartyEvent>({
   resultsShown: ({ params }) =>
     t("partyEvent.resultsShown", { song: params.title }),
   resultsClosed: () => t("partyEvent.resultsClosed"),
+  songAborted: ({ params }) =>
+    t("partyEvent.songAborted", { song: params.title }),
   autoFitAccepted: ({ params }) =>
     t("partyEvent.autoFitAccepted", { song: params.title }),
 });
