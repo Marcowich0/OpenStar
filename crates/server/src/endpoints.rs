@@ -316,6 +316,20 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             usdb::http::refetch_mirror,
         )
+        // Browsing USDB is free: the search reads the mirror, and a cover is
+        // fetched once into the cache (not the Library, not kept data).
+        .add(
+            Method::GET,
+            "/api/usdb/songs",
+            NotGuarded,
+            usdb::http::search,
+        )
+        .add(
+            Method::GET,
+            "/api/usdb/songs/{id}/cover",
+            NotGuarded,
+            usdb::covers::cover,
+        )
         .add(Method::GET, "/ws", NotGuarded, crate::websocket)
         // Takes the Stage: the handler refuses a browser without Stage trust
         // (`stage_trust`), which is not an Unlock.

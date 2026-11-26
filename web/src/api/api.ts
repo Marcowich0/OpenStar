@@ -31,6 +31,9 @@ import type { TxtVersion } from "../generated/TxtVersion";
 import type { UnlockRequest } from "../generated/UnlockRequest";
 import type { UnlockStatus } from "../generated/UnlockStatus";
 import type { UsdbMirrorStatus } from "../generated/UsdbMirrorStatus";
+import type { UsdbSearchQuery } from "../generated/UsdbSearchQuery";
+import type { UsdbSearchResults } from "../generated/UsdbSearchResults";
+import type { UsdbStatus } from "../generated/UsdbStatus";
 import type { UserMessage } from "../generated/UserMessage";
 
 /**
@@ -74,6 +77,11 @@ export interface Endpoints {
   "GET /api/library/scan": { response: ScanStatus };
   "POST /api/library/rescan": { response: ScanStatus };
   "POST /api/rounds": { body: RoundOutcome; response: RoundStored };
+  "GET /api/usdb/status": { response: UsdbStatus };
+  "GET /api/usdb/songs": {
+    query: UsdbSearchQuery;
+    response: UsdbSearchResults;
+  };
   "GET /api/usdb/mirror": { response: UsdbMirrorStatus };
   "POST /api/usdb/mirror/refresh": { response: UsdbMirrorStatus };
   "POST /api/usdb/mirror/refetch": { response: UsdbMirrorStatus };

@@ -7,6 +7,7 @@ import { queryOptions } from "@tanstack/react-query";
 import type { ProfileId } from "../generated/ProfileId";
 import type { SongId } from "../generated/SongId";
 import type { SongQuery } from "../generated/SongQuery";
+import type { UsdbSearchQuery } from "../generated/UsdbSearchQuery";
 import { api } from "./api";
 
 /** `GET /api/server-info`: the server's version, schema and Library state. */
@@ -128,3 +129,23 @@ export const usdbMirrorQuery = queryOptions({
   queryKey: ["usdb", "mirror"],
   queryFn: ({ signal }) => api("GET /api/usdb/mirror", { signal }),
 });
+
+/**
+ * `GET /api/usdb/status`: where OpenStar's USDB login stands, for the
+ * Downloads section's notices. The `usdbMirror` notice refreshes it (the
+ * server sends one once the login has been checked).
+ */
+export const usdbStatusQuery = queryOptions({
+  queryKey: ["usdb", "status"],
+  queryFn: ({ signal }) => api("GET /api/usdb/status", { signal }),
+});
+
+/**
+ * `GET /api/usdb/songs`: a search over the USDB mirror (never a request to
+ * USDB itself). Refreshed by the `usdbMirror` notice as the mirror fills.
+ */
+export const usdbSongsQuery = (query: UsdbSearchQuery = {}) =>
+  queryOptions({
+    queryKey: ["usdb", "songs", query],
+    queryFn: ({ signal }) => api("GET /api/usdb/songs", { query, signal }),
+  });

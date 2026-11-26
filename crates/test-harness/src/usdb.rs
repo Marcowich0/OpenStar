@@ -17,9 +17,15 @@
 //! The control endpoints under `/__fake/` let a standalone fake (for
 //! `just e2e`) be read and scripted over HTTP: `GET /__fake/requests` returns
 //! the recorded requests, `POST /__fake/script` with a [`ScriptEntry`] queues a
-//! scripted answer. Control requests are not recorded.
+//! scripted answer, `POST /__fake/songs` with a JSON list of [`FakeSong`]s is
+//! [`FakeUsdb::set_songs`], and `PUT /__fake/covers/<id>` with the image bytes
+//! is [`FakeUsdb::set_cover`]. Control requests are not recorded.
+//!
+//! Covers: `GET /data/cover/<id>.jpg` answers a cover given with
+//! [`FakeUsdb::set_cover`] (as `image/jpeg`, even when empty), else the file
+//! below `static/`, else 404 (USDB has no cover).
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -101,7 +107,8 @@ pub struct ScriptEntry {
 }
 
 /// One song of the fake's song list (see [`FakeUsdb::set_songs`]).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FakeSong {
     pub id: u32,
     pub artist: String,
@@ -160,12 +167,39 @@ struct Inner {
     /// The song list `POST ?link=list` is rendered from, once set; until then
     /// `list.html` is served.
     songs: Mutex<Option<Vec<FakeSong>>>,
+    /// Covers by USDB id (see [`FakeUsdb::set_cover`]).
+    covers: Mutex<HashMap<u32, Vec<u8>>>,
     started: Instant,
     requests: Mutex<Vec<RecordedRequest>>,
     script: Mutex<VecDeque<ScriptEntry>>,
 }
 
 impl Inner {
+    fn set_cover(&self, id: u32, bytes: Vec<u8>) {
+        self.covers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(id, bytes);
+    }
+
+    fn set_songs(&self, songs: Vec<FakeSong>) {
+        *self.songs.lock().unwrap_or_else(PoisonError::into_inner) = Some(songs);
+    }
+
+    /// The cover given for the cover path `path`, if any.
+    fn cover(&self, path: &str) -> Option<Vec<u8>> {
+        let id: u32 = path
+            .strip_prefix("/data/cover/")?
+            .strip_suffix(".jpg")?
+            .parse()
+            .ok()?;
+        self.covers
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(&id)
+            .cloned()
+    }
+
     fn next_scripted(&self) -> Option<Scripted> {
         let mut script = self.script.lock().unwrap_or_else(PoisonError::into_inner);
         let entry = script.front_mut()?;
@@ -208,6 +242,7 @@ impl FakeUsdb {
         let inner = Arc::new(Inner {
             fixtures,
             songs: Mutex::new(None),
+            covers: Mutex::new(HashMap::new()),
             started: Instant::now(),
             requests: Mutex::new(Vec::new()),
             script: Mutex::new(VecDeque::new()),
@@ -257,11 +292,13 @@ impl FakeUsdb {
     /// `order` (`lastchange`, else the id) and `ud` (`asc`/`desc`), with
     /// USDB's "There are N results" line. Replaces any list set before.
     pub fn set_songs(&self, songs: Vec<FakeSong>) {
-        *self
-            .inner
-            .songs
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner) = Some(songs);
+        self.inner.set_songs(songs);
+    }
+
+    /// From now on, `GET /data/cover/<id>.jpg` answers `bytes` as a JPEG
+    /// (an empty `bytes` answers an empty body, as a broken USDB might).
+    pub fn set_cover(&self, id: u32, bytes: Vec<u8>) {
+        self.inner.set_cover(id, bytes);
     }
 
     /// Waits until the server stops (it never does on its own): for the
@@ -345,6 +382,9 @@ async fn handle(State(inner): State<Arc<Inner>>, request: Request) -> Response {
                     let form = String::from_utf8_lossy(&body).into_owned();
                     return list_page(songs, &form);
                 }
+            }
+            if let Some(cover) = inner.cover(&path) {
+                return ([(header::CONTENT_TYPE, "image/jpeg")], cover).into_response();
             }
             if link == Some("profil") && !has_session {
                 return serve_first(&inner.fixtures, &[LOGGED_OUT_PROFILE_PAGE.into()]).await;
@@ -472,6 +512,23 @@ fn control_endpoint(inner: &Inner, method: &Method, control: &str, body: &[u8]) 
             }
             Ok(_) => StatusCode::NO_CONTENT.into_response(),
             Err(error) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
+        },
+        ("POST", "songs") => match serde_json::from_slice::<Vec<FakeSong>>(body) {
+            Ok(songs) => {
+                inner.set_songs(songs);
+                StatusCode::NO_CONTENT.into_response()
+            }
+            Err(error) => (StatusCode::BAD_REQUEST, error.to_string()).into_response(),
+        },
+        ("PUT", control) => match control
+            .strip_prefix("covers/")
+            .and_then(|id| id.parse::<u32>().ok())
+        {
+            Some(id) => {
+                inner.set_cover(id, body.to_vec());
+                StatusCode::NO_CONTENT.into_response()
+            }
+            None => StatusCode::NOT_FOUND.into_response(),
         },
         _ => StatusCode::NOT_FOUND.into_response(),
     }

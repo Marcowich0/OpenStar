@@ -4,12 +4,14 @@
 //! Download writes.
 
 mod client;
+pub(crate) mod covers;
 mod detail;
 mod html;
 pub(crate) mod http;
 mod list;
 mod login;
 pub(crate) mod mirror;
+mod search;
 mod song_txt;
 mod text;
 
