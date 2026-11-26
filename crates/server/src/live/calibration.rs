@@ -9,12 +9,11 @@
 //! the run with nothing stored. No Admin PIN anywhere (`endpoints::ws_access`).
 
 use openstar_protocol::mics::{
-    CalibrationMic, CalibrationOutcome, CalibrationPhase, CalibrationResult, CalibrationRun,
-    MicKey,
+    CalibrationMic, CalibrationOutcome, CalibrationPhase, CalibrationResult, CalibrationRun, MicKey,
 };
 use openstar_protocol::{ChangeTopic, ServerMessage, UserMessage};
 
-use super::{server_error, LiveState};
+use super::{LiveState, server_error};
 use crate::live::hub::ConnectionId;
 
 /// The open run on the active Stage.
@@ -127,7 +126,10 @@ impl LiveState {
             .as_mut()
             .map(|calibration| &mut calibration.run)
             .ok_or(UserMessage::CalibrationNotRunning)?;
-        let in_run = run.mics.iter().any(|entry| entry.mic == mic && entry.chosen);
+        let in_run = run
+            .mics
+            .iter()
+            .any(|entry| entry.mic == mic && entry.chosen);
         if !in_run {
             return Err(UserMessage::NotInCalibration);
         }
@@ -216,8 +218,7 @@ impl LiveState {
     /// starts and a new Party starts.
     pub(super) fn calibration_ended(&mut self) {
         if self.stage_mut().calibration.take().is_some() {
-            self.hub
-                .send_all(&ServerMessage::Calibration { run: None });
+            self.hub.send_all(&ServerMessage::Calibration { run: None });
         }
     }
 
