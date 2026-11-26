@@ -860,9 +860,24 @@ export const en = {
   "timing.view.shareWhat":
     "The share of Note time where the pitch heard in the Song is within a semitone of the Note. A rough guide: it is low on Songs with loud backing.",
   "timing.view.playhead": "Playhead {time}",
+  // Checking by ear (#220): playback, speeds, clicks, hum, loop, A/V sync.
+  "timing.play.section": "Playback",
+  "timing.play.play": "Play",
+  "timing.play.pause": "Pause",
+  "timing.play.loop": "Loop a Line",
+  "timing.play.speed": "Speed",
+  "timing.play.speedPercent": "{percent, number} %",
+  "timing.play.clicks": "Clicks",
+  "timing.play.hum": "Hum the Notes",
+  "timing.play.avSync": "Check A/V sync",
+  "timing.play.avSyncHint":
+    "Press − or + until the click and the landing match. Every change is saved at once, for this computer and its sound output.",
+  "timing.play.keys":
+    "Space or P: play and pause · F: follow the playhead · 1, 2, 3: 100, 75, 50 % speed · L: loop a Line",
   // The side panel: typed values, the edit list, the save preview and Save.
   "timing.panel.gap": "#GAP (ms)",
   "timing.panel.bpm": "#BPM",
+  "timing.panel.videoGap": "#VIDEOGAP (s)",
   "timing.panel.fileValue": "file: {value, number}",
   "timing.panel.fileShare": "file: {percent, number} %",
   "timing.panel.edits": "Edits",

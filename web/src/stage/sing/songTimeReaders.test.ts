@@ -29,7 +29,13 @@ describe("who reads the Song's position", () => {
     // itself: drawing runs behind by the A/V offset, scoring never does.
     // The playback adapter reads it only at its event-only position reports
     // for the Remotes (#159): start, pause, resume, Restart and end.
+    // The Timing editor (#220) draws at it minus the A/V offset, starts and
+    // loops its playback from it, and schedules its clicks and hums ahead
+    // of it (never with the offset: they share the Song's output path).
     expect(filesMatching(/\.songTime\s*\(/)).toEqual([
+      "src/admin/timing/TimingEditor.tsx",
+      "src/editorAudio/editorPlayback.ts",
+      "src/editorAudio/noteScheduler.ts",
       "src/playback/mediaPlayback.ts",
       "src/scoring/liveScoring.ts",
       "src/stage/playback/PlaybackCheck.tsx",
@@ -84,8 +90,11 @@ describe("who reads the Song's position", () => {
     ]);
     // The kept value is loaded only to be handed to that getter, and by
     // Check A/V sync (#163), which shows and steps it and draws its own
-    // test pattern with it, never Song time.
+    // test pattern with it, never Song time. The Timing editor (#220) loads
+    // its own browser's value to draw at `songTime() − offset` and for its
+    // own Check A/V sync.
     expect(filesMatching(/from "[^"]*\/(avOffset|use\w*AvOffset)"/)).toEqual([
+      "src/admin/timing/TimingEditor.tsx",
       "src/avOffset/useAvOffset.ts",
       "src/avSync/AvSyncPanel.tsx",
       "src/avSync/StageAvSync.tsx",
@@ -94,9 +103,10 @@ describe("who reads the Song's position", () => {
       "src/stage/scenes/sing/SingScene.tsx",
     ]);
     // No code (comments aside) of the Pitch readings, the Song clock and
-    // Beats, the scorer, the media playback or the video names it.
+    // Beats, the scorer, the media playback, the Timing editor's playback,
+    // clicks and hums, or the video names it.
     const kept =
-      /^\/src\/(pitch|clock|scoring|playback|phone\/mic)\/|\/SingBackdrop\.tsx$/;
+      /^\/src\/(pitch|clock|scoring|playback|editorAudio|phone\/mic)\/|\/SingBackdrop\.tsx$/;
     const code = (text: string) =>
       text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
     const offenders = Object.entries(sources)
