@@ -132,6 +132,9 @@ test("a Phone finds a Song on the Songs tab and adds it with the Request sheet",
     await expect(
       theirs.getByRole("status", { name: "Party changes" }),
     ).toContainText(`${picker} added Two Voices`);
+    // Both are seated in the duet's Line-up, so each Phone shows its mic
+    // takeover (#167); the Remote opens on top.
+    await theirs.getByRole("button", { name: "Queue & controls" }).click();
     await expect(
       theirs.getByRole("tab", { name: "Queue, 1 Request" }),
     ).toBeVisible();

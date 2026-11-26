@@ -38,6 +38,7 @@ import { memberLook } from "../memberLook";
 import type { MicBlockedReason, PhoneMic } from "../mic/phoneMic";
 import { Progress } from "../onStage/PlayingCard";
 import { setMyDifficulty } from "../people/memberRequests";
+import { PhoneToasts } from "../PhoneToasts";
 import { editLineUp, startSong } from "../stage/lineUpCommands";
 import { levelOf, type MicTakeover as Takeover } from "./micTakeover";
 
@@ -87,6 +88,7 @@ export function MicTakeover({
       className="flex min-h-dvh flex-col items-center gap-5 px-5 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] text-white"
       style={{ backgroundColor: tokenVar(takeover.colour) }}
     >
+      <PhoneToasts store={store} />
       <div className="flex flex-wrap justify-center gap-2">
         <span className="rounded-full bg-white/20 px-4 py-1.5 text-lg font-semibold">
           {t("phoneTakeover.micChip", { name })}
@@ -208,7 +210,12 @@ function Step({
             <span className="text-lg text-white/80">
               {t("phoneTakeover.score")}
             </span>
-            <Score value={takeover.score ?? 0} className="text-6xl font-bold" />
+            <span data-testid="takeover-score">
+              <Score
+                value={takeover.score ?? 0}
+                className="text-6xl font-bold"
+              />
+            </span>
           </div>
           <div className="w-full">
             <Progress store={store} fallbackLength={lengthSeconds} />

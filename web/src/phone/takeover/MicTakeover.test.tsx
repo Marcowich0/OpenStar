@@ -246,6 +246,20 @@ describe("the mic takeover", () => {
     expect(takeover()).toBeTruthy();
   });
 
+  it("shows the Party's toasts too", async () => {
+    const { server } = renderPage(PARTY, fakeMic("on"));
+    await screen.findByText("Sing a note to check");
+    server({
+      type: "partyChanged",
+      party: PARTY,
+      change: {
+        actor: { kind: "stage" },
+        event: { code: "lineUpChanged" },
+      },
+    });
+    expect(screen.getByRole("status", { name: "Party changes" })).toBeTruthy();
+  });
+
   it("returns to the Remote when this Phone is taken off the Song", async () => {
     const { lineUpChanged } = renderPage(PARTY, fakeMic("on"));
     await screen.findByText("Sing a note to check");

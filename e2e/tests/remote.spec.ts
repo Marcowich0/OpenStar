@@ -126,8 +126,11 @@ test("the Remote shows the Queue badge, the waiting Line-up and every change as 
     );
     await expect(strip).toHaveCount(0);
 
-    // Opened while the Line-up waits, the Remote starts on the Stage tab.
+    // Opened while the Line-up waits, the Remote starts on the Stage tab
+    // (the adder is seated on its own Phone: the Remote opens over the mic
+    // takeover, #167).
     await mine.reload();
+    await mine.getByRole("button", { name: "Queue & controls" }).click();
     await expect(mine.getByRole("tab", { name: "Stage" })).toHaveAttribute(
       "aria-selected",
       "true",
