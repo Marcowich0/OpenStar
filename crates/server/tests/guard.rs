@@ -402,6 +402,12 @@ fn every_client_message() -> Vec<ClientMessage> {
             control: openstar_protocol::SongControl::Skip,
         },
         ClientMessage::CloseResults,
+        ClientMessage::ReportSongPosition {
+            request_id: openstar_protocol::RequestId(1),
+            position_seconds: 0.0,
+            rate: 1.0,
+            length_seconds: None,
+        },
         ClientMessage::BridgeHello {
             build: "dev".into(),
             host_name: "hermes".into(),

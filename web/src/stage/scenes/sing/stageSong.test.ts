@@ -9,7 +9,10 @@ import type { ServerMessage } from "../../../generated/ServerMessage";
 import type { SongControl } from "../../../generated/SongControl";
 import type { LiveClientOptions } from "../../../live/liveClient";
 import { createLiveStore } from "../../../live/liveStore";
-import type { SongEnding } from "../../../playback/mediaPlayback";
+import type {
+  PositionReport,
+  SongEnding,
+} from "../../../playback/mediaPlayback";
 import { createPitchRouter } from "../../../pitch/pitchRouter";
 import { createStageSong, type StageSongOptions } from "./stageSong";
 import { PROFILES, testDetail, testParty } from "./testSong";
@@ -119,6 +122,7 @@ function setup(over: Partial<StageSongOptions> = {}) {
 
   const log: string[] = [];
   let ended: ((how: SongEnding) => void) | null = null;
+  let report: ((at: PositionReport) => void) | null = null;
   let nowMs = 1_700_000_000_000;
   let resumeLater: (() => void) | null = null;
   const rounds: RoundOutcome[] = [];
@@ -131,8 +135,9 @@ function setup(over: Partial<StageSongOptions> = {}) {
     loadSong,
     profiles: () => PROFILES,
     pitch,
-    createPlayback: ({ onEnded }) => {
+    createPlayback: ({ onEnded, onReport }) => {
       ended = onEnded;
+      report = onReport;
       playback = fakePlayback(onEnded, log);
       return playback;
     },
@@ -206,6 +211,8 @@ function setup(over: Partial<StageSongOptions> = {}) {
     },
     connection,
     playedOut: () => ended?.("played"),
+    /** The playback reports where the Song stands (start, pause, ...). */
+    report: (at: PositionReport) => report?.(at),
     countdownDone: () => {
       // The countdown's steps and its end are all scheduled; run them all.
       resumeLater?.();
@@ -285,6 +292,48 @@ describe("the Stage plays the head's Request", () => {
     t.control("restart");
     expect(t.log.at(-1)).toBe("restart");
     expect(clear).toHaveBeenCalledOnce();
+  });
+
+  it("passes each position report of the playback to the server, with the Song's length", async () => {
+    const t = setup();
+    await t.start();
+    const reports = () =>
+      t.sent.filter((message) => message.type === "reportSongPosition");
+    expect(reports()).toEqual([]);
+    t.report({ positionSeconds: 0, rate: 1 });
+    t.report({ positionSeconds: 4.5, rate: 0 });
+    expect(reports()).toEqual([
+      {
+        type: "reportSongPosition",
+        requestId: 5,
+        positionSeconds: 0,
+        rate: 1,
+        lengthSeconds: 30,
+      },
+      {
+        type: "reportSongPosition",
+        requestId: 5,
+        positionSeconds: 4.5,
+        rate: 0,
+        lengthSeconds: 30,
+      },
+    ]);
+    // Frames between reports send nothing: no position stream.
+    t.frames(5_000);
+    expect(reports()).toHaveLength(2);
+  });
+
+  it("stops at #END when the Song has one: the length the Remotes are told", async () => {
+    const t = setup({
+      loadSong: () =>
+        Promise.resolve(testDetail({ headers: { endSeconds: 20 } })),
+    });
+    await t.start();
+    t.report({ positionSeconds: 0, rate: 1 });
+    expect(t.sent.at(-1)).toMatchObject({
+      type: "reportSongPosition",
+      lengthSeconds: 20,
+    });
   });
 
   it("ignores controls for another Request", async () => {

@@ -232,6 +232,30 @@ pub struct PlayingSong {
     pub paused: bool,
 }
 
+/// Where the head's Song stood when the Stage last reported it, as every
+/// Remote is told ([`crate::ServerMessage::SongProgress`]). The Stage
+/// reports only on events (start, pause, resume, Restart and end), never
+/// continuously; a Remote extrapolates progress from the latest report.
+/// Phones' mics are never told Song time.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SongProgress {
+    /// The playing Request the report is about.
+    pub request_id: RequestId,
+    /// Song time when the Stage reported, seconds.
+    pub position_seconds: f64,
+    /// How fast Song time advanced from then on: 1 while playing, 0 while
+    /// paused (the resume countdown included) or after the end.
+    pub rate: f64,
+    /// Where the Song stops (`#END`, else the audio's end), seconds, or
+    /// `null` when the Stage does not know it.
+    pub length_seconds: Option<f64>,
+    /// How long ago the server received the report, ms: 0 when it is passed
+    /// on at once, more for a Remote that connects mid-Song.
+    pub age_ms: u32,
+}
+
 /// The Song whose results the Stage shows: the Party's 'results' state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
