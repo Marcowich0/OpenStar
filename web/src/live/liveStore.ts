@@ -2,6 +2,8 @@ import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { ClientMessage } from "../generated/ClientMessage";
 import type { Job } from "../generated/Job";
 import type { LocalMicLevel } from "../generated/LocalMicLevel";
+import type { MicId } from "../generated/MicId";
+import type { PitchReading } from "../generated/PitchReading";
 import type { ServerMessage } from "../generated/ServerMessage";
 import type { ClockPongFields } from "../pitch/clock/senderSession";
 import type { PitchRouter } from "../pitch/pitchRouter";
@@ -45,6 +47,14 @@ export interface LiveStore {
    */
   onLocalMicLevels: (
     listener: (levels: readonly LocalMicLevel[]) => void,
+  ) => () => void;
+  /**
+   * Calls `listener` with every relayed Pitch reading (Stage only), besides
+   * the Pitch router: the seat meters show a Phone's loudness from them.
+   * They never reach the reducer.
+   */
+  onPitchReading: (
+    listener: (mic: MicId, reading: PitchReading) => void,
   ) => () => void;
   /**
    * Calls `listener` with every `clockPong` the Stage sent this browser's
@@ -101,6 +111,9 @@ export function createLiveStore(
   const songControlListeners = new Set<(control: SongControlMessage) => void>();
   const levelListeners = new Set<(levels: readonly LocalMicLevel[]) => void>();
   const pongListeners = new Set<(pong: ClockPongFields) => void>();
+  const readingListeners = new Set<
+    (mic: MicId, reading: PitchReading) => void
+  >();
   const jobListeners = new Set<(job: Job) => void>();
 
   function update(next: LiveState) {
@@ -115,6 +128,8 @@ export function createLiveStore(
       // those go to their Player's ring buffer, so they never cause a render.
       if (message.type === "pitchReading") {
         pitch?.receive(message.mic, message.reading);
+        for (const listener of readingListeners)
+          listener(message.mic, message.reading);
         return;
       }
       // Clock sync (v1 spec #50): the Stage answers a Mic's ping at once,
@@ -200,6 +215,12 @@ export function createLiveStore(
       levelListeners.add(listener);
       return () => {
         levelListeners.delete(listener);
+      };
+    },
+    onPitchReading(listener) {
+      readingListeners.add(listener);
+      return () => {
+        readingListeners.delete(listener);
       };
     },
     onClockPong(listener) {

@@ -21,6 +21,7 @@ mod bridges;
 pub mod connection;
 pub mod hub;
 mod line_up;
+mod local_mic_list;
 mod party;
 mod queue;
 mod songs;
@@ -31,7 +32,7 @@ use std::sync::Arc;
 
 use openstar_protocol::bridge::bridge_local_mic_id;
 use openstar_protocol::library::SongId;
-use openstar_protocol::mics::{LocalMicSource, MicKey};
+use openstar_protocol::mics::{LocalMic, LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::volume::VolumeStep;
 use openstar_protocol::{
@@ -340,9 +341,12 @@ struct LiveState {
     /// Whether a Song is in the Library and can be queued.
     songs: Arc<dyn Songs>,
     /// The Local mics that are switched on and present, in Mics-screen
-    /// order: what the Line-up's Mic prefill may choose. Empty until the
-    /// Stage and the Mic bridges report Local mics (#51's tickets fill it).
+    /// order: what the Line-up's Mic prefill and `setMic` may choose.
     local_mics: Vec<String>,
+    /// Every kept Local mic, as last read from the database.
+    kept_local_mics: Vec<LocalMic>,
+    /// The Stage-browser Local mics the active Stage last reported present.
+    present_browser_mics: HashSet<String>,
     /// Phones that reported their mic could not open. Kept while the
     /// server runs; a Phone reports again after a restart.
     blocked_phones: HashSet<PhoneId>,
@@ -368,6 +372,7 @@ impl LiveState {
             refresh_computed(party, &HashSet::new());
         }
         let bridges = bridges::Bridges::new(crate::mic_bridges::load(&db).await?);
+        let kept_local_mics = crate::local_mics::all(&db).await?;
         let mut stages = HashMap::new();
         stages.insert(
             stage_id.clone(),
@@ -388,9 +393,106 @@ impl LiveState {
             phones: HashMap::new(),
             songs,
             local_mics: Vec::new(),
+            kept_local_mics,
+            present_browser_mics: HashSet::new(),
             blocked_phones: HashSet::new(),
             bridges,
-        })
+        }
+        .with_local_mics())
+    }
+
+    /// `self` with its Local mic list made, before anyone connects.
+    fn with_local_mics(mut self) -> Self {
+        let list = self.local_mic_list();
+        self.local_mics = local_mic_list::present_ids(&list);
+        if let Some(party) = self.stage_mut().party.as_mut() {
+            party.local_mics = list;
+        }
+        self
+    }
+
+    /// The switched-on Local mics in Mics-screen order, with whether each
+    /// is present now.
+    fn local_mic_list(&self) -> Vec<PartyLocalMic> {
+        let presence = local_mic_list::Presence {
+            browser: self.present_browser_mics.clone(),
+            bridge_channels: self.bridges.offered_local_mics(),
+            bridges: self.bridges.approved_ids(),
+        };
+        local_mic_list::party_local_mics(&self.kept_local_mics, &presence)
+    }
+
+    /// Makes the Local mic list again after a Local mic, its presence or its
+    /// bridge changed, and tells everyone the Party if the list changed.
+    fn local_mics_changed(&mut self) {
+        let list = self.local_mic_list();
+        self.local_mics = local_mic_list::present_ids(&list);
+        let Some(party) = self.stage_mut().party.as_mut() else {
+            return;
+        };
+        if party.local_mics == list {
+            return;
+        }
+        party.local_mics = list;
+        self.party_changed(ChangeEvent {
+            actor: Actor::Stage,
+            event: PartyEvent::LocalMicsChanged,
+        });
+    }
+
+    /// Reads the kept Local mics again after the Stage wrote one.
+    async fn reload_local_mics(&mut self) {
+        match crate::local_mics::all(&self.db).await {
+            Ok(kept) => self.kept_local_mics = kept,
+            Err(error) => tracing::error!(?error, "reading Local mics"),
+        }
+        self.local_mics_changed();
+    }
+
+    /// The active Stage reports which of its own Local mics are present.
+    fn report_present_local_mics(
+        &mut self,
+        id: ConnectionId,
+        local_mic_ids: Vec<String>,
+    ) -> Result<(), UserMessage> {
+        if self.stage().connection != Some(id) {
+            return Err(UserMessage::NotTheStage);
+        }
+        self.present_browser_mics = local_mic_ids.into_iter().collect();
+        self.local_mics_changed();
+        Ok(())
+    }
+
+    /// Local mic `from` is now `to` (Find it, or a re-key): the waiting
+    /// Line-up's seats and the Local mics members last sang on follow it.
+    /// The database was changed with the relink.
+    fn local_mic_relinked(&mut self, from: &str, to: &str) {
+        let mut seat_moved = false;
+        let stage = self.stage_mut();
+        for local_mic_id in stage.last_local_mics.values_mut() {
+            if local_mic_id == from {
+                to.clone_into(local_mic_id);
+            }
+        }
+        let seats = stage
+            .party
+            .as_mut()
+            .and_then(|party| party.line_up.as_mut())
+            .map(|line_up| line_up.seats.iter_mut());
+        for seat in seats.into_iter().flatten() {
+            if let Some(MicKey::LocalMic { local_mic_id }) = seat.mic.as_mut()
+                && local_mic_id == from
+            {
+                to.clone_into(local_mic_id);
+                seat_moved = true;
+            }
+        }
+        if seat_moved {
+            self.party_changed(ChangeEvent {
+                actor: Actor::Stage,
+                event: PartyEvent::LocalMicsChanged,
+            });
+        }
     }
 
     async fn run(mut self, mut commands: mpsc::Receiver<Command>) {
@@ -473,8 +575,10 @@ impl LiveState {
             if self.stage().party.is_none() {
                 started = self.start_party(now_ms).await;
             }
-            // A Stage that moved takes its Mics screen with it.
+            // A Stage that moved takes its Mics screen with it, and its
+            // Local mics until the new Stage reports its own.
             self.tell_mics_screen();
+            self.present_browser_mics.clear();
         }
         let live_state = ServerMessage::LiveState {
             stage_id: self.current_stage.clone(),
@@ -498,6 +602,9 @@ impl LiveState {
         if let Some(change) = started {
             self.party_changed(change);
         }
+        if role == Role::Stage {
+            self.local_mics_changed();
+        }
         connection
     }
 
@@ -509,6 +616,8 @@ impl LiveState {
             stage.connection = None;
             stage.output = None;
             self.tell_mics_screen();
+            self.present_browser_mics.clear();
+            self.local_mics_changed();
         }
         let closed: Vec<PhoneId> = self
             .mics
@@ -635,11 +744,13 @@ impl LiveState {
                 }
                 let relinked = crate::local_mics::relink(
                     self.db.clone(),
-                    local_mic_id,
-                    new_local_mic_id,
+                    local_mic_id.clone(),
+                    new_local_mic_id.clone(),
                     source,
                 );
-                self.refusable_mic_settings_write(id, relinked).await;
+                if self.refusable_mic_settings_write(id, relinked).await {
+                    self.local_mic_relinked(&local_mic_id, &new_local_mic_id);
+                }
             }
             Ok(ClientMessage::ReportStageOutput {
                 stage_browser,
@@ -776,6 +887,10 @@ impl LiveState {
                 self.bridge_hello(id, build, host_name, token, interfaces)
                     .await;
             }
+            Ok(ClientMessage::ReportPresentLocalMics { local_mic_ids }) => {
+                let reported = self.report_present_local_mics(id, local_mic_ids);
+                self.refuse_on_error(id, reported);
+            }
             Ok(ClientMessage::SetMicsScreenOpen { open }) => {
                 self.set_mics_screen_open(id, open);
             }
@@ -831,14 +946,15 @@ impl LiveState {
     }
 
     /// [`Self::mic_settings_write`] for a write that may refuse with a code.
+    /// Says whether it was written.
     async fn refusable_mic_settings_write(
         &mut self,
         id: ConnectionId,
         write: impl Future<Output = anyhow::Result<Result<(), UserMessage>>>,
-    ) {
+    ) -> bool {
         if self.stage().connection != Some(id) {
             self.reject(id, UserMessage::NotTheStage);
-            return;
+            return false;
         }
         match write.await {
             Ok(Ok(())) => {
@@ -847,11 +963,18 @@ impl LiveState {
                 });
                 // Open bridges show each channel's switch and name.
                 self.send_bridge_channels(None).await;
+                // The Line-up lists the switched-on Local mics by name.
+                self.reload_local_mics().await;
+                true
             }
-            Ok(Err(refused)) => self.reject(id, refused),
+            Ok(Err(refused)) => {
+                self.reject(id, refused);
+                false
+            }
             Err(error) => {
                 tracing::error!(?error, "storing Mic settings");
                 self.reject(id, UserMessage::ServerError);
+                false
             }
         }
     }
@@ -2671,6 +2794,27 @@ mod tests {
         ));
     }
 
+    /// Switched-on Stage-browser Local mics `ids`, reported present.
+    fn plug_in(state: &mut LiveState, ids: &[&str]) {
+        state.kept_local_mics = ids
+            .iter()
+            .map(|id| LocalMic {
+                local_mic_id: (*id).to_owned(),
+                source: LocalMicSource::Browser {
+                    stage_browser: "stage".into(),
+                    device_id: (*id).to_owned(),
+                    label: (*id).to_owned(),
+                    channel: 0,
+                    stereo: false,
+                },
+                name: String::new(),
+                switched_on: true,
+            })
+            .collect();
+        state.present_browser_mics = ids.iter().map(|id| (*id).to_owned()).collect();
+        state.local_mics_changed();
+    }
+
     #[tokio::test]
     async fn the_local_mic_a_member_last_sang_on_survives_a_restart_and_new_party_forgets_it() {
         use openstar_protocol::profile::{Avatar, AvatarKey, NewProfile, PaletteKey};
@@ -2722,8 +2866,8 @@ mod tests {
         let mut state = LiveState::load_with(db.clone(), Arc::new(StubSongs))
             .await
             .unwrap();
-        state.local_mics = vec!["red".into(), "blue".into()];
         let stage = state.connect(Role::Stage, 3).await;
+        plug_in(&mut state, &["red", "blue"]);
         let phone = state.connect(Role::Browser, 3).await;
         state
             .received(
@@ -2781,8 +2925,8 @@ mod tests {
         let mut state = LiveState::load_with(db.clone(), Arc::new(StubSongs))
             .await
             .unwrap();
-        state.local_mics = vec!["red".into()];
         let stage = state.connect(Role::Stage, 1).await;
+        plug_in(&mut state, &["red"]);
         let phone = state.connect(Role::Browser, 1).await;
         let profile = profiles::create(
             &db,

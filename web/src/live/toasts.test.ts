@@ -18,6 +18,7 @@ const party: PartySnapshot = {
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 };
 
 /** A browser that has the live state: the Stage, or a Phone. */
@@ -55,7 +56,18 @@ describe("Party changes as toast entries", () => {
       lineUp: null,
       playing: null,
       results: null,
+      localMics: [],
     });
+  });
+
+  it("gives no toast anywhere when only the Local mics changed", () => {
+    const localMics: ServerMessage = {
+      type: "partyChanged",
+      party,
+      change: { actor: { kind: "stage" }, event: { code: "localMicsChanged" } },
+    };
+    expect(receive(phone, localMics).toasts).toEqual([]);
+    expect(receive(stage, localMics).toasts).toEqual([]);
   });
 
   it("gives no toast on the Stage for a change made on the Stage", () => {

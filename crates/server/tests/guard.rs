@@ -419,6 +419,9 @@ fn every_client_message() -> Vec<ClientMessage> {
             request_id: openstar_protocol::bridge::BridgeRequestId(0),
         },
         ClientMessage::SetMicsScreenOpen { open: true },
+        ClientMessage::ReportPresentLocalMics {
+            local_mic_ids: vec!["browser:stage:device:0".into()],
+        },
         ClientMessage::BridgeLevels { levels: vec![] },
     ]
 }

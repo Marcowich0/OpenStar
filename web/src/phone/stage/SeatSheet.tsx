@@ -219,15 +219,18 @@ function SeatBody({
               }
               type="button"
               aria-pressed={option.current}
-              disabled={option.inUse}
+              disabled={option.inUse || option.unavailable}
               onClick={() => {
                 if (!option.current)
                   send({ kind: "setMic", seat: index, mic: option.mic });
               }}
-              className={`flex min-h-14 w-full items-center gap-3 rounded-[20px] bg-white px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow disabled:cursor-not-allowed ${option.inUse ? "opacity-45" : "cursor-pointer"} ${option.current ? "ring-3 ring-ink" : ""}`}
+              className={`flex min-h-14 w-full items-center gap-3 rounded-[20px] bg-white px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow disabled:cursor-not-allowed ${option.inUse || option.unavailable ? "opacity-45" : "cursor-pointer"} ${option.current ? "ring-3 ring-ink" : ""}`}
             >
               <span className="grow truncate">{option.name}</span>
               {option.inUse && <Tag>{t("stageTab.inUse")}</Tag>}
+              {!option.inUse && option.unavailable && (
+                <Tag>{t("stageTab.unplugged")}</Tag>
+              )}
             </button>
           ))}
         </div>

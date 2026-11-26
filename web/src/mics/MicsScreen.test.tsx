@@ -98,6 +98,7 @@ function setup({
     rename: vi.fn(),
     relink: vi.fn(),
     bridgeLevelDbfs,
+    phoneLevelDbfs: () => null,
   };
   render(
     <LocalMicsContext value={api}>
@@ -122,6 +123,7 @@ function setup({
         lineUp: null,
         playing: null,
         results: null,
+        localMics: [],
       },
     });
   });

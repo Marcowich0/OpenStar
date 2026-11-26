@@ -16,6 +16,7 @@ const party: PartySnapshot = {
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 };
 
 const synced = (isStage: boolean, current: PartySnapshot | null = party) =>

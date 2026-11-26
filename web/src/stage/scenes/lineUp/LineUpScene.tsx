@@ -7,7 +7,7 @@
 // from Remotes show at once. It never starts by itself.
 
 import { useQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { profilesQuery, songsQuery } from "../../../api/queries";
 import type { LineUp } from "../../../generated/LineUp";
@@ -23,20 +23,21 @@ import { t } from "../../../i18n/t";
 import type { LiveState } from "../../../live/liveState";
 import { useLive } from "../../../live/useLive";
 import { useLocalMics } from "../../../mics/LocalMics";
-import { localMicName } from "../../../mics/localMics";
 import { request } from "../../../phone/joinRequests";
 import { memberLook } from "../../../phone/memberLook";
 import { Button } from "../../../ui/Button";
 import { Cover } from "../../../ui/Cover";
 import { useStageFrame, useStageKeys } from "../../frame/stageFrameContext";
 import {
+  localMicOptions,
   micChoices,
   micHasProblem,
   micLabel,
   placeWarnings,
+  seatLevelDbfs,
   thenSongIds,
-  type LocalMicOption,
   type MicLabel,
+  type MicLevels,
 } from "./lineUpView";
 import { AddSingerCard, SeatCard } from "./SeatCard";
 import { MicPickList, WhoPickList } from "./SeatPickLists";
@@ -60,24 +61,18 @@ export function LineUpScene() {
   return <LineUpBody party={party} lineUp={lineUp} />;
 }
 
-/** The switched-on Local mics, and whether each is plugged in now. */
-function useLocalMicOptions(): LocalMicOption[] {
-  const { kept, snapshot, bridges } = useLocalMics();
-  const devices = new Set(snapshot.devices.map((d) => d.deviceId));
-  // A bridge Local mic is present while its bridge is open and offers it.
-  const onOpenBridges = new Set(
-    bridges.bridges.flatMap((b) => b.channels.map((c) => c.localMicId)),
+/** Where the seat meters read each Mic's level. */
+function useMicLevels(): MicLevels {
+  const { capture, bridgeLevelDbfs, phoneLevelDbfs } = useLocalMics();
+  return useMemo(
+    () => ({
+      browser: (deviceId, channel) =>
+        capture?.levelDbfs(deviceId, channel) ?? null,
+      bridge: bridgeLevelDbfs,
+      phone: phoneLevelDbfs,
+    }),
+    [capture, bridgeLevelDbfs, phoneLevelDbfs],
   );
-  return kept
-    .filter((mic) => mic.switchedOn)
-    .map((mic) => ({
-      localMicId: mic.localMicId,
-      name: localMicName(mic.source, mic.name),
-      present:
-        mic.source.kind === "browser"
-          ? devices.has(mic.source.deviceId)
-          : onOpenBridges.has(mic.localMicId),
-    }));
 }
 
 function LineUpBody({
@@ -90,7 +85,8 @@ function LineUpBody({
   const { store } = useStageFrame();
   const profiles = useQuery(profilesQuery).data;
   const songs = useQuery(songsQuery()).data?.songs;
-  const localMics = useLocalMicOptions();
+  const localMics = localMicOptions(party);
+  const levels = useMicLevels();
   const [picking, setPicking] = useState<Picking | null>(null);
   const startRef = useRef<HTMLDivElement>(null);
 
@@ -209,6 +205,9 @@ function LineUpBody({
             <li key={`${String(index)}-${String(seat.memberId)}`}>
               <SeatCard
                 seat={seat}
+                readLevel={() =>
+                  seatLevelDbfs(seat.mic, party.localMics, levels)
+                }
                 duet={lineUp.duet}
                 name={look?.name ?? ""}
                 avatar={look?.avatar ?? null}

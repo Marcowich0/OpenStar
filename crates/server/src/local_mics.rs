@@ -66,7 +66,8 @@ pub async fn rename(
 
 /// Find it: channel `to` (at `source`), not yet a Local mic, takes over Local
 /// mic `from`: its name, whether it is switched on and every Mic setting
-/// stored against it, in one transaction. `from` is gone afterwards.
+/// stored against it, and the Line-up seats and last-sung-on records that
+/// name it, in one transaction. `from` is gone afterwards.
 /// Refused with [`UserMessage::LocalMicNotFound`] when `from` is not kept,
 /// [`UserMessage::ChannelAlreadyLocalMic`] when `to` is.
 pub async fn relink(
@@ -94,6 +95,16 @@ pub async fn relink(
             params![from, to, source],
         )?;
         crate::mic_settings::move_local_mic_in(&tx, &from, &to)?;
+        // A waiting Line-up's seat and the Local mic a member last sang on
+        // follow it too.
+        tx.execute(
+            "UPDATE line_up_seats SET mic_id = ?2 WHERE mic_kind = 'localMic' AND mic_id = ?1",
+            params![from, to],
+        )?;
+        tx.execute(
+            "UPDATE last_local_mics SET local_mic_id = ?2 WHERE local_mic_id = ?1",
+            params![from, to],
+        )?;
         tx.commit()?;
         Ok(Ok(()))
     })

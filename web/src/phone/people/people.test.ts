@@ -143,6 +143,7 @@ describe("the playing Song's seats", () => {
     lineUp,
     playing: playing ? { requestId: 1, songId: 40, paused: false } : null,
     results: null,
+    localMics: [],
   });
 
   it("are none while the Line-up only waits", () => {

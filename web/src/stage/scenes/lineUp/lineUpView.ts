@@ -7,12 +7,14 @@ import type { Difficulty } from "../../../generated/Difficulty";
 import type { LineUp } from "../../../generated/LineUp";
 import type { LineUpWarning } from "../../../generated/LineUpWarning";
 import type { MicKey } from "../../../generated/MicKey";
+import type { PartyLocalMic } from "../../../generated/PartyLocalMic";
 import type { PartyMember } from "../../../generated/PartyMember";
 import type { PartyMemberId } from "../../../generated/PartyMemberId";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
 import type { Profile } from "../../../generated/Profile";
 import type { SeatVoice } from "../../../generated/SeatVoice";
 import type { SongId } from "../../../generated/SongId";
+import { localMicName } from "../../../mics/localMics";
 
 /** Enter on Voice: Voice 1 ↔ 2. */
 export function nextVoice(voice: SeatVoice): SeatVoice {
@@ -76,6 +78,47 @@ export interface LocalMicOption {
   name: string;
   /** Plugged in (and, for a bridge Local mic, its bridge open). */
   present: boolean;
+}
+
+/**
+ * The Local mics the Mic lists offer: the snapshot's switched-on ones, in
+ * Mics-screen order, by name (or their default name).
+ */
+export function localMicOptions(party: PartySnapshot): LocalMicOption[] {
+  return party.localMics.map((mic) => ({
+    localMicId: mic.localMicId,
+    name: localMicName(mic.source, mic.name),
+    present: mic.present,
+  }));
+}
+
+/** Where the seat meters read a Mic's latest level, in dBFS (`null`: none). */
+export interface MicLevels {
+  /** The Stage browser's own meter of a device's channel. */
+  browser: (deviceId: string, channel: number) => number | null;
+  /** A Mic bridge's 10 Hz level of one of its Local mics. */
+  bridge: (localMicId: string) => number | null;
+  /** The loudness of a Phone's latest Pitch reading. */
+  phone: (phoneId: string) => number | null;
+}
+
+/**
+ * A seat's meter level: a Stage-browser Local mic's from the Stage's own
+ * meter, a bridge Local mic's from its bridge's levels, a Phone's from its
+ * Pitch readings. `null` (silence) with no Mic or an unknown Local mic.
+ */
+export function seatLevelDbfs(
+  mic: MicKey | null,
+  localMics: readonly PartyLocalMic[],
+  levels: MicLevels,
+): number | null {
+  if (mic === null) return null;
+  if (mic.kind === "phone") return levels.phone(mic.phoneId);
+  const local = localMics.find((l) => l.localMicId === mic.localMicId);
+  if (!local) return null;
+  return local.source.kind === "browser"
+    ? levels.browser(local.source.deviceId, local.source.channel)
+    : levels.bridge(local.localMicId);
 }
 
 /** How a Mic is named: "<member>'s Phone" or the Local mic's name. */

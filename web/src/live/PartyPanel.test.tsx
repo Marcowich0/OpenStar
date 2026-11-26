@@ -41,6 +41,7 @@ const party = (joinCode: string): PartySnapshot => ({
   lineUp: null,
   playing: null,
   results: null,
+  localMics: [],
 });
 
 describe("PartyPanel", () => {

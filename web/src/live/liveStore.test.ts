@@ -148,6 +148,7 @@ describe("live store", () => {
         lineUp: null,
         playing: { requestId: 1, songId: 7, paused: false },
         results: null,
+        localMics: [],
       },
       isStage: false,
     });
@@ -197,6 +198,7 @@ describe("live store", () => {
           lineUp: null,
           playing: null,
           results: null,
+          localMics: [],
         },
         change: {
           actor: { kind: "stage" },

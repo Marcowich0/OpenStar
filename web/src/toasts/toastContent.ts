@@ -240,6 +240,9 @@ export function toastContent(
         (song) => tParts("partyEvent.requestedPlayersChanged", { song }),
         (song) => tParts("toast.youRequestedPlayersChanged", { song }),
       );
+    case "localMicsChanged":
+      // Never a toast (`toastsFor`); worded in case one is shown.
+      return { actor, parts: tParts("partyEvent.localMicsChanged") };
     case "lineUpChanged":
       return actor
         ? { actor, parts: tParts("toast.lineUpChanged", { actor: actor.name }) }

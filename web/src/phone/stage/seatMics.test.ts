@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { LineUp } from "../../generated/LineUp";
-import type { LocalMic } from "../../generated/LocalMic";
+import type { PartyLocalMic } from "../../generated/PartyLocalMic";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import { micName, seatMicOptions } from "./seatMics";
 
@@ -22,11 +22,11 @@ const member = (memberId: number): PartySnapshot["members"][number] => ({
 const localMic = (
   localMicId: string,
   name: string,
-  switchedOn: boolean,
-): LocalMic => ({
+  present: boolean,
+): PartyLocalMic => ({
   localMicId,
   name,
-  switchedOn,
+  present,
   source: {
     kind: "browser",
     stageBrowser: "s",
@@ -69,14 +69,15 @@ const party = {
 
 const nameOf = (id: number) => ({ 1: "Bo", 2: "Jonas", 3: "Sara" })[id] ?? "?";
 
+// The Party snapshot's switched-on Local mics: "unplugged" is not present.
 const LOCAL_MICS = [
   localMic("red", "Red mic", true),
-  localMic("off", "Drawer mic", false),
+  localMic("unplugged", "Drawer mic", false),
   localMic("blank", "", true),
 ];
 
 describe("a seat's Mic list", () => {
-  it("offers every joined Phone, then the switched-on Local mics by name", () => {
+  it("offers every joined Phone, then the snapshot's Local mics by name", () => {
     const options = seatMicOptions({
       party,
       lineUp,
@@ -89,6 +90,7 @@ describe("a seat's Mic list", () => {
       "Bo's phone",
       "This phone",
       "Red mic",
+      "Drawer mic",
       "USB Audio · Left",
     ]);
   });
@@ -106,7 +108,26 @@ describe("a seat's Mic list", () => {
       ["Bo's phone", false, true],
       ["This phone", false, false],
       ["Red mic", true, false],
+      ["Drawer mic", false, false],
       ["USB Audio · Left", false, false],
+    ]);
+  });
+
+  it("dims a Local mic that is unplugged or on a closed bridge", () => {
+    const options = seatMicOptions({
+      party,
+      lineUp,
+      seat: 0,
+      myPhoneId: "jonas-phone",
+      localMics: LOCAL_MICS,
+      nameOf,
+    });
+    expect(options.map((o) => [o.name, o.unavailable])).toEqual([
+      ["Bo's phone", false],
+      ["This phone", false],
+      ["Red mic", false],
+      ["Drawer mic", true],
+      ["USB Audio · Left", false],
     ]);
   });
 });

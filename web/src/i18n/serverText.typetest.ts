@@ -102,6 +102,7 @@ export const wrongParam = byCode<PartyEvent>({
   micBlocked: ({ params }) => params.name,
   micOpened: ({ params }) => params.name,
   lineUpChanged: () => "",
+  localMicsChanged: () => "",
   seatMoved: ({ params }) => params.name,
   seatVoice: ({ params }) => params.voice,
   seatDifficulty: ({ params }) => params.difficulty,

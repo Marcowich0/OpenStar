@@ -65,6 +65,9 @@ export function addStageToast(
 
 /** Whether a change gets a toast in this browser. */
 export function toastsFor(isStage: boolean, change: ChangeEvent): boolean {
+  // The Local mic list changing (plugged in, a bridge closed) is shown by
+  // the Mic lists themselves.
+  if (change.event.code === "localMicsChanged") return false;
   return !(isStage && change.actor.kind === "stage");
 }
 

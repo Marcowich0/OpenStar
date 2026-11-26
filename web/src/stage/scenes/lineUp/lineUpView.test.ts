@@ -5,7 +5,9 @@ import type { PartyMember } from "../../../generated/PartyMember";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
 import type { Profile } from "../../../generated/Profile";
 import type { Request } from "../../../generated/Request";
+import type { PartyLocalMic } from "../../../generated/PartyLocalMic";
 import {
+  localMicOptions,
   micChoices,
   micHasProblem,
   nextDifficulty,
@@ -13,6 +15,7 @@ import {
   placeWarnings,
   pickListTop,
   profilesToEnter,
+  seatLevelDbfs,
   thenSongIds,
 } from "./lineUpView";
 
@@ -57,6 +60,7 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   lineUp: lineUp(),
   playing: null,
   results: null,
+  localMics: [],
   ...over,
 });
 
@@ -168,6 +172,96 @@ describe("the Mic pick list", () => {
     const choices = micChoices(party({ lineUp: seated }), seated, 1, localMics);
     expect(choices[0]).toMatchObject({ usedBy: 1, current: false });
     expect(choices[2]).toMatchObject({ usedBy: null, current: true });
+  });
+});
+
+const red: PartyLocalMic = {
+  localMicId: "browser:s:dongle:0",
+  source: {
+    kind: "browser",
+    stageBrowser: "s",
+    deviceId: "dongle",
+    label: "USB Audio",
+    channel: 0,
+    stereo: true,
+  },
+  name: "Red mic",
+  present: true,
+};
+const scarlett: PartyLocalMic = {
+  localMicId: "bridge:b:card:1",
+  source: {
+    kind: "bridge",
+    bridgeId: "b",
+    deviceName: "card",
+    label: "Scarlett",
+    channel: 1,
+  },
+  name: "",
+  present: false,
+};
+
+describe("the Local mics the Mic lists offer", () => {
+  it("are the snapshot's, in its order, named (or by their default name) and dimmed when not present", () => {
+    expect(localMicOptions(party({ localMics: [red, scarlett] }))).toEqual([
+      { localMicId: red.localMicId, name: "Red mic", present: true },
+      {
+        localMicId: scarlett.localMicId,
+        name: "Scarlett · Input 2",
+        present: false,
+      },
+    ]);
+  });
+});
+
+describe("a seat's meter level", () => {
+  const levels = {
+    browser: (deviceId: string, channel: number) =>
+      deviceId === "dongle" && channel === 0 ? -20 : null,
+    bridge: (localMicId: string) =>
+      localMicId === scarlett.localMicId ? -30 : null,
+    phone: (phoneId: string) => (phoneId === "ph-bo" ? -40 : null),
+  };
+  const localMics = [red, scarlett];
+
+  it("comes from the Stage browser's meter for a Stage-browser Local mic", () => {
+    expect(
+      seatLevelDbfs(
+        { kind: "localMic", localMicId: red.localMicId },
+        localMics,
+        levels,
+      ),
+    ).toBe(-20);
+  });
+
+  it("comes from the bridge's levels for a bridge Local mic", () => {
+    expect(
+      seatLevelDbfs(
+        { kind: "localMic", localMicId: scarlett.localMicId },
+        localMics,
+        levels,
+      ),
+    ).toBe(-30);
+  });
+
+  it("comes from a Phone's Pitch readings for a Phone", () => {
+    expect(
+      seatLevelDbfs({ kind: "phone", phoneId: "ph-bo" }, localMics, levels),
+    ).toBe(-40);
+    expect(
+      seatLevelDbfs({ kind: "phone", phoneId: "ph-mia" }, localMics, levels),
+    ).toBeNull();
+  });
+
+  it("is silence with no Mic or a Local mic that is not listed", () => {
+    expect(seatLevelDbfs(null, localMics, levels)).toBeNull();
+    expect(
+      seatLevelDbfs(
+        { kind: "localMic", localMicId: "gone" },
+        localMics,
+        levels,
+      ),
+    ).toBeNull();
   });
 });
 

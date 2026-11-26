@@ -215,3 +215,23 @@ describe("Mic bridge levels in the live store", () => {
     expect(heard).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Pitch reading listeners in the live store", () => {
+  it("hear every reading, besides the Pitch router, without the reducer", () => {
+    const { store, server } = start();
+    const heard = vi.fn();
+    const stop = store.onPitchReading(heard);
+    vi.mocked(receive).mockClear();
+
+    server(pitchReading(3, 10));
+
+    expect(heard).toHaveBeenCalledWith(
+      { kind: "phone", phoneId: "phone-3" },
+      { captureMs: 10, pitch: 60, clarity: 0.9, loudness: -20 },
+    );
+    expect(receive).not.toHaveBeenCalled();
+    stop();
+    server(pitchReading(3, 20));
+    expect(heard).toHaveBeenCalledTimes(1);
+  });
+});

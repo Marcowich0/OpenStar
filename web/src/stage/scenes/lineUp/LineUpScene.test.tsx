@@ -18,6 +18,13 @@ import type { LiveClientOptions } from "../../../live/liveClient";
 import { createLiveStore } from "../../../live/liveStore";
 import { AVATAR_KEYS } from "../../../avatars/avatarIcons";
 import { PALETTE_KEYS } from "../../../theme/tokens";
+import type { PartyLocalMic } from "../../../generated/PartyLocalMic";
+import {
+  LocalMicsContext,
+  NO_LOCAL_MICS,
+  type LocalMicsApi,
+} from "../../../mics/LocalMics";
+import type { LocalMicCapture } from "../../../mics/localMicCapture";
 import { StageFrame } from "../../frame/StageFrame";
 
 // jsdom has no layout, so no scrolling; the Who list scrolls a focused entry into view.
@@ -121,6 +128,7 @@ const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   lineUp: lineUp(),
   playing: null,
   results: null,
+  localMics: [],
   ...over,
 });
 
@@ -139,7 +147,11 @@ const profile = (
   lastSungAt,
 });
 
-function setup(snapshot: PartySnapshot = party(), profiles: Profile[] = [bo]) {
+function setup(
+  snapshot: PartySnapshot = party(),
+  profiles: Profile[] = [bo],
+  localMics: Partial<LocalMicsApi> = {},
+) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
   const sent: ClientMessage[] = [];
@@ -180,7 +192,9 @@ function setup(snapshot: PartySnapshot = party(), profiles: Profile[] = [bo]) {
   };
   render(
     <QueryClientProvider client={queries}>
-      <StageFrame store={store} />
+      <LocalMicsContext value={{ ...NO_LOCAL_MICS, ...localMics }}>
+        <StageFrame store={store} />
+      </LocalMicsContext>
     </QueryClientProvider>,
   );
   live((h) => {
@@ -307,6 +321,109 @@ describe("the seat cards", () => {
     for (const card of seats()) {
       expect(within(card).getByRole("meter")).toBeVisible();
     }
+  });
+});
+
+const red: PartyLocalMic = {
+  localMicId: "browser:s:dongle:0",
+  source: {
+    kind: "browser",
+    stageBrowser: "s",
+    deviceId: "dongle",
+    label: "USB Audio",
+    channel: 0,
+    stereo: true,
+  },
+  name: "Red mic",
+  present: true,
+};
+const closedBridgeMic: PartyLocalMic = {
+  localMicId: "bridge:b:card:1",
+  source: {
+    kind: "bridge",
+    bridgeId: "b",
+    deviceName: "card",
+    label: "Scarlett",
+    channel: 1,
+  },
+  name: "",
+  present: false,
+};
+
+describe("Local mics and seat meters", () => {
+  it("offers the snapshot's switched-on Local mics by name, dimming one that is not present", () => {
+    const { edits } = setup(party({ localMics: [red, closedBridgeMic] }));
+    click(screen.getByRole("button", { name: /Mic.*Bo's Phone/ }));
+    const list = screen.getByRole("menu", { name: "Mic for Bo" });
+    expect(
+      within(list)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Bo's Phone",
+      "Mia's PhoneMia has it",
+      "Red mic",
+      "Scarlett · Input 2unplugged",
+    ]);
+    click(within(list).getByRole("menuitem", { name: /Scarlett/ }));
+    expect(edits()).toEqual([]);
+    click(screen.getByRole("button", { name: /Mic.*Bo's Phone/ }));
+    click(screen.getByRole("menuitem", { name: "Red mic" }));
+    expect(edits()).toEqual([
+      {
+        kind: "setMic",
+        seat: 0,
+        mic: { kind: "localMic", localMicId: red.localMicId },
+      },
+    ]);
+  });
+
+  it("names a seated Local mic from the snapshot", () => {
+    setup(
+      party({
+        localMics: [red],
+        lineUp: lineUp({
+          seats: [
+            {
+              ...seat(1, null),
+              mic: { kind: "localMic", localMicId: red.localMicId },
+            },
+          ],
+        }),
+      }),
+    );
+    expect(screen.getByRole("button", { name: /Mic.*Red mic/ })).toBeVisible();
+  });
+
+  it("shows each seat's live level: a Phone's from its readings, a Local mic's from the Stage's meter", () => {
+    const capture = {
+      levelDbfs: (deviceId: string, channel: number) =>
+        deviceId === "dongle" && channel === 0 ? -20 : null,
+    } as unknown as LocalMicCapture;
+    setup(
+      party({
+        localMics: [red],
+        lineUp: lineUp({
+          seats: [
+            seat(1, "ph-bo"),
+            {
+              ...seat(2, null),
+              mic: { kind: "localMic", localMicId: red.localMicId },
+            },
+          ],
+        }),
+      }),
+      [bo],
+      {
+        capture,
+        phoneLevelDbfs: (phoneId) => (phoneId === "ph-bo" ? -40 : null),
+      },
+    );
+    expect(
+      seats().map((card) =>
+        within(card).getByRole("meter").getAttribute("aria-valuenow"),
+      ),
+    ).toEqual(["-40", "-20"]);
   });
 });
 

@@ -33,6 +33,7 @@ import {
 import {
   devicesToOpen,
   matchLocalMics,
+  presentLocalMics,
   stageBrowserId,
   type LocalMicChannel,
   type LocalMicMatch,
@@ -64,6 +65,11 @@ export interface LocalMicsApi {
    * and for all while the Mics screen is open.
    */
   bridgeLevelDbfs: (localMicId: string) => number | null;
+  /**
+   * A Phone's latest loudness in dBFS, from the Pitch readings it sends
+   * once its mic is on (`null`: none lately). Read by the seat meters.
+   */
+  phoneLevelDbfs: (phoneId: string) => number | null;
 }
 
 const NO_BRIDGES: MicBridges = { bridges: [], requests: [] };
@@ -76,7 +82,8 @@ const IDLE: CaptureSnapshot = {
 
 const NO_MATCH: LocalMicMatch = { rekeys: [], notFound: [], newChannels: [] };
 
-const noCapture: LocalMicsApi = {
+/** What `useLocalMics()` gives without a provider: no capture, nothing kept. */
+export const NO_LOCAL_MICS: LocalMicsApi = {
   capture: null,
   snapshot: IDLE,
   stageBrowser: "",
@@ -86,12 +93,13 @@ const noCapture: LocalMicsApi = {
   bridges: NO_BRIDGES,
   approveBridge: () => {},
   bridgeLevelDbfs: () => null,
+  phoneLevelDbfs: () => null,
   match: NO_MATCH,
   rename: () => {},
   relink: () => {},
 };
 
-export const LocalMicsContext = createContext<LocalMicsApi>(noCapture);
+export const LocalMicsContext = createContext<LocalMicsApi>(NO_LOCAL_MICS);
 
 export function useLocalMics(): LocalMicsApi {
   return useContext(LocalMicsContext);
@@ -149,6 +157,24 @@ export function LocalMicsProvider({
     [levels],
   );
 
+  // Each Phone's loudness, from its Pitch readings, for the seat meters.
+  // Kept like the bridge levels: the latest one, forgotten when stale.
+  const [phoneLevels] = useState(createBridgeLevels);
+  useEffect(
+    () =>
+      store.onPitchReading((mic, reading) => {
+        phoneLevels.receive(
+          [{ localMicId: mic.phoneId, levelDbfs: reading.loudness }],
+          performance.now(),
+        );
+      }),
+    [store, phoneLevels],
+  );
+  const phoneLevelDbfs = useCallback(
+    (phoneId: string) => phoneLevels.levelDbfs(phoneId, performance.now()),
+    [phoneLevels],
+  );
+
   // Every device closes when this browser stops being the Stage.
   useEffect(() => {
     if (!isStage) void made.setOpen(new Set());
@@ -202,6 +228,27 @@ export function LocalMicsProvider({
     if (!capture) return;
     void capture.setOpen(new Set(toOpen === "" ? [] : toOpen.split("\n")));
   }, [capture, toOpen]);
+
+  // The server offers the switched-on Local mics that are plugged in to the
+  // Line-up: tell it which of this browser's are, whenever that changes and
+  // on every connect (a new connection starts with none).
+  const present = useMemo(
+    () =>
+      presentLocalMics({
+        stageBrowser,
+        devices: snapshot.devices,
+        open: snapshot.open,
+        kept,
+      }).join("\n"),
+    [stageBrowser, snapshot.devices, snapshot.open, kept],
+  );
+  useEffect(() => {
+    if (!isStage || !connected || !keptQuery.isSuccess) return;
+    store.send({
+      type: "reportPresentLocalMics",
+      localMicIds: present === "" ? [] : present.split("\n"),
+    });
+  }, [store, isStage, connected, keptQuery.isSuccess, present]);
 
   // Every write is sent and shown at once; the change notice refetches.
   const updateKept = useCallback(
@@ -306,6 +353,7 @@ export function LocalMicsProvider({
       rename,
       relink,
       bridgeLevelDbfs,
+      phoneLevelDbfs,
     }),
     [
       capture,
@@ -319,6 +367,7 @@ export function LocalMicsProvider({
       rename,
       relink,
       bridgeLevelDbfs,
+      phoneLevelDbfs,
     ],
   );
   return <LocalMicsContext value={api}>{children}</LocalMicsContext>;
