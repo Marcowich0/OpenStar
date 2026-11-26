@@ -38,4 +38,11 @@ label: string,
 /**
  * The hardware channel, from 0 (`AUXn` of the Pro Audio source).
  */
-channel: number, };
+channel: number, 
+/**
+ * For a loopback channel of the known-models table
+ * ([`crate::bridge::loopback_number`]): which one, from 1. Its
+ * default name is "<label> · Loopback n" and it is listed last in
+ * its bridge's group.
+ */
+loopback?: number, };

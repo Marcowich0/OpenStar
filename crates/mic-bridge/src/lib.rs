@@ -8,14 +8,18 @@
 //! hardware channel, and the file name is the interface's device name. It
 //! sends meter levels ([`levels`]) and, for the channels the server says
 //! are seated in the Song that plays ([`detecting`]), Pitch readings that
-//! [`sender`] stamps on the Stage's clock. Capture (#205) and updates (#209)
-//! come later.
+//! [`sender`] stamps on the Stage's clock. In the window it reads every
+//! interface in the Pro Audio profile ([`pulse`], [`discovery`]) with one
+//! PipeWire stream each ([`capture`]). Updates (#209) come later.
 
+pub mod capture;
 pub mod cli;
 pub mod client;
 pub mod config;
 pub mod detecting;
+pub mod discovery;
 pub mod levels;
+pub mod pulse;
 pub mod sender;
 pub mod wav;
 pub mod window;

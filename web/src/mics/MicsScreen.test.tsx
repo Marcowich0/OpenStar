@@ -254,8 +254,15 @@ describe("the Mics screen", () => {
             hostName: "zeus",
             open: true,
             channels: [wavChannel("zeus", 1), wavChannel("zeus", 0)],
+            interfaces: [],
           },
-          { bridgeId: "apollo", hostName: "apollo", open: false, channels: [] },
+          {
+            bridgeId: "apollo",
+            hostName: "apollo",
+            open: false,
+            channels: [],
+            interfaces: [],
+          },
         ],
         requests: [],
       },
@@ -297,8 +304,20 @@ describe("the Mics screen", () => {
     setup({
       bridges: {
         bridges: [
-          { bridgeId: "zeus", hostName: "zeus", open: true, channels: [] },
-          { bridgeId: "apollo", hostName: "apollo", open: false, channels: [] },
+          {
+            bridgeId: "zeus",
+            hostName: "zeus",
+            open: true,
+            channels: [],
+            interfaces: [],
+          },
+          {
+            bridgeId: "apollo",
+            hostName: "apollo",
+            open: false,
+            channels: [],
+            interfaces: [],
+          },
         ],
         requests: [{ requestId: 7, hostName: "hermes", code: "4821" }],
       },
@@ -327,6 +346,7 @@ describe("the Mics screen", () => {
             hostName: "zeus",
             open: true,
             channels: [channel],
+            interfaces: [],
           },
         ],
         requests: [],
@@ -354,8 +374,15 @@ describe("the Mics screen", () => {
             hostName: "zeus",
             open: true,
             channels: [loud, wavChannel("zeus", 1)],
+            interfaces: [],
           },
-          { bridgeId: "apollo", hostName: "apollo", open: false, channels: [] },
+          {
+            bridgeId: "apollo",
+            hostName: "apollo",
+            open: false,
+            channels: [],
+            interfaces: [],
+          },
         ],
         requests: [],
       },
@@ -391,6 +418,7 @@ describe("the Mics screen", () => {
             hostName: "zeus",
             open: true,
             channels: [channel],
+            interfaces: [],
           },
         ],
         requests: [],
@@ -552,6 +580,135 @@ describe("the Mics screen", () => {
       );
     });
     expect(api.relink).toHaveBeenCalledWith(goneRight.localMicId, webcam);
+  });
+
+  it("notes on a bridge group that swapping two identical interfaces' USB ports swaps their mics", () => {
+    const twin = (deviceName: string) => ({
+      deviceName,
+      label: "UMC404HD 192k",
+      channels: 4,
+      twin: true,
+    });
+    setup({
+      bridges: {
+        bridges: [
+          {
+            bridgeId: "zeus",
+            hostName: "zeus",
+            open: true,
+            channels: [],
+            interfaces: [twin("umc@port1"), twin("umc@port2")],
+          },
+        ],
+        requests: [],
+      },
+    });
+    const dialog = openMicsScreen();
+    const zeus = within(dialog).getByRole("group", {
+      name: "zeus mic bridge",
+    });
+    expect(
+      within(zeus).getByText(
+        "Two identical interfaces: swapping their USB ports swaps their mics",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says 'use one or the other' on a bridge group whose interface This browser reads too, and nothing on others", () => {
+    const usbAudio = {
+      ...wavChannel("zeus", 0),
+      source: { ...wavChannel("zeus", 0).source, label: "USB Audio" },
+    };
+    setup({
+      bridges: {
+        bridges: [
+          {
+            bridgeId: "zeus",
+            hostName: "zeus",
+            open: true,
+            channels: [usbAudio],
+            interfaces: [
+              {
+                deviceName: "mics.wav",
+                label: "USB Audio",
+                channels: 1,
+                twin: false,
+              },
+            ],
+          },
+          {
+            bridgeId: "apollo",
+            hostName: "apollo",
+            open: true,
+            channels: [wavChannel("apollo", 0)],
+            interfaces: [],
+          },
+        ],
+        requests: [],
+      },
+    });
+    const dialog = openMicsScreen();
+    const note =
+      "This browser reads one of these interfaces too: use one or the other";
+    expect(
+      within(
+        within(dialog).getByRole("group", { name: "zeus mic bridge" }),
+      ).getByText(note),
+    ).toBeInTheDocument();
+    expect(
+      within(
+        within(dialog).getByRole("group", { name: "apollo mic bridge" }),
+      ).queryByText(note),
+    ).toBeNull();
+  });
+
+  it("Find it re-links a bridge Local mic its open bridge no longer offers, to one of its new channels", () => {
+    const moved = wavChannel("zeus", 3);
+    const api = setup({
+      bridges: {
+        bridges: [
+          {
+            bridgeId: "zeus",
+            hostName: "zeus",
+            open: true,
+            channels: [wavChannel("zeus", 0), wavChannel("zeus", 1)],
+            interfaces: [],
+          },
+        ],
+        requests: [],
+      },
+      kept: [
+        { ...moved, name: "Red mic", switchedOn: true },
+        { ...wavChannel("zeus", 0), name: "Blue mic", switchedOn: true },
+      ],
+    });
+    const dialog = openMicsScreen();
+    const zeus = within(dialog).getByRole("group", {
+      name: "zeus mic bridge",
+    });
+    expect(within(zeus).getByText("Red mic · not found")).toBeInTheDocument();
+    act(() => {
+      fireEvent.click(
+        within(zeus).getByRole("button", { name: "Find it: Red mic" }),
+      );
+    });
+    const choices = within(zeus).getByRole("group", {
+      name: "Which channel is Red mic on now?",
+    });
+    expect(
+      within(choices)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["mics.wav · Input 2"]);
+    act(() => {
+      fireEvent.click(
+        within(choices).getByRole("button", { name: "mics.wav · Input 2" }),
+      );
+    });
+    expect(api.relink).toHaveBeenCalledWith(
+      moved.localMicId,
+      wavChannel("zeus", 1),
+    );
   });
 
   it("Find it says so when no channel is free to take over", () => {

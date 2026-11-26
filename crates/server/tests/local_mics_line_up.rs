@@ -295,6 +295,8 @@ async fn a_bridge_local_mic_is_present_while_its_bridge_is_open() {
                 device_name: "card".into(),
                 label: "Scarlett".into(),
                 channels: 2,
+                usb_id: None,
+                twin: false,
             }],
         })
         .await;
@@ -321,6 +323,7 @@ async fn a_bridge_local_mic_is_present_while_its_bridge_is_open() {
         device_name: "card".into(),
         label: "Scarlett".into(),
         channel: 1,
+        loopback: None,
     };
     switch_on(&mut stage, &(id.clone(), source)).await;
     let party = local_mics_changed(&mut stage).await;

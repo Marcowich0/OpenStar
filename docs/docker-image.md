@@ -11,7 +11,7 @@ repository root. Publishing it to GHCR is CI's job (`ghcr.io/marcowich0/openstar
 | `frontend`       | `node:<.node-version>-trixie-slim`, pnpm | the Vite build (`web/dist`), WASM bundled with the worklet   |
 | `server`         | `rust:<rust-toolchain.toml>-slim-trixie` | `openstar`, the release binary with `web/dist` embedded      |
 | `toolchain`      | `rust:<rust-toolchain.toml>-slim-trixie` | nothing; the Mic bridge stage copies its Rust toolchain      |
-| `bridge`         | `ubuntu:22.04`, pinned by digest         | `openstar-mic-bridge` (glibc 2.35+), and its release tarball |
+| `bridge`         | `debian:12`, pinned by digest            | `openstar-mic-bridge` (glibc 2.35+), and its release tarball |
 | `bridge-release` | `scratch`                                | only the release tarball and its `.sha256`, for CI to export |
 | `tools`          | `debian:trixie-slim`                     | `yt-dlp` and `deno`, checksums checked                       |
 | `runtime`        | `debian:trixie-slim`, pinned by digest   | the image                                                    |
@@ -33,9 +33,10 @@ The runtime image holds:
 
 ## The Mic bridge
 
-The `bridge` stage builds the Mic bridge on `ubuntu:22.04`, so it needs glibc 2.35 or newer
-and runs on Ubuntu 22.04+, Debian 12+, Fedora and Arch. The build fails if the binary needs
-a newer glibc symbol. It builds with the same Rust toolchain as the server, copied from the
+The `bridge` stage builds the Mic bridge on `debian:12`: its PipeWire 0.3.65 headers are
+the oldest that `pipewire-rs` compiles against (Ubuntu 22.04's 0.3.48 are not). The binary
+needs glibc 2.35 or newer and runs on Ubuntu 22.04+, Debian 12+, Fedora and Arch: the
+build fails if it needs a glibc symbol newer than 2.35, though Debian 12 itself has 2.36. It builds with the same Rust toolchain as the server, copied from the
 `toolchain` stage, and with the same build identifier, so its `--version` equals the
 server's. Graphics libraries are loaded at run time.
 

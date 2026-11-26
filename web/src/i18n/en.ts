@@ -366,9 +366,14 @@ export const en = {
   "mics.localMic.right": "{label} · Right",
   "mics.localMic.mono": "{label}",
   "mics.localMic.input": "{device} · Input {number, number}",
+  "mics.localMic.loopback": "{device} · Loopback {number, number}",
   "mics.group.bridge": "{host} mic bridge",
   "mics.bridge.open": "Open",
   "mics.bridge.closed": "Closed",
+  "mics.bridge.twins":
+    "Two identical interfaces: swapping their USB ports swaps their mics",
+  "mics.bridge.sameInterface":
+    "This browser reads one of these interfaces too: use one or the other",
   "mics.bridge.noChannels": "No input channel kept yet",
   "mics.bridge.forget": "Forget the Mic bridge on {host}",
   "mics.bridge.forgetShort": "Forget",

@@ -8,7 +8,7 @@ use anyhow::Context as _;
 use openstar_mic_bridge::cli::{self, Action};
 use openstar_mic_bridge::client::{self, Input};
 use openstar_mic_bridge::config::ConfigDir;
-use openstar_mic_bridge::{BUILD_ID, wav, window};
+use openstar_mic_bridge::{BUILD_ID, capture, wav, window};
 
 mod uninstall;
 
@@ -42,12 +42,39 @@ fn main() -> ExitCode {
     }
 }
 
-/// Opens the window and connects while it is open. Real capture (#205)
-/// adds its interfaces here; until then the window lists none.
+/// Opens the window and connects while it is open, offering every
+/// interface in the Pro Audio profile, each captured with PipeWire.
+/// Without a sound server the window lists none.
 fn windowed() -> anyhow::Result<()> {
     let config = ConfigDir::locate(|name| std::env::var(name).ok())
         .context("neither XDG_CONFIG_HOME nor HOME is set")?;
-    window::run(config, Vec::new())
+    window::run(config, pipewire_inputs())
+}
+
+/// The interfaces the sound server offers now, as inputs. The list is read
+/// once at start; an interface plugged in later needs a restart (#214
+/// reattaches unplugged ones).
+fn pipewire_inputs() -> Vec<Box<dyn Input>> {
+    let discovered = match capture::interfaces() {
+        Ok(discovered) => discovered,
+        Err(error) => {
+            eprintln!("OpenStar Mic bridge: no audio interfaces: {error:#}");
+            return Vec::new();
+        }
+    };
+    // #206 shows these in the window with Switch to Pro Audio.
+    for card in &discovered.not_pro_audio {
+        eprintln!(
+            "OpenStar Mic bridge: {} is in {}: only Pro Audio is read",
+            card.description,
+            card.profile.as_deref().unwrap_or("no profile"),
+        );
+    }
+    discovered
+        .interfaces
+        .into_iter()
+        .map(|found| Box::new(capture::PipeWireInput::new(found)) as Box<dyn Input>)
+        .collect()
 }
 
 /// Removes what the install script installed and says what went.

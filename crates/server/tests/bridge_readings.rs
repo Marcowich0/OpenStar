@@ -22,6 +22,8 @@ fn hello(token: Option<String>) -> ClientMessage {
             device_name: WAV.into(),
             label: WAV.into(),
             channels: CHANNELS,
+            usb_id: None,
+            twin: false,
         }],
     }
 }

@@ -69,7 +69,7 @@
       "minimumReleaseAge": "2 days"
     },
     {
-      "description": "The Rust toolchain: rust-toolchain.toml, Cargo.toml's rust-version and the rust:<version>-slim-trixie build image move together, for review. The Mic bridge stage (ubuntu:22.04) copies its toolchain from the Dockerfile's `toolchain` stage, one of these rust image lines.",
+      "description": "The Rust toolchain: rust-toolchain.toml, Cargo.toml's rust-version and the rust:<version>-slim-trixie build image move together, for review. The Mic bridge stage (debian:12) copies its toolchain from the Dockerfile's `toolchain` stage, one of these rust image lines.",
       "matchDepNames": ["rust"],
       "groupName": "Rust toolchain"
     },
@@ -90,14 +90,15 @@
       "groupName": "Playwright"
     },
     {
-      "description": "The Mic bridge's ubuntu:22.04 base: the digest only. A newer Ubuntu would raise the bridge's glibc floor (2.35), which was decided.",
+      "description": "The Mic bridge's debian:12 base: the digest only. A newer Debian would raise the bridge's glibc floor (2.35, which the bridge stage checks), which was decided.",
       "matchDatasources": ["docker"],
-      "matchDepNames": ["ubuntu"],
+      "matchDepNames": ["debian"],
+      "matchCurrentValue": "12",
       "matchUpdateTypes": ["major", "minor", "patch"],
       "enabled": false
     },
     {
-      "description": "Base-image digests (debian:trixie-slim, ubuntu:22.04, and a refreshed digest of the same rust, node or Playwright tag): one weekly group, merged once CI passes.",
+      "description": "Base-image digests (debian:trixie-slim, debian:12, and a refreshed digest of the same rust, node or Playwright tag): one weekly group, merged once CI passes.",
       "matchDatasources": ["docker"],
       "matchUpdateTypes": ["digest", "pin", "pinDigest"],
       "groupName": "base-image digests",

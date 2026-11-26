@@ -142,7 +142,7 @@ impl WindowState {
                         let name = settings
                             .map(|s| s.name.trim())
                             .filter(|name| !name.is_empty())
-                            .map_or_else(|| default_name(&interface.label, channel), str::to_owned);
+                            .map_or_else(|| default_name(interface, channel), str::to_owned);
                         ChannelRow {
                             name,
                             switched_on: settings.is_some_and(|s| s.switched_on),
@@ -176,6 +176,8 @@ mod tests {
                 device_name: DEVICE.into(),
                 label: "Scarlett 4i4".into(),
                 channels: 2,
+                usb_id: None,
+                twin: false,
             }],
         )
     }

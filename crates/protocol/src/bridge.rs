@@ -42,6 +42,35 @@ pub struct BridgeInterface {
     pub label: String,
     /// How many hardware channels it has: channels `0..channels`.
     pub channels: u32,
+    /// Its USB id, `vendor:product` in lowercase hex (`1235:821a`), when it
+    /// is a USB device: what the known-models table ([`loopback_number`])
+    /// is keyed on. Left out for `--wav`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub usb_id: Option<String>,
+    /// Whether it is one of two or more identical interfaces without a
+    /// serial number on this bridge. Those are told apart by USB port (their
+    /// `device_name` carries it), so swapping their ports swaps their Local
+    /// mics; the Mics screen says so.
+    #[serde(default)]
+    pub twin: bool,
+}
+
+/// The known-models table: for an interface with USB id `usb_id`, which
+/// loopback channel hardware channel `channel` (from 0) is, counting from
+/// one. Nothing marks a channel as loopback, so this small built-in table is
+/// all there is; channels in it are named "<device> · Loopback n", listed
+/// last in their group, and start switched off like every new channel.
+pub fn loopback_number(usb_id: Option<&str>, channel: u32) -> Option<u32> {
+    /// (USB id, the loopback channels in order, from 0).
+    const KNOWN_MODELS: &[(&str, &[u32])] = &[
+        // Focusrite Scarlett 4i4 4th Gen: inputs 1-4, then the loopback
+        // pair on channels 5-6 (`AUX4`, `AUX5`).
+        ("1235:821a", &[4, 5]),
+    ];
+    let (_, loopback) = KNOWN_MODELS.iter().find(|(id, _)| Some(*id) == usb_id)?;
+    let position = loopback.iter().position(|c| *c == channel)?;
+    u32::try_from(position).ok().map(|n| n + 1)
 }
 
 /// The Local mic id of a bridge's hardware channel: made from (bridge,
@@ -126,6 +155,9 @@ pub struct MicBridge {
     /// interface. Empty while closed (its kept Local mics are in
     /// `GET /api/local-mics`).
     pub channels: Vec<BridgeChannel>,
+    /// While open: the interfaces it offers, as it said in its hello.
+    /// Empty while closed.
+    pub interfaces: Vec<BridgeInterface>,
 }
 
 /// A bridge waiting for approval.
@@ -160,5 +192,23 @@ mod tests {
             bridge_local_mic_id(&BridgeId("ab12".into()), "alsa_card.usb-X-00", 3),
             "bridge:ab12:alsa_card.usb-X-00:3"
         );
+    }
+}
+
+#[cfg(test)]
+mod known_model_tests {
+    use super::*;
+
+    #[test]
+    fn the_scarlett_4i4_4th_gen_has_loopback_on_channels_5_and_6() {
+        assert_eq!(loopback_number(Some("1235:821a"), 3), None);
+        assert_eq!(loopback_number(Some("1235:821a"), 4), Some(1));
+        assert_eq!(loopback_number(Some("1235:821a"), 5), Some(2));
+    }
+
+    #[test]
+    fn an_unknown_model_or_no_usb_id_has_no_loopback() {
+        assert_eq!(loopback_number(Some("1397:0509"), 4), None);
+        assert_eq!(loopback_number(None, 4), None);
     }
 }

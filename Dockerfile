@@ -78,19 +78,22 @@ RUN --mount=type=cache,id=openstar-cargo-registry,target=/usr/local/cargo/regist
 FROM --platform=linux/amd64 rust:1.100.0-slim-trixie@sha256:3b199fd6db7d709274df56565b8f4003f9e30d7bfcff9d53148c86053b7855e2 AS toolchain
 
 # ---------------------------------------------------------------------------
-# Mic bridge: built on Ubuntu 22.04, so the binary needs glibc 2.35 or newer
-# and runs on any current desktop (Ubuntu 22.04+, Debian 12+, Fedora, Arch).
+# Mic bridge: built on Debian 12, whose PipeWire 0.3.65 headers pipewire-rs
+# compiles against (Ubuntu 22.04's 0.3.48 are too old for any pipewire-rs
+# release; #205). The binary needs glibc 2.35 or newer (checked below) and
+# runs on any current desktop (Ubuntu 22.04+, Debian 12+, Fedora, Arch).
 # Graphics libraries are loaded at run time (crates/mic-bridge/tests/window.rs
 # checks the binary's NEEDED list). The same build identifier as the server.
 # Its output is both what the runtime image serves under /bridge/ and the
 # release tarball (stage `bridge-release`), so the two are the same binary.
-FROM --platform=linux/amd64 ubuntu:22.04@sha256:b000e69a50ff940390233025e7a337fb8469b509e2334fa4d018ac30f3e18cdb AS bridge
+FROM --platform=linux/amd64 debian:12@sha256:1d04200c2ece1d4d75a2a6f8e11ebce7d86a2ae28b34bb2c9cbb3ee9f4953e75 AS bridge
 ARG OPENSTAR_BUILD_ID
 ARG GITHUB_REF
 ARG GITHUB_SHA
 # libpipewire-0.3-dev and libclang-dev: capture links the system's PipeWire
 # library (pipewire-sys runs bindgen), the one library the bridge links
-# besides glibc. Ubuntu 22.04's PipeWire 0.3.48 keeps that floor low too.
+# besides glibc. It calls only functions PipeWire 0.3.48 has, so it runs
+# on Ubuntu 22.04's PipeWire too.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates gcc libc6-dev pkg-config \
         libpipewire-0.3-dev libclang-dev \

@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { LocalMic } from "../generated/LocalMic";
+import type { BridgeInterface } from "../generated/BridgeInterface";
 import type { MicBridge } from "../generated/MicBridge";
 import {
   bridgeGroupChannels,
+  bridgeGroupNotes,
+  matchBridgeLocalMics,
   browserChannels,
   browserInputDevices,
   devicesToOpen,
@@ -449,7 +452,33 @@ function bridge(
   open: boolean,
   channels: LocalMicChannel[] = [],
 ): MicBridge {
-  return { bridgeId, hostName: bridgeId, open, channels };
+  return { bridgeId, hostName: bridgeId, open, channels, interfaces: [] };
+}
+
+function loopbackChannel(
+  bridgeId: string,
+  label: string,
+  channelNumber: number,
+  loopback: number,
+): LocalMicChannel {
+  const made = bridgeChannel(bridgeId, label, channelNumber);
+  return {
+    ...made,
+    source: { ...bridgeSource(bridgeId, label, channelNumber), loopback },
+  };
+}
+
+function iface(
+  label: string,
+  more: Partial<BridgeInterface> = {},
+): BridgeInterface {
+  return {
+    deviceName: `alsa_card.${label}`,
+    label,
+    channels: 4,
+    twin: false,
+    ...more,
+  };
 }
 
 describe("a bridge Local mic", () => {
@@ -531,5 +560,106 @@ describe("a bridge group's channels", () => {
         (c) => c.localMicId,
       ),
     ).toEqual([own.localMicId]);
+  });
+});
+
+describe("loopback channels of the known-models table", () => {
+  it("are named '<device> · Loopback n'", () => {
+    const [first, second] = [
+      loopbackChannel("b", "Scarlett 4i4 4th Gen", 4, 1),
+      loopbackChannel("b", "Scarlett 4i4 4th Gen", 5, 2),
+    ];
+    expect(localMicName(first.source, "")).toBe(
+      "Scarlett 4i4 4th Gen · Loopback 1",
+    );
+    expect(localMicName(second.source, "")).toBe(
+      "Scarlett 4i4 4th Gen · Loopback 2",
+    );
+    expect(localMicName(first.source, "Song")).toBe("Song");
+  });
+
+  it("go last in their bridge's group, after every device's inputs", () => {
+    const channels = [
+      loopbackChannel("b", "Scarlett", 5, 2),
+      bridgeChannel("b", "UMC404HD", 0),
+      loopbackChannel("b", "Scarlett", 4, 1),
+      bridgeChannel("b", "Scarlett", 0),
+    ];
+    expect(
+      bridgeGroupChannels(bridge("b", true, channels), []).map(
+        (c) => c.localMicId,
+      ),
+    ).toEqual([
+      "bridge:b:alsa_card.Scarlett:0",
+      "bridge:b:alsa_card.UMC404HD:0",
+      "bridge:b:alsa_card.Scarlett:4",
+      "bridge:b:alsa_card.Scarlett:5",
+    ]);
+  });
+});
+
+describe("a bridge group's notes", () => {
+  it("say that swapping their USB ports swaps their mics when twins are present", () => {
+    const open = {
+      ...bridge("b", true),
+      interfaces: [
+        iface("UMC404HD 192k", { twin: true, deviceName: "u@1" }),
+        iface("UMC404HD 192k", { twin: true, deviceName: "u@2" }),
+      ],
+    };
+    expect(bridgeGroupNotes(open, []).twins).toBe(true);
+    expect(
+      bridgeGroupNotes({ ...open, interfaces: [iface("Scarlett")] }, []).twins,
+    ).toBe(false);
+  });
+
+  it("say 'use one or the other' when This browser reads the same interface", () => {
+    const open = {
+      ...bridge("b", true, [bridgeChannel("b", "Scarlett 4i4 4th Gen", 0)]),
+      interfaces: [iface("Scarlett 4i4 4th Gen")],
+    };
+    const browserScarlett = {
+      deviceId: "d1",
+      label: "Scarlett 4i4 4th Gen Pro",
+    };
+    expect(bridgeGroupNotes(open, [browserScarlett]).sameInterface).toBe(true);
+    expect(
+      bridgeGroupNotes(open, [{ deviceId: "d2", label: "USB Audio" }])
+        .sameInterface,
+    ).toBe(false);
+    // A label that merely starts the same way is another device.
+    expect(
+      bridgeGroupNotes(open, [
+        { deviceId: "d3", label: "Scarlett 4i4 4th Generation" },
+      ]).sameInterface,
+    ).toBe(false);
+  });
+});
+
+describe("a bridge's Local mics that are not found", () => {
+  it("are the kept ones an open bridge no longer offers, with its new channels to pick", () => {
+    const moved = bridgeChannel("b", "UMC404HD@port1", 0);
+    const stays = bridgeChannel("b", "UMC404HD@port2", 0);
+    const now = bridgeChannel("b", "UMC404HD@port3", 0);
+    const kept = [moved, stays].map((c) => ({
+      ...c,
+      name: "Red mic",
+      switchedOn: true,
+    }));
+    const match = matchBridgeLocalMics(bridge("b", true, [stays, now]), kept);
+    expect(match.notFound.map((m) => m.localMicId)).toEqual([moved.localMicId]);
+    expect(match.newChannels).toEqual([now]);
+  });
+
+  it("are none for a closed bridge: its Local mics show as closed", () => {
+    const keptMic = {
+      ...bridgeChannel("b", "Scarlett", 0),
+      name: "",
+      switchedOn: true,
+    };
+    expect(matchBridgeLocalMics(bridge("b", false), [keptMic])).toEqual({
+      notFound: [],
+      newChannels: [],
+    });
   });
 });

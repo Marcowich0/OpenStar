@@ -181,6 +181,8 @@ impl WavInput {
                 device_name: name.clone(),
                 label: name,
                 channels: u32::from(audio.format.channels),
+                usb_id: None,
+                twin: false,
             },
             wav: WavLoop::new(audio),
             playing: None,

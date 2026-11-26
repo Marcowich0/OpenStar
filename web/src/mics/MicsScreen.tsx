@@ -4,7 +4,9 @@
 // Local mic of this browser whose id is not present as "<name> · not found"
 // with Find it), then each approved Mic bridge in order of approval (open or
 // closed, with its channels and their editable names, and while open a live
-// meter per channel fed by the levels the bridge sends), then New bridges
+// meter per channel fed by the levels the bridge sends, its kept Local mics
+// it no longer offers as "not found" with Find it, the twins note and "use
+// one or the other"; loopback channels last), then New bridges
 // waiting for approval with their code and Approve, then Add a Mic bridge
 // (its one-line install, `AddMicBridge.tsx`). Naming, switching, Find
 // it and approving need no Admin PIN and are saved at once; Forget on a
@@ -29,10 +31,12 @@ import type { ThresholdSource } from "./micSettings";
 import { useMicThresholds, type MicThresholds } from "./StageMicSettings";
 import {
   bridgeGroupChannels,
+  bridgeGroupNotes,
   browserChannels,
   localMicName,
+  matchBridgeLocalMics,
   micsScreenOrder,
-  type BrowserChannel,
+  type BrowserDevice,
   type LocalMicChannel,
 } from "./localMics";
 
@@ -273,21 +277,28 @@ function ChannelRow({
 function BridgeGroup({
   bridge,
   kept,
+  browserDevices,
   onSwitch,
   onRename,
+  onRelink,
   levelDbfs,
   thresholds,
 }: {
   bridge: MicBridge;
   kept: readonly LocalMic[];
+  /** This browser's input devices, for "use one or the other". */
+  browserDevices: readonly BrowserDevice[];
   onSwitch: (channel: LocalMicChannel, on: boolean) => void;
   onRename: (channel: LocalMicChannel, name: string) => void;
+  onRelink: (localMicId: string, channel: LocalMicChannel) => void;
   /** A Local mic's latest level from its bridge. */
   levelDbfs: (localMicId: string) => number | null;
   thresholds: MicThresholds;
 }) {
   const keptById = new Map(kept.map((m) => [m.localMicId, m]));
   const channels = bridgeGroupChannels(bridge, kept);
+  const notes = bridgeGroupNotes(bridge, browserDevices);
+  const match = matchBridgeLocalMics(bridge, kept);
   const heading = `mics-bridge-${bridge.bridgeId}`;
   return (
     <section
@@ -307,6 +318,12 @@ function BridgeGroup({
         </p>
       </div>
       <ForgetBridge bridge={bridge} />
+      {notes.sameInterface && (
+        <p className="text-2xl text-ink-2">{t("mics.bridge.sameInterface")}</p>
+      )}
+      {notes.twins && (
+        <p className="text-2xl text-ink-2">{t("mics.bridge.twins")}</p>
+      )}
       {channels.length === 0 && (
         <p className="text-2xl text-ink-2">{t("mics.bridge.noChannels")}</p>
       )}
@@ -333,6 +350,16 @@ function BridgeGroup({
             />
           );
         })}
+        {match.notFound.map((localMic) => (
+          <NotFoundRow
+            key={localMic.localMicId}
+            localMic={localMic}
+            newChannels={match.newChannels}
+            onRelink={(channel) => {
+              onRelink(localMic.localMicId, channel);
+            }}
+          />
+        ))}
       </ul>
     </section>
   );
@@ -389,8 +416,8 @@ function NotFoundRow({
   onRelink,
 }: {
   localMic: LocalMic;
-  newChannels: readonly BrowserChannel[];
-  onRelink: (channel: BrowserChannel) => void;
+  newChannels: readonly LocalMicChannel[];
+  onRelink: (channel: LocalMicChannel) => void;
 }) {
   const [finding, setFinding] = useState(false);
   const name = localMicName(localMic.source, localMic.name);
@@ -552,8 +579,10 @@ export function MicsScreen() {
           key={bridge.bridgeId}
           bridge={bridge}
           kept={kept}
+          browserDevices={snapshot.devices}
           onSwitch={setSwitchedOn}
           onRename={rename}
+          onRelink={relink}
           levelDbfs={bridgeLevelDbfs}
           thresholds={thresholds}
         />

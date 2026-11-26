@@ -22,6 +22,8 @@ fn hello(token: Option<&str>) -> ClientMessage {
             device_name: "multichannel.wav".into(),
             label: "multichannel.wav".into(),
             channels: 4,
+            usb_id: None,
+            twin: false,
         }],
     }
 }

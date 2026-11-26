@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 use openstar_protocol::bridge::{
     BridgeChannel, BridgeChannelSettings, BridgeId, BridgeInputDelay, BridgeInterface, BridgeLevel,
     BridgeRequest, BridgeRequestId, LocalMicLevel, MicBridge, MicBridges, bridge_local_mic_id,
+    loopback_number,
 };
 use openstar_protocol::mics::{LocalMicSource, MicKey};
 use openstar_protocol::{
@@ -82,6 +83,7 @@ impl Bridges {
                     host_name: approved.host_name.clone(),
                     open: open.is_some(),
                     channels: open.map(channels_of).unwrap_or_default(),
+                    interfaces: open.map(|open| open.interfaces.clone()).unwrap_or_default(),
                 }
             })
             .collect();
@@ -158,6 +160,7 @@ fn channels_of(open: &Open) -> Vec<BridgeChannel> {
                     device_name: interface.device_name.clone(),
                     label: interface.label.clone(),
                     channel,
+                    loopback: loopback_number(interface.usb_id.as_deref(), channel),
                 },
                 reported_input_delay_ms: open
                     .input_delays
