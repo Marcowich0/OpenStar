@@ -94,6 +94,9 @@ pub(crate) struct Media {
     pub cover: Option<String>,
     /// The chosen background image (`#BACKGROUND`, else the cover).
     pub background: Option<String>,
+    /// Whether a `<name>.txt.orig` lies beside the `.txt`: OpenStar has
+    /// edited this copy (checked again at every scan).
+    pub has_original: bool,
 }
 
 /// A `.txt` just read, ready to be stored.
@@ -268,10 +271,11 @@ pub(crate) fn store_media(
     let sets: Vec<String> = Role::ALL
         .iter()
         .enumerate()
-        .map(|(n, role)| format!("{} = ?{}", role.column(), n + 6))
+        .map(|(n, role)| format!("{} = ?{}", role.column(), n + 7))
         .collect();
     let sql = format!(
-        "UPDATE library_files SET playable = ?2, file_problems = ?3, usdb_id = ?4, identity = ?5, {}
+        "UPDATE library_files SET playable = ?2, file_problems = ?3, usdb_id = ?4, identity = ?5,
+             has_original = ?6, {}
          WHERE path = ?1",
         sets.join(", ")
     );
@@ -281,6 +285,7 @@ pub(crate) fn store_media(
         encode_problems(&media.problems),
         media.usdb_id.filter(|_| parsed),
         identity,
+        parsed && media.has_original,
         resolved(Role::Audio),
         resolved(Role::Video),
         media.cover.as_deref(),
@@ -386,26 +391,46 @@ pub(crate) fn remove(tx: &Transaction<'_>, ids: &[i64]) -> rusqlite::Result<()> 
     Ok(())
 }
 
-/// The listed Songs: every playable Song, each identity once, by artist,
-/// then title, then path, with the fields the filters look at.
+/// The playable rows ranked among the copies of their identity (Songs with
+/// the same identity are duplicates), as the CTE `ranked`: every column of
+/// `library_files`, plus `copy` (1 for the preferred copy) and `preferred`
+/// (the preferred copy's path).
 ///
-/// Of the copies of one identity, the one whose `.txt` is newest is listed
-/// (then the lowest id). #142 owns the full preferred-copy rule (an edited
-/// copy first, then one whose media plays natively) and replaces the
-/// `ORDER BY` of the window here.
+/// The preferred-copy rule, first difference wins: a copy OpenStar has
+/// edited (a `<name>.txt.orig` beside it); then a copy whose audio and video
+/// play on the Stage without conversion (an unprobed file does not count);
+/// then the copy whose `.txt` has the newest mtime; then the lowest id, so
+/// the choice is always the same.
+const RANKED: &str = "ranked AS (
+    SELECT *,
+        ROW_NUMBER() OVER preference AS copy,
+        FIRST_VALUE(path) OVER preference AS preferred
+    FROM library_files
+    WHERE playable
+    WINDOW preference AS (
+        PARTITION BY identity
+        ORDER BY has_original DESC,
+            (COALESCE((SELECT native FROM media_probes p WHERE p.path = audio_path), 0)
+             AND (video_path IS NULL
+                  OR COALESCE((SELECT native FROM media_probes p WHERE p.path = video_path), 0)))
+                DESC,
+            mtime_ns DESC,
+            id
+    )
+)";
+
+/// The listed Songs: every playable Song, each identity once (its preferred
+/// copy, see [`RANKED`]), by artist, then title, then path, with the fields
+/// the filters look at.
 pub(crate) fn listed(conn: &Connection) -> rusqlite::Result<Vec<Listed>> {
-    let mut statement = conn.prepare(
-        "SELECT id, path, artist, title, duet, identity, length_seconds, has_video,
+    let mut statement = conn.prepare(&format!(
+        "WITH {RANKED}
+         SELECT id, path, artist, title, duet, identity, length_seconds, has_video,
              cover_path IS NOT NULL, year, languages, genres, editions, creators, preparing
-         FROM (
-             SELECT *, ROW_NUMBER() OVER (
-                 PARTITION BY identity ORDER BY mtime_ns DESC, id
-             ) AS copy
-             FROM library_files WHERE playable
-         )
+         FROM ranked
          WHERE copy = 1
-         ORDER BY artist COLLATE NOCASE, title COLLATE NOCASE, path",
-    )?;
+         ORDER BY artist COLLATE NOCASE, title COLLATE NOCASE, path"
+    ))?;
     let rows = statement.query_map([], |row| {
         let id = song_id(row.get(0)?);
         let identity = decode_identity(row, 5)?;
@@ -585,15 +610,16 @@ pub(crate) fn media_path(
         .flatten())
 }
 
-/// The playable Song with `identity` in the Library now, the newest when
-/// there are several. A finished Download names its new Song by it.
+/// The playable Song with `identity` in the Library now: its preferred copy
+/// when there are several (see [`RANKED`]). A finished Download names its
+/// new Song by it.
 pub(crate) fn song_with_identity(
     conn: &Connection,
     identity: &SongIdentity,
 ) -> rusqlite::Result<Option<SongId>> {
-    conn.prepare_cached(
-        "SELECT id FROM library_files WHERE identity = ?1 AND playable ORDER BY id DESC LIMIT 1",
-    )?
+    conn.prepare_cached(&format!(
+        "WITH {RANKED} SELECT id FROM ranked WHERE identity = ?1 AND copy = 1"
+    ))?
     .query_row([identity::key(identity)], |row| row.get(0).map(SongId))
     .optional()
 }
@@ -612,18 +638,28 @@ pub(crate) fn identity_present(
 }
 
 /// Every Library problem, by path: the parser's first, then the
-/// references', then the conversions'.
+/// references', then the conversions', then a hidden duplicate's (a copy
+/// that is not its identity's preferred one, see [`RANKED`]).
 pub(crate) fn problems(conn: &Connection) -> rusqlite::Result<Vec<LibraryProblem>> {
-    let mut statement = conn.prepare(
-        "SELECT path, txt_problems, file_problems, conversion_problems FROM library_files
-         WHERE txt_problems != '[]' OR file_problems != '[]' OR conversion_problems != '[]'
-         ORDER BY path",
-    )?;
+    let mut statement = conn.prepare(&format!(
+        "WITH {RANKED}
+         SELECT f.path, f.txt_problems, f.file_problems, f.conversion_problems, r.preferred
+         FROM library_files f LEFT JOIN ranked r ON r.id = f.id AND r.copy > 1
+         WHERE f.txt_problems != '[]' OR f.file_problems != '[]'
+             OR f.conversion_problems != '[]' OR r.id IS NOT NULL
+         ORDER BY f.path"
+    ))?;
     let rows = statement.query_map([], |row| {
         let path: String = row.get(0)?;
         let mut problems = decode_problems(&row.get::<_, String>(1)?);
         problems.extend(decode_problems(&row.get::<_, String>(2)?));
         problems.extend(decode_problems(&row.get::<_, String>(3)?));
+        if let Some(preferred) = row.get::<_, Option<String>>(4)? {
+            problems.push((
+                ProblemSeverity::Hidden,
+                ProblemReason::File(FileProblem::HiddenDuplicate { preferred }),
+            ));
+        }
         Ok(problems
             .into_iter()
             .map(|(severity, reason)| LibraryProblem {

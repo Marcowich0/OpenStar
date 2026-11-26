@@ -180,6 +180,8 @@ byCode<ProblemReason>({
   unreadableFile: () => t("fileProblem.unreadableFile"),
   unreadableMetadata: () => t("fileProblem.unreadableMetadata"),
   audioNotConverted: ({ file }) => t("fileProblem.audioNotConverted", { file }),
+  hiddenDuplicate: ({ preferred }) =>
+    t("fileProblem.hiddenDuplicate", { preferred }),
 });
 
 // The renderer takes any reason, and only a reason.

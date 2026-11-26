@@ -116,7 +116,8 @@ pub(crate) async fn run(
             batch
                 .into_iter()
                 .map(|(candidate, references)| {
-                    let media = resolve(&mut resolver, &candidate.folder, references);
+                    let media =
+                        resolve(&mut resolver, &candidate.path, &candidate.folder, references);
                     (candidate.path, media)
                 })
                 .collect::<Vec<_>>()
@@ -319,6 +320,7 @@ fn read(root: &Path, resolver: &mut Resolver, candidate: Candidate) -> ReadFile 
                 .collect();
             file.media = resolve(
                 resolver,
+                &file.path,
                 &candidate.folder,
                 references(&parsed.song.headers),
             );
@@ -367,11 +369,19 @@ pub(crate) fn references(headers: &SongHeaders) -> Vec<Reference> {
     references
 }
 
-/// Resolves the references of a parsed `.txt` in `folder`. No audio
-/// reference, or audio not found, is a rejection; a video, cover or
-/// background not found is a warning.
-fn resolve(resolver: &mut Resolver, folder: &Path, references: Vec<Reference>) -> Media {
-    let mut media = Media::default();
+/// Resolves the references of the parsed `.txt` at `txt` (relative to the
+/// Library) in `folder`. No audio reference, or audio not found, is a
+/// rejection; a video, cover or background not found is a warning.
+fn resolve(
+    resolver: &mut Resolver,
+    txt: &str,
+    folder: &Path,
+    references: Vec<Reference>,
+) -> Media {
+    let mut media = Media {
+        has_original: resolver.root().join(format!("{txt}.orig")).is_file(),
+        ..Media::default()
+    };
     if !references.iter().any(|r| r.role == Role::Audio) {
         media.problems.push((
             ProblemSeverity::Rejection,
