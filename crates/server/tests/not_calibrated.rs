@@ -63,10 +63,11 @@ async fn recv(socket: &mut WsClient) -> ServerMessage {
 async fn next_line_up(socket: &mut WsClient) -> LineUp {
     loop {
         if let ServerMessage::PartyChanged {
-            party: PartySnapshot {
-                line_up: Some(line_up),
-                ..
-            },
+            party:
+                PartySnapshot {
+                    line_up: Some(line_up),
+                    ..
+                },
             ..
         } = recv(socket).await
         {
