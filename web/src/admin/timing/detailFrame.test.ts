@@ -183,6 +183,43 @@ describe("the detail view's draw list", () => {
   });
 });
 
+describe("where the heard pitch is drawn", () => {
+  /** One Note at `pitch` over 0–1 s, and a track singing `hz` over it. */
+  function dotsFor(pitches: number[], hz: number) {
+    const base = fixtureSong();
+    const notes = pitches.map((pitch, i) => ({
+      kind: "normal" as const,
+      start: 10 * i,
+      length: 10,
+      pitch,
+      text: "la",
+      line: 10 + i,
+    }));
+    const song = { ...base, voices: [{ lines: [{ notes, end: null }] }] };
+    const track = fixtureTrack();
+    track.pitch.fill(0);
+    track.pitch.fill(hz, 0, 100);
+    const list = detailFrame({ ...input(track), song });
+    const dots = list.find((e) => e.type === "dots");
+    if (dots?.type !== "dots") throw new Error("no dots");
+    return { dots: dots.points, pills: pills(list) };
+  }
+  const centreOf = (p: PillEntry | undefined) =>
+    (p?.y ?? 0) + (p?.height ?? 0) / 2;
+
+  it("keeps a heard pitch inside the Notes' range where it is", () => {
+    // Notes on C4 and C5: a heard C5 stays on the C5 Note's row.
+    const { dots, pills: drawn } = dotsFor([0, 12], 2 * C4);
+    expect(dots[1]).toBeCloseTo(centreOf(drawn[1]), 3);
+  });
+
+  it("folds a heard pitch outside the Notes' range into it by octaves", () => {
+    // Notes on C4 and E4 only: a heard C6 is drawn on the C4 row.
+    const { dots, pills: drawn } = dotsFor([0, 4], 4 * C4);
+    expect(dots[1]).toBeCloseTo(centreOf(drawn[0]), 3);
+  });
+});
+
 describe("the detail view before the Pitch track is ready", () => {
   const list = detailFrame(input(null));
 

@@ -316,7 +316,6 @@ export function detailFrame(input: DetailInput): DetailEntry[] {
   });
 
   if (track) {
-    const centre = (low + high) / 2;
     const first = Math.max(0, Math.floor(view.start / FRAME_SECONDS));
     const last = Math.min(
       track.pitch.length,
@@ -326,10 +325,10 @@ export function detailFrame(input: DetailInput): DetailEntry[] {
     for (let i = first; i < last; i++) {
       const hz = track.pitch[i] ?? 0;
       if (!(hz > 0)) continue;
-      // Semitones from C4, folded into the octave nearest the Notes' middle.
-      let m = 12 * Math.log2(hz / 440) + 9;
-      m += 12 * Math.round((centre - m) / 12);
-      points.push(x(i * FRAME_SECONDS), yOf(m));
+      points.push(
+        x(i * FRAME_SECONDS),
+        yOf(foldIntoRange(12 * Math.log2(hz / 440) + 9, low, high)),
+      );
     }
     list.push({
       type: "dots",
@@ -400,6 +399,25 @@ export function detailFrame(input: DetailInput): DetailEntry[] {
     colour: "--color-red",
   });
   return list;
+}
+
+/** Octaves a heard pitch may be moved by to reach the Notes' range. */
+const MAX_FOLD_OCTAVES = 4;
+
+/**
+ * A heard pitch (semitones from C4) moved by whole octaves to where it is
+ * nearest the range [low, high]: kept as it is when inside, and the smaller
+ * move on a tie.
+ */
+export function foldIntoRange(m: number, low: number, high: number): number {
+  const distance = (v: number) => Math.max(0, low - v, v - high);
+  let best = m;
+  for (let k = 1; k <= MAX_FOLD_OCTAVES; k++) {
+    for (const v of [m - 12 * k, m + 12 * k]) {
+      if (distance(v) < distance(best)) best = v;
+    }
+  }
+  return best;
 }
 
 function fitNote(
