@@ -25,6 +25,13 @@ pub enum JobKind {
     /// Measures a Song's loudness (EBU R128 integrated, in LUFS) over its
     /// original audio file.
     Loudness,
+    /// Reads USDB's whole song list into the mirror and drops the songs USDB
+    /// no longer has: the first fill, the weekly full refetch and one started
+    /// by hand.
+    UsdbMirrorRefetch,
+    /// Reads USDB's song list newest change first into the mirror, until the
+    /// first song older than the newest one already mirrored.
+    UsdbMirrorUpdate,
 }
 
 /// Where a job stands.

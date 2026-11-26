@@ -347,7 +347,8 @@ async fn the_server_logs_in_at_start_and_reports_logged_in() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     assert_eq!(state, UsdbState::LoggedIn);
-    assert_eq!(links(&usdb.requests()), ["login", "profil"]);
+    // The USDB mirror's first fill (#147) follows the login check.
+    assert_eq!(links(&usdb.requests())[..2], ["login", "profil"]);
 
     // Nothing about the login is kept: no file in appdata holds the
     // password, the username or the session cookie.

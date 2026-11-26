@@ -33,7 +33,7 @@ mod ytdlp;
 pub use app::{AppFolders, TestApp, TestAppBuilder, WsClient};
 pub use executable::write_executable;
 pub use media::{Media, Signal, placeholder_media};
-pub use usdb::{FakeUsdb, RecordedRequest, Scripted};
+pub use usdb::{FakeSong, FakeUsdb, RecordedRequest, Scripted};
 pub use ytdlp::{YtDlpStub, YtDlpStubBehaviour};
 
 /// The settings variable the USDB client (#47) reads its base URL from. The

@@ -71,6 +71,31 @@ struct AppState {
     admin_pin: pin_wait::AdminPin,
     /// Whether the test-only routes are mounted.
     test_routes: bool,
+    /// Held while the USDB mirror decides whether to queue a run, so two
+    /// requests never queue two.
+    mirror_gate: Arc<tokio::sync::Mutex<()>>,
+}
+
+impl AppState {
+    /// The USDB mirror, on this state's database, jobs, client and clock.
+    fn mirror(&self) -> usdb::mirror::Mirror {
+        usdb::mirror::Mirror {
+            db: self.db.clone(),
+            jobs: self.jobs.clone(),
+            usdb: self.usdb.clone(),
+            clock: self.clock.clone(),
+            gate: Arc::clone(&self.mirror_gate),
+        }
+    }
+}
+
+/// The time sources a server starts with ([`Server::start_with`]).
+#[derive(Default)]
+pub struct StartOptions {
+    /// Every timed rule's clock; the system clock by default.
+    pub clock: Clock,
+    /// What the USDB client paces and backs off by; real time by default.
+    pub usdb_timer: Option<Arc<dyn usdb::UsdbTimer>>,
 }
 
 /// A started server: the database is open and migrated, nothing is served yet.
@@ -85,6 +110,14 @@ impl Server {
     /// the songs check, then reloading live state. Requests are accepted only
     /// once this has returned.
     pub async fn start(config: &Config) -> anyhow::Result<Self> {
+        Self::start_with(config, StartOptions::default()).await
+    }
+
+    /// [`Self::start`] with the time sources chosen (tests: a
+    /// [`clock::ManualClock`] and a [`usdb::VirtualTimer`]). Unlike
+    /// [`Self::with_clock`], these reach the background jobs too (the USDB
+    /// mirror's runs).
+    pub async fn start_with(config: &Config, options: StartOptions) -> anyhow::Result<Self> {
         startup::check_appdata(&config.appdata_dir)?;
         let opened = Database::open(&config.appdata_dir).await?;
         tracing::info!(
@@ -95,13 +128,27 @@ impl Server {
         // Step 5: reload the live state (the Party) before anything is served.
         let live = LiveHandle::start(opened.database.clone()).await?;
         tracing::info!("live state reloaded");
+        let usdb = match options.usdb_timer {
+            Some(timer) => {
+                usdb::UsdbClient::new(config.usdb_base_url.clone(), config.usdb.clone(), timer)
+            }
+            None => usdb::UsdbClient::with_system_timer(
+                config.usdb_base_url.clone(),
+                config.usdb.clone(),
+            ),
+        };
         let env = jobs::JobEnv {
             db: opened.database.clone(),
             live: live.clone(),
             songs_dir: config.songs_dir.clone(),
             appdata_dir: config.appdata_dir.clone(),
         };
-        let jobs = Jobs::start(env.clone(), config.tool_path.clone()).await?;
+        let usdb_env = jobs::UsdbEnv {
+            usdb: usdb.clone(),
+            clock: options.clock.clone(),
+        };
+        let jobs =
+            Jobs::start_with_usdb(env.clone(), Some(usdb_env), config.tool_path.clone()).await?;
         tracing::info!("job runner started");
         let scanner = Scanner::new(env, jobs.clone(), config.tool_path.clone());
         Ok(Self {
@@ -113,11 +160,9 @@ impl Server {
                 library_read_only,
                 live,
                 jobs,
-                usdb: usdb::UsdbClient::with_system_timer(
-                    config.usdb_base_url.clone(),
-                    config.usdb.clone(),
-                ),
-                clock: Clock::system(),
+                usdb,
+                clock: options.clock,
+                mirror_gate: Arc::default(),
                 admin_pin: pin_wait::AdminPin::new(config.admin_pin.expose()),
                 test_routes: false,
             },
@@ -134,7 +179,9 @@ impl Server {
     }
 
     /// Runs every timed rule on `clock` instead of the system clock, so
-    /// integration tests can move time forward.
+    /// integration tests can move time forward. The job runner keeps the
+    /// clock it started with: give the clock to [`Self::start_with`] when
+    /// jobs must see it too.
     #[must_use]
     pub fn with_clock(mut self, clock: Clock) -> Self {
         self.state.clock = clock;
@@ -200,17 +247,33 @@ impl Server {
         let jobs = self.state.jobs.clone();
         let scanner = self.state.scanner.clone();
         scanner.request();
-        // The login is checked at start (on the profile page); without
-        // credentials USDB is never contacted.
+        // The login is checked at start (on the profile page), then the
+        // mirror is brought up to date; without credentials USDB is never
+        // contacted. The mirror's weekly full refetch is checked hourly.
+        let mut usdb_tasks = Vec::new();
         if self.state.config.usdb.is_some() {
             let usdb = self.state.usdb.clone();
-            tokio::spawn(async move {
+            let mirror = self.state.mirror();
+            usdb_tasks.push(tokio::spawn(async move {
                 let state = usdb.check_login().await;
                 tracing::info!(?state, "USDB login checked");
-            });
+                if state == openstar_protocol::usdb::UsdbState::LoggedIn {
+                    mirror.at_start().await;
+                }
+            }));
+            let mirror = self.state.mirror();
+            usdb_tasks.push(tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(usdb::mirror::SCHEDULE_CHECK).await;
+                    mirror.on_schedule().await;
+                }
+            }));
         }
         let shutdown = async move {
             shutdown.await;
+            for task in usdb_tasks {
+                task.abort();
+            }
             scanner.shutdown().await;
             jobs.shutdown().await;
             live.shutdown().await;

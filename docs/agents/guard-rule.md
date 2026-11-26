@@ -37,7 +37,7 @@ Becoming the Stage is not an Unlock, and an Unlock does not make a browser the S
 - Rescan and the Library problems list;
 - browsing and searching USDB, and seeing the video candidates;
 - the USDB login status (`GET /api/usdb/status`);
-- a full USDB refetch started by hand;
+- the USDB mirror's status, the update the Downloads section asks for when it opens, and a full USDB refetch started by hand (`GET /api/usdb/mirror`, `POST /api/usdb/mirror/refresh`, `POST /api/usdb/mirror/refetch`): the mirror is a copy of USDB's list, not kept data, so dropping songs USDB no longer has deletes nothing kept;
 - cancelling a Download;
 - opening the desktop Timing editor on a Song, computing its Pitch track, and working in the editor up to saving;
 - Undo of a Phone's fit proposal, which writes nothing;
