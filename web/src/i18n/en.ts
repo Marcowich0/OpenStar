@@ -276,10 +276,19 @@ export const en = {
   // The Stage's scenes (#120 placeholders; #124, #164, #182 fill them).
   "stage.logo": "OpenStar",
   "stage.browser.pickFromPhone": "Pick a song from your phone",
-  "stage.browser.joinCode": "Join code",
   "stage.browser.carousel": "Songs",
   "stage.browser.best": "Best {total, number} · {name}",
   "stage.browser.empty": "No Songs in the Library yet",
+  // The join card (`stage/joinCard/`): song browser and People overlay.
+  "stage.joinCard.qr": "QR code to join the Party",
+  "stage.joinCard.goTo": "Go to {address}",
+  "stage.joinCard.hide": "Hide",
+  "stage.joinCard.chip": "Join · {code}",
+  "stage.joinCard.cantSing": "Phones can't sing yet",
+  "stage.joinCard.notHttps":
+    "This Stage was opened over plain http://. Set up HTTPS (see the Caddy example), then reload.",
+  "stage.joinCard.localhost":
+    "Phones and other computers can't reach localhost. Set OPENSTAR_PUBLIC_URL to the server's HTTPS address.",
   "stage.lineUp.artistDuet": "{artist} · duet",
   "stage.lineUp.thenOne": "Then {first}",
   "stage.lineUp.thenTwo": "Then {first}, {second}",
