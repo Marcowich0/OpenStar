@@ -58,7 +58,7 @@ pub fn comment_links(html: &str) -> Vec<String> {
         let content = &rest[..rest.find(NEXT_HEADER_ROW).unwrap_or(rest.len())];
         let content = decode_entities(content);
         for found in VIDEO_LINK.find_iter(&content) {
-            let link = normalise(found.as_str());
+            let link = normalise_video_link(found.as_str());
             if !links.contains(&link) {
                 links.push(link);
             }
@@ -67,7 +67,10 @@ pub fn comment_links(html: &str) -> Vec<String> {
     links
 }
 
-fn normalise(link: &str) -> String {
+/// A video link as the picker compares them: trailing punctuation dropped,
+/// YouTube links of any shape as `https://www.youtube.com/watch?v=<id>`, a
+/// scheme added when there is none.
+pub(crate) fn normalise_video_link(link: &str) -> String {
     let link = link.trim_end_matches(['.', ',', ';', ':', '!', '?', ')', ']']);
     if let Some(youtube) = YOUTUBE.captures(link) {
         return format!("https://www.youtube.com/watch?v={}", &youtube["id"]);

@@ -21,6 +21,9 @@
 # (E2E_USDB_IN_LIBRARY_ID in e2e/fixtures.ts), so a USDB song can be "In
 # Library".
 #
+# The server finds the yt-dlp stub (`openstar-harness ytdlp-stub`) first on
+# its PATH, so the video picker's lookups never reach a video site.
+#
 # Also starts a headless Mic bridge (`openstar-mic-bridge --wav`) on the fake
 # mic's 4-channel WAV, waiting for approval.
 #
@@ -88,6 +91,7 @@ mkdir "$work/appdata"
 echo '{"apiId": 900001}' >"$work/songs/Placeholder Artist - Sine Melody/metadata.json"
 rm -rf "$root/e2e/generated/mic"
 "$harness" fake-mic "$root/e2e/generated/mic" >/dev/null
+"$harness" ytdlp-stub "$work/ytdlp" >/dev/null
 
 # The Admin PIN of the server under test; the fixtures give it to become the Stage.
 admin_pin=1234
@@ -108,7 +112,7 @@ done
 echo "e2e: the fake USDB serves $usdb_url"
 
 # A clean environment, so nothing from the developer's shell reaches the server.
-env -i PATH="$PATH" HOME="$work" \
+env -i PATH="$work/ytdlp:$PATH" HOME="$work" \
   OPENSTAR_PORT="$port" \
   OPENSTAR_APPDATA_DIR="$work/appdata" \
   OPENSTAR_SONGS_DIR="$work/songs" \

@@ -159,3 +159,54 @@ test("Downloads searches the USDB mirror at Phone width without a PIN", async ({
   await expect(page.getByRole("dialog", { name: "Admin PIN" })).toHaveCount(0);
   await page.context().close();
 });
+
+test("the video picker lists the candidates at Phone width without a PIN", async ({
+  browser,
+}) => {
+  const page = await openPhoneBrowser(browser);
+  // Song 1 is the one the fake has a text and a detail page for.
+  await page.request.post(`${FAKE_USDB_URL}/__fake/songs`, {
+    data: [fakeSong(1, "Placeholder Artist", "Re: Stacks", 8, 77)],
+  });
+
+  await page.goto("/admin/downloads");
+  await page
+    .getByRole("button", { name: "Fetch the whole list again" })
+    .click();
+  const results = page.getByRole("list", { name: "USDB songs" });
+  await expect(results.getByRole("listitem")).toHaveCount(1, {
+    timeout: 20_000,
+  });
+  await expect(results).toContainText("Re: Stacks");
+
+  await results.getByRole("button", { name: /Re: Stacks/ }).click();
+  const picker = page.getByRole("dialog", {
+    name: "Choose the video for Re: Stacks",
+  });
+  await expect(picker).toBeVisible();
+
+  // The text's two #VIDEO tags, its three new comment links, then the five
+  // search hits from the yt-dlp stub; the first is preselected.
+  const options = picker.getByRole("radio");
+  await expect(options).toHaveCount(10, { timeout: 20_000 });
+  await expect(options.first()).toBeChecked();
+  await expect(picker.getByText("Song length 0:02")).toBeVisible();
+  const labels = picker.locator("label");
+  await expect(labels.nth(0)).toContainText("From the text");
+  await expect(labels.nth(0)).toContainText("Stub video 1", {
+    timeout: 20_000,
+  });
+  await expect(labels.nth(2)).toContainText("From a comment");
+  await expect(labels.nth(5)).toContainText(
+    "Placeholder Artist - Re: Stacks (stub hit 1)",
+  );
+  await expect(labels.nth(5)).toContainText("2:51");
+
+  await labels.nth(5).click();
+  await expect(options.nth(5)).toBeChecked();
+  await expect(options.first()).not.toBeChecked();
+
+  await expectNoSideways(page);
+  await expect(page.getByRole("dialog", { name: "Admin PIN" })).toHaveCount(0);
+  await page.context().close();
+});
