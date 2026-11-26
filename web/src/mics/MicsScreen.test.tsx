@@ -1,6 +1,8 @@
+import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { createQueryClient } from "../api/queryClient";
 import type { LocalMic } from "../generated/LocalMic";
 import type { MicBridges } from "../generated/MicBridges";
 import type { LiveClientOptions } from "../live/liveClient";
@@ -102,9 +104,11 @@ function setup({
     phoneLevelDbfs: () => null,
   };
   render(
-    <LocalMicsContext value={api}>
-      <StageFrame store={store} scenes={NO_BROWSER} />
-    </LocalMicsContext>,
+    <QueryClientProvider client={createQueryClient()}>
+      <LocalMicsContext value={api}>
+        <StageFrame store={store} scenes={NO_BROWSER} />
+      </LocalMicsContext>
+    </QueryClientProvider>,
   );
   act(() => {
     handlers?.onConnection("open");
@@ -258,6 +262,30 @@ describe("the Mics screen", () => {
     ).toHaveAttribute("aria-checked", "true");
     // A closed bridge's Local mic is closed, not "not found" in This browser.
     expect(within(dialog).queryByText("Red mic · not found")).toBeNull();
+  });
+
+  it("offers Forget on each approved bridge's group, open or closed, and nowhere else", () => {
+    setup({
+      bridges: {
+        bridges: [
+          { bridgeId: "zeus", hostName: "zeus", open: true, channels: [] },
+          { bridgeId: "apollo", hostName: "apollo", open: false, channels: [] },
+        ],
+        requests: [{ requestId: 7, hostName: "hermes", code: "4821" }],
+      },
+    });
+    const dialog = openMicsScreen();
+    const groups = within(dialog).getAllByRole("group");
+    const forgets = groups.map(
+      (g) => within(g).queryAllByRole("button", { name: /^Forget/ }).length,
+    );
+    // This browser, zeus, apollo, New bridges.
+    expect(forgets).toEqual([0, 1, 1, 0]);
+    expect(
+      within(groups[2] as HTMLElement).getByRole("button", {
+        name: "Forget the Mic bridge on apollo",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("names a bridge channel like a browser one", () => {

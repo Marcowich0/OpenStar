@@ -332,6 +332,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             NotGuarded,
             mic_bridges::read,
         )
+        // Forget deletes a bridge's Local mics and their Mic settings.
+        .add(
+            Method::DELETE,
+            "/api/mic-bridges/{id}",
+            Guarded(Untouched),
+            mic_bridges::forget_bridge,
+        )
         // The USDB login's status, for the Downloads section's notices.
         .add(
             Method::GET,
