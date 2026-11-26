@@ -60,3 +60,35 @@ the build).
 
 The image build needs a few GB of disk: the Rust and Node build images, and the release
 build in a BuildKit cache mount.
+
+## Publishing
+
+`.github/workflows/ci.yml` builds, checks and publishes the image to
+`ghcr.io/marcowich0/openstar`, on GitHub-hosted runners only. It never deploys, and there
+is no Docker Hub mirror. Its jobs run in order, and a failing job stops the rest:
+
+1. `ci`: `just ci`.
+2. `image`: builds the image, runs `just image-smoke` on it, and scans it with Trivy, which
+   fails on any HIGH or CRITICAL vulnerability that has a fix. This job has read-only
+   permissions and never logs in to a registry.
+3. `publish`: rebuilds the image from the `image` job's layer cache and pushes it with
+   build provenance and an SBOM. It refuses to push if the rebuilt layers differ from
+   the tested ones. This is the only job with `packages: write`.
+4. `release`: for a `vX.Y.Z` tag only, creates a GitHub release with generated notes. This
+   is the only job with `contents: write`.
+
+| Event                             | Build identifier | Pushes                               | Release |
+| --------------------------------- | ---------------- | ------------------------------------ | ------- |
+| pull request                      | `dev`            | nothing (steps 1 and 2 only)         | no      |
+| push to `main`                    | `edge-<sha>`     | `:edge`, `:sha-<short>`              | no      |
+| push of a `vX.Y.Z` tag            | `X.Y.Z`          | `:X.Y.Z`, `:X.Y`, `:X`, `:latest`    | yes     |
+| weekly schedule (Monday, on main) | `edge-<sha>`     | `:edge` only, runtime stage uncached | no      |
+| anything else (other branches)    | `dev`            | nothing                              | no      |
+
+`scripts/ci-image-meta.sh` makes this decision, and `scripts/ci-image-meta.test.sh`
+(`just ci-meta-check`, part of `just check`) tests it. The `publish` and `release` jobs
+check the event and ref again in their `if:`. The weekly run rebuilds the `runtime`
+stage without its layer cache, so Debian security fixes land even when no pin changed.
+
+The package is created private on its first push. Make it public once, under the
+package's settings on GitHub.

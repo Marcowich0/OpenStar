@@ -1,0 +1,15 @@
+[package]
+name = "openstar-capture-clock"
+description = "Puts every Pitch reading on the Stage's clock: the frame-to-clock mapping (lower envelope of arrival − frame time), the clock sync estimator (lowest round trip of the last 30 pings), the ping schedule and the sender session that combines them. Pure, no clock reads, no I/O; shared by Phones and the Stage browser (through detector-wasm) and the Mic bridge (natively)."
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true

@@ -95,8 +95,12 @@ RUN curl -fsSL -o deno.zip \
 # ---------------------------------------------------------------------------
 # Runtime: Debian with ffmpeg (CPU only) and the system CA certificates (the
 # USDB client verifies TLS against them). No Node, no build tools.
+# `apt-get upgrade` brings in Debian's security fixes for packages already in
+# the pinned base image: without it a fix only arrives when the base digest is
+# bumped, and the weekly uncached rebuild of this stage would change nothing.
 FROM --platform=linux/amd64 debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 AS runtime
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends ca-certificates ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=tools /out/yt-dlp /out/deno /usr/local/bin/

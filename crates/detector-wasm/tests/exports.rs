@@ -69,3 +69,47 @@ fn a_block_over_the_capacity_is_cut_to_it() {
     assert_eq!(openstar_detector_push(10_000), 1);
     assert_eq!(openstar_detector_end_frame(), 2048.0);
 }
+
+/// The clock exports run the same session as the crate: NaN is "none", and
+/// each id is its own session.
+#[test]
+fn clock_sessions_behind_the_exports() {
+    let phone = openstar_clock_new(0);
+    let local = openstar_clock_new(1);
+    assert_ne!(phone, 0);
+    assert_ne!(phone, local);
+    let half = 1024.0 / 48.0;
+
+    openstar_clock_start_capture(phone, 0.0);
+    openstar_clock_start_capture(local, 0.0);
+    assert_eq!(openstar_clock_poll_ping(phone, 0.0), 0.0);
+    assert_eq!(openstar_clock_next_ping_at(phone), 200.0);
+    assert!(openstar_clock_poll_ping(local, 0.0).is_nan());
+    assert!(openstar_clock_next_ping_at(local).is_nan());
+
+    // Before a pong a Phone's reading is dropped; a Local mic's is not.
+    assert!(openstar_clock_stamp(phone, 4800.0, 48000.0, 101.0).is_nan());
+    assert_eq!(
+        openstar_clock_stamp(local, 4800.0, 48000.0, 101.0),
+        101.0 - half
+    );
+    assert!(openstar_clock_offset(phone).is_nan());
+    assert_eq!(openstar_clock_offset(local), 0.0);
+
+    openstar_clock_receive_pong(phone, 0.0, 4.0, 1002.0, 7.0);
+    assert_eq!(openstar_clock_offset(phone), 1000.0);
+    let stamp = openstar_clock_stamp(phone, 9600.0, 48000.0, 201.0);
+    assert!((stamp - (201.0 - half + 1000.0)).abs() < 1e-9, "{stamp}");
+
+    openstar_clock_restart_sync(phone, 300.0);
+    assert!(openstar_clock_offset(phone).is_nan());
+    openstar_clock_stop_capture(phone);
+    assert!(openstar_clock_next_ping_at(phone).is_nan());
+
+    // A freed id reads as none and is given out again.
+    openstar_clock_free(phone);
+    assert!(openstar_clock_offset(phone).is_nan());
+    assert!(openstar_clock_stamp(phone, 9600.0, 48000.0, 201.0).is_nan());
+    assert_eq!(openstar_clock_new(0), phone);
+    assert!(openstar_clock_offset(0).is_nan());
+}
