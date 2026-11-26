@@ -11,6 +11,7 @@
 
 mod artwork;
 mod conversion;
+pub mod corpus;
 mod identity;
 mod index;
 mod loudness;
