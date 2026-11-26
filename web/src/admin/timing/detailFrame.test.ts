@@ -8,6 +8,7 @@ import type { ParsedSong } from "../../generated/ParsedSong";
 import { song as testSong } from "../../timing/testSong";
 import {
   detailFrame,
+  hitDetail,
   type DetailEntry,
   type DetailInput,
   type PillEntry,
@@ -264,5 +265,91 @@ describe("what the detail view leaves out", () => {
       { x: 200, text: "1:00" },
       { x: 700, text: "1:05" },
     ]);
+  });
+});
+
+describe("the selection, the pin and the ◀▶ handle", () => {
+  // Two Lines: Notes at 0–1 s and 1–2 s, then 3–4 s.
+  function twoLines(): DetailInput {
+    const base = input(null);
+    const note = (start: number, line: number): Note => ({
+      kind: "normal",
+      start,
+      length: 10,
+      pitch: 0,
+      text: "la",
+      line,
+    });
+    const song: ParsedSong = {
+      ...base.song,
+      voices: [
+        {
+          lines: [
+            { notes: [note(0, 10), note(10, 11)], end: { beat: 25, line: 12 } },
+            { notes: [note(30, 13)], end: null },
+          ],
+        },
+      ],
+    };
+    return { ...base, song, grid: song.headers };
+  }
+  const bands = (list: DetailEntry[]) =>
+    list.filter((e) => e.type === "lineBand").map((e) => e.colour);
+
+  it("tints the selected Lines and the pinned Line, and puts the handle at the selection's end", () => {
+    const list = detailFrame({
+      ...twoLines(),
+      selection: { voice: 0, anchor: 0, first: 0, last: 0 },
+      pin: { voice: 0, line: 1 },
+    });
+    expect(bands(list)).toEqual(["--color-blue", "--color-purple"]);
+    const handle = list.find((e) => e.type === "handle");
+    // The selection ends at 2 s: 200 px.
+    expect(handle).toMatchObject({ x: 202, text: "◀▶" });
+    expect(list.filter((e) => e.type === "pin")).toMatchObject([{ x: 300 }]);
+  });
+
+  it("draws neither without a selection or a pin", () => {
+    const list = detailFrame(twoLines());
+    expect(bands(list)).toEqual(["--color-ink", "--color-ink"]);
+    expect(list.some((e) => e.type === "handle" || e.type === "pin")).toBe(
+      false,
+    );
+  });
+});
+
+describe("what the pointer is on", () => {
+  const at = (x: number, y: number, extra: Partial<DetailInput> = {}) =>
+    hitDetail({ ...input(null), ...extra }, x, y);
+  // The Normal note (pitch 0) sits 0–100 px; find its row from the frame.
+  const normal = pills(detailFrame(input(null)))[0];
+  const y = (normal?.y ?? 0) + (normal?.height ?? 0) / 2;
+
+  it("is the ruler above the Notes area", () => {
+    expect(at(50, 5)).toEqual({ kind: "ruler" });
+  });
+
+  it("is a Note on its pill, and its right end in the last 6 px", () => {
+    expect(at(50, y)).toEqual({
+      kind: "note",
+      voice: 0,
+      line: 0,
+      note: 0,
+      edge: false,
+    });
+    expect(at(97, y)).toMatchObject({ kind: "note", note: 0, edge: true });
+  });
+
+  it("is the Line beside a Note, and empty space away from every Line", () => {
+    // Below the Notes, the time alone picks the Line (0–4 s).
+    expect(at(150, 290)).toEqual({ kind: "line", voice: 0, line: 0 });
+    expect(at(480, y)).toEqual({ kind: "empty" });
+  });
+
+  it("is the handle where it is drawn", () => {
+    const selection = { voice: 0, anchor: 0, first: 0, last: 0 };
+    // The Line ends at 4 s: the handle is at 402–418 px, just below the ruler.
+    expect(at(408, 34, { selection })).toEqual({ kind: "handle" });
+    expect(at(408, 34)).toEqual({ kind: "empty" });
   });
 });

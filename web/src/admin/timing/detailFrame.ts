@@ -21,6 +21,8 @@ import type { NoteKind } from "../../generated/NoteKind";
 import type { ParsedSong } from "../../generated/ParsedSong";
 import { t } from "../../i18n/t";
 import type { TokenName } from "../../theme/tokens";
+import type { LineSelection } from "../../timing/selection";
+import type { LineIndex } from "../../timing/songEdits";
 import { noteTimes } from "../../timing/timingModel";
 import { timeAtX, xAtTime, type EditorView } from "./editorView";
 
@@ -38,6 +40,10 @@ export interface DetailInput {
   /** The canvas's size in CSS pixels. */
   width: number;
   height: number;
+  /** The selected Lines, tinted, with the ◀▶ handle at their end. */
+  selection?: LineSelection | null;
+  /** The pinned Line, tinted and marked. */
+  pin?: LineIndex | null;
 }
 
 /** How a Line's share colours its bar: a share (red to green), pending, or none counts. */
@@ -70,9 +76,11 @@ export interface WaveformEntry {
   colour: TokenName;
 }
 
-/** The faint band behind a Line's Notes. */
+/** The faint band behind a Line's Notes (tinted when selected or pinned). */
 export interface LineBandEntry {
   type: "lineBand";
+  voice: number;
+  line: number;
   x: number;
   y: number;
   width: number;
@@ -124,6 +132,28 @@ export interface PillEntry {
   lyric: { text: string; x: number; y: number; italic: boolean };
 }
 
+/** The pinned Line's mark: a pin head at (x, y) on a stem down to `y + stem`. */
+export interface PinEntry {
+  type: "pin";
+  x: number;
+  y: number;
+  radius: number;
+  stem: number;
+  colour: TokenName;
+}
+
+/** The ◀▶ handle at the end of the selection: drag it to stretch. */
+export interface HandleEntry {
+  type: "handle";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  colour: TokenName;
+  ink: TokenName;
+  text: string;
+}
+
 export interface PlayheadEntry {
   type: "playhead";
   x: number;
@@ -140,6 +170,8 @@ export type DetailEntry =
   | LineBarEntry
   | DotsEntry
   | PillEntry
+  | PinEntry
+  | HandleEntry
   | PlayheadEntry;
 
 /** The detail view's layout, in CSS pixels. */
@@ -159,6 +191,16 @@ export const DETAIL = {
   lyricGap: 13,
   dotSize: 3,
   playheadWidth: 3,
+  handleWidth: 16,
+  handleHeight: 18,
+  /** The handle sits this far right of the selection's end and below the ruler. */
+  handleGap: 2,
+  pinRadius: 5,
+  /** A Note's right end is its last this many px (on pills wider than `edgeMinWidth`). */
+  edge: 6,
+  edgeMinWidth: 10,
+  /** A press this close to a pill is on it. */
+  hitSlack: 3,
   /** Off-screen slack, so a pill or Line partly in view is still drawn. */
   slack: 20,
 } as const;
@@ -278,6 +320,8 @@ export function detailFrame(input: DetailInput): DetailEntry[] {
   }
 
   // The Lines: a faint band behind each, and a bar coloured by its share.
+  const { selection, pin } = input;
+  const marks: (PinEntry | HandleEntry)[] = [];
   song.voices.forEach((voice, v) => {
     voice.lines.forEach((line, l) => {
       const first = line.notes[0];
@@ -286,15 +330,43 @@ export function detailFrame(input: DetailInput): DetailEntry[] {
       const a = x(noteTimes(grid, first).start);
       const b = x(noteTimes(grid, last).end);
       if (!visible(a, b)) return;
+      const selected =
+        selection?.voice === v && l >= selection.first && l <= selection.last;
+      const pinned = pin?.voice === v && pin.line === l;
       list.push({
         type: "lineBand",
+        voice: v,
+        line: l,
         x: a - 4,
         y: DETAIL.ruler + 4,
         width: b - a + 8,
         height: bottom - DETAIL.ruler + 8,
-        colour: "--color-ink",
-        alpha: 0.035,
+        ...(selected
+          ? { colour: "--color-blue", alpha: 0.14 }
+          : pinned
+            ? { colour: "--color-purple", alpha: 0.12 }
+            : { colour: "--color-ink", alpha: 0.035 }),
       });
+      if (pinned)
+        marks.push({
+          type: "pin",
+          x: a,
+          y: DETAIL.ruler + 26,
+          radius: DETAIL.pinRadius,
+          stem: 12,
+          colour: "--color-purple",
+        });
+      if (selected && l === selection.last)
+        marks.push({
+          type: "handle",
+          x: b + DETAIL.handleGap,
+          y: DETAIL.ruler + DETAIL.handleGap,
+          width: DETAIL.handleWidth,
+          height: DETAIL.handleHeight,
+          colour: "--color-blue",
+          ink: "--color-white",
+          text: "◀▶",
+        });
       const share = matcher
         ? matcher.share(fitNotes(line.notes, v, l), grid)
         : null;
@@ -391,6 +463,7 @@ export function detailFrame(input: DetailInput): DetailEntry[] {
     });
   });
 
+  list.push(...marks);
   list.push({
     type: "playhead",
     x: x(input.playhead),
@@ -399,6 +472,51 @@ export function detailFrame(input: DetailInput): DetailEntry[] {
     colour: "--color-red",
   });
   return list;
+}
+
+/** What a press on the detail view at (x, y) is on. */
+export type DetailHit =
+  | { kind: "ruler" }
+  | { kind: "handle" }
+  | { kind: "note"; voice: number; line: number; note: number; edge: boolean }
+  | { kind: "line"; voice: number; line: number }
+  | { kind: "empty" };
+
+/**
+ * What the pointer at (x, y) is on, from the same layout as the draw list:
+ * the ruler, the ◀▶ handle, a Note (its right end in the last 6 px), a Line
+ * (by time alone, below the ruler), or empty space. Needs no Pitch track.
+ */
+export function hitDetail(input: DetailInput, x: number, y: number): DetailHit {
+  if (y < DETAIL.ruler) return { kind: "ruler" };
+  // Everything up to x is listed, whatever the canvas measures (0 in tests).
+  const list = detailFrame({
+    ...input,
+    track: null,
+    matcher: null,
+    width: Math.max(input.width, x + 1),
+  });
+  const inside = (
+    e: { x: number; y: number; width: number; height: number },
+    slack: number,
+  ) =>
+    x >= e.x - slack &&
+    x <= e.x + e.width + slack &&
+    y >= e.y - slack &&
+    y <= e.y + e.height + slack;
+  for (const e of list)
+    if (e.type === "handle" && inside(e, 0)) return { kind: "handle" };
+  // The last pill drawn is on top.
+  for (const e of list.toReversed()) {
+    if (e.type !== "pill" || !inside(e, DETAIL.hitSlack)) continue;
+    const edge =
+      e.width > DETAIL.edgeMinWidth && x > e.x + e.width - DETAIL.edge;
+    return { kind: "note", voice: e.voice, line: e.line, note: e.note, edge };
+  }
+  for (const e of list)
+    if (e.type === "lineBand" && x >= e.x && x <= e.x + e.width)
+      return { kind: "line", voice: e.voice, line: e.line };
+  return { kind: "empty" };
 }
 
 /** Octaves a heard pitch may be moved by to reach the Notes' range. */
