@@ -139,9 +139,7 @@ async fn join_mia(
         .send(&ClientMessage::Join {
             phone_id: PhoneId(PHONE.into()),
             join_code: code.clone(),
-            join_as: JoinAs::Profile {
-                profile_id: mia.id,
-            },
+            join_as: JoinAs::Profile { profile_id: mia.id },
         })
         .await;
     let member_id = match recv(&mut phone).await {
