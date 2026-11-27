@@ -1,8 +1,8 @@
 // The Phone's shared sheet (v1 spec #49, "The Remote frame"): it slides up
 // from the bottom over the current tab and closes when tapped outside it (or
 // on Esc). React Aria's modal gives the focus trap, scroll lock and focus
-// return, like `Dialog`; the slide is a CSS transition with the spring
-// easing, driven by `data-entering` and `data-exiting`.
+// return, like `Dialog`; the slide is a CSS transition by the motion tokens
+// (#260), driven by `data-entering` and `data-exiting`.
 
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -12,7 +12,8 @@ import {
 } from "react-aria-components";
 
 /**
- * How long the sheet takes to slide in (`duration-450` below). A close
+ * How long the sheet takes to slide in (`--motion-spring`, a fade of 120 ms
+ * with reduced motion, so this is the longest it takes). A close
  * asked for meanwhile waits for it: reversing the slide mid-way cancels the
  * transition React Aria waits for, which would leave the sheet's invisible
  * veil over the whole screen.
@@ -51,9 +52,9 @@ export function Sheet({ label, isOpen, onOpenChange, children }: SheetProps) {
       isOpen={isOpen || entering}
       onOpenChange={onOpenChange}
       isDismissable
-      className="fixed inset-0 z-40 flex items-end bg-veil transition-opacity duration-250 data-entering:opacity-0 data-exiting:opacity-0"
+      className="fixed inset-0 z-40 flex items-end bg-veil transition-opacity duration-(--motion-exit) data-entering:opacity-0 data-exiting:opacity-0"
     >
-      <Modal className="flex max-h-[88dvh] w-full flex-col rounded-t-card bg-cream text-ink shadow-[0_-6px_0_var(--color-ledge)] transition-transform duration-450 ease-spring data-entering:translate-y-full data-exiting:translate-y-full">
+      <Modal className="flex max-h-[88dvh] w-full flex-col rounded-t-card bg-cream text-ink shadow-[0_-6px_0_var(--color-ledge)] transition-transform duration-(--motion-spring) ease-spring data-entering:translate-y-(--motion-sheet-rise) data-exiting:translate-y-(--motion-sheet-rise)">
         <AriaDialog
           aria-label={label}
           className="flex min-h-0 flex-col font-sans outline-none"
