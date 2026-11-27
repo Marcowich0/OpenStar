@@ -16,6 +16,7 @@ mod local_mics;
 mod mic_bridges;
 pub mod mic_settings;
 mod pin_wait;
+mod profile_stats;
 mod profiles;
 pub mod scores;
 pub mod stage_options;
