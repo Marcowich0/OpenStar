@@ -38,6 +38,7 @@ import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
 import { StagePickList, StagePickListEntry } from "../frame/StagePickList";
 import { useStageFrame } from "../frame/stageFrameContext";
+import { ByInput } from "../input/KeyHint";
 
 const selectParty = (live: LiveState) => live.stage?.party ?? null;
 
@@ -287,7 +288,10 @@ function RequestPickList({
           })}
         </div>
         <p className="px-2 text-xl text-ink-2">
-          {t("stage.queue.singersHint", { seats: SEATS })}
+          <ByInput
+            keys={t("stage.queue.singersHint", { seats: SEATS })}
+            pad={t("stage.queue.singersHint.pad", { seats: SEATS })}
+          />
         </p>
         {problemText}
       </StagePickList>
