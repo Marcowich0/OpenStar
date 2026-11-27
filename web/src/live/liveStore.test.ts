@@ -176,6 +176,7 @@ describe("live store", () => {
         positionSeconds: 12,
         rate: 1,
         lengthSeconds: 90,
+        introEndSeconds: null,
         ageMs: 1_000,
       },
     });
@@ -185,6 +186,7 @@ describe("live store", () => {
       positionSeconds: 12,
       rate: 1,
       lengthSeconds: 90,
+      introEndSeconds: null,
       atMs: 4_000,
     });
   });

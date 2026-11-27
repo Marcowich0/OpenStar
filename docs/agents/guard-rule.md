@@ -60,7 +60,7 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - checking a Join code and joining the Party (Join code plus identity), and a Phone's silent rejoin with its Phone id;
 - removing a Party member (press and hold) and Leave party;
 - New party (press and hold only);
-- every Queue, Line-up and playback action, including Restart, Skip and End (press and hold);
+- every Queue, Line-up and playback action, including Restart, Skip and End (press and hold) and Skip intro (a plain tap);
 - Calibrate mics and "Calibrate this mic now";
 - Check A/V sync, and reading and setting a browser's own A/V offset at its output (`GET /api/av-offset`, `PUT /api/av-offset`);
 - setting the OpenStar volume, from the Stage or a Remote;

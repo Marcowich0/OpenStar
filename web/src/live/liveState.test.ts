@@ -298,7 +298,14 @@ describe("Song progress on a Remote", () => {
     ageMs = 0,
   ): LiveStateMessage => ({
     type: "songProgress",
-    progress: { requestId, positionSeconds, rate, lengthSeconds: 200, ageMs },
+    progress: {
+      requestId,
+      positionSeconds,
+      rate,
+      lengthSeconds: 200,
+      introEndSeconds: null,
+      ageMs,
+    },
   });
   const changed = (next: PartySnapshot): LiveStateMessage => ({
     type: "partyChanged",
@@ -327,6 +334,7 @@ describe("Song progress on a Remote", () => {
       positionSeconds: 5,
       rate: 0,
       lengthSeconds: 200,
+      introEndSeconds: null,
       atMs: 6_050,
     });
     state = receive(state, progress(1, 5, 1), 9_100);

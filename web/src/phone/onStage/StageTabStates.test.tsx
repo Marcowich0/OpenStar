@@ -139,6 +139,7 @@ describe("the Stage tab while a Song plays", () => {
         positionSeconds: 65,
         rate: 0,
         lengthSeconds: 200,
+        introEndSeconds: null,
         ageMs: 4000,
       },
     });
@@ -165,6 +166,7 @@ describe("the Stage tab while a Song plays", () => {
         positionSeconds: 117.8,
         rate: 1,
         lengthSeconds: 200,
+        introEndSeconds: null,
         ageMs: 2000,
       },
     });
@@ -173,6 +175,48 @@ describe("the Stage tab while a Song plays", () => {
       vi.advanceTimersByTime(1000);
     });
     expect(screen.getByText("2:00")).toBeInTheDocument();
+  });
+
+  it("offers Skip intro while the Intro plays, as a plain tap, until shortly before it ends", async () => {
+    vi.useFakeTimers({
+      toFake: ["setInterval", "clearInterval", "performance"],
+    });
+    const { sent, server } = renderTab(playing());
+    await screen.findByTestId("playing-card");
+    const progress = (rate: number, introEndSeconds: number | null) => {
+      server({
+        type: "songProgress",
+        progress: {
+          requestId: 1,
+          positionSeconds: 4,
+          rate,
+          lengthSeconds: 200,
+          introEndSeconds,
+          ageMs: 0,
+        },
+      });
+    };
+    progress(1, null);
+    expect(screen.queryByRole("button", { name: "Skip intro" })).toBeNull();
+
+    // Skip intro lands at 0:27, three seconds before the first Note.
+    progress(1, 27);
+    expect(screen.getByText("Singing in 0:26")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Skip intro" }));
+    expect(sent.at(-1)).toEqual({
+      type: "controlSong",
+      requestId: 1,
+      control: "skipIntro",
+    });
+
+    // Paused: nothing to skip until it runs again.
+    progress(0, 27);
+    expect(screen.queryByRole("button", { name: "Skip intro" })).toBeNull();
+    progress(1, 27);
+    act(() => {
+      vi.advanceTimersByTime(22_000);
+    });
+    expect(screen.queryByRole("button", { name: "Skip intro" })).toBeNull();
   });
 });
 

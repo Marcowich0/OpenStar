@@ -338,6 +338,15 @@ export function toastContent(
         (song) => tParts("partyEvent.songRestarted", { song }),
         (song) => tParts("toast.youSongRestarted", { song }),
       );
+    case "introSkipped":
+      return queueChange(
+        actor,
+        mine,
+        event.params,
+        (name, song) => tParts("toast.introSkipped", { actor: name, song }),
+        (song) => tParts("partyEvent.introSkipped", { song }),
+        (song) => tParts("toast.youIntroSkipped", { song }),
+      );
     case "songEnded":
       return queueChange(
         actor,

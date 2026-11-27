@@ -4,8 +4,8 @@ import type { RequestId } from "./RequestId";
 /**
  * Where the head's Song stood when the Stage last reported it, as every
  * Remote is told ([`crate::ServerMessage::SongProgress`]). The Stage
- * reports only on events (start, pause, resume, Restart and end), never
- * continuously; a Remote extrapolates progress from the latest report.
+ * reports only on events (start, pause, resume, Restart, Skip intro and
+ * end), never continuously; a Remote extrapolates progress from the latest report.
  * Phones' mics are never told Song time.
  */
 export type SongProgress = { 
@@ -27,6 +27,13 @@ rate: number,
  * `null` when the Stage does not know it.
  */
 lengthSeconds: number | null, 
+/**
+ * Where Skip intro lands: a few seconds before the first Note the
+ * Line-up sings, seconds. `null` when the Song has no Intro worth
+ * skipping (or the Stage skipped it at Start). Skip intro is offered
+ * while the position is before it.
+ */
+introEndSeconds: number | null, 
 /**
  * How long ago the server received the report, ms: 0 when it is passed
  * on at once, more for a Remote that connects mid-Song.

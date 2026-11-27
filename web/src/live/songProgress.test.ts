@@ -12,6 +12,7 @@ function report(overrides: Partial<SongProgress> = {}): SongProgress {
     positionSeconds: 30,
     rate: 1,
     lengthSeconds: 180,
+    introEndSeconds: null,
     ageMs: 0,
     ...overrides,
   };

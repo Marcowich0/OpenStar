@@ -68,6 +68,23 @@ fn report(request_id: RequestId, position_seconds: f64, rate: f64) -> ClientMess
         position_seconds,
         rate,
         length_seconds: Some(180.0),
+        intro_end_seconds: None,
+    }
+}
+
+/// A report of a Song whose Skip intro lands at `intro_end_seconds`.
+fn intro_report(
+    request_id: RequestId,
+    position_seconds: f64,
+    rate: f64,
+    intro_end_seconds: f64,
+) -> ClientMessage {
+    ClientMessage::ReportSongPosition {
+        request_id,
+        position_seconds,
+        rate,
+        length_seconds: Some(180.0),
+        intro_end_seconds: Some(intro_end_seconds),
     }
 }
 
@@ -77,6 +94,7 @@ fn expected(request_id: RequestId, position_seconds: f64, rate: f64, age_ms: u32
         position_seconds,
         rate,
         length_seconds: Some(180.0),
+        intro_end_seconds: None,
         age_ms,
     }
 }
@@ -274,9 +292,82 @@ async fn only_the_active_stage_reports_and_only_for_the_playing_song() {
             position_seconds: 1.0,
             rate: 1.0,
             length_seconds: Some(-5.0),
+            intro_end_seconds: None,
         },
+        intro_report(request, 1.0, 1.0, -2.0),
     ] {
         assert_eq!(refused(&mut stage, bad).await, UserMessage::InvalidMessage);
     }
     hears_nothing(&mut phone).await;
+}
+
+#[tokio::test]
+async fn skip_intro_is_passed_on_only_while_the_latest_report_has_the_song_in_its_intro() {
+    let Playing {
+        app: _app,
+        clock,
+        mut stage,
+        mut phone,
+        request,
+    } = playing().await;
+    let skip = ClientMessage::ControlSong {
+        request_id: request,
+        control: SongControl::SkipIntro,
+    };
+    async fn reported(stage: &mut WsClient, phone: &mut WsClient, message: ClientMessage) {
+        stage.send(&message).await;
+        progress(phone).await;
+        progress(stage).await;
+    }
+
+    // No report yet, and a Song without an Intro: nothing to skip.
+    assert_eq!(
+        refused(&mut phone, skip.clone()).await,
+        UserMessage::NoIntroToSkip
+    );
+    reported(&mut stage, &mut phone, report(request, 0.0, 1.0)).await;
+    assert_eq!(
+        refused(&mut phone, skip.clone()).await,
+        UserMessage::NoIntroToSkip
+    );
+
+    // Playing its Intro, which Skip intro jumps to 27 s: everyone hears it,
+    // then the Stage is told to act.
+    reported(
+        &mut stage,
+        &mut phone,
+        intro_report(request, 0.0, 1.0, 27.0),
+    )
+    .await;
+    clock.advance(Duration::from_secs(20));
+    phone.send(&skip).await;
+    party_changed(&mut phone).await;
+    party_changed(&mut stage).await;
+    assert!(matches!(
+        recv(&mut stage).await,
+        ServerMessage::ControlSong {
+            control: SongControl::SkipIntro,
+            ..
+        }
+    ));
+
+    // By the report's own reckoning the Intro is over 7 s later.
+    clock.advance(Duration::from_secs(7));
+    assert_eq!(
+        refused(&mut phone, skip.clone()).await,
+        UserMessage::NoIntroToSkip
+    );
+
+    // Not while it is paused.
+    reported(
+        &mut stage,
+        &mut phone,
+        intro_report(request, 5.0, 0.0, 27.0),
+    )
+    .await;
+    assert_eq!(
+        refused(&mut phone, skip.clone()).await,
+        UserMessage::NoIntroToSkip
+    );
+    hears_nothing(&mut stage).await;
 }

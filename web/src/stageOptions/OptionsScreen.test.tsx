@@ -67,7 +67,10 @@ describe("Setup › Options", () => {
     for (const [group, ids] of [
       ["options-players", ["startingDifficulty"]],
       ["options-singScreen", ["lineRatings", "effects", "songVideo"]],
-      ["options-playback", ["resumeCountdownSeconds", "previewVolumePercent"]],
+      [
+        "options-playback",
+        ["resumeCountdownSeconds", "skipIntros", "previewVolumePercent"],
+      ],
     ] as const) {
       const box = screen.getByTestId(group);
       for (const id of ids) {

@@ -35,6 +35,7 @@ describe("the Stage options", () => {
         effects: bool("EFFECTS_DEFAULT"),
         songVideo: bool("SONG_VIDEO_DEFAULT"),
         previewVolumePercent: number("PREVIEW_VOLUME_DEFAULT_PERCENT"),
+        skipIntros: bool("SKIP_INTROS_DEFAULT"),
       },
       resumeCountdownMaxSeconds: number("RESUME_COUNTDOWN_MAX_SECONDS"),
       previewVolumeStepPercent: number("PREVIEW_VOLUME_STEP_PERCENT"),

@@ -34,6 +34,7 @@ fn changed_options() -> StageOptions {
         effects: false,
         song_video: false,
         preview_volume_percent: 40,
+        skip_intros: true,
     }
 }
 

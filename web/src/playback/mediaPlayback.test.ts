@@ -572,6 +572,22 @@ describe("position reports", () => {
     expect(s.reports).toEqual(["2.00@1", "2.00@1"]);
   });
 
+  it("reports a seek (Skip intro) once it lands while playing, and not one made paused", async () => {
+    const s = await reporting(plan());
+    s.media.fire("playing");
+    s.advance(2000);
+    s.playback.seek(27);
+    s.media.fire("playing");
+    expect(s.reports).toEqual(["0.00@1"]);
+    s.media.fire("seeked");
+    expect(s.reports).toEqual(["0.00@1", "27.00@1"]);
+
+    s.playback.pause();
+    s.playback.seek(40);
+    s.media.fire("seeked");
+    expect(s.reports).toEqual(["0.00@1", "27.00@1", "27.00@0"]);
+  });
+
   it("reports the end at rate 0, for End and for a Song that played out", async () => {
     const ended = await reporting(plan());
     ended.media.fire("playing");

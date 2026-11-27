@@ -7,6 +7,7 @@ export const ICON_NAMES = [
   "check",
   "chevron",
   "close",
+  "fast-forward",
   "list",
   "lock",
   "mic-off",

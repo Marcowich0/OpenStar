@@ -58,6 +58,7 @@ function setup() {
       pause: () => {},
       resume: () => Promise.resolve(),
       restart: () => Promise.resolve(),
+      seek: () => {},
       end: () => {
         onEnded("ended");
       },

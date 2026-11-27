@@ -2,7 +2,7 @@
  * How far the playing Song has got, as a Remote shows it (#159).
  *
  * The Stage reports its position and rate only on events (start, pause,
- * resume, Restart, end); the server passes the latest report on with its
+ * resume, Restart, Skip intro, end); the server passes the latest report on with its
  * age. Between reports a Remote extrapolates: the position advances at the
  * reported rate (1 playing, 0 paused or ended) and stops at the Song's
  * length. Nothing here reaches a Phone's mic, which is never told Song time.
@@ -17,6 +17,8 @@ export interface ProgressAnchor {
   positionSeconds: number;
   rate: number;
   lengthSeconds: number | null;
+  /** Where Skip intro lands (`null`: no Intro to skip). */
+  introEndSeconds: number | null;
   /** This browser's time (ms) at which the reported position held. */
   atMs: number;
 }
@@ -40,6 +42,7 @@ export function anchorProgress(
     positionSeconds: progress.positionSeconds,
     rate: progress.rate,
     lengthSeconds: progress.lengthSeconds,
+    introEndSeconds: progress.introEndSeconds,
     atMs: receivedAtMs - progress.ageMs,
   };
 }
