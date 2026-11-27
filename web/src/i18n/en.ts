@@ -614,6 +614,8 @@ export const en = {
   "stage.joinCard.goTo": "Go to {address}",
   "stage.joinCard.hide": "Hide",
   "stage.joinCard.chip": "Join · {code}",
+  // The chip when Phones can't reach a working join address (#250).
+  "stage.joinCard.chipCantSing": "Join · {code} · Phones can't sing yet",
   "stage.joinCard.cantSing": "Phones can't sing yet",
   "stage.joinCard.notHttps":
     "This Stage was opened over plain http://. Set up HTTPS (see the Caddy example), then reload.",

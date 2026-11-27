@@ -34,6 +34,7 @@ import { request } from "../../../phone/joinRequests";
 import { memberLook } from "../../../phone/memberLook";
 import { Button } from "../../../ui/Button";
 import { useStageFrame, useStageKeys } from "../../frame/stageFrameContext";
+import { StageJoinChip } from "../../joinCard/StageJoinCard";
 import {
   localMicOptions,
   micChoices,
@@ -448,6 +449,8 @@ function LineUpBody({
           </Button>
         </div>
       </div>
+
+      <StageJoinChip />
     </section>
   );
 }
