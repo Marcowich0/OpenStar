@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "../api/queryClient";
 import { ADMIN_PIN, fakeServer } from "../guarded/fakeServer";
 import { HEARTBEAT_MS } from "../guarded/useUnlockHeartbeat";
+import { answerAsStageTab } from "../stageTab";
 import { AdminArea } from "./AdminArea";
 import { AdminHome } from "./AdminHome";
 import { Downloads } from "./Downloads";
@@ -134,6 +135,28 @@ describe("the Admin area", () => {
       "href",
       "/",
     );
+  });
+
+  it("says the Stage is open in another tab, and stays, when this browser's Stage tab answers", async () => {
+    fakeServer();
+    const stopAnswering = answerAsStageTab(() => true);
+    try {
+      const router = await renderAdmin("/admin/songs");
+      const ways = screen.getByRole("navigation", {
+        name: "Leave the Admin area",
+      });
+      act(() => {
+        fireEvent.click(within(ways).getByRole("link", { name: "Stage" }));
+      });
+      expect(
+        await screen.findByText(
+          "The Stage is already open in another tab of this browser. Switch to that tab.",
+        ),
+      ).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe("/admin/songs");
+    } finally {
+      stopAnswering();
+    }
   });
 
   it.each([

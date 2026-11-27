@@ -145,3 +145,37 @@ test("a guarded action asks for the PIN once, completes, and Lock ends the Unloc
   await expect(pad).toHaveCount(0);
   await page.context().close();
 });
+
+test("on the Stage computer, the header's Stage link leaves the Stage in its tab", async ({
+  stage,
+}) => {
+  await stage.goto("/stage");
+  const frame = stage.locator("[data-stage-frame]");
+  await expect(frame).toHaveAttribute(
+    "data-scene",
+    /^(songBrowser|lineUp|sing|results)$/,
+  );
+  // A second tab of the same, remembered Stage browser: the Admin area.
+  const admin = await stage.context().newPage();
+  await admin.goto("/admin");
+  const toStage = admin
+    .getByRole("navigation", { name: "Leave the Admin area" })
+    .getByRole("link", { name: "Stage" });
+  await toStage.click();
+  await expect(
+    admin.getByText(
+      "The Stage is already open in another tab of this browser. Switch to that tab.",
+    ),
+  ).toBeVisible();
+  await expect(admin).toHaveURL(/\/admin$/);
+  await expect(frame).not.toHaveAttribute("data-scene", "stageMoved");
+
+  // With the Stage's tab closed, the same link opens the Stage.
+  await stage.close();
+  await toStage.click();
+  await expect(admin).toHaveURL(/\/stage$/);
+  await expect(admin.locator("[data-stage-frame]")).toHaveAttribute(
+    "data-scene",
+    /.+/,
+  );
+});

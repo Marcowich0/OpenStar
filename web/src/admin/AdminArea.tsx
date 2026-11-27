@@ -9,12 +9,22 @@
 // Downloads overlay (Marc asked for it, 2026-11-27; `noStageEntry.test.ts`).
 //
 // The other way does link: the header's Stage (`/stage`) and Phone (`/`)
-// take the owner from the Admin area back to the game (spec #241).
+// take the owner from the Admin area back to the game (spec #241). On the
+// Stage computer the Stage is already open in another tab, and `/stage`
+// in a remembered Stage browser takes the Stage at once, mid-Song too; so
+// Stage first asks that tab (`stageTab.ts`) and, if it answers, says so.
 
-import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  useMatchRoute,
+  useNavigate,
+} from "@tanstack/react-router";
+import { useState } from "react";
 
 import { useUnlockHeartbeat } from "../guarded/useUnlockHeartbeat";
 import { t } from "../i18n/t";
+import { stageTabOpen } from "../stageTab";
 import { Icon } from "../ui/Icon";
 import { LockButton } from "./LockButton";
 
@@ -35,6 +45,8 @@ export function AdminArea() {
   useUnlockHeartbeat();
   // The Timing editor is a desktop view: it takes the window's full width.
   const wide = useMatchRoute()({ to: "/admin/songs/$song/timing" }) !== false;
+  const navigate = useNavigate();
+  const [stageElsewhere, setStageElsewhere] = useState(false);
   return (
     <main
       className={`mx-auto flex w-full flex-col gap-6 px-4 py-6 ${wide ? "max-w-[1800px]" : "max-w-3xl"}`}
@@ -54,6 +66,17 @@ export function AdminArea() {
                 <li key={to}>
                   <Link
                     to={to}
+                    {...(to === "/stage"
+                      ? {
+                          onClick: (event: React.MouseEvent) => {
+                            event.preventDefault();
+                            void stageTabOpen().then((open) => {
+                              setStageElsewhere(open);
+                              if (!open) void navigate({ to: "/stage" });
+                            });
+                          },
+                        }
+                      : {})}
                     className="inline-flex min-h-12 items-center rounded-full bg-white px-5 text-xl font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
                   >
                     {t(label)}
@@ -64,6 +87,11 @@ export function AdminArea() {
           </nav>
           <LockButton />
         </div>
+        {stageElsewhere ? (
+          <p role="status" className="w-full text-lg font-semibold text-ink-2">
+            {t("admin.stageOpenElsewhere")}
+          </p>
+        ) : null}
       </header>
       <nav aria-label={t("admin.sections")}>
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">

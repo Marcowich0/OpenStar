@@ -779,6 +779,8 @@ export const en = {
   "admin.lock": "Lock",
   "admin.waysOut": "Leave the Admin area",
   "admin.toStage": "Stage",
+  "admin.stageOpenElsewhere":
+    "The Stage is already open in another tab of this browser. Switch to that tab.",
   "admin.toPhone": "Phone",
   "admin.downloads.search": "Search USDB by artist or title",
   "admin.downloads.sort": "Sort by",

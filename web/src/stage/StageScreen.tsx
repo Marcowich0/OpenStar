@@ -1,6 +1,8 @@
 import { useSearch } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import { stageTrust } from "../live/browserLive";
+import type { LiveStore } from "../live/liveStore";
 import { liveStore } from "../live/useLive";
 import { LocalMicsProvider } from "../mics/LocalMics";
 import { StageMicSettingsLoader } from "../mics/StageMicSettings";
@@ -13,6 +15,7 @@ import { StageOutputProvider } from "./output/StageOutput";
 import { StagePerfProvider } from "./perf/stagePerf";
 import { useStageSong } from "./scenes/sing/useStageSong";
 import { StageSoundsProvider } from "./sound/StageSounds";
+import { answerAsStageTab } from "../stageTab";
 import { StageTrustGate } from "./trust/StageTrustGate";
 
 /**
@@ -41,6 +44,7 @@ export function StageScreen() {
             }}
           />
           <StageMicReports store={store} />
+          <AnswerAsStageTab store={store} />
           <StageOptionsLoader />
           <StageMotion />
           <LocalMicsProvider store={store}>
@@ -52,4 +56,21 @@ export function StageScreen() {
       </StageTrustGate>
     </StagePerfProvider>
   );
+}
+
+/**
+ * Tells this browser's other tabs that this one is the Stage (`stageTab.ts`),
+ * so the Admin area's Stage link does not take the Stage from it. Past the
+ * PIN gate only, and silent once another browser has taken the Stage.
+ */
+function AnswerAsStageTab({ store }: { store: LiveStore }) {
+  useEffect(
+    () =>
+      answerAsStageTab(() => {
+        const stage = store.getSnapshot().stage;
+        return stage !== null && !stage.stageMoved;
+      }),
+    [store],
+  );
+  return null;
 }
