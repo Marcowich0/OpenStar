@@ -37,6 +37,11 @@ import {
   type SingState,
 } from "../../sing/frame";
 import { laneLayout } from "../../sing/laneLayout";
+import {
+  pauseHintInput,
+  stageFirstSongMemory,
+  type FirstSongMemory,
+} from "./pauseHint";
 
 /** One seated Player of the Song, in seat order. */
 export interface SingPlayer {
@@ -85,6 +90,11 @@ export interface SingSetupInput {
    * while it is not calibrated. By default what the Stage holds now.
    */
   reportedInputDelayFor?: (localMicId: string) => number | null;
+  /**
+   * Whether this Request is the Party's first Song, which shows the pause
+   * hint (#264). By default the Stage browser's memory of it.
+   */
+  isFirstSong?: FirstSongMemory["isFirstSong"];
 }
 
 export interface SingSetup {
@@ -167,6 +177,12 @@ export function singSetup(input: SingSetupInput): SingSetup {
 
   const voices = singVoices(song);
   const layout = laneLayout(players.length);
+  const isFirstSong = input.isFirstSong ?? stageFirstSongMemory().isFirstSong;
+  const requestId = party.playing?.requestId ?? party.head;
+  const pauseHint =
+    requestId !== null && isFirstSong(party.partyId, requestId)
+      ? pauseHintInput()
+      : null;
 
   return {
     players,
@@ -176,6 +192,13 @@ export function singSetup(input: SingSetupInput): SingSetup {
       grid: song.headers,
       voices,
       lengthSeconds: detail.lengthSeconds,
+      song: {
+        title: song.headers.title,
+        artist: song.headers.artist,
+        cover: detail.media.cover,
+        tileColour: detail.media.tileColour,
+      },
+      pauseHint,
       ...(display.effects
         ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
         : {}),

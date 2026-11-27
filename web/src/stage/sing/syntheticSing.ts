@@ -11,6 +11,8 @@
 // seeded burst, aged a fixed time, so the screenshots stay exact (the page
 // freezes the effects' frame time). The first lane's Line rating (Perfect!)
 // and the second's (Great!) are caught settled, before they fade (#216).
+// The title card (#264) shows a made-up title and artist on the tile colour,
+// with the pause hint under it, until 4 s.
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
@@ -191,5 +193,13 @@ export function syntheticSing(name: SingTestCase): SingState {
     })),
     effects: burst(lanes.length, PALETTE_KEYS[0]),
     ratings: ratings(),
+    // No cover, so the page needs no network: the tile colour shows.
+    song: {
+      title: "Placeholder Song",
+      artist: "Nobody in Particular",
+      cover: null,
+      tileColour: "navy",
+    },
+    pauseHint: "keyboard",
   };
 }
