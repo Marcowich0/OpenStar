@@ -42,9 +42,9 @@ test("the Stage changes an option, keeps it across a reload and resets it", asyn
   const open = () => openOptions(stage);
 
   let options = await open();
-  // Players, Sing screen, Sound; Look has no option yet.
   await expect(options.getByRole("heading", { level: 3 })).toHaveText([
     "Players",
+    "Look",
     "Sing screen",
     "Sound",
   ]);
