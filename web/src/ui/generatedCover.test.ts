@@ -21,7 +21,12 @@ describe("generatedCover", () => {
     // `fixtures/library/` holds five `.txt` files; a first scan gives them the
     // Song ids 1 to 5 (one row each in `library_files`), one of them the
     // rejected file. Whichever it is, the four playable Songs differ.
-    const titles = ["Separate Video", "Sine Melody", "Steady Tone", "Two Voices"];
+    const titles = [
+      "Separate Video",
+      "Sine Melody",
+      "Steady Tone",
+      "Two Voices",
+    ];
     for (let rejected = 1; rejected <= 5; rejected += 1) {
       const ids = [1, 2, 3, 4, 5].filter((id) => id !== rejected);
       const patterns = new Set(
@@ -133,17 +138,27 @@ describe("generatedCoverSvg", () => {
       resolve: (ref) => (ref === "--font-sans" ? '"Fredoka", sans-serif' : "c"),
     });
     expect(svg).toContain("&quot;Fredoka&quot;, sans-serif");
-    expect(new DOMParser().parseFromString(svg, "image/svg+xml").querySelector("parsererror")).toBeNull();
+    expect(
+      new DOMParser()
+        .parseFromString(svg, "image/svg+xml")
+        .querySelector("parsererror"),
+    ).toBeNull();
   });
 });
 
 describe("generatedCoverDataUrl", () => {
   it("is the cover's SVG as an image URL, for the sing screen's canvas", () => {
     const song = { id: 4, title: "Sunny Day", tileColour: "berry" } as const;
-    const url = generatedCoverDataUrl(song, { resolve: () => "red", letter: false });
+    const url = generatedCoverDataUrl(song, {
+      resolve: () => "red",
+      letter: false,
+    });
     expect(url.startsWith("data:image/svg+xml;charset=utf-8,")).toBe(true);
     expect(decodeURIComponent(url.slice(url.indexOf(",") + 1))).toBe(
-      generatedCoverSvg(generatedCover(song), { resolve: () => "red", letter: false }),
+      generatedCoverSvg(generatedCover(song), {
+        resolve: () => "red",
+        letter: false,
+      }),
     );
   });
 });

@@ -125,12 +125,7 @@ export function SongsTab({ store }: { store: LiveStore }) {
 function SongRow({ song, onOpen }: { song: SongSummary; onOpen: () => void }) {
   return (
     <li className="flex items-center gap-3">
-      <Cover
-        src={song.cover}
-        song={song}
-        rim={3}
-        className="w-14"
-      />
+      <Cover src={song.cover} song={song} rim={3} className="w-14" />
       <button
         type="button"
         onClick={onOpen}
