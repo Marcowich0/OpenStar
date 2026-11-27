@@ -1,0 +1,84 @@
+{
+  "description": "A Line worth 2 points or less gets no margin: half sung, its perfection is linePoints / lineMax; nothing sung, it gives no bonus; a Freestyle-only Line is no scored Line",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "startSeconds": null,
+  "voices": [
+    {
+      "lines": [
+        {
+          "notes": [{ "kind": "normal", "start": 0, "length": 2, "pitch": 0 }]
+        },
+        {
+          "notes": [
+            { "kind": "normal", "start": 4, "length": 8998, "pitch": 0 }
+          ]
+        },
+        {
+          "notes": [
+            { "kind": "freestyle", "start": 9010, "length": 2, "pitch": 0 }
+          ]
+        }
+      ]
+    }
+  ],
+  "comment": "voiceValue = 2 + 8998 = 9000, so a hit Beat earns 1 point. Line 0: lineMax = 9000 × 2 / 9000 = 2, no margin. Line 1: lineMax = 8998, perfect at 8996. Line 2 has only a Freestyle note: no Line result, and scoredLineCount = 2, so each scored Line is worth 500.",
+  "players": [
+    {
+      "voice": 0,
+      "difficulty": "easy",
+      "firstBeat": 0,
+      "beatValues": [60, null, null, null, { "repeat": 60, "times": 8998 }],
+      "comment": "Line 0: 1 of its 2 Beats, linePoints 1, perfection 1 / 2 = 0.5 (with the margin it would be 1 / 0, clamped to 1), rating roundHalfUp(4) = 4, bonus 500 × 0.5 = 250. Line 1: all, perfection clamp(8998 / 8996) = 1, bonus 500. Notes 1 + 8998 = 8999, total 8999 + 750 = 9749.",
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 9011,
+        "voiceValue": 9000,
+        "notes": 8999,
+        "golden": 0,
+        "lineBonus": 750,
+        "lines": [
+          {
+            "lineIndex": 0,
+            "rating": 4,
+            "word": "sing.lineRating.good",
+            "bonus": 250
+          },
+          {
+            "lineIndex": 1,
+            "rating": 8,
+            "word": "sing.lineRating.perfect",
+            "bonus": 500
+          }
+        ],
+        "score": { "total": 9749, "notes": 8999, "golden": 0, "lineBonus": 750 }
+      }
+    },
+    {
+      "voice": 0,
+      "difficulty": "easy",
+      "firstBeat": 0,
+      "beatValues": [null, null, null, null, { "repeat": 60, "times": 8998 }],
+      "comment": "Line 0 silent: linePoints 0, perfection 0, rating 0, no word, no bonus (USDX would give it its full share). Total 8998 + 500 = 9498.",
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 9011,
+        "voiceValue": 9000,
+        "notes": 8998,
+        "golden": 0,
+        "lineBonus": 500,
+        "lines": [
+          { "lineIndex": 0, "rating": 0, "word": null, "bonus": 0 },
+          {
+            "lineIndex": 1,
+            "rating": 8,
+            "word": "sing.lineRating.perfect",
+            "bonus": 500
+          }
+        ],
+        "score": { "total": 9498, "notes": 8998, "golden": 0, "lineBonus": 500 }
+      }
+    }
+  ]
+}

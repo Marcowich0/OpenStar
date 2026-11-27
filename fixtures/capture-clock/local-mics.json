@@ -1,0 +1,17 @@
+{
+  "description": "The Stage browser's own Local mics: a fixed offset of 0 and no pings, so readings are stamped on the device clock (the Stage page's performance.now()) at once. Worked by hand at 48 kHz, where half a window is 1024 / 48 = 21.333333 ms.",
+  "session": "local",
+  "steps": [
+    ["start", 1000, 48000],
+    ["ping", 1000, null],
+    ["nextPing", null],
+    ["offset", 0],
+    ["reading", 2048, 1050, 1028.666667],
+    ["reading", 2560, 1055, 1033.666667],
+    ["reading", 3072, 1070, 1044.333333],
+    ["pong", 0, 5, 100, 1],
+    ["offset", 0],
+    ["ping", 1200, null],
+    ["nextPing", null]
+  ]
+}

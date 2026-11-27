@@ -1,0 +1,13 @@
+#TITLE:Placeholder Title
+#ARTIST:Placeholder Artist
+#MP3:audio.mp3
+#BPM:300
+- 0
+: 0 4 0 La
+:  4  4  2 la
+- 10 14
+- 11
+* 12 4 4 Lo
+- 18
+- 20
+E

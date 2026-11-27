@@ -1,0 +1,88 @@
+# EXAMPLE: OpenStar behind Caddy, with HTTPS that Phones trust.
+#
+# This is an example to adapt, not the only way. It assumes:
+#   - you own a domain whose DNS is at Cloudflare; Caddy proves you own it
+#     through the DNS-01 challenge, so nothing has to be reachable from the
+#     internet. Another DNS provider needs its own caddy-dns module in the
+#     build below, and its own settings on the `dns` line of the Caddyfile;
+#   - your local DNS (router, Pi-hole, ...) points openstar.example.com at this
+#     server's local address, so Phones reach it inside your network.
+#
+# OpenStar is for a trusted local network only. Never forward ports 80 or 443 to
+# this server from the internet, and never give the name a public DNS record that
+# points here. docs/deployment.md explains every step.
+#
+# Before the first start:
+#   1. replace openstar.example.com below (two places) with your own name;
+#   2. put your Admin PIN (4 to 8 digits) in ./secrets/openstar_admin_pin;
+#   3. put a Cloudflare API token with Zone.Zone:Read and Zone.DNS:Edit for
+#      that domain in ./secrets/cloudflare_api_token;
+#   4. docker compose -f compose.caddy.yaml up -d --build
+services:
+  openstar:
+    image: ghcr.io/marcowich0/openstar:latest
+    restart: unless-stopped
+    # On Unraid: run as nobody:users (the image's default is 1000:1000).
+    # user: "99:100"
+    # No ports: only Caddy reaches OpenStar, over the compose network.
+    environment:
+      OPENSTAR_ADMIN_PIN_FILE: /run/secrets/openstar_admin_pin
+      # The address in the join QR code and the Mic bridge install line.
+      OPENSTAR_PUBLIC_URL: https://openstar.example.com
+    secrets:
+      - openstar_admin_pin
+    volumes:
+      # Add :ro for a read-only Library.
+      - ./songs:/songs
+      - ./appdata:/appdata
+
+  caddy:
+    # Caddy with the Cloudflare DNS module, built from the official images.
+    build:
+      dockerfile_inline: |
+        FROM caddy:2.11.9-builder AS builder
+        RUN xcaddy build --with github.com/caddy-dns/cloudflare@v0.2.4
+        FROM caddy:2.11.9
+        COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+    image: openstar-caddy:2.11.9
+    restart: unless-stopped
+    depends_on:
+      - openstar
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    secrets:
+      - cloudflare_api_token
+    volumes:
+      # Caddy's certificates and keys: keep them, or every restart asks for a new one.
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+
+configs:
+  caddyfile:
+    content: |
+      openstar.example.com {
+      	# A certificate for this name through Cloudflare DNS-01.
+      	tls {
+      		dns cloudflare {file./run/secrets/cloudflare_api_token}
+      	}
+
+      	# Answer only devices on the local network.
+      	@outside not remote_ip private_ranges
+      	abort @outside
+
+      	# One route for everything: pages, media, /bridge and every WebSocket.
+      	# Caddy passes WebSocket upgrades and sets X-Forwarded-For and
+      	# X-Forwarded-Proto by itself.
+      	reverse_proxy openstar:8080
+      }
+
+secrets:
+  openstar_admin_pin:
+    file: ./secrets/openstar_admin_pin
+  cloudflare_api_token:
+    file: ./secrets/cloudflare_api_token

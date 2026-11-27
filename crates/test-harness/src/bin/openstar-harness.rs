@@ -1,0 +1,126 @@
+//! The fake USDB and the yt-dlp stub as standalone processes, and the fixture
+//! Library and fake mic WAVs written to disk, for `just e2e`.
+//!
+//! ```text
+//! openstar-harness fake-usdb [--port <port>] [--fixtures <dir>]
+//!     Serves the saved USDB pages on 127.0.0.1 (port 0, the default, picks a
+//!     free one), prints its base URL as the first line on stdout, and runs
+//!     until killed. GET /__fake/requests and POST /__fake/script read and
+//!     script it.
+//! openstar-harness ytdlp-stub <dir>
+//!     Installs the stub as <dir>/yt-dlp; put <dir> first on the PATH of the
+//!     binary under test. Its calls are recorded in <dir>/calls/.
+//! openstar-harness fixture-library <dir>
+//!     Copies fixtures/library/ into <dir> and generates each Song's audio
+//!     from its Notes (needs ffmpeg).
+//! openstar-harness fake-mic <dir>
+//!     Writes the fake microphone WAVs of fixtures/mic/fake-mic.json into
+//!     <dir> (needs ffmpeg) and prints their paths.
+//! openstar-harness bridge-launcher --bridge <bin> --server <url> --wav <file> [--port <port>]
+//!     Starts and stops Mic bridges (`<bin> --wav <file>` against <url>) over
+//!     HTTP on 127.0.0.1 (see `BridgeLauncher`), prints its base URL as the
+//!     first line on stdout, and runs until SIGTERM or Ctrl-C, which stop
+//!     every bridge it started.
+//! ```
+
+use std::io::Write;
+use std::net::{Ipv4Addr, SocketAddr};
+use std::path::PathBuf;
+
+use anyhow::{Context, bail};
+use openstar_test_harness::{
+    BridgeLauncher, FakeUsdb, LaunchSettings, YtDlpStub, fake_mic, fixture_library,
+};
+
+const USAGE: &str = "usage: openstar-harness fake-usdb [--port <port>] [--fixtures <dir>]\n       \
+                     openstar-harness ytdlp-stub <dir>\n       \
+                     openstar-harness fixture-library <dir>\n       \
+                     openstar-harness fake-mic <dir>\n       \
+                     openstar-harness bridge-launcher --bridge <bin> --server <url> --wav <file> [--port <port>]";
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let mut args = std::env::args().skip(1);
+    match args.next().as_deref() {
+        Some("fake-usdb") => {
+            let mut port = 0u16;
+            let mut fixtures = FakeUsdb::default_fixtures();
+            while let Some(flag) = args.next() {
+                let value = args
+                    .next()
+                    .with_context(|| format!("{flag} needs a value"))?;
+                match flag.as_str() {
+                    "--port" => port = value.parse().context("--port must be a port number")?,
+                    "--fixtures" => fixtures = PathBuf::from(value),
+                    _ => bail!("unknown option {flag}\n{USAGE}"),
+                }
+            }
+            let usdb = FakeUsdb::serve(fixtures, SocketAddr::from((Ipv4Addr::LOCALHOST, port)))
+                .await
+                .context("starting the fake USDB")?;
+            let mut stdout = std::io::stdout();
+            writeln!(stdout, "{}", usdb.base_url())?;
+            stdout.flush()?;
+            usdb.wait().await;
+            Ok(())
+        }
+        Some("ytdlp-stub") => {
+            let dir = args.next().context(USAGE)?;
+            let path = YtDlpStub::install(&PathBuf::from(dir)).context("installing the stub")?;
+            println!("{}", path.display());
+            Ok(())
+        }
+        Some("fixture-library") => {
+            let dir = PathBuf::from(args.next().context(USAGE)?);
+            fixture_library::install(&dir).context("installing the fixture Library")?;
+            println!("{}", dir.display());
+            Ok(())
+        }
+        Some("fake-mic") => {
+            let dir = PathBuf::from(args.next().context(USAGE)?);
+            let files = fake_mic::write(&dir).context("writing the fake mic WAVs")?;
+            for path in [files.steady_tone, files.silence, files.multichannel] {
+                println!("{}", path.display());
+            }
+            Ok(())
+        }
+        Some("bridge-launcher") => {
+            let (mut bridge, mut server, mut wav, mut port) = (None, None, None, 0u16);
+            while let Some(flag) = args.next() {
+                let value = args
+                    .next()
+                    .with_context(|| format!("{flag} needs a value"))?;
+                match flag.as_str() {
+                    "--bridge" => bridge = Some(PathBuf::from(value)),
+                    "--server" => server = Some(value),
+                    "--wav" => wav = Some(PathBuf::from(value)),
+                    "--port" => port = value.parse().context("--port must be a port number")?,
+                    _ => bail!("unknown option {flag}\n{USAGE}"),
+                }
+            }
+            let settings = LaunchSettings {
+                bridge: bridge.context(USAGE)?,
+                server: server.context(USAGE)?,
+                wav: wav.context(USAGE)?,
+            };
+            let mut launcher =
+                BridgeLauncher::serve(settings, SocketAddr::from((Ipv4Addr::LOCALHOST, port)))
+                    .await
+                    .context("starting the Mic bridge launcher")?;
+            let mut stdout = std::io::stdout();
+            writeln!(stdout, "{}", launcher.base_url())?;
+            stdout.flush()?;
+            let mut terminate =
+                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+            tokio::select! {
+                () = launcher.wait() => {}
+                _ = terminate.recv() => {}
+                _ = tokio::signal::ctrl_c() => {}
+            }
+            // Dropping it stops every bridge it started.
+            drop(launcher);
+            Ok(())
+        }
+        _ => bail!("{USAGE}"),
+    }
+}

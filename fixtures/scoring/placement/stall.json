@@ -1,0 +1,35 @@
+{
+  "description": "A media stall (`waiting`) freezes the clock like a pause, so readings inside it are dropped too. Play from 0 ms, stall at 2000 ms, playing again at 2500 ms.",
+  "media": "video",
+  "clock": [
+    { "at": 0, "event": "play" },
+    { "at": 2000, "event": "stall" },
+    { "at": 2500, "event": "play" }
+  ],
+  "readings": [
+    {
+      "name": "before the stall",
+      "mic": "phone",
+      "captureTime": 2000,
+      "micDelayMs": 100,
+      "placedAt": 2100,
+      "songTime": 1.9
+    },
+    {
+      "name": "dropped: inside the stall",
+      "mic": "phone",
+      "captureTime": 2300,
+      "micDelayMs": 100,
+      "placedAt": 2400,
+      "songTime": null
+    },
+    {
+      "name": "after the stall, Song time continues from where it froze",
+      "mic": "phone",
+      "captureTime": 2600,
+      "micDelayMs": 100,
+      "placedAt": 2700,
+      "songTime": 2
+    }
+  ]
+}

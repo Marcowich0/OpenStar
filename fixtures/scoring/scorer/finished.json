@@ -1,0 +1,81 @@
+{
+  "description": "Finished per Player: a Song ended before and after the Voice's last scored Note, and a duet ended between the two Voices' last Notes; a later Freestyle note does not count",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "startSeconds": null,
+  "voices": [
+    {
+      "lines": [
+        {
+          "notes": [{ "kind": "normal", "start": 0, "length": 4, "pitch": 0 }]
+        },
+        {
+          "notes": [{ "kind": "rap", "start": 4, "length": 4, "pitch": 0 }]
+        },
+        {
+          "notes": [
+            { "kind": "freestyle", "start": 20, "length": 2, "pitch": 0 }
+          ]
+        }
+      ]
+    },
+    {
+      "lines": [
+        {
+          "notes": [{ "kind": "golden", "start": 4, "length": 8, "pitch": 0 }]
+        }
+      ]
+    }
+  ],
+  "comment": "A Beat lasts 0.125 s. Voice 1's last scored Note ends at Beat 8, Song time 0.5 + 8 × 0.125 = 1.5 s (the Freestyle note at Beat 20 is not scored). Voice 2's ends at Beat 12, 2.0 s. Nothing is sung, so both score 0 with no Line ended.",
+  "players": [
+    {
+      "voice": 0,
+      "difficulty": "easy",
+      "firstBeat": 0,
+      "beatValues": [],
+      "finished": [
+        { "songTime": 1.0, "finished": false },
+        { "songTime": 1.49, "finished": false },
+        { "songTime": 1.75, "finished": true },
+        { "songTime": 2.5, "finished": true }
+      ],
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 21,
+        "voiceValue": 8,
+        "notes": 0,
+        "golden": 0,
+        "hitBeats": [],
+        "missedBeats": [],
+        "lineBonus": 0,
+        "lines": [],
+        "score": { "total": 0, "notes": 0, "golden": 0, "lineBonus": 0 }
+      }
+    },
+    {
+      "voice": 1,
+      "difficulty": "easy",
+      "firstBeat": 0,
+      "beatValues": [],
+      "finished": [
+        { "songTime": 1.0, "finished": false },
+        { "songTime": 1.75, "finished": false },
+        { "songTime": 2.5, "finished": true }
+      ],
+      "expected": {
+        "firstBeat": 4,
+        "lastBeat": 11,
+        "voiceValue": 16,
+        "notes": 0,
+        "golden": 0,
+        "hitBeats": [],
+        "missedBeats": [],
+        "lineBonus": 0,
+        "lines": [],
+        "score": { "total": 0, "notes": 0, "golden": 0, "lineBonus": 0 }
+      }
+    }
+  ]
+}

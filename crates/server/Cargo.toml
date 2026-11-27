@@ -1,0 +1,44 @@
+[package]
+name = "openstar"
+description = "The OpenStar server: frontend, HTTP+JSON API and WebSocket on one origin."
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+openstar-protocol.workspace = true
+openstar-detector.workspace = true
+anyhow.workspace = true
+getrandom.workspace = true
+html-escape.workspace = true
+icu_casemap.workspace = true
+icu_normalizer.workspace = true
+axum.workspace = true
+chardetng.workspace = true
+encoding_rs.workspace = true
+mime_guess.workspace = true
+regex.workspace = true
+# The USDB client: form posts, and TLS for https://usdb.animux.de.
+reqwest = { workspace = true, features = ["form", "rustls"] }
+rusqlite.workspace = true
+rust-embed.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+futures-util.workspace = true
+insta.workspace = true
+openstar-test-harness.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
+tokio-tungstenite.workspace = true

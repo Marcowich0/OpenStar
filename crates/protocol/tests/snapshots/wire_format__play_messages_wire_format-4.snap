@@ -1,0 +1,12 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "PartyEvent::SongPaused(RequestChange\n{\n    request_id: RequestId(3), song_id: SongId(12), title: \"Africa\".to_owned(),\n})"
+---
+{
+  "code": "songPaused",
+  "params": {
+    "requestId": 3,
+    "songId": 12,
+    "title": "Africa"
+  }
+}

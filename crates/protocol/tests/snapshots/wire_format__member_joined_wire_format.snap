@@ -1,0 +1,18 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "ChangeEvent\n{\n    actor: Actor::Member { member_id: PartyMemberId(1), }, event:\n    PartyEvent::MemberJoined\n    {\n        member_id: PartyMemberId(1), name: \"Bo\".to_owned(), colour:\n        PaletteKey::Sky,\n    },\n}"
+---
+{
+  "actor": {
+    "kind": "member",
+    "memberId": 1
+  },
+  "event": {
+    "code": "memberJoined",
+    "params": {
+      "memberId": 1,
+      "name": "Bo",
+      "colour": "sky"
+    }
+  }
+}

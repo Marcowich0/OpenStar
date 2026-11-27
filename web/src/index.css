@@ -1,0 +1,11 @@
+/* The app's one stylesheet: Tailwind, the Bubble Pop theme, the icons. */
+@import "tailwindcss";
+@import "./theme/tokens.css";
+@import "./icons/icons.css";
+
+/* Behind the fixed Bubble Pop backdrop (`ui/BubblePopBackground.tsx`):
+   where a page runs past it (a long Timing editor in a full-page capture,
+   an overscroll), the backdrop's own edge colour, never white. */
+html {
+  background-color: var(--color-cream-2);
+}

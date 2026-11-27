@@ -1,0 +1,5 @@
+{
+  "//": "So the ESLint project service finds the checks; `tsc -p tsconfig.node.json` type-checks them.",
+  "extends": "../tsconfig.node.json",
+  "include": ["."]
+}

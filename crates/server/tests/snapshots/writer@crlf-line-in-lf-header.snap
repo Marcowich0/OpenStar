@@ -1,0 +1,18 @@
+---
+source: crates/server/tests/txt_writer.rs
+description: crlf-line-in-lf-header
+---
+(
+    Utf8,
+    [
+        ChangedLine {
+            line: 5,
+            old: Some(
+                "#gap: 500 ",
+            ),
+            new: Some(
+                "#gap: 480 ",
+            ),
+        },
+    ],
+)

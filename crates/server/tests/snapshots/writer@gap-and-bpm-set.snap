@@ -1,0 +1,27 @@
+---
+source: crates/server/tests/txt_writer.rs
+description: gap-and-bpm-set
+---
+(
+    Utf8,
+    [
+        ChangedLine {
+            line: 10,
+            old: Some(
+                "#BPM:217.4",
+            ),
+            new: Some(
+                "#BPM:216.26",
+            ),
+        },
+        ChangedLine {
+            line: 11,
+            old: Some(
+                "#GAP:3650",
+            ),
+            new: Some(
+                "#GAP:753",
+            ),
+        },
+    ],
+)

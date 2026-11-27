@@ -1,0 +1,53 @@
+# `cargo deny check licenses advisories`, run by `just check`.
+# Docs: https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Check every crate any target or feature can pull in.
+all-features = true
+
+[advisories]
+# Every RustSec advisory (vulnerability, unsound, unmaintained) fails the check.
+# To accept one, add its ID with a reason:
+#   ignore = [{ id = "RUSTSEC-YYYY-NNNN", reason = "..." }]
+ignore = []
+
+[licenses]
+# OpenStar is Apache-2.0. Only permissive licences that let it stay so are allowed;
+# add another permissive licence here when a dependency first needs it.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    # ISC: MIT-style, permissive. Needed by the TLS stack (rustls-webpki,
+    # untrusted, aws-lc-rs, aws-lc-sys) of the USDB client and of the Mic
+    # bridge (its self-update download and wss://).
+    "ISC",
+    "MIT",
+    # The Unicode licence: permissive, it only asks that its notice is kept. Needed
+    # by unicode-ident (proc-macro2, syn) and the ICU crates (url, idna) that
+    # reqwest pulls in: the test harness's, the USDB client's and the Mic
+    # bridge's HTTP client.
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+confidence-threshold = 0.93
+
+# A licence that is not on the list above is allowed only for the crate named
+# here. Every exception carries a `# Reason:` comment saying why it is acceptable.
+exceptions = [
+    # Reason: the Mozilla root-certificate list as data, under a permissive
+    # data licence (no copyleft, no conditions beyond keeping the notice);
+    # pulled in by rustls-platform-verifier for the USDB client's TLS.
+    { crate = "webpki-root-certs", allow = ["CDLA-Permissive-2.0"] },
+    # Reason: egui's bundled fonts (Ubuntu-Light, Hack, emoji), drawn by the Mic
+    # bridge window (#204). Both font licences allow embedding the unmodified
+    # fonts in a program under any licence; they cover only the font files.
+    { crate = "epaint_default_fonts", allow = ["OFL-1.1", "Ubuntu-font-1.0"] },
+    # Reason: terminal colours in dify, the image diff behind egui_kittest's
+    # snapshots: a test-only dependency, never in a shipped binary, used
+    # unmodified (MPL-2.0 is file-level copyleft).
+    { crate = "colored", allow = ["MPL-2.0"] },
+]

@@ -1,0 +1,412 @@
+// The one place the app calls `fetch` (ESLint refuses it anywhere else). Every
+// HTTP+JSON endpoint is a row of `Endpoints`, typed with the generated
+// request and response types, so a wrong body or a misread response field
+// fails `tsc` at the call site.
+
+import type { DownloadStarted } from "../generated/DownloadStarted";
+import type { StartDownload } from "../generated/StartDownload";
+import type { AvOffset } from "../generated/AvOffset";
+import type { AvOffsetQuery } from "../generated/AvOffsetQuery";
+import type { JobList } from "../generated/JobList";
+import type { LibraryProblem } from "../generated/LibraryProblem";
+import type { LocalMic } from "../generated/LocalMic";
+import type { MicBridges } from "../generated/MicBridges";
+import type { MicSettingsQuery } from "../generated/MicSettingsQuery";
+import type { NewProfile } from "../generated/NewProfile";
+import type { PitchTrackStart } from "../generated/PitchTrackStart";
+import type { Profile } from "../generated/Profile";
+import type { ProfileEdit } from "../generated/ProfileEdit";
+import type { RoundOutcome } from "../generated/RoundOutcome";
+import type { ScanStatus } from "../generated/ScanStatus";
+import type { ServerInfo } from "../generated/ServerInfo";
+import type { SongDetail } from "../generated/SongDetail";
+import type { SongHighScores } from "../generated/SongHighScores";
+import type { SongId } from "../generated/SongId";
+import type { SongList } from "../generated/SongList";
+import type { SongQuery } from "../generated/SongQuery";
+import type { TrashList } from "../generated/TrashList";
+import type { RoundStored } from "../generated/RoundStored";
+import type { StageOutputMicSettings } from "../generated/StageOutputMicSettings";
+import type { StageTrustRequest } from "../generated/StageTrustRequest";
+import type { StageTrustStatus } from "../generated/StageTrustStatus";
+import type { TimingEdit } from "../generated/TimingEdit";
+import type { TimingPreview } from "../generated/TimingPreview";
+import type { TimingSave } from "../generated/TimingSave";
+import type { TxtVersion } from "../generated/TxtVersion";
+import type { UnlockRequest } from "../generated/UnlockRequest";
+import type { UnlockStatus } from "../generated/UnlockStatus";
+import type { UsdbMirrorStatus } from "../generated/UsdbMirrorStatus";
+import type { UsdbTextVersion } from "../generated/UsdbTextVersion";
+import type { UsdbSearchQuery } from "../generated/UsdbSearchQuery";
+import type { UsdbSearchResults } from "../generated/UsdbSearchResults";
+import type { UsdbStatus } from "../generated/UsdbStatus";
+import type { UsdbVideoCandidates } from "../generated/UsdbVideoCandidates";
+import type { VideoDetails } from "../generated/VideoDetails";
+import type { VideoDetailsQuery } from "../generated/VideoDetailsQuery";
+import type { UserMessage } from "../generated/UserMessage";
+
+/**
+ * Every HTTP+JSON endpoint, keyed `"METHOD /path"` as `endpoints.rs` mounts
+ * it. `body` is the request body (absent: none is sent), `query` the URL
+ * query (always optional; absent fields are left out), `response` the body
+ * of a 2xx answer. A path parameter is written `{name}`, as in `endpoints.rs`;
+ * the call then needs `params: { name }`.
+ */
+export interface Endpoints {
+  "GET /api/server-info": { response: ServerInfo };
+  "GET /api/local-mics": { response: LocalMic[] };
+  "GET /api/mic-bridges": { response: MicBridges };
+  /** Guarded: forgets a Mic bridge and its Local mics; `204`, no body. */
+  "DELETE /api/mic-bridges/{id}": { response: null };
+  "GET /api/mic-settings": {
+    query: MicSettingsQuery;
+    response: StageOutputMicSettings;
+  };
+  "GET /api/av-offset": { query: AvOffsetQuery; response: AvOffset };
+  "PUT /api/av-offset": { body: AvOffset; response: AvOffset };
+  "GET /api/unlock": { response: UnlockStatus };
+  "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
+  "POST /api/unlock/heartbeat": { response: UnlockStatus };
+  "POST /api/lock": { response: UnlockStatus };
+  "POST /api/stage/trust": {
+    body: StageTrustRequest;
+    response: StageTrustStatus;
+  };
+  "GET /api/profiles": { response: Profile[] };
+  "POST /api/profiles": { body: NewProfile; response: Profile };
+  "GET /api/profiles/{id}": { response: Profile };
+  "PATCH /api/profiles/{id}": { body: ProfileEdit; response: Profile };
+  /** Guarded: deletes the Profile and its Score records; `204`, no body. */
+  "DELETE /api/profiles/{id}": { response: null };
+  "GET /api/jobs": { response: JobList };
+  "GET /api/songs": { query: SongQuery; response: SongList };
+  "GET /api/songs/{id}": { response: SongDetail };
+  "GET /api/songs/{id}/high-scores": { response: SongHighScores };
+  "POST /api/songs/{id}/pitch-track": { response: PitchTrackStart };
+  /** A Phone's Fit to the singing: the Pitch track request, guarded. */
+  "POST /api/songs/{id}/auto-fit": { response: PitchTrackStart };
+  "POST /api/songs/{id}/timing/preview": {
+    body: TimingEdit;
+    response: TimingPreview;
+  };
+  "POST /api/songs/{id}/timing": { body: TimingSave; response: TimingPreview };
+  "POST /api/songs/{id}/restore-original": { response: TxtVersion };
+  /** Guarded, writes the Library: moves the Song's folder to the trash; `204`. */
+  "DELETE /api/songs/{id}": { response: null };
+  "GET /api/library/originals": { response: SongId[] };
+  "GET /api/library/trash": { response: TrashList };
+  /** Guarded, writes the Library: moves a trashed folder back; `204`. */
+  "POST /api/library/trash/{id}/restore": { response: null };
+  "GET /api/library/problems": { response: LibraryProblem[] };
+  "GET /api/library/scan": { response: ScanStatus };
+  "POST /api/library/rescan": { response: ScanStatus };
+  "POST /api/rounds": { body: RoundOutcome; response: RoundStored };
+  "GET /api/usdb/status": { response: UsdbStatus };
+  "GET /api/usdb/songs": {
+    query: UsdbSearchQuery;
+    response: UsdbSearchResults;
+  };
+  "GET /api/usdb/mirror": { response: UsdbMirrorStatus };
+  "POST /api/usdb/mirror/refresh": { response: UsdbMirrorStatus };
+  "POST /api/usdb/mirror/refetch": { response: UsdbMirrorStatus };
+  "GET /api/usdb/songs/{id}/videos": { response: UsdbVideoCandidates };
+  "GET /api/usdb/video-details": {
+    query: VideoDetailsQuery;
+    response: VideoDetails;
+  };
+  /** Guarded, and refused on a read-only Library. */
+  "POST /api/downloads": { body: StartDownload; response: DownloadStarted };
+  /** Not guarded: stops a waiting or running Download; `204`, no body. */
+  "POST /api/downloads/{id}/cancel": { response: null };
+  "GET /api/usdb/songs/{id}/version": { response: UsdbTextVersion };
+}
+
+export type Route = keyof Endpoints;
+
+/** The typed body of a 2xx answer on `R`. */
+export type ResponseOf<R extends Route> = Endpoints[R]["response"];
+
+/** The names of the `{name}` parameters in a route's path. */
+export type PathParamNames<P extends string> =
+  P extends `${string}{${infer Name}}${infer Rest}`
+    ? Name | PathParamNames<Rest>
+    : never;
+
+type BodyOption<E> = E extends { body: infer B }
+  ? { body: B }
+  : { body?: never };
+
+type QueryOption<E> = E extends { query: infer Q }
+  ? { query?: Q }
+  : { query?: never };
+
+type ParamsOption<R extends string> = [PathParamNames<R>] extends [never]
+  ? { params?: never }
+  : { params: Record<PathParamNames<R>, string> };
+
+export type RequestOptions<R extends Route> = {
+  signal?: AbortSignal;
+} & BodyOption<Endpoints[R]> &
+  QueryOption<Endpoints[R]> &
+  ParamsOption<R>;
+
+/** The options argument is optional exactly when no option is required. */
+type RequestArgs<R extends Route> =
+  object extends RequestOptions<R>
+    ? [options?: RequestOptions<R>]
+    : [options: RequestOptions<R>];
+
+/**
+ * A refusal's body: a `UserMessage`, from the guard and the Admin PIN
+ * (`unlockRequired`, `wrongPin`, …) as from an area's own refusals (such as
+ * `profileNameTaken`).
+ */
+export type Refusal = UserMessage;
+
+/**
+ * Why a call failed, without any English from the server:
+ * - `refused`: the server answered with a `Refusal`, a code plus its
+ *   parameters; render it with `userMessageText` from
+ *   `i18n/serverText`.
+ * - `unexpected`: an error answer that is not a `Refusal` (a 500 with no
+ *   body, a body the server's JSON extractor refused, a code this build does
+ *   not know). Only its status is kept.
+ * - `network`: the request never got an answer (server down, Wi-Fi gone).
+ */
+export type ApiFailureReason =
+  | { kind: "refused"; status: number; error: Refusal }
+  | { kind: "unexpected"; status: number }
+  | { kind: "network" };
+
+/** What every failed call rejects with (except an abort, which stays an abort). */
+export class ApiFailure extends Error {
+  readonly failure: ApiFailureReason;
+
+  constructor(failure: ApiFailureReason) {
+    super(`API call failed: ${failure.kind}`);
+    this.name = "ApiFailure";
+    this.failure = failure;
+  }
+}
+
+// Every code a refusal may carry. `satisfies` makes a new Rust code fail tsc
+// here until it is listed, so an unknown code is never passed off as typed.
+const REFUSAL_CODES = {
+  wrongPin: true,
+  unlockRequired: true,
+  libraryReadOnly: true,
+  stagePinRequired: true,
+  invalidMessage: true,
+  notTheStage: true,
+  serverError: true,
+  profileNameEmpty: true,
+  profileNameTooLong: true,
+  profileNameTaken: true,
+  profileNotFound: true,
+  joinCodeWrong: true,
+  partyFull: true,
+  notInParty: true,
+  nameTakenTonight: true,
+  colourTaken: true,
+  memberNotFound: true,
+  jobCancelled: true,
+  jobInterrupted: true,
+  toolNotFound: true,
+  toolFailed: true,
+  songNotInLibrary: true,
+  songPreparing: true,
+  requestNotFound: true,
+  requestCannotMove: true,
+  tooManyPlayers: true,
+  playerNotInParty: true,
+  playerTwice: true,
+  memberSinging: true,
+  profileSinging: true,
+  useLeaveParty: true,
+  lineUpNotWaiting: true,
+  seatNotFound: true,
+  micInUse: true,
+  micNotAvailable: true,
+  localMicNotFound: true,
+  channelAlreadyLocalMic: true,
+  notADuet: true,
+  lineUpNotReady: true,
+  noStage: true,
+  noSongPlaying: true,
+  requestPlaying: true,
+  difficultyLocked: true,
+  noResults: true,
+  notABridge: true,
+  bridgeRequestNotFound: true,
+  bridgeNotFound: true,
+  adminPinWait: true,
+  usdbCredentialsMissing: true,
+  usdbLoginFailed: true,
+  usdbNotLoggedIn: true,
+  usdbUnreachable: true,
+  usdbGaveUp: true,
+  usdbUnexpectedStatus: true,
+  usdbSongInLibrary: true,
+  usdbSongDownloading: true,
+  usdbNoSongText: true,
+  usdbTextRejected: true,
+  videoDownloadFailed: true,
+  pitchTrackFailed: true,
+  songFileChanged: true,
+  songPlaying: true,
+  songStartedSinceOpened: true,
+  noOriginal: true,
+  songFolderShared: true,
+  songInLibraryRoot: true,
+  notInTrash: true,
+  restoreFolderExists: true,
+  notWhileSongPlays: true,
+  avSyncNotRunning: true,
+  avSyncRunning: true,
+  calibrationRunning: true,
+  calibrationNotRunning: true,
+  noMicsChosen: true,
+  noMicReady: true,
+  notInCalibration: true,
+} as const satisfies Record<UserMessage["code"], true>;
+
+/** A body with a code this build knows; its parameters are the server's. */
+function isRefusal(body: unknown): body is Refusal {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "code" in body &&
+    typeof body.code === "string" &&
+    Object.hasOwn(REFUSAL_CODES, body.code)
+  );
+}
+
+function pathOf(path: string, params: Record<string, string> | undefined) {
+  return path.replace(/\{(\w+)\}/g, (_, name: string) =>
+    encodeURIComponent(params?.[name] ?? ""),
+  );
+}
+
+type QueryValue = string | number | boolean | null | undefined;
+
+/** `?a=1&b=true` from a query's fields, leaving out absent ones. */
+function queryOf(query: Record<string, QueryValue> | undefined): string {
+  const search = new URLSearchParams();
+  for (const [name, value] of Object.entries(query ?? {})) {
+    if (value !== undefined && value !== null)
+      search.append(name, String(value));
+  }
+  const text = search.toString();
+  return text === "" ? "" : `?${text}`;
+}
+
+// Checked by name: a `DOMException` need not be an instance of this realm's
+// class (TanStack Query's own cancellation relies on the abort coming through).
+function isAbort(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "AbortError"
+  );
+}
+
+async function errorBody(response: Response): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Calls one endpoint and returns its typed answer. Rejects with an
+ * `ApiFailure` on any failure, or with the `AbortError` when `signal` aborts.
+ */
+export async function api<R extends Route>(
+  route: R,
+  ...[options]: RequestArgs<R>
+): Promise<ResponseOf<R>> {
+  // The call site is checked against `Endpoints`; from here on the options
+  // are handled the same for every route.
+  const response = await send(route, "application/json", options);
+  // `204 No Content` has no body: such routes declare `response: null`.
+  if (response.status === 204) return null;
+  return (await response.json()) as ResponseOf<R>;
+}
+
+/**
+ * Every endpoint whose 2xx body is bytes rather than JSON, keyed as
+ * `endpoints.rs` mounts it. None takes a body or a query.
+ */
+export interface ByteEndpoints {
+  /** The cached Pitch track's frames as stored (`fit/pitchTrackFile.ts`). */
+  "GET /api/songs/{id}/pitch-track": object;
+}
+
+export type ByteRoute = keyof ByteEndpoints;
+
+type ByteArgs<R extends ByteRoute> = [PathParamNames<R>] extends [never]
+  ? [options?: { signal?: AbortSignal }]
+  : [options: { signal?: AbortSignal } & ParamsOption<R>];
+
+/**
+ * Calls one byte endpoint and returns its body. Fails like `api`; a refusal
+ * still comes as a JSON code.
+ */
+export async function apiBytes<R extends ByteRoute>(
+  route: R,
+  ...[options]: ByteArgs<R>
+): Promise<ArrayBuffer> {
+  const response = await send(
+    route,
+    "application/octet-stream, application/json",
+    options,
+  );
+  return await response.arrayBuffer();
+}
+
+type Given =
+  | {
+      signal?: AbortSignal;
+      body?: unknown;
+      params?: Record<string, string>;
+      query?: Record<string, QueryValue>;
+    }
+  | undefined;
+
+/** Sends `route` and returns its 2xx answer, unread. */
+async function send(
+  route: string,
+  accept: string,
+  given: Given,
+): Promise<Response> {
+  const space = route.indexOf(" ");
+  const method = route.slice(0, space);
+  const path =
+    pathOf(route.slice(space + 1), given?.params) + queryOf(given?.query);
+  const init: RequestInit = { method, headers: { accept } };
+  if (given?.signal) init.signal = given.signal;
+  if (given?.body !== undefined) {
+    init.body = JSON.stringify(given.body);
+    init.headers = { accept, "content-type": "application/json" };
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(path, init);
+  } catch (error) {
+    if (isAbort(error)) throw error;
+    throw new ApiFailure({ kind: "network" });
+  }
+
+  if (!response.ok) {
+    const body = await errorBody(response);
+    throw new ApiFailure(
+      isRefusal(body)
+        ? { kind: "refused", status: response.status, error: body }
+        : { kind: "unexpected", status: response.status },
+    );
+  }
+  return response;
+}

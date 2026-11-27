@@ -1,0 +1,117 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: body/unknown-body-line.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Placeholder Title" Lf,
+              2 Header "#ARTIST:Placeholder Artist" Lf,
+              3 Header "#MP3:audio.mp3" Lf,
+              4 Header "#BPM:300" Lf,
+              5 Body ": 0 4 0 La" Lf,
+              6 Body "B 4 120" Lf,
+              7 Body ": 4 4 2 la" Lf,
+              8 Body "- 10" Lf,
+              9 Body "whatever" Lf,
+             10 Body "* 12 4 4 Lo" Lf,
+             11 End "E" Lf,
+        ],
+        encoding: Utf8,
+        bom: false,
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: Unversioned,
+                version: None,
+                encoding: None,
+                title: "Placeholder Title",
+                artist: "Placeholder Artist",
+                audio_reference: Some(
+                    "audio.mp3",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: None,
+                video: None,
+                cover: None,
+                background: None,
+                vocals: None,
+                instrumental: None,
+                beats_per_minute: 1200.0,
+                gap_seconds: 0.0,
+                start_seconds: None,
+                end_seconds: None,
+                video_gap_seconds: None,
+                preview_start_seconds: None,
+                medley_start_beat: None,
+                medley_end_beat: None,
+                year: None,
+                genre: None,
+                genres: [],
+                language: None,
+                languages: [],
+                edition: None,
+                editions: [],
+                creator: None,
+                creators: [],
+                p1: None,
+                p2: None,
+                unknown_headers: [],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "La",
+                                    line: 5,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "la",
+                                    line: 7,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 10,
+                                    line: 8,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Golden,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 4,
+                                    text: "Lo",
+                                    line: 10,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [
+            UnknownBodyLine {
+                line: 6,
+            },
+            UnknownBodyLine {
+                line: 9,
+            },
+        ],
+    },
+)

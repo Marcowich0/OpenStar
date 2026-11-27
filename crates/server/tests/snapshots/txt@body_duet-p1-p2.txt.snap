@@ -1,0 +1,164 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: body/duet-p1-p2.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Placeholder Title" Lf,
+              2 Header "#ARTIST:Placeholder Artist" Lf,
+              3 Header "#MP3:audio.mp3" Lf,
+              4 Header "#BPM:300" Lf,
+              5 Header "#P1:Placeholder One" Lf,
+              6 Header "#P2:Placeholder Two" Lf,
+              7 Body ": 0 4 0 La" Lf,
+              8 Body "P2" Lf,
+              9 Body ": 0 4 5 Lo" Lf,
+             10 Body ": 4 4 7  lo" Lf,
+             11 Body "- 10" Lf,
+             12 Body "P 1" Lf,
+             13 Body ": 4 4 2 la" Lf,
+             14 Body "- 12" Lf,
+             15 Body ": 14 4 0 la" Lf,
+             16 Body "P2" Lf,
+             17 Body ": 12 4 5 lo " Lf,
+             18 End "E" Lf,
+        ],
+        encoding: Utf8,
+        bom: false,
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: Unversioned,
+                version: None,
+                encoding: None,
+                title: "Placeholder Title",
+                artist: "Placeholder Artist",
+                audio_reference: Some(
+                    "audio.mp3",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: None,
+                video: None,
+                cover: None,
+                background: None,
+                vocals: None,
+                instrumental: None,
+                beats_per_minute: 1200.0,
+                gap_seconds: 0.0,
+                start_seconds: None,
+                end_seconds: None,
+                video_gap_seconds: None,
+                preview_start_seconds: None,
+                medley_start_beat: None,
+                medley_end_beat: None,
+                year: None,
+                genre: None,
+                genres: [],
+                language: None,
+                languages: [],
+                edition: None,
+                editions: [],
+                creator: None,
+                creators: [],
+                p1: Some(
+                    "Placeholder One",
+                ),
+                p2: Some(
+                    "Placeholder Two",
+                ),
+                unknown_headers: [],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "La",
+                                    line: 7,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "la",
+                                    line: 13,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 12,
+                                    line: 14,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 14,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "la",
+                                    line: 15,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 5,
+                                    text: "Lo",
+                                    line: 9,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 7,
+                                    text: " lo",
+                                    line: 10,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 10,
+                                    line: 11,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 5,
+                                    text: "lo ",
+                                    line: 17,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [],
+    },
+)

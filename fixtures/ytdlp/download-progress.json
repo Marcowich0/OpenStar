@@ -1,0 +1,14 @@
+{
+  "comment": "What OpenStar reads from download-progress.txt, yt-dlp's output with --newline and --progress-template 'download:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s'. One entry per progress line, in order; every other line is not progress. Speeds in bytes per second (binary units, rounded down), ETAs in seconds, null where yt-dlp does not know.",
+  "events": [
+    { "percent": 0.0, "bytesPerSecond": null, "etaSeconds": null },
+    { "percent": 0.1, "bytesPerSecond": 1059061, "etaSeconds": 41 },
+    { "percent": 2.5, "bytesPerSecond": 2621440, "etaSeconds": 12 },
+    { "percent": 50.0, "bytesPerSecond": 12939427, "etaSeconds": 1 },
+    { "percent": 100.0, "bytesPerSecond": 10485760, "etaSeconds": 0 },
+    { "percent": 100.0, "bytesPerSecond": null, "etaSeconds": null },
+    { "percent": 1.0, "bytesPerSecond": 524288, "etaSeconds": 3723 },
+    { "percent": 99.9, "bytesPerSecond": 999, "etaSeconds": 0 },
+    { "percent": 100.0, "bytesPerSecond": 4294967296, "etaSeconds": 0 }
+  ]
+}

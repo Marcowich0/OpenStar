@@ -1,0 +1,152 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: headers/unversioned.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Placeholder Title" Lf,
+              2 Header "#ARTIST:Placeholder Artist" Lf,
+              3 Header "#MP3:audio.mp3" Lf,
+              4 Header "#AUDIO:other.m4a" Lf,
+              5 Header "#COVER:cover.jpg" Lf,
+              6 Header "#BACKGROUND:background.jpg" Lf,
+              7 Header "#VIDEO:video.mp4" Lf,
+              8 Header "#VIDEOGAP:0.5" Lf,
+              9 Header "#BPM:300" Lf,
+             10 Header "#GAP:1500" Lf,
+             11 Header "#GENRE:Pop" Lf,
+             12 Header "#LANGUAGE:English" Lf,
+             13 Header "#YEAR:2001" Lf,
+             14 Header "#DUETSINGERP1:Singer One" Lf,
+             15 Header "#DUETSINGERP2:Singer Two" Lf,
+             16 Body ": 0 4 0 La" Lf,
+             17 Body ": 4 4 2 la" Lf,
+             18 Body "- 10" Lf,
+             19 Body "* 12 4 4 Lo" Lf,
+             20 Body "F 16 2 0 ~" Lf,
+             21 End "E" Lf,
+        ],
+        encoding: Utf8,
+        bom: false,
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: Unversioned,
+                version: None,
+                encoding: None,
+                title: "Placeholder Title",
+                artist: "Placeholder Artist",
+                audio_reference: Some(
+                    "audio.mp3",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: Some(
+                    "other.m4a",
+                ),
+                video: Some(
+                    "video.mp4",
+                ),
+                cover: Some(
+                    "cover.jpg",
+                ),
+                background: Some(
+                    "background.jpg",
+                ),
+                vocals: None,
+                instrumental: None,
+                beats_per_minute: 1200.0,
+                gap_seconds: 1.5,
+                start_seconds: None,
+                end_seconds: None,
+                video_gap_seconds: Some(
+                    0.5,
+                ),
+                preview_start_seconds: None,
+                medley_start_beat: None,
+                medley_end_beat: None,
+                year: Some(
+                    2001,
+                ),
+                genre: Some(
+                    "Pop",
+                ),
+                genres: [
+                    "Pop",
+                ],
+                language: Some(
+                    "English",
+                ),
+                languages: [
+                    "English",
+                ],
+                edition: None,
+                editions: [],
+                creator: None,
+                creators: [],
+                p1: Some(
+                    "Singer One",
+                ),
+                p2: Some(
+                    "Singer Two",
+                ),
+                unknown_headers: [],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "La",
+                                    line: 16,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "la",
+                                    line: 17,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 10,
+                                    line: 18,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Golden,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 4,
+                                    text: "Lo",
+                                    line: 19,
+                                },
+                                Note {
+                                    kind: Freestyle,
+                                    start: 16,
+                                    length: 2,
+                                    pitch: 0,
+                                    text: "~",
+                                    line: 20,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [],
+    },
+)

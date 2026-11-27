@@ -1,0 +1,10 @@
+# Prettier checks every file type it knows in the repo (`just prettier-check`),
+# on top of .gitignore. Rust is formatted by rustfmt.
+web/src/generated/
+web/pnpm-lock.yaml
+*.snap
+# Saved USDB pages are served and parsed byte for byte.
+fixtures/usdb/**/*.html
+e2e/pnpm-lock.yaml
+# The native readings the WASM build is compared with: one generated line.
+fixtures/detector/native/

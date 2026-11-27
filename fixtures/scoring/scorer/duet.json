@@ -1,0 +1,75 @@
+{
+  "description": "a duet scored per Voice, each against its own voiceValue, and two Players sharing a Voice scored separately",
+  "file": "#GAP:500 #BPM:120",
+  "gapSeconds": 0.5,
+  "beatsPerMinute": 480,
+  "startSeconds": null,
+  "voices": [
+    {
+      "lines": [
+        { "notes": [{ "kind": "normal", "start": 0, "length": 2, "pitch": 0 }] }
+      ]
+    },
+    {
+      "lines": [
+        {
+          "notes": [
+            { "kind": "normal", "start": 2, "length": 3, "pitch": 4 },
+            { "kind": "golden", "start": 5, "length": 1, "pitch": 4 }
+          ]
+        }
+      ]
+    }
+  ],
+  "comment": "Voice 1 (P1): voiceValue 2, 4500 per hit Beat, range 0–1. Voice 2 (P2): voiceValue 3 + 2 = 5, 1800 × factor per hit Beat, range 2–5.",
+  "players": [
+    {
+      "voice": 0,
+      "difficulty": "medium",
+      "firstBeat": 0,
+      "beatValues": [60, 60],
+      "comment": "Both Beats on C: all 9000.",
+      "expected": {
+        "firstBeat": 0,
+        "lastBeat": 1,
+        "voiceValue": 2,
+        "notes": 9000,
+        "golden": 0,
+        "hitBeats": [0, 1],
+        "missedBeats": []
+      }
+    },
+    {
+      "voice": 1,
+      "difficulty": "medium",
+      "firstBeat": 2,
+      "beatValues": [64, 64, null, 64],
+      "comment": "E on Beats 2, 3 (+1800 each) and the Golden Beat 5 (+3600); Beat 4 silent.",
+      "expected": {
+        "firstBeat": 2,
+        "lastBeat": 5,
+        "voiceValue": 5,
+        "notes": 3600,
+        "golden": 3600,
+        "hitBeats": [2, 3, 5],
+        "missedBeats": [4]
+      }
+    },
+    {
+      "voice": 1,
+      "difficulty": "easy",
+      "firstBeat": 2,
+      "beatValues": [66, 64, 64, 50],
+      "comment": "The second Player on Voice 2, scored alone: 66 is +200 cents (hit on Easy), 50 is d = 4600, d' = −200 (hit). Every Beat hits: 5400 + 3600.",
+      "expected": {
+        "firstBeat": 2,
+        "lastBeat": 5,
+        "voiceValue": 5,
+        "notes": 5400,
+        "golden": 3600,
+        "hitBeats": [2, 3, 4, 5],
+        "missedBeats": []
+      }
+    }
+  ]
+}

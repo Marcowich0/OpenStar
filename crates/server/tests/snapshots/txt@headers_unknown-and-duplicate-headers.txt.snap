@@ -1,0 +1,160 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: headers/unknown-and-duplicate-headers.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#TITLE:Placeholder Title" Lf,
+              2 Header "#ARTIST:Placeholder Artist" Lf,
+              3 Header "#NOCOLONHEADER" Lf,
+              4 Header "#MP3:audio.mp3" Lf,
+              5 Header "#BPM:300" Lf,
+              6 Header "#GAP:100" Lf,
+              7 Header "#AUTHOR:Placeholder Author" Lf,
+              8 Header "#gap:200" Lf,
+              9 Header "#GENRE:Pop" Lf,
+             10 Header "#Genre:Rock, Jazz" Lf,
+             11 Header "#END:12000.5" Lf,
+             12 Header "#CUSTOM:" Lf,
+             13 Body ": 0 4 0 La" Lf,
+             14 Body ": 4 4 2 la" Lf,
+             15 Body "- 10" Lf,
+             16 Body "* 12 4 4 Lo" Lf,
+             17 Body "F 16 2 0 ~" Lf,
+             18 End "E" Lf,
+        ],
+        encoding: Utf8,
+        bom: false,
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: Unversioned,
+                version: None,
+                encoding: None,
+                title: "Placeholder Title",
+                artist: "Placeholder Artist",
+                audio_reference: Some(
+                    "audio.mp3",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: None,
+                video: None,
+                cover: None,
+                background: None,
+                vocals: None,
+                instrumental: None,
+                beats_per_minute: 1200.0,
+                gap_seconds: 0.2,
+                start_seconds: None,
+                end_seconds: None,
+                video_gap_seconds: None,
+                preview_start_seconds: None,
+                medley_start_beat: None,
+                medley_end_beat: None,
+                year: None,
+                genre: Some(
+                    "Pop, Rock, Jazz",
+                ),
+                genres: [
+                    "Pop",
+                    "Rock",
+                    "Jazz",
+                ],
+                language: None,
+                languages: [],
+                edition: None,
+                editions: [],
+                creator: None,
+                creators: [],
+                p1: None,
+                p2: None,
+                unknown_headers: [
+                    UnknownHeader {
+                        line: 3,
+                        key: "NOCOLONHEADER",
+                        value: None,
+                    },
+                    UnknownHeader {
+                        line: 7,
+                        key: "AUTHOR",
+                        value: Some(
+                            "Placeholder Author",
+                        ),
+                    },
+                    UnknownHeader {
+                        line: 12,
+                        key: "CUSTOM",
+                        value: Some(
+                            "",
+                        ),
+                    },
+                ],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "La",
+                                    line: 13,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "la",
+                                    line: 14,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 10,
+                                    line: 15,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Golden,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 4,
+                                    text: "Lo",
+                                    line: 16,
+                                },
+                                Note {
+                                    kind: Freestyle,
+                                    start: 16,
+                                    length: 2,
+                                    pitch: 0,
+                                    text: "~",
+                                    line: 17,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [
+            DuplicateHeader {
+                line: 8,
+                header: "GAP",
+            },
+            InvalidNumber {
+                line: 11,
+                header: "END",
+            },
+        ],
+    },
+)

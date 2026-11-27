@@ -1,0 +1,115 @@
+---
+source: crates/server/tests/txt_fixtures.rs
+description: headers/Placeholder Artist - Placeholder Title/folder-name.txt
+---
+Ok(
+    TxtFile {
+        lines: [
+              1 Header "#MP3:audio.mp3" Lf,
+              2 Header "#BPM:300" Lf,
+              3 Body ": 0 4 0 La" Lf,
+              4 Body ": 4 4 2 la" Lf,
+              5 Body "- 10" Lf,
+              6 Body "* 12 4 4 Lo" Lf,
+              7 Body "F 16 2 0 ~" Lf,
+              8 End "E" Lf,
+        ],
+        encoding: Utf8,
+        bom: false,
+        song: ParsedSong {
+            headers: SongHeaders {
+                generation: Unversioned,
+                version: None,
+                encoding: None,
+                title: "Placeholder Title",
+                artist: "Placeholder Artist",
+                audio_reference: Some(
+                    "audio.mp3",
+                ),
+                mp3: Some(
+                    "audio.mp3",
+                ),
+                audio: None,
+                video: None,
+                cover: None,
+                background: None,
+                vocals: None,
+                instrumental: None,
+                beats_per_minute: 1200.0,
+                gap_seconds: 0.0,
+                start_seconds: None,
+                end_seconds: None,
+                video_gap_seconds: None,
+                preview_start_seconds: None,
+                medley_start_beat: None,
+                medley_end_beat: None,
+                year: None,
+                genre: None,
+                genres: [],
+                language: None,
+                languages: [],
+                edition: None,
+                editions: [],
+                creator: None,
+                creators: [],
+                p1: None,
+                p2: None,
+                unknown_headers: [],
+            },
+            voices: [
+                Voice {
+                    lines: [
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Normal,
+                                    start: 0,
+                                    length: 4,
+                                    pitch: 0,
+                                    text: "La",
+                                    line: 3,
+                                },
+                                Note {
+                                    kind: Normal,
+                                    start: 4,
+                                    length: 4,
+                                    pitch: 2,
+                                    text: "la",
+                                    line: 4,
+                                },
+                            ],
+                            end: Some(
+                                LineEnd {
+                                    beat: 10,
+                                    line: 5,
+                                },
+                            ),
+                        },
+                        Line {
+                            notes: [
+                                Note {
+                                    kind: Golden,
+                                    start: 12,
+                                    length: 4,
+                                    pitch: 4,
+                                    text: "Lo",
+                                    line: 6,
+                                },
+                                Note {
+                                    kind: Freestyle,
+                                    start: 16,
+                                    length: 2,
+                                    pitch: 0,
+                                    text: "~",
+                                    line: 7,
+                                },
+                            ],
+                            end: None,
+                        },
+                    ],
+                },
+            ],
+        },
+        warnings: [],
+    },
+)

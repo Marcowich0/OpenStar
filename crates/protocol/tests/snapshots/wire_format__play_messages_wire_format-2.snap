@@ -1,0 +1,18 @@
+---
+source: crates/protocol/tests/wire_format.rs
+expression: "vec![ServerMessage::ControlSong\n{\n    request_id: RequestId(3), song_id: SongId(12), control: SongControl::Skip,\n}, ServerMessage::Rejected { reason: UserMessage::LineUpNotReady, },]"
+---
+[
+  {
+    "type": "controlSong",
+    "requestId": 3,
+    "songId": 12,
+    "control": "skip"
+  },
+  {
+    "type": "rejected",
+    "reason": {
+      "code": "lineUpNotReady"
+    }
+  }
+]

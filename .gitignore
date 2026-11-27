@@ -1,0 +1,23 @@
+/target/
+/web/node_modules/
+/web/dist/
+/.appdata/
+/.songs/
+# insta writes these when a snapshot changes; review with `cargo insta review` or
+# rerun with INSTA_UPDATE=always, then commit the .snap file.
+*.snap.new
+*.pending-snap
+/e2e/node_modules/
+/e2e/playwright-report/
+/e2e/test-results/
+# Fake mic WAVs `just e2e` generates (fixtures/mic/).
+/e2e/generated/
+# The detector WASM module `just wasm` builds for the pitch worklet.
+/web/wasm/
+# egui_kittest writes these beside the bridge window's baselines on a mismatch.
+/crates/mic-bridge/tests/snapshots/*.new.png
+/crates/mic-bridge/tests/snapshots/*.diff.png
+/crates/mic-bridge/tests/snapshots/*.old.png
+
+# TypeScript incremental build state.
+*.tsbuildinfo

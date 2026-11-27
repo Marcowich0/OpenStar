@@ -1,0 +1,38 @@
+# OpenStar on its own: plain HTTP on port 8080, no HTTPS.
+#
+# Good for trying OpenStar on one computer (open http://localhost:8080 for a
+# Party with Local mics only). Phones need HTTPS to use their microphone: for
+# that, see compose.caddy.yaml and docs/deployment.md.
+#
+# OpenStar is for a trusted local network only. Never put it on a public address.
+#
+#   docker compose up -d
+services:
+  openstar:
+    # :latest is the newest release. Pin a version (for example :1.2.3) to choose
+    # when you upgrade and to be able to roll back; docs/deployment.md lists the tags.
+    image: ghcr.io/marcowich0/openstar:latest
+    restart: unless-stopped
+    # On Unraid, run as nobody:users so files in your shares get the usual owner.
+    # Anywhere else, set the user and group that own the two folders below
+    # (the image's default is 1000:1000).
+    # user: "99:100"
+    ports:
+      - "8080:8080"
+    environment:
+      # Required: 4 to 8 digits. OpenStar refuses to start until you change this.
+      # To keep it out of this file, use OPENSTAR_ADMIN_PIN_FILE and a Docker
+      # secret instead (see compose.caddy.yaml).
+      OPENSTAR_ADMIN_PIN: "change-me"
+      # The address Phones and Mic bridges should use, if it differs from the
+      # one the Stage is opened on, for example https://openstar.example.com.
+      # OPENSTAR_PUBLIC_URL: ""
+      # Your USDB login, for Downloads. Leave both unset to skip Downloads.
+      # OPENSTAR_USDB_USERNAME: ""
+      # OPENSTAR_USDB_PASSWORD: ""
+    volumes:
+      # Your UltraStar Library. Add :ro to keep OpenStar from changing it
+      # (Downloads, Timing edits and deletes are then turned off).
+      - ./songs:/songs
+      # OpenStar's own data: the database, caches, trash and backups.
+      - ./appdata:/appdata

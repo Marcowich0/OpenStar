@@ -1,0 +1,9 @@
+{
+  "description": "Digital silence.",
+  "sampleRates": [44100, 48000],
+  "blockLen": 128,
+  "waveform": "silence",
+  "durationS": 1,
+  "signals": [{}],
+  "limits": { "clarityBelow": 0.8, "loudnessToleranceDb": 0.5 }
+}
