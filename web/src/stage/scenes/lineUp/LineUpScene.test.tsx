@@ -1155,6 +1155,11 @@ describe("+ Guest and + Profile", () => {
     expect(
       within(list()).getByRole("button", { name: "Cancel" }),
     ).toHaveFocus();
+    // ↓ on the bottom row keeps the focus on Cancel; it never jumps to OK.
+    press("ArrowDown");
+    expect(
+      within(list()).getByRole("button", { name: "Cancel" }),
+    ).toHaveFocus();
     press("ArrowUp");
     expect(pictures()).toHaveFocus();
     press("ArrowDown");

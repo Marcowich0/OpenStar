@@ -153,7 +153,9 @@ export function NewPlayerForm({
     const at = all.findIndex((p) => active !== null && p.contains(active));
     if (at < 0) return false;
     const target = all[Math.min(all.length - 1, Math.max(0, at + step))];
-    if (target) focusable(target)?.focus({ preventScroll: true });
+    // Past the top or the bottom part the focus stays put (on Cancel too).
+    if (target && target !== all[at])
+      focusable(target)?.focus({ preventScroll: true });
     return true;
   };
   const stepRow = (step: number) => {
