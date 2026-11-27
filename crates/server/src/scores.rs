@@ -106,8 +106,8 @@ pub(crate) fn store_in(
     let identity = library::identity_key(&song.identity);
     tx.execute(
         "INSERT INTO rounds (song_identity, party_id, mode, started_at_ms, ended, game_id,
-             request_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6)",
+             request_id, artist, title)
+         VALUES (?1, ?2, ?3, ?4, ?5, NULL, ?6, ?7, ?8)",
         params![
             identity,
             outcome.party_id.0,
@@ -115,6 +115,8 @@ pub(crate) fn store_in(
             outcome.started_at_ms,
             key(&outcome.ended),
             outcome.request_id.0,
+            song.song.headers.artist,
+            song.song.headers.title,
         ],
     )?;
     let round_id = RoundId(tx.last_insert_rowid());
@@ -295,6 +297,7 @@ macro_rules! counted {
         )
     };
 }
+pub(crate) use counted;
 
 /// The "new high score" flag of record `r`, as SQL: it counts, and its total
 /// is strictly higher than every earlier counted record (lower id) of its

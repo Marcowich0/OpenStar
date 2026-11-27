@@ -9,6 +9,8 @@
 //!   `201` with it.
 //! - `PATCH /api/profiles/{id}` with a [`ProfileEdit`]: changes any of the
 //!   name, avatar and favourite colour of any Profile and answers with it.
+//! - `GET /api/profiles/{id}/stats`: the Profile's [`ProfileStats`], or `404`
+//!   [`UserMessage::ProfileNotFound`].
 //!
 //! Anyone may call them: no Unlock, no ownership. Deleting a Profile is in the
 //! Admin area only: `DELETE /api/profiles/{id}` is guarded and answers `204`,
@@ -27,6 +29,8 @@
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+use crate::library::SongId;
 
 /// The longest Profile (and Guest) name, in characters, after trimming
 /// surrounding spaces.
@@ -291,6 +295,102 @@ pub struct ProfileEdit {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub favourite_colour: Option<PaletteKey>,
+}
+
+/// What a Profile has sung, from its Score records (`GET
+/// /api/profiles/{id}/stats`). A Guest's Score records never count, and a
+/// Song that has left the Library still counts, named as it was last sung.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProfileStats {
+    /// How many different Songs (by Song identity) it has a Score record of.
+    pub songs_sung: u32,
+    /// How many rounds it sang in: one Score record each.
+    pub rounds: u32,
+    /// How many of those rounds its Score is Finished in.
+    pub finished_rounds: u32,
+    /// Its best Score at each Difficulty, in the order Easy, Medium, Hard:
+    /// only a Score that can be a High score counts (Finished, above 0, a
+    /// normal round), the earliest of equal totals, and a Difficulty without
+    /// one is left out.
+    pub best_per_difficulty: Vec<BestScore>,
+    /// The High scores it holds: every Song, Voice and Difficulty whose High
+    /// score table it heads (place 1, shared on equal totals), highest total
+    /// first, then the earliest set.
+    pub high_scores_held: Vec<HeldHighScore>,
+    /// At most five Songs, most rounds first, then the most recently sung.
+    pub most_sung: Vec<MostSungSong>,
+    /// Its first Score record; `null` until it sings.
+    pub first_sung: Option<SungAt>,
+    /// Its latest Score record; `null` until it sings.
+    pub last_sung: Option<SungAt>,
+}
+
+/// A Song as Profile stats name it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct StatsSong {
+    /// The Song in the Library now; `null` once it has left the Library.
+    pub id: Option<SongId>,
+    /// The Library's artist while the Song is in it, else the one stored
+    /// when it was last sung.
+    pub artist: String,
+    /// The Library's title while the Song is in it, else the one stored
+    /// when it was last sung.
+    pub title: String,
+    /// The cover image's URL; `null` without one or once the Song left the
+    /// Library (show the generated tile).
+    pub cover: Option<String>,
+    /// The generated tile's colour, from the Song's identity.
+    pub tile_colour: PaletteKey,
+}
+
+/// A Profile's best Score at one Difficulty.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct BestScore {
+    pub difficulty: Difficulty,
+    pub total: u32,
+    pub song: StatsSong,
+    /// When the Score record was stored, in milliseconds since the Unix epoch.
+    #[ts(type = "number")]
+    pub recorded_at: i64,
+}
+
+/// A High score table a Profile heads.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct HeldHighScore {
+    pub song: StatsSong,
+    /// The Voice (0 = `P1`).
+    pub voice: u32,
+    pub difficulty: Difficulty,
+    pub total: u32,
+}
+
+/// One of a Profile's most-sung Songs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MostSungSong {
+    pub song: StatsSong,
+    /// How many rounds the Profile sang it in.
+    pub rounds: u32,
+}
+
+/// When a Profile sang which Song.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SungAt {
+    pub song: StatsSong,
+    /// When the Score record was stored, in milliseconds since the Unix epoch.
+    #[ts(type = "number")]
+    pub at: i64,
 }
 
 #[cfg(test)]
