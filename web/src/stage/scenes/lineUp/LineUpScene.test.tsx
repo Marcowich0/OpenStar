@@ -802,6 +802,22 @@ describe("warnings and Start", () => {
     ]);
   });
 
+  it("starts a ready Line-up with a TV remote's Play/Pause", () => {
+    const { sent } = setup();
+    press("MediaPlayPause");
+    expect(sent.filter((m) => m.type === "controlSong")).toEqual([
+      { type: "controlSong", requestId: 1, control: "start" },
+    ]);
+  });
+
+  it("closes an open pick list with a TV remote's Back", () => {
+    setup();
+    click(screen.getByRole("button", { name: "Who: Bo" }));
+    expect(screen.getByRole("menu", { name: "Who sings" })).toBeVisible();
+    press("BrowserBack");
+    expect(screen.queryByRole("menu", { name: "Who sings" })).toBeNull();
+  });
+
   it("does not start on Space while a pick list is open", () => {
     const { sent } = setup();
     click(screen.getByRole("button", { name: "Who: Bo" }));
@@ -955,6 +971,18 @@ describe("+ Guest and + Profile", () => {
     openForm("+ Guest");
     expect(within(list()).getByRole("heading")).toHaveTextContent("New Guest");
     expect(nameBox()).toHaveFocus();
+  });
+
+  it("leaves Backspace in the name box to the box, and keeps the form open", () => {
+    openForm("+ Guest");
+    type("Noo");
+    let notPrevented = false;
+    act(() => {
+      notPrevented = fireEvent.keyDown(nameBox(), { key: "Backspace" });
+    });
+    expect(notPrevented).toBe(true);
+    expect(nameBox()).toHaveFocus();
+    expect(nameBox()).toHaveValue("Noo");
   });
 
   it("offers only the free Party colours, the first free one preselected", () => {
