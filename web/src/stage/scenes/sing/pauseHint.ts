@@ -8,16 +8,14 @@
 
 import type { PartyId } from "../../../generated/PartyId";
 import type { RequestId } from "../../../generated/RequestId";
-
-/** Which input the hint names: the key, or the pad's button. */
-export type PauseHintInput = "keyboard" | "gamepad";
+import type { PauseHint } from "../../sing/titleCard";
 
 /**
  * The input the pause hint names. Always the keyboard for now: the gamepad
  * ticket (#275) tracks the last input device and wires it here, so the hint
  * then reads "Start: pause" after pad input.
  */
-export function pauseHintInput(): PauseHintInput {
+export function pauseHintInput(): PauseHint {
   return "keyboard";
 }
 

@@ -30,7 +30,10 @@ export interface SingSong {
   tileColour: PaletteKey;
 }
 
-/** Which input the pause hint names (#275 tracks the last one used). */
+/**
+ * Which input the pause hint names: the key, or the pad's button (#275
+ * tracks the last one used; `pauseHintInput` reads it).
+ */
 export type PauseHint = "keyboard" | "gamepad";
 
 /** A line of text: `x`, `y` is where the painter anchors it. */
