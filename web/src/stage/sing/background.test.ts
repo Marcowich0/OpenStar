@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { SongMedia } from "../../generated/SongMedia";
-import { backgroundKind, effectsOff, prefersReducedMotion } from "./background";
+import { backgroundKind, effectsOff } from "./background";
 
 const media: SongMedia = {
   audio: { url: "/api/songs/7/media/audio", native: true },
@@ -49,22 +49,6 @@ describe("which background the sing screen shows", () => {
     expect(backgroundKind(bare, true)).toBe("blobs");
     expect(backgroundKind({ ...bare, cover: null }, true)).toBe("blobs");
     expect(backgroundKind({ ...media, background: null }, false)).toBe("blobs");
-  });
-});
-
-describe("the reduced-motion reader", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("reads the system's prefers-reduced-motion", () => {
-    const query = vi.fn((q: string) => ({
-      matches: q === "(prefers-reduced-motion: reduce)",
-    }));
-    vi.stubGlobal("matchMedia", query);
-    expect(prefersReducedMotion()).toBe(true);
-    vi.stubGlobal("matchMedia", () => ({ matches: false }));
-    expect(prefersReducedMotion()).toBe(false);
   });
 });
 

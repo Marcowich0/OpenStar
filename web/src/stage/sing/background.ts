@@ -50,14 +50,6 @@ export function effectsOff(options: Pick<StageOptions, "effects">): boolean {
   return !options.effects;
 }
 
-/** The system asks for reduced motion (`prefers-reduced-motion: reduce`). */
-export function prefersReducedMotion(): boolean {
-  return (
-    typeof matchMedia === "function" &&
-    matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
 /**
  * The background a Song's sing screen shows, chosen at Start from its media
  * and the Stage options: still with Effects off or reduced motion.

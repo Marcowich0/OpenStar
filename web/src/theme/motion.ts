@@ -38,7 +38,12 @@ function subscribe(onChange: () => void): () => void {
   };
 }
 
-function prefersReducedMotion(): boolean {
+/**
+ * Whether the system asks for reduced motion now: the one reader of
+ * {@link REDUCED_MOTION_QUERY}, for `MotionMode` and the sing screen's
+ * background.
+ */
+export function prefersReducedMotion(): boolean {
   return media()?.matches ?? false;
 }
 
