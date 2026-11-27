@@ -179,7 +179,60 @@ describe("motion", () => {
       "--animate-squish": "squish 0.65s var(--ease-spring)",
       "--animate-bob": "bob 3s ease-in-out infinite",
       "--animate-mic-lost-dot": "mic-lost-dot 1.2s infinite",
+      "--animate-focus-bounce":
+        "focus-bounce var(--motion-bounce) var(--ease-spring)",
+      "--animate-overlay-in":
+        "overlay-in var(--motion-spring) var(--ease-spring) both",
+      "--animate-overlay-out":
+        "overlay-out var(--motion-exit) var(--ease-exit) both",
+      "--animate-toast-in":
+        "toast-in var(--motion-spring) var(--ease-spring) both",
+      "--animate-fade-in": "fade-in var(--motion-fade) ease-out both",
+      "--animate-fade-out": "fade-out var(--motion-fade) ease-in both",
     });
+  });
+
+  it("has the spring durations, easings and sizes of the motion pass", () => {
+    expect(
+      Object.fromEntries(
+        [...declarations].filter(
+          ([name]) => name.startsWith("--motion-") || name.startsWith("--ease-"),
+        ),
+      ),
+    ).toEqual({
+      "--ease-spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+      "--ease-exit": "cubic-bezier(0.36, 0, 0.66, -0.56)",
+      "--motion-spring": "450ms",
+      "--motion-bounce": "350ms",
+      "--motion-press": "200ms",
+      "--motion-exit": "250ms",
+      "--motion-fade": "120ms",
+      "--motion-press-scale": "0.94",
+      "--motion-focus-scale": "1.06",
+      "--motion-overlay-scale": "0.9",
+      "--motion-toast-drop": "-40px",
+      "--motion-sheet-rise": "100%",
+    });
+  });
+
+  it("bounces the focus ring 1 → 1.06 → 1", () => {
+    expect(keyframes("focus-bounce")).toMatch(
+      /40%\s*\{\s*scale:\s*var\(--motion-focus-scale\);\s*\}/,
+    );
+  });
+
+  it("springs an overlay in from, and out to, its smaller size", () => {
+    for (const name of ["overlay-in", "overlay-out"]) {
+      expect(keyframes(name)).toMatch(
+        /\{\s*scale:\s*var\(--motion-overlay-scale\);\s*opacity:\s*0;\s*\}/,
+      );
+    }
+  });
+
+  it("drops a toast in from above", () => {
+    expect(keyframes("toast-in")).toMatch(
+      /from\s*\{\s*translate:\s*0 var\(--motion-toast-drop\);\s*opacity:\s*0;\s*\}/,
+    );
   });
 
   it("breathes up to 6 % larger", () => {
@@ -224,6 +277,83 @@ describe("motion", () => {
     expect(Math.min(...offsets)).toBe(-12);
   });
 });
+
+describe("motion with fades (reduced motion or Effects off)", () => {
+  const fade = fadeDeclarations();
+  const animations = [...declarations].filter(([name]) =>
+    name.startsWith("--animate-"),
+  );
+
+  it("turns every spring duration into the 120 ms fade", () => {
+    expect(declarations.get("--motion-fade")).toBe("120ms");
+    const durations = [...declarations].filter(
+      ([name, value]) => name.startsWith("--motion-") && /ms$/.test(value),
+    );
+    expect(durations.length).toBeGreaterThan(1);
+    for (const [name] of durations) {
+      if (name === "--motion-fade") continue;
+      expect(fade.get(name), name).toBe("var(--motion-fade)");
+    }
+  });
+
+  it("leaves every size where it is", () => {
+    expect(fade.get("--motion-press-scale")).toBe("1");
+    expect(fade.get("--motion-focus-scale")).toBe("1");
+    expect(fade.get("--motion-overlay-scale")).toBe("1");
+    expect(fade.get("--motion-toast-drop")).toBe("0px");
+    expect(fade.get("--motion-sheet-rise")).toBe("0px");
+  });
+
+  it("runs no animation that scales, moves or turns", () => {
+    expect(animations.length).toBeGreaterThan(0);
+    for (const [name, value] of animations) {
+      const shown = fade.get(name) ?? value;
+      if (shown === "none") continue;
+      const keyframe = /^var\((--animate-[\w-]+)\)$/.exec(shown)?.[1];
+      const used = keyframe === undefined ? shown : declarations.get(keyframe);
+      const keyframeName = used?.split(" ")[0] ?? "";
+      expect(keyframes(keyframeName), name).not.toMatch(
+        /\b(scale|translate|rotate|transform):/,
+      );
+    }
+  });
+
+  it("fades, rather than stops, whatever enters or leaves", () => {
+    for (const name of [
+      "--animate-pop-in",
+      "--animate-line-in",
+      "--animate-overlay-in",
+      "--animate-toast-in",
+    ]) {
+      expect(fade.get(name), name).toBe("var(--animate-fade-in)");
+    }
+    for (const name of ["--animate-overlay-out", "--animate-toast-out"]) {
+      expect(fade.get(name), name).toBe("var(--animate-fade-out)");
+    }
+    expect(keyframes("fade-in")).toMatch(/from\s*\{\s*opacity:\s*0;\s*\}/);
+    expect(keyframes("fade-out")).toMatch(/to\s*\{\s*opacity:\s*0;\s*\}/);
+  });
+
+  it("only redefines motion tokens", () => {
+    for (const name of fade.keys()) {
+      expect(name).toMatch(/^--(motion|animate)-/);
+      expect(declarations.has(name), name).toBe(true);
+    }
+  });
+});
+
+/** The declarations of the `:root[data-motion="fade"]` block. */
+function fadeDeclarations(): Map<string, string> {
+  const block =
+    /:root\[data-motion="fade"\]\s*\{([\s\S]*?)\n\}/.exec(tokensCss)?.[1] ?? "";
+  expect(block).not.toBe("");
+  const withoutComments = block.replace(/\/\*[\s\S]*?\*\//g, "");
+  return new Map(
+    [...withoutComments.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map(
+      ([, name, value]) => [name ?? "", (value ?? "").trim()],
+    ),
+  );
+}
 
 function keyframes(name: string): string {
   const start = tokensCss.indexOf(`@keyframes ${name} {`);
