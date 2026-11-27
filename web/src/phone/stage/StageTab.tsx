@@ -5,8 +5,9 @@
 // warnings, and a big Start. The playing Song's card (`PlayingCard`), the
 // results' card (`ResultsCard`) with this Phone's own Player's result and
 // its Rank title inside, and the empty Queue's (`EmptyQueueCard`) are in
-// `../onStage/`. No level meters and no Mic threshold here: those are on the
-// Stage.
+// `../onStage/`. No level meters here: every seat's meter is on the Stage,
+// and this Phone's own meter and Mic threshold are on its mic takeover
+// (`../takeover/MicCheck.tsx`).
 
 import { useState } from "react";
 

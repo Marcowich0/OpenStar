@@ -19,6 +19,7 @@ import type { SongControl } from "./SongControl";
 import type { SongId } from "./SongId";
 import type { SongProgress } from "./SongProgress";
 import type { StageId } from "./StageId";
+import type { StageMicReport } from "./StageMicReport";
 import type { UserMessage } from "./UserMessage";
 
 /**
@@ -37,4 +38,9 @@ isStage: boolean, } | { "type": "partyChanged", party: PartySnapshot, change: Ch
 /**
  * To a Mic bridge only: the Local mic whose ping this answers.
  */
-localMic?: BridgeLocalMic, } | { "type": "micClosed", mic: MicId, } | { "type": "micPage", mic: MicId, visible: boolean, } | { "type": "joinCodeValid", joinCode: JoinCode, } | { "type": "phoneStatus", memberId: PartyMemberId | null, } | { "type": "leftParty" } | { "type": "volume", volume: number, stepped: boolean, } | { "type": "avSync", running: boolean, } | { "type": "stepAvSync", step: AvSyncStep, } | { "type": "avSyncCheck", startedBy: PhoneId | null, avOffsetMs: number | null, } | { "type": "calibration", run: CalibrationRun | null, } | { "type": "jobChanged", job: Job, } | { "type": "controlSong", requestId: RequestId, songId: SongId, control: SongControl, } | { "type": "songProgress", progress: SongProgress, } | { "type": "lineScore", requestId: RequestId, total: number, } | { "type": "bridgeUpdate", build: string, } | { "type": "bridgeWaiting", code: string, } | { "type": "bridgeApproved", token: string, } | { "type": "bridgeConnected", bridgeId: BridgeId, } | { "type": "bridgeChannels", channels: Array<BridgeChannelSettings>, } | { "type": "bridgeMicsScreen", open: boolean, } | { "type": "bridgeDetecting", channels: Array<BridgeLocalMic>, } | { "type": "bridgeSwitchProfile", deviceName: string, } | { "type": "localMicLevels", levels: Array<LocalMicLevel>, };
+localMic?: BridgeLocalMic, } | { "type": "micClosed", mic: MicId, } | { "type": "micPage", mic: MicId, visible: boolean, } | { "type": "micReportRequest", mic: MicId, } | { "type": "micReport", report: StageMicReport, } | { "type": "joinCodeValid", joinCode: JoinCode, } | { "type": "phoneStatus", memberId: PartyMemberId | null, } | { "type": "leftParty" } | { "type": "volume", volume: number, stepped: boolean, 
+/**
+ * The Stage output the volume belongs to (its output key): a Phone
+ * reads its own Mic settings at it. Always sent.
+ */
+stageOutput?: string, } | { "type": "avSync", running: boolean, } | { "type": "stepAvSync", step: AvSyncStep, } | { "type": "avSyncCheck", startedBy: PhoneId | null, avOffsetMs: number | null, } | { "type": "calibration", run: CalibrationRun | null, } | { "type": "jobChanged", job: Job, } | { "type": "controlSong", requestId: RequestId, songId: SongId, control: SongControl, } | { "type": "songProgress", progress: SongProgress, } | { "type": "lineScore", requestId: RequestId, total: number, } | { "type": "bridgeUpdate", build: string, } | { "type": "bridgeWaiting", code: string, } | { "type": "bridgeApproved", token: string, } | { "type": "bridgeConnected", bridgeId: BridgeId, } | { "type": "bridgeChannels", channels: Array<BridgeChannelSettings>, } | { "type": "bridgeMicsScreen", open: boolean, } | { "type": "bridgeDetecting", channels: Array<BridgeLocalMic>, } | { "type": "bridgeSwitchProfile", deviceName: string, } | { "type": "localMicLevels", levels: Array<LocalMicLevel>, };

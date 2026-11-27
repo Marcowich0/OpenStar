@@ -394,3 +394,89 @@ describe("the capture pipeline", () => {
     });
   });
 });
+
+describe("the capture pipeline's diagnostics", () => {
+  it("tells what the context, the constraints and the track are", async () => {
+    const time = fakeTime();
+    const track = {
+      stop: () => undefined,
+      label: "Built-in microphone",
+      muted: false,
+      readyState: "live" as const,
+      getSettings: () => ({ echoCancellation: true, sampleRate: 48000 }),
+    };
+    const stream = {
+      getTracks: () => [track],
+      getAudioTracks: () => [track],
+    } as unknown as MediaStream;
+    const constraints = { audio: { echoCancellation: false }, video: false };
+    const asked: MediaStreamConstraints[] = [];
+    const pipeline = await startCapture(
+      await pipelineOptions({
+        time,
+        constraints,
+        getUserMedia: (c) => {
+          asked.push(c);
+          return Promise.resolve(stream);
+        },
+        createContext: () => ({
+          ...fakeContext(44100),
+          baseLatency: 0.004,
+          outputLatency: 0.047,
+        }),
+      }),
+    );
+    expect(asked).toEqual([constraints]);
+    const info = pipeline.info();
+    expect(info).toEqual({
+      sampleRate: 44100,
+      baseLatencyMs: 4,
+      outputLatencyMs: 47,
+      requested: constraints,
+      settings: { echoCancellation: true, sampleRate: 48000 },
+      label: "Built-in microphone",
+      muted: false,
+      readyState: "live",
+    });
+    pipeline.stop();
+  });
+
+  it("measures each reading's wait beyond the quickest, from the audio to the main thread", async () => {
+    const time = fakeTime(1000);
+    const nodes = fakePitchNodes();
+    const socket = fakeSocket(time);
+    const waits: (number | null)[] = [];
+    const pipeline = await startCapture(
+      await pipelineOptions({
+        time,
+        createPitchNode: nodes.create,
+        sendPing: socket.sendPing,
+        onPong: socket.onPong,
+        deliver: socket.deliver,
+        onWorkletReading: (_, timing) => {
+          waits.push(timing.workletWaitMs);
+        },
+      }),
+    );
+    time.advanceTo(CONTEXT_START_MS);
+    // Handled 5 ms after the frame, then every third one 25 ms after.
+    for (let k = 0; k < 30; k++) {
+      time.advanceTo(frameTimeMs(k) + (k % 3 === 2 ? 25 : 5));
+      nodes.emit({
+        pitch: 69,
+        clarity: 0.9,
+        loudness: -20,
+        endFrame: endFrame(k),
+        sampleRate: RATE,
+      });
+    }
+    pipeline.stop();
+    expect(waits[0]).toBeCloseTo(0, 6);
+    expect(waits[1]).toBeCloseTo(0, 6);
+    expect(waits[2]).toBeCloseTo(20, 6);
+    // The reading after a late one is handled with it, 9⅓ ms late itself.
+    expect(waits.slice(-3).map((w) => Math.abs(Math.round(w ?? -1)))).toEqual([
+      9, 0, 20,
+    ]);
+  });
+});

@@ -634,20 +634,30 @@ describe("setting a Local mic's Mic threshold on its seat", () => {
     expect(Number(line(mia)?.dataset.thresholdDbfs)).toBeCloseTo(-41 + level);
   });
 
-  it("gives a Phone's seat meter its line but no adjust mode", () => {
+  it("gives a Phone's seat meter the same adjust mode, saved for that Phone", () => {
     const { sent } = setup(twoSeats());
     loaded();
     const bo = seats()[0] as HTMLElement;
-    expect(line(bo)).not.toBeNull();
-    expect(within(bo).getByRole("meter")).not.toHaveAttribute(
-      "data-stage-focus",
-    );
-    act(() => {
-      within(bo).getByRole("button", { name: /Mic/ }).focus();
-    });
+    // An uncalibrated Phone's default −30 dBFS.
+    expect(Number(line(bo)?.dataset.thresholdDbfs)).toBe(-30);
+    focusMeter(bo);
     press("Enter");
-    expect(line(bo)).not.toHaveAttribute("data-adjusting");
+    expect(line(bo)).toHaveAttribute("data-adjusting");
+    press("ArrowLeft");
+    press("ArrowLeft");
+    expect(
+      sent.filter((m) => m.type === "setPhoneMicThreshold").at(-1),
+    ).toEqual({
+      type: "setPhoneMicThreshold",
+      stageOutput: "Speakers",
+      phoneId: "ph-bo",
+      referenceDbfs: -32,
+    });
     expect(thresholds(sent)).toEqual([]);
+    expect(Number(line(bo)?.dataset.thresholdDbfs)).toBe(-32);
+    expect(
+      stageMicSettings().storedFor({ kind: "phone", phoneId: "ph-bo" }),
+    ).toEqual({ micThreshold: { referenceDbfs: -32, setBy: "hand" } });
   });
 
   it("shows no number on the line", () => {

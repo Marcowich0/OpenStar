@@ -137,10 +137,21 @@ const SONGS: Record<number, unknown> = {
 
 /** Answers the Profiles and the Song details. */
 export function stubFetch() {
+  stubFetchWith(() => undefined);
+}
+
+/**
+ * `stubFetch`, answering more requests with `extra`: a response, or
+ * `undefined` for the usual ones.
+ */
+export function stubFetchWith(extra: (url: URL) => Response | undefined) {
   vi.stubGlobal(
     "fetch",
     vi.fn((input: string | URL) => {
-      const path = new URL(input, "http://openstar.test").pathname;
+      const url = new URL(input, "http://openstar.test");
+      const answered = extra(url);
+      if (answered) return Promise.resolve(answered);
+      const path = url.pathname;
       const songPath = /^\/api\/songs\/(\d+)$/.exec(path);
       if (songPath)
         return Promise.resolve(Response.json(SONGS[Number(songPath[1])]));

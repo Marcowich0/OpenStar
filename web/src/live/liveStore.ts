@@ -6,6 +6,7 @@ import type { LocalMicLevel } from "../generated/LocalMicLevel";
 import type { MicId } from "../generated/MicId";
 import type { PitchReading } from "../generated/PitchReading";
 import type { ServerMessage } from "../generated/ServerMessage";
+import type { StageMicReport } from "../generated/StageMicReport";
 import type { ClockPongFields } from "../pitch/clock/senderSession";
 import type { PitchRouter } from "../pitch/pitchRouter";
 import type { LiveClient, LiveClientOptions } from "./liveClient";
@@ -74,6 +75,17 @@ export interface LiveStore {
    * never reach the reducer.
    */
   onAvSyncStep: (listener: (step: AvSyncStep) => void) => () => void;
+  /**
+   * Calls `listener` with every Phone's ask for its mic diagnostics the
+   * server relays to the Stage (`micReportRequest`); the Stage answers with
+   * `micReport`. They never reach the reducer.
+   */
+  onMicReportRequest: (listener: (mic: MicId) => void) => () => void;
+  /**
+   * Calls `listener` with every `micReport` the Stage sent this Phone's Mic
+   * (its diagnostics view); they never reach the reducer.
+   */
+  onMicReport: (listener: (report: StageMicReport) => void) => () => void;
   /** Drops a toast the screen has finished showing (`toasts.ts`). */
   dismissToast: (id: number) => void;
   /** Shows a toast the Stage raises itself ("Mia is back on the mic"). */
@@ -137,6 +149,8 @@ export function createLiveStore(
   const readings = emitter<{ mic: MicId; reading: PitchReading }>();
   const jobs = emitter<Job>();
   const avSyncSteps = emitter<AvSyncStep>();
+  const micReportRequests = emitter<MicId>();
+  const micReports = emitter<StageMicReport>();
 
   function update(next: LiveState) {
     if (next === state) return;
@@ -171,6 +185,14 @@ export function createLiveStore(
       case "clockPong":
         // A Phone's Mic takes the pong.
         pongs.emit({ t0: message.t0, ts: message.ts, epoch: message.epoch });
+        return;
+      case "micReportRequest":
+        // Stage only: a Phone's diagnostics ask what the Stage receives.
+        micReportRequests.emit(message.mic);
+        return;
+      case "micReport":
+        // The Stage's answer, for this Phone's diagnostics.
+        micReports.emit(message.report);
         return;
       case "micClosed":
         // A closed Mic is a lost-Mic signal for the playing Song (#213).
@@ -267,6 +289,8 @@ export function createLiveStore(
     onClockPong: pongs.subscribe,
     onJobChanged: jobs.subscribe,
     onAvSyncStep: avSyncSteps.subscribe,
+    onMicReportRequest: micReportRequests.subscribe,
+    onMicReport: micReports.subscribe,
     dismissToast(id) {
       update(dismissToast(state, id));
     },

@@ -72,9 +72,14 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         | ClientMessage::ClockPing { .. }
         | ClientMessage::ClockPong { .. }
         | ClientMessage::MicPage { .. }
+        // A Phone's mic diagnostics and the Stage's answer only report.
+        | ClientMessage::MicReportRequest
+        | ClientMessage::MicReport { .. }
         // Calibrate mics and setting a Mic threshold need no Admin PIN.
         | ClientMessage::StoreCalibration { .. }
         | ClientMessage::SetMicThreshold { .. }
+        // A Phone's Mic threshold, from the Stage or that Phone itself.
+        | ClientMessage::SetPhoneMicThreshold { .. }
         // Switching a Local mic on or off deletes nothing.
         | ClientMessage::SetLocalMicSwitchedOn { .. }
         // Naming a Local mic and Find it delete nothing: Find it moves what

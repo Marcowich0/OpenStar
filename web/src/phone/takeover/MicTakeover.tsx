@@ -7,6 +7,10 @@
 // Song time here: the progress is the Stage's position reports and the Score
 // is the seat's running total at each Line end.
 //
+// The mic check (Mic is on) shows the level against this Phone's Mic
+// threshold, with a slider to set it by hand; "Show mic diagnostics" opens
+// the diagnostics while the mic is on (`MicCheck.tsx`).
+//
 // Mic blocked is a full-screen card naming the reason, with Try again; mic
 // lost says the Song kept going, with a big Sing again (#176). After the Song
 // (#176) is the Player's own result until Done.
@@ -43,9 +47,14 @@ import { Score } from "../../ui/Score";
 import { Sheet } from "../../ui/Sheet";
 import { memberLook } from "../memberLook";
 import type { MicBlockedReason, PhoneMic } from "../mic/phoneMic";
+import {
+  usePhoneMicSettings,
+  type PhoneMicSettings,
+} from "../mic/usePhoneMicSettings";
 import { Progress } from "../onStage/PlayingCard";
 import { setMyDifficulty } from "../people/memberRequests";
 import { PhoneToasts } from "../PhoneToasts";
+import { MicDiagnostics, ThresholdMeter } from "./MicCheck";
 import { editLineUp, startSong } from "../stage/lineUpCommands";
 import {
   levelOf,
@@ -126,6 +135,11 @@ function SeatScreen({
   const name = look?.name ?? "";
   const title = song?.song.headers.title ?? "";
   const { step } = takeover;
+  const seatMic = takeover.seat.mic;
+  const settings = usePhoneMicSettings(
+    store,
+    seatMic?.kind === "phone" ? seatMic.phoneId : "",
+  );
 
   return (
     <main
@@ -163,6 +177,7 @@ function SeatScreen({
           store={store}
           takeover={takeover}
           mic={mic}
+          settings={settings}
           name={name}
           title={title}
           lengthSeconds={song?.lengthSeconds ?? null}
@@ -175,6 +190,13 @@ function SeatScreen({
       {diagnostics && (step === "micOn" || step === "singing") && (
         <Diagnostics mic={mic} />
       )}
+      {(step === "micOn" || step === "singing") && (
+        <MicDiagnostics
+          mic={mic}
+          settings={settings}
+          openAtFirst={diagnostics}
+        />
+      )}
     </main>
   );
 }
@@ -183,6 +205,7 @@ function Step({
   store,
   takeover,
   mic,
+  settings,
   name,
   title,
   lengthSeconds,
@@ -190,6 +213,7 @@ function Step({
   store: LiveStore;
   takeover: Takeover;
   mic: PhoneMic;
+  settings: PhoneMicSettings;
   name: string;
   title: string;
   lengthSeconds: number | null;
@@ -232,7 +256,11 @@ function Step({
         <>
           <h1 className="text-4xl font-bold">{t("phoneMic.on")}</h1>
           <p className="text-xl">{t("phoneTakeover.singANote")}</p>
-          <LevelMeter mic={mic} />
+          <ThresholdMeter
+            mic={mic}
+            settings={settings}
+            started={takeover.started}
+          />
           <p className="text-lg text-white/80">{t("phoneTakeover.keepOpen")}</p>
           <Button
             fill="green"
@@ -563,25 +591,6 @@ function LevelRing({ mic, children }: { mic: PhoneMic; children: ReactNode }) {
         }}
       />
       {children}
-    </div>
-  );
-}
-
-/** The mic check's level meter. */
-function LevelMeter({ mic }: { mic: PhoneMic }) {
-  const ref = useLevel(mic);
-  return (
-    <div
-      ref={ref}
-      role="img"
-      aria-label={t("phoneTakeover.level")}
-      className="h-4 w-full overflow-hidden rounded-full bg-white/25"
-      style={{ "--level": "0" } as CSSProperties}
-    >
-      <div
-        className="h-full origin-left rounded-full bg-white transition-transform duration-75 motion-reduce:transition-none"
-        style={{ transform: "scaleX(var(--level))" }}
-      />
     </div>
   );
 }

@@ -9,7 +9,16 @@ import {
   fakeTime,
   pipelineOptions,
 } from "../../pitch/capture/testCapture";
-import { createPhoneMic, MediaDevicesMissingError } from "./phoneMic";
+import type { StageMicReport } from "../../generated/StageMicReport";
+import {
+  micConstraints,
+  type MicProcessing,
+} from "../../pitch/capture/micDiagnostics";
+import {
+  createPhoneMic,
+  MediaDevicesMissingError,
+  type PhoneMicOptions,
+} from "./phoneMic";
 
 /**
  * A fake socket to a Stage 1000 ms ahead that answers each ping at once.
@@ -97,6 +106,7 @@ function fakeWakeLock() {
 async function setUp(
   refuse?: Error,
   getUserMedia?: (c: MediaStreamConstraints) => Promise<MediaStream>,
+  extra: Partial<PhoneMicOptions> = {},
 ) {
   const time = fakeTime(1000);
   const page = fakePage();
@@ -119,6 +129,7 @@ async function setUp(
     clearTimer: time.clearTimer,
     page,
     wakeLock: wakeLock.request,
+    ...extra,
   });
   return { time, store, nodes, media, mic, page, wakeLock };
 }
@@ -529,5 +540,97 @@ describe("the Phone's blocked mic", () => {
       type: "reportMicBlocked",
       blocked: false,
     });
+  });
+});
+
+describe("the Phone's mic diagnostics", () => {
+  const report: StageMicReport = {
+    receivedPerSecond: 92,
+    arrivalP50Ms: 60,
+    arrivalP95Ms: 120,
+    arrivalMaxMs: 240,
+    largestGapMs: 90,
+    lateShare: 0,
+    loudnessDbfs: -24,
+    micDelayMs: 100,
+    micThresholdDbfs: -30,
+  };
+
+  it("measures the readings, the clock sync and the capture, and asks the Stage once a second while watched", async () => {
+    let answer = null as ((r: StageMicReport) => void) | null;
+    const { mic, store, nodes, time, wakeLock } = await setUp(
+      undefined,
+      undefined,
+      {
+        onMicReport: (listener) => {
+          answer = listener;
+          return () => undefined;
+        },
+        wallClock: () => Date.UTC(2026, 10, 27, 9, 0, 0),
+      },
+    );
+    mic.turnOn();
+    await settle();
+    time.advanceTo(1200);
+    mic.setThreshold(-30);
+    for (let k = 0; k < 100; k++) {
+      time.advanceTo(1200 + (k * 512) / 48);
+      nodes.emit({
+        ...reading(48000 + 512 * k),
+        loudness: k % 2 === 0 ? -40 : -20,
+      });
+    }
+    const d = mic.diagnostics();
+    expect(d.takenAt).toBe("2026-11-27T09:00:00.000Z");
+    expect(d.state).toBe("on");
+    expect(d.processing).toBe("standard");
+    expect(d.clockOffsetMs).toBe(1000);
+    expect(d.capture?.sampleRate).toBe(48000);
+    expect(d.capture?.requested).toEqual(micConstraints());
+    expect(d.frames.shares).toEqual({ gated: 0.5, unvoiced: 0, voiced: 0.5 });
+    expect(d.frames.sentPerSecond).toBeGreaterThan(90);
+    expect(d.frames.roundTripMinMs).toBe(0);
+    expect(d.wakeLock).toBe(wakeLock.held === 1);
+    expect(d.stage).toBeNull();
+
+    mic.watchStage(true);
+    const asks = () =>
+      store.sent.filter((m) => m.type === "micReportRequest").length;
+    expect(asks()).toBe(1);
+    time.advanceTo(time.now() + 2000);
+    expect(asks()).toBe(3);
+    answer?.(report);
+    expect(mic.diagnostics().stage).toEqual(report);
+    expect(mic.diagnostics().stageReportAgeMs).toBe(0);
+    mic.watchStage(false);
+    time.advanceTo(time.now() + 5000);
+    expect(asks()).toBe(3);
+    mic.turnOff();
+  });
+
+  it("opens again with the voice processing chosen, on reopen", async () => {
+    let processing: MicProcessing = "standard";
+    const { mic, media } = await setUp(undefined, undefined, {
+      processing: () => processing,
+    });
+    mic.turnOn();
+    await settle();
+    processing = "none";
+    mic.reopen();
+    await settle();
+    expect(mic.getSnapshot().state).toBe("on");
+    expect(media.constraints.map((c) => c.audio)).toEqual([
+      expect.objectContaining({ echoCancellation: true }),
+      expect.objectContaining({
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      }),
+    ]);
+    expect(mic.diagnostics().processing).toBe("none");
+    mic.turnOff();
+    // Not while off.
+    mic.reopen();
+    expect(media.constraints).toHaveLength(2);
   });
 });

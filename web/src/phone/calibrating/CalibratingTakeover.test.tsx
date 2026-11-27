@@ -6,6 +6,7 @@ import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { PhoneStorage } from "../../live/phoneId";
 import { followLineUp } from "../mic/micLineUp";
 import type { PhoneMic, PhoneMicSnapshot } from "../mic/phoneMic";
+import { quietDiagnostics } from "../mic/testPhoneMic";
 import { PhonePageView } from "../PhoneScreen";
 import {
   MY_PHONE,
@@ -53,6 +54,10 @@ function fakeMic(state: PhoneMicSnapshot["state"] = "off") {
         for (const listener of listeners) listener();
       });
     },
+    setThreshold: vi.fn(),
+    diagnostics: quietDiagnostics,
+    watchStage: vi.fn(),
+    reopen: vi.fn(),
   } satisfies PhoneMic & Record<string, unknown>;
   return mic;
 }

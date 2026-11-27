@@ -766,12 +766,13 @@ impl LiveState {
             is_stage: self.stage().connection == Some(id),
         };
         self.hub.send_to(id, &live_state);
-        if let Some((_, volume)) = self.stage().output {
+        if let Some((output, volume)) = self.stage().output.clone() {
             self.hub.send_to(
                 id,
                 &ServerMessage::Volume {
                     volume,
                     stepped: false,
+                    stage_output: Some(output.stage_output),
                 },
             );
         }
@@ -873,6 +874,32 @@ impl LiveState {
                     self.send_to_stage(&ServerMessage::MicPage { mic, visible });
                 }
             }
+            Ok(ClientMessage::MicReportRequest) => {
+                if let Some(mic) = self.acting_mic(id) {
+                    self.send_to_stage(&ServerMessage::MicReportRequest { mic });
+                }
+            }
+            Ok(ClientMessage::MicReport { mic, report }) => {
+                if self.stage().connection != Some(id) {
+                    self.reject(id, UserMessage::NotTheStage);
+                    return;
+                }
+                // A report for a Mic that has gone, or a bridge's, is dropped.
+                if let MicId::Phone { phone_id } = mic
+                    && let Some(&connection) = self.mics.get(&phone_id)
+                {
+                    self.hub
+                        .send_to(connection, &ServerMessage::MicReport { report });
+                }
+            }
+            Ok(ClientMessage::SetPhoneMicThreshold {
+                stage_output,
+                phone_id,
+                reference_dbfs,
+            }) => {
+                self.set_phone_mic_threshold(id, stage_output, phone_id, reference_dbfs)
+                    .await;
+            }
             Ok(ClientMessage::ClockPong { mic, t0, ts, epoch }) => {
                 if self.stage().connection != Some(id) {
                     self.reject(id, UserMessage::NotTheStage);
@@ -915,7 +942,7 @@ impl LiveState {
                 let stored = crate::mic_settings::set_threshold_by_hand(
                     self.db.clone(),
                     stage_output,
-                    local_mic_id,
+                    MicKey::LocalMic { local_mic_id },
                     reference_dbfs,
                 );
                 self.mic_settings_write(id, stored).await;
@@ -1252,6 +1279,47 @@ impl LiveState {
     /// Runs a Mic settings (or Local mic) write if `id` is the active Stage, then tells
     /// every connection Mic settings changed. Anyone else is refused and
     /// nothing is written.
+    /// A Phone's Mic threshold set by hand: from the active Stage for any
+    /// Phone, or from a Phone for its own at the Stage's current output.
+    async fn set_phone_mic_threshold(
+        &mut self,
+        id: ConnectionId,
+        stage_output: String,
+        phone_id: PhoneId,
+        reference_dbfs: f64,
+    ) {
+        if self.stage().connection != Some(id) {
+            if self.phones.get(&id) != Some(&phone_id) {
+                self.reject(id, UserMessage::NotTheStage);
+                return;
+            }
+            let current = self.stage().output.as_ref().map(|(o, _)| &o.stage_output);
+            if current != Some(&stage_output) {
+                self.reject(id, UserMessage::NoStage);
+                return;
+            }
+        }
+        let mic = MicKey::Phone {
+            phone_id: phone_id.0,
+        };
+        match crate::mic_settings::set_threshold_by_hand(
+            self.db.clone(),
+            stage_output,
+            mic,
+            reference_dbfs,
+        )
+        .await
+        {
+            Ok(()) => self.hub.send_all(&ServerMessage::Changed {
+                topics: vec![ChangeTopic::MicSettings],
+            }),
+            Err(error) => {
+                tracing::error!(?error, "storing a Phone's Mic threshold");
+                self.reject(id, UserMessage::ServerError);
+            }
+        }
+    }
+
     async fn mic_settings_write(
         &mut self,
         id: ConnectionId,
@@ -1310,10 +1378,12 @@ impl LiveState {
         let volume = stage_outputs::volume(&self.db, &output)
             .await
             .map_err(|error| server_error(&error, "reading the OpenStar volume"))?;
+        let stage_output = Some(output.stage_output.clone());
         self.stage_mut().output = Some((output, volume));
         self.hub.send_all(&ServerMessage::Volume {
             volume,
             stepped: false,
+            stage_output,
         });
         // Another output may hold other Mics' values.
         self.refresh_calibrated().await;
@@ -1368,10 +1438,12 @@ impl LiveState {
         stage_outputs::set_volume(&self.db, &output, volume)
             .await
             .map_err(|error| server_error(&error, "storing the OpenStar volume"))?;
+        let stage_output = Some(output.stage_output.clone());
         self.stage_mut().output = Some((output, volume));
         self.hub.send_all(&ServerMessage::Volume {
             volume,
             stepped: true,
+            stage_output,
         });
         Ok(())
     }

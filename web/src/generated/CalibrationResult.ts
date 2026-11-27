@@ -14,8 +14,8 @@ micDelayMs: number,
  */
 bleedLevelDbfs: number, 
 /**
- * For a Local mic: its Mic threshold (bleed level + 6 dB), in dBFS at
- * the reference volume. Stored as set by Calibration. Left out, the
- * stored Mic threshold stays as it was.
+ * Its Mic threshold (bleed level + 6 dB), in dBFS at the reference
+ * volume. Stored as set by Calibration, replacing one set by hand. Left
+ * out, the stored Mic threshold stays as it was.
  */
 micThresholdDbfs?: number, };

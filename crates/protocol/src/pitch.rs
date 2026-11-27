@@ -72,6 +72,36 @@ pub struct BridgeLocalMic {
     pub channel: u32,
 }
 
+/// What the Stage receives from one Phone's Mic, for that Phone's mic
+/// diagnostics: the Stage's answer ([`crate::ClientMessage::MicReport`]) to
+/// a Phone's [`crate::ClientMessage::MicReportRequest`], relayed to that
+/// Phone alone as [`crate::ServerMessage::MicReport`]. Figures over the last
+/// two seconds, times in milliseconds on the Stage's clock. Never stored.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct StageMicReport {
+    /// Readings that reached the Stage in the last second.
+    pub received_per_second: u32,
+    /// From capture (the window centre) to arrival on the Stage: the median,
+    /// the 95th percentile and the longest; `null` with no readings.
+    pub arrival_p50_ms: Option<f64>,
+    pub arrival_p95_ms: Option<f64>,
+    pub arrival_max_ms: Option<f64>,
+    /// The longest the Stage waited between two readings.
+    pub largest_gap_ms: Option<f64>,
+    /// The share (0 to 1) of readings whose trip took longer than the scoring
+    /// window allows (the grace period, 300 ms): they are drawn but never
+    /// scored.
+    pub late_share: Option<f64>,
+    /// The newest reading's loudness, dBFS.
+    pub loudness_dbfs: Option<f64>,
+    /// The Mic delay and effective Mic threshold (dBFS) the Stage would
+    /// score this Phone with now.
+    pub mic_delay_ms: f64,
+    pub mic_threshold_dbfs: f64,
+}
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;

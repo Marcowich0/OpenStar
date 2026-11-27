@@ -48,21 +48,20 @@ export function analyseCalibration<M>(
   }));
 }
 
-/** What a successful Calibration stores for a Mic (a Local mic also gets its Mic threshold). */
+/**
+ * What a successful Calibration stores for a Mic: its Mic delay, bleed level
+ * and Mic threshold (bleed level + 6 dB), which replaces one set by hand.
+ */
 export function calibrationResult(
   mic: MicKey,
   calibrated: Extract<MicCalibration, { result: "calibrated" }>,
 ): CalibrationResult {
-  const result: CalibrationResult = {
+  return {
     mic,
     micDelayMs: calibrated.micDelayMs,
     bleedLevelDbfs: calibrated.bleedLevelDbfs,
+    micThresholdDbfs: calibrated.bleedLevelDbfs + MIC_THRESHOLD.bleedMarginDb,
   };
-  if (mic.kind === "localMic") {
-    result.micThresholdDbfs =
-      calibrated.bleedLevelDbfs + MIC_THRESHOLD.bleedMarginDb;
-  }
-  return result;
 }
 
 function analyseMic(

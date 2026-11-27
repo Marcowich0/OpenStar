@@ -80,16 +80,18 @@ pub async fn store_calibration(
     .await
 }
 
-/// Sets a Local mic's Mic threshold by hand at `stage_output` (dBFS at the
-/// reference volume), marked set by hand. Its Mic delay and bleed level, if
-/// any, stay as they were; a never-calibrated Local mic gets none.
+/// Sets a Mic's Mic threshold by hand at `stage_output` (dBFS at the
+/// reference volume), marked set by hand: a Local mic's from the Stage, a
+/// Phone's from the Stage or from that Phone. Its Mic delay and bleed level,
+/// if any, stay as they were; a never-calibrated Mic gets none.
 pub async fn set_threshold_by_hand(
     db: Database,
     stage_output: String,
-    local_mic_id: String,
+    mic: MicKey,
     reference_dbfs: f64,
 ) -> anyhow::Result<()> {
     db.call(move |conn| {
+        let (kind, id) = key_parts(&mic);
         conn.execute(
             "INSERT INTO mic_settings
                  (mic_kind, mic_id, stage_output, threshold_dbfs, threshold_set_by)
@@ -98,8 +100,8 @@ pub async fn set_threshold_by_hand(
                  threshold_dbfs   = excluded.threshold_dbfs,
                  threshold_set_by = excluded.threshold_set_by",
             params![
-                LOCAL_MIC,
-                local_mic_id,
+                kind,
+                id,
                 stage_output,
                 reference_dbfs,
                 set_by_key(ThresholdSetBy::Hand),

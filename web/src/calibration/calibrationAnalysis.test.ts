@@ -109,13 +109,14 @@ describe("calibrationResult", () => {
     tonesHeard: 8,
   } as const;
 
-  it("stores a Phone's Mic delay and bleed level, and no Mic threshold", () => {
+  it("stores a Phone's Mic delay, bleed level and Mic threshold at its bleed level + 6 dB", () => {
     expect(
       calibrationResult({ kind: "phone", phoneId: "p1" }, calibrated),
     ).toEqual({
       mic: { kind: "phone", phoneId: "p1" },
       micDelayMs: 112,
       bleedLevelDbfs: -41.5,
+      micThresholdDbfs: -35.5,
     });
   });
 
