@@ -17,12 +17,14 @@ import { t } from "../../i18n/t";
 import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
 import { useLive } from "../../live/useLive";
+import type { ShownProfile } from "../../profile/ProfilePage";
 import { Avatar } from "../../ui/Avatar";
 import { Sheet } from "../../ui/Sheet";
 import type { MemberLook } from "../memberLook";
 import { LeaveParty } from "./LeaveParty";
 import { setMyDifficulty } from "./memberRequests";
 import { myDifficulty, playingSeats, showsAdminLink } from "./people";
+import { ProfileSheet } from "./ProfileSheet";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "medium", "hard"];
 
@@ -49,7 +51,8 @@ const OPTION =
  * The avatar at the top right of the Remote, and the Me sheet it opens
  * (v1 spec #49, "Me sheet"): who this Phone is, "My Difficulty for the next
  * Song", "Someone else is using this phone", "Change name, look or colour",
- * Leave party and a small "Admin" link.
+ * Leave party and a small "Admin" link. A Profile also gets "My stats": its
+ * Profile page, full screen (spec #244).
  */
 export function MeButton({
   store,
@@ -63,6 +66,7 @@ export function MeButton({
   me: MeActions;
 }) {
   const [open, setOpen] = useState(false);
+  const [stats, setStats] = useState<ShownProfile | null>(null);
   const party = useLive(selectParty, store);
   const profiles = useQuery(profilesQuery);
   const difficulty = myDifficulty(
@@ -71,6 +75,7 @@ export function MeButton({
     party?.lineUp?.seats ?? null,
   );
   const colour = colourName(member.colour);
+  const identity = member.identity;
 
   return (
     <>
@@ -107,6 +112,18 @@ export function MeButton({
               </span>
             </div>
           </div>
+          {identity.kind === "profile" ? (
+            <button
+              type="button"
+              className={OPTION}
+              onClick={() => {
+                setOpen(false);
+                setStats({ id: identity.profileId, name: look.name });
+              }}
+            >
+              {t("me.myStats")}
+            </button>
+          ) : null}
           <RadioGroup
             value={difficulty}
             onChange={(key) => {
@@ -161,6 +178,12 @@ export function MeButton({
           ) : null}
         </div>
       </Sheet>
+      <ProfileSheet
+        shown={stats}
+        onClose={() => {
+          setStats(null);
+        }}
+      />
     </>
   );
 }

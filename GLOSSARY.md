@@ -204,6 +204,10 @@ _Avoid_: Player colour, team colour, slot colour
 The Players set for the next Song, each with a mic, a Voice and a Difficulty.
 _Avoid_: Roster, slots, team
 
+**Round**:
+One Song sung by one Line-up, from Start to its results screen. Every Score record belongs to one round.
+_Avoid_: Game, play, turn
+
 **Score record**:
 What one Player scored singing one Voice of one Song at one Difficulty, kept for every Song that reaches the results screen, including Songs ended early.
 _Avoid_: Score, result, play
@@ -211,6 +215,14 @@ _Avoid_: Score, result, play
 **High score**:
 A Profile's best finished Score record for one Song, Voice and Difficulty. Guests, unfinished Songs and modes other than a normal full Song never count.
 _Avoid_: Record, best, leaderboard entry
+
+**Profile stats**:
+What a Profile has sung, worked out by the server from its Score records: Songs sung, rounds, best Scores per Difficulty, High scores held, most-sung Songs, and when it first and last sang. Guests have none.
+_Avoid_: Statistics, history, summary
+
+**Profile page**:
+One Profile and its Profile stats, the same page on the Phone, in the Stage's People overlay and in Admin › Profiles.
+_Avoid_: Stats page, player card
 
 **Timing edit**:
 A correction to when a Song's notes fall against its audio, saved back into the Library.

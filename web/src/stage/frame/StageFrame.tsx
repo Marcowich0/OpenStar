@@ -6,6 +6,9 @@
 // the frame's own: Esc dismisses the top layer (a pick list before an
 // overlay), the arrows move the focus (`focusMove.ts`), Enter picks the
 // focused element, `S`/`Q`/`P` toggle the Songs, Queue and People overlays.
+// A TV remote's Back (`BrowserBack`, `GoBack`, and Backspace outside a text
+// field) is Esc, its Play/Pause is Space (`remoteKeys.ts`), for bindings and
+// the frame alike.
 // `H` (`BrowseToggle.tsx`) leaves the head's waiting Line-up for the song
 // browser and comes back to it, like the Line-up's Browse songs pill and the
 // song browser's Up next banner; it acts only in the scene layer and never
@@ -33,6 +36,7 @@ import {
   isTextField,
 } from "./focusables";
 import { nextFocus, type FocusDirection } from "./focusMove";
+import { isBrowserBack, stageKey } from "./remoteKeys";
 import { OVERLAY_KEYS, type OverlayId } from "./overlayIds";
 import { StageOverlay } from "./overlays";
 import { BrowseToggle } from "./BrowseToggle";
@@ -226,12 +230,10 @@ export function StageFrame({
       next?.focus({ preventScroll: true });
     }
 
-    function runBindings(event: KeyboardEvent): boolean {
+    function runBindings(event: KeyboardEvent, key: string): boolean {
       const top = layersRef.current.at(-1)?.id ?? SCENE_LAYER;
       const names =
-        event.key.length === 1
-          ? [event.key, event.key.toLowerCase(), event.key.toUpperCase()]
-          : [event.key];
+        key.length === 1 ? [key, key.toLowerCase(), key.toUpperCase()] : [key];
       for (const registration of [...keysRef.current].reverse()) {
         if (!registration.global && registration.layer !== top) continue;
         const bindings = registration.bindings.current;
@@ -244,6 +246,8 @@ export function StageFrame({
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
+      // The browser's own Back never leaves the Stage, wherever the focus is.
+      if (isBrowserBack(event.key)) event.preventDefault();
       // A dialog above the frame, portalled outside it (the Downloads
       // overlay's video picker, the Admin PIN pad), takes its own keys.
       const focused = document.activeElement;
@@ -254,12 +258,14 @@ export function StageFrame({
       ) {
         return;
       }
-      if (runBindings(event)) {
+      // A TV remote's Back and Play/Pause act as Esc and Space.
+      const key = stageKey(event.key, isTextField(focused));
+      if (runBindings(event, key)) {
         event.preventDefault();
         return;
       }
       const frame = apiRef.current;
-      if (event.key === "Escape") {
+      if (key === "Escape") {
         const top = layersRef.current.at(-1);
         if (top) {
           event.preventDefault();
@@ -269,7 +275,7 @@ export function StageFrame({
       }
       const active = document.activeElement;
       if (isTextField(active)) return;
-      if (event.key === "Tab") {
+      if (key === "Tab") {
         // Tab stays inside the top layer, in document order.
         const root = topRoot();
         if (!root) return;
@@ -282,13 +288,13 @@ export function StageFrame({
         next?.focus({ preventScroll: true });
         return;
       }
-      const direction = ARROWS[event.key];
+      const direction = ARROWS[key];
       if (direction) {
         event.preventDefault();
         moveFocus(direction);
         return;
       }
-      if (event.key === "Enter") {
+      if (key === "Enter") {
         // Buttons pick (or hold) themselves; other focusables are clicked.
         if (event.defaultPrevented || event.repeat) return;
         if (
@@ -302,7 +308,7 @@ export function StageFrame({
         }
         return;
       }
-      const overlayId = OVERLAY_KEYS[event.key.toLowerCase()];
+      const overlayId = OVERLAY_KEYS[key.toLowerCase()];
       if (overlayId) {
         // Not while a pick list is open: only the overlay's own layer may be up.
         const pickListOpen =

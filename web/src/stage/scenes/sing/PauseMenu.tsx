@@ -13,6 +13,7 @@ import { HoldButton } from "../../../ui/HoldButton";
 import { Icon } from "../../../ui/Icon";
 import { ReferenceBox } from "../../frame/ReferenceBox";
 import { StageLayer } from "../../frame/stageFrameContext";
+import { ByInput } from "../../input/KeyHint";
 
 export type PauseMenuControl = "resume" | "restart" | "skip" | "end";
 
@@ -82,7 +83,10 @@ export function PauseMenu({
               {t("stage.pause.end")}
             </HoldButton>
             <p className="text-center text-xl text-ink-2">
-              {t("stage.pause.hint")}
+              <ByInput
+                keys={t("stage.pause.hint")}
+                pad={t("stage.pause.hint.pad")}
+              />
             </p>
           </div>
         </div>
