@@ -27,6 +27,13 @@ async function hitAt(
   );
 }
 
+/** Waits until `locator`'s own animations (its pop-in) have finished. */
+async function settled(locator: Locator): Promise<void> {
+  await locator.evaluate((element) =>
+    Promise.all(element.getAnimations().map((animation) => animation.finished)),
+  );
+}
+
 const HIDE = "aside[data-layout] button";
 const PILLS =
   "[data-testid=pill-row] > button, [data-testid=pill-row] > span > button";
@@ -57,6 +64,7 @@ test("the Setup menu lies over the join card's Hide pill", async ({
   await stage.getByRole("button", { name: "Setup" }).click();
   const menu = stage.getByRole("menu", { name: "Setup" });
   await expect(menu).toBeVisible();
+  await settled(menu);
   // The menu runs down over the card's top edge, where Hide sits.
   const menuBox = await menu.boundingBox();
   const hideBox = await hide.boundingBox();
@@ -107,8 +115,7 @@ test("an open overlay covers the join card and the Stage menu", async ({
     await open(stage);
     const overlay = stage.locator(`[data-overlay=${id}]`);
     await expect(overlay).toBeVisible();
-    // Past the modal's pop-in.
-    await stage.waitForTimeout(400);
+    await settled(overlay.locator("[role=dialog]").first());
     for (const { name, point } of targets) {
       expect(
         await hitAt(stage, point, `[data-overlay=${id}]`),
