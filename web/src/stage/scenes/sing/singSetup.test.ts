@@ -6,6 +6,7 @@ import {
   type StoredMicSettings,
 } from "../../../mics/micSettings";
 import { stageMicSettings } from "../../../mics/stageMicSettings";
+import { createFirstSongMemory } from "./pauseHint";
 import { singSetup } from "./singSetup";
 import {
   LEO_SEAT,
@@ -261,6 +262,42 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     } finally {
       stageMicSettings().set(null);
     }
+  });
+
+  it("gives the title card the Song's title, artist and cover, or its tile colour without one", () => {
+    const party = testParty();
+    const state = (cover: string | null) =>
+      singSetup({
+        detail: {
+          ...testDetail(),
+          media: { ...testDetail().media, cover },
+        },
+        party,
+        profiles: PROFILES,
+      }).state([new PitchBuffer(8)]);
+    expect(state("/api/songs/7/cover").song).toEqual({
+      title: "Test Song",
+      artist: "Test Artist",
+      cover: "/api/songs/7/cover",
+      tileColour: "navy",
+    });
+    expect(state(null).song).toMatchObject({ cover: null, tileColour: "navy" });
+  });
+
+  it("shows the pause hint on the first Song since the Party started only", () => {
+    const memory = createFirstSongMemory(null);
+    const hint = (partyId: string, head: number) =>
+      singSetup({
+        detail: testDetail(),
+        party: testParty({ partyId, head }),
+        profiles: PROFILES,
+        isFirstSong: memory.isFirstSong,
+      }).state([new PitchBuffer(8)]).pauseHint;
+    expect(hint("party-1", 5)).toBe("keyboard");
+    // A Restart of that Song builds its state again: still the first.
+    expect(hint("party-1", 5)).toBe("keyboard");
+    expect(hint("party-1", 6)).toBeNull();
+    expect(hint("party-2", 9)).toBe("keyboard");
   });
 
   it("refuses a Party with no Line-up", () => {
