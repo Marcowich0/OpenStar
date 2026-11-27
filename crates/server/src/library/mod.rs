@@ -30,6 +30,7 @@ pub use conversion::Conversion;
 pub(crate) use identity::key as identity_key;
 pub(crate) use identity::normalise;
 pub(crate) use index::identity_present;
+pub(crate) use index::listed_with_identity_key;
 pub(crate) use index::song as song_detail;
 pub(crate) use index::song_with_identity;
 pub use loudness::Measurement;
