@@ -159,11 +159,12 @@ const click = (element: HTMLElement) => {
   });
 };
 
-const browsePill = () => screen.queryByRole("button", { name: "Browse songs" });
+const browsePill = () =>
+  screen.queryByRole("button", { name: "◀ Song browser" });
 const banner = () => screen.queryByTestId("browse-up-next");
 
 describe("the song browser over a waiting Line-up", () => {
-  it("leaves the Line-up with Browse songs and comes back with Up next", () => {
+  it("leaves the Line-up with ◀ Song browser and comes back with Up next", () => {
     const { scene } = setup(waiting());
     expect(scene()).toBe("lineUp");
     expect(banner()).toBeNull();

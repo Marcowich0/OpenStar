@@ -43,7 +43,8 @@ async function sceneTargets(stage: Page) {
   const hide = stage.locator(HIDE);
   await expect(hide).toBeVisible();
   const pills = await stage.locator(PILLS).all();
-  expect(pills.length).toBeGreaterThanOrEqual(4);
+  // The song browser's row: Queue, People and Setup (no Add songs, #248).
+  expect(pills.length).toBeGreaterThanOrEqual(3);
   return [
     { name: "Hide", point: await centre(hide) },
     ...(await Promise.all(

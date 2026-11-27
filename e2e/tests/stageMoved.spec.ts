@@ -90,9 +90,7 @@ test("the old Stage says the Stage moved and takes it back with a hold", async (
   await expect(moved(other)).toBeVisible();
   await stage.keyboard.press("p");
   await expect(
-    stage
-      .getByRole("dialog", { name: "Tonight's Party" })
-      .getByText("hold to remove"),
+    stage.getByRole("dialog", { name: "People" }).getByText("hold to remove"),
   ).toHaveCount(1);
   await stage.keyboard.press("Escape");
   await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();

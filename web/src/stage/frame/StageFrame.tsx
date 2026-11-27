@@ -10,7 +10,7 @@
 // field) is Esc, its Play/Pause is Space (`remoteKeys.ts`), for bindings and
 // the frame alike.
 // `H` (`BrowseToggle.tsx`) leaves the head's waiting Line-up for the song
-// browser and comes back to it, like the Line-up's Browse songs pill and the
+// browser and comes back to it, like the Line-up's ◀ Song browser pill and the
 // song browser's Up next banner; it acts only in the scene layer and never
 // in a text field. That choice is the Stage's own: the server still says
 // which scene it is, and the Line-up comes back by itself once the head
