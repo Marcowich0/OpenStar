@@ -15,6 +15,7 @@ import type { TxtRejection } from "../generated/TxtRejection";
 import type { TxtWarning } from "../generated/TxtWarning";
 import type { UserMessage } from "../generated/UserMessage";
 import { localMicName } from "../mics/localMics";
+import { changedOptionName } from "../stageOptions/OptionsList";
 import { colourName } from "./colourNames";
 import { difficultyName, voiceNumber } from "./seatNames";
 import { t } from "./t";
@@ -211,6 +212,12 @@ export const partyEventText = byCode<PartyEvent>({
     t("partyEvent.songAborted", { song: params.title }),
   autoFitAccepted: ({ params }) =>
     t("partyEvent.autoFitAccepted", { song: params.title }),
+  stageOptionsChanged: ({ params }) => {
+    const option = changedOptionName(params.options);
+    return option === null
+      ? t("partyEvent.stageOptionsChanged")
+      : t("partyEvent.stageOptionChanged", { option });
+  },
 });
 
 /**

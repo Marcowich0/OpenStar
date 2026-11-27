@@ -375,6 +375,16 @@ pub enum ClientMessage {
     /// Difficulty). Refused with [`UserMessage::NotInParty`] for anyone but
     /// a joined Phone.
     SetMyDifficulty { difficulty: profile::Difficulty },
+    /// Stage options from a Remote (#271): replaces the whole set, like
+    /// `PUT /api/stage-options`, and names who changed which options in a
+    /// [`PartyEvent::StageOptionsChanged`] (none when nothing changed). From
+    /// the active Stage or a joined Phone, refused with
+    /// [`UserMessage::NotInParty`] for anyone else and with
+    /// [`UserMessage::InvalidMessage`] for a value out of its range. Needs no
+    /// Admin PIN. Every browser gets [`ChangeTopic::StageOptions`].
+    SetStageOptions {
+        options: stage_options::StageOptions,
+    },
     /// Start, Pause, Resume, Restart, End, Skip or Skip intro for the head's
     /// Song, `request_id` (a Remote command). Accepted ones are passed to
     /// the Stage. Start is refused with [`UserMessage::LineUpNotWaiting`]

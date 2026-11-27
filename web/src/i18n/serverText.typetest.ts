@@ -153,6 +153,7 @@ export const wrongParam = byCode<PartyEvent>({
   resultsClosed: () => "",
   songAborted: ({ params }) => params.title,
   autoFitAccepted: ({ params }) => params.title,
+  stageOptionsChanged: ({ params }) => params.options.join(),
 });
 
 // Every Library problem reason renders through one handler per code: a

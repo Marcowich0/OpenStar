@@ -29,7 +29,15 @@ export interface UseStageOptions {
   change: (change: Partial<StageOptions>) => void;
 }
 
-export function useStageOptions(): UseStageOptions {
+/**
+ * Saves the whole set and answers with what is kept: `PUT` by default, or a
+ * Phone's WebSocket command, which names who changed them (#271).
+ */
+export type SaveStageOptions = (options: StageOptions) => Promise<StageOptions>;
+
+export function useStageOptions(
+  save: SaveStageOptions = saveStageOptions,
+): UseStageOptions {
   const client = useQueryClient();
   const { data } = useQuery(stageOptionsQuery);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -42,7 +50,7 @@ export function useStageOptions(): UseStageOptions {
       const next = { ...before, ...fields };
       client.setQueryData(stageOptionsKey, next);
       setSaveFailed(false);
-      saveStageOptions(next).then(
+      save(next).then(
         (kept) => {
           if (client.getQueryData(stageOptionsKey) === next) {
             client.setQueryData(stageOptionsKey, kept);
@@ -54,7 +62,7 @@ export function useStageOptions(): UseStageOptions {
         },
       );
     },
-    [client],
+    [client, save],
   );
   return {
     options: data ?? STAGE_OPTIONS.defaults,

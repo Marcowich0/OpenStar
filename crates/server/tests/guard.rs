@@ -405,6 +405,9 @@ fn every_client_message() -> Vec<ClientMessage> {
             request_id: RequestId(1),
         },
         ClientMessage::ReportMicBlocked { blocked: true },
+        ClientMessage::SetStageOptions {
+            options: openstar_protocol::stage_options::StageOptions::default(),
+        },
         ClientMessage::ReportStageOutput {
             stage_browser: String::new(),
             stage_output: String::new(),
@@ -1052,16 +1055,23 @@ const V1_ACTIONS: &[Action] = {
             )],
         },
         Action {
-            name: "Reading and setting the Stage options (Setup › Options)",
+            name: "Reading and setting the Stage options (Setup › Options, and a Phone's Stage tab)",
             needs: Nothing,
             via: &[
                 Http("GET", "/api/stage-options"),
                 Http("PUT", "/api/stage-options"),
+                Ws("setStageOptions"),
             ],
-            proofs: &[(
-                "stage_options.rs",
-                "anyone_sets_them_and_they_survive_a_restart",
-            )],
+            proofs: &[
+                (
+                    "stage_options.rs",
+                    "anyone_sets_them_and_they_survive_a_restart",
+                ),
+                (
+                    "stage_options_remote.rs",
+                    "a_phone_sets_them_and_the_stage_hears_who_changed_what",
+                ),
+            ],
         },
         Action {
             name: "Hiding the join card",

@@ -13,6 +13,7 @@ import { colourName } from "../i18n/colourNames";
 import { difficultyName, voiceNumber } from "../i18n/seatNames";
 import { tParts, type TextPart } from "../i18n/t";
 import type { Toast } from "../live/toasts";
+import { changedOptionName } from "../stageOptions/OptionsList";
 import type { PaletteKey } from "../theme/tokens";
 
 /** The Party member a toast is about: drawn as its avatar at the left. */
@@ -405,5 +406,29 @@ export function toastContent(
       return actor
         ? { actor, parts: tParts("toast.resultsClosed", { actor: actor.name }) }
         : { actor, parts: tParts("partyEvent.resultsClosed") };
+    case "stageOptionsChanged": {
+      // One option by its name ("Sam changed Effects"), more as the Options.
+      const option = changedOptionName(event.params.options);
+      if (option === null) {
+        if (mine) return { actor, parts: tParts("toast.youStageOptionsChanged") };
+        return actor
+          ? {
+              actor,
+              parts: tParts("toast.stageOptionsChanged", { actor: actor.name }),
+            }
+          : { actor, parts: tParts("partyEvent.stageOptionsChanged") };
+      }
+      if (mine)
+        return { actor, parts: tParts("toast.youStageOptionChanged", { option }) };
+      return actor
+        ? {
+            actor,
+            parts: tParts("toast.stageOptionChanged", {
+              actor: actor.name,
+              option,
+            }),
+          }
+        : { actor, parts: tParts("partyEvent.stageOptionChanged", { option }) };
+    }
   }
 }
