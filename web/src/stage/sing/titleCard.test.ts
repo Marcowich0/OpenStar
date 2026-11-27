@@ -108,7 +108,13 @@ describe("the title card", () => {
     // The cover is 80 px at (92, 64): its middle is (132, 104).
     expect(entry?.cover).toMatchObject({
       url: "data:image/svg+xml,x",
-      letter: { text: "M", x: 132, y: 104, weight: 700, colour: "--color-white" },
+      letter: {
+        text: "M",
+        x: 132,
+        y: 104,
+        weight: 700,
+        colour: "--color-white",
+      },
     });
     // It slides with the card.
     const sliding = card(frame({ ...base, song: generated }, 4.2, layout));

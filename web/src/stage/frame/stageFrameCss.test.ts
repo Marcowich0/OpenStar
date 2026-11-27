@@ -11,7 +11,7 @@ describe("the Stage's focus ring", () => {
     );
   });
 
-  it("bounces the focused element 1 → 1.06 → 1 as the ring lands (#260)", () => {
+  it("bounces the focused element 1 → 1.06 → 1 as the ring lands (ticket 260)", () => {
     // `--animate-focus-bounce` is the motion tokens' `focus-bounce`, which
     // peaks at `--motion-focus-scale` (1.06); "fade" turns it off.
     expect(flat).toContain("animation: var(--animate-focus-bounce);");
@@ -20,7 +20,9 @@ describe("the Stage's focus ring", () => {
   it("squashes a pressed element with the press tokens and springs it back", () => {
     expect(flat).toContain("scale: var(--motion-press-scale);");
     expect(flat).toContain("scale var(--motion-press) var(--ease-spring)");
-    expect(flat).toContain(":is( :active, [data-pressed], [data-stage-pressed] )");
+    expect(flat).toContain(
+      ":is( :active, [data-pressed], [data-stage-pressed] )",
+    );
   });
 
   it("applies to every button and marked element in the frame, on focus", () => {

@@ -11,7 +11,7 @@ describe("the results screen's motion", () => {
     );
   });
 
-  it("holds the bars and the sticker still in the fade motion mode: reduced motion or Effects off (#260)", () => {
+  it("holds the bars and the sticker still in the fade motion mode: reduced motion or Effects off (ticket 260)", () => {
     // `MotionMode` sets it from `prefersReducedMotion()` and `effectsOff`.
     expect(flat).toContain(
       ':root[data-motion="fade"] :is(.results-bar, .results-sticker) { animation: none; }',

@@ -818,7 +818,11 @@ describe("the painter", () => {
     const before = calls.slice(drawn, face);
     expect(before).toContainEqual(["set", "textAlign", "center"]);
     expect(before).toContainEqual(["set", "textBaseline", "middle"]);
-    expect(before).toContainEqual(["set", "font", "700 29px value(--font-sans)"]);
+    expect(before).toContainEqual([
+      "set",
+      "font",
+      "700 29px value(--font-sans)",
+    ]);
     expect(before).toContainEqual(["set", "fillStyle", "value(--color-ink)"]);
     expect(before).toContainEqual(["set", "globalAlpha", 0.25]);
     expect(calls.slice(shadow, face)).toContainEqual([
