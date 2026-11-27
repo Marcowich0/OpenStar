@@ -125,7 +125,7 @@ export function SongBrowserScene() {
         align="start"
         boxClassName="w-[580px]"
         controls={<PreviewMuteButton muted={muted} onToggle={toggleMuted} />}
-        className="absolute top-10 right-12 left-[456px] z-10"
+        className="absolute top-10 right-12 left-[456px] z-[1]"
       />
 
       <div

@@ -37,7 +37,7 @@ export interface StageToastsProps {
 export function StageToasts({ store, duringSong }: StageToastsProps) {
   const toasts = useLive(selectToasts, store);
   return (
-    <ReferenceBox passThrough>
+    <ReferenceBox passThrough layer="toast">
       <div
         role="status"
         aria-label={t("toast.list")}

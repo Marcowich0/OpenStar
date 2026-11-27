@@ -390,14 +390,16 @@ export function StageFrame({
           <LayerContext value={SCENE_LAYER}>
             <div data-stage-layer={SCENE_LAYER} className="absolute inset-0">
               {fullScreen ? (
-                <Scene />
+                <div className="absolute inset-0 z-scene has-[[role=menu]]:z-menu">
+                  <Scene />
+                </div>
               ) : (
-                <ReferenceBox>
+                <ReferenceBox layer="scene">
                   <Scene />
                 </ReferenceBox>
               )}
               {rules.pillRow && (
-                <ReferenceBox passThrough>
+                <ReferenceBox passThrough layer="chrome">
                   <BrowseToggle />
                   <PillRow setup={rules.setup} />
                 </ReferenceBox>
