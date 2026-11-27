@@ -764,6 +764,9 @@ export const en = {
     "Make the file executable, write {address} into ~/.config/openstar-mic-bridge/server, then start it.",
   "bridge.uninstall": "To remove it again: openstar-mic-bridge --uninstall",
   "mics.addBridge": "Add a Mic bridge",
+  // Add a Mic bridge's line on the Stage; the guide is folded "For the owner".
+  "mics.addBridge.line":
+    "A Mic bridge brings every input of an audio interface to the Stage. Ask the owner to set one up.",
   "admin.title": "Admin",
   "admin.downloads": "Downloads",
   "admin.songs": "Songs",
