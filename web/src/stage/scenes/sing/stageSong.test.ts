@@ -905,3 +905,123 @@ describe("synthetic lanes on the sing screen (ticket 227)", () => {
     expect(view.state.lanes).toHaveLength(1);
   });
 });
+
+describe("the game sounds of the sing screen (ticket 262)", () => {
+  /** The sounds asked for, each with the Stage time it was asked at. */
+  function withSounds(over: Partial<StageSongOptions> = {}) {
+    const played: { name: string; at: number }[] = [];
+    let t: ReturnType<typeof setup> | null = null;
+    const record = (name: string) => () => {
+      played.push({ name, at: t?.stageNow() ?? 0 });
+    };
+    t = setup({
+      sounds: {
+        countdown: record("countdown"),
+        go: record("go"),
+        linePerfect: record("linePerfect"),
+        goldenHit: record("goldenHit"),
+      },
+      ...over,
+    });
+    return { t, names: () => played.map((p) => p.name), played };
+  }
+
+  it("plays go once the Song starts playing", async () => {
+    const { t, names } = withSounds();
+    t.party({ playing: PLAYING });
+    t.control("start");
+    await flush();
+    expect(names()).toEqual([]);
+    t.song.attach({} as HTMLMediaElement);
+    await flush();
+    expect(names()).toEqual(["go"]);
+  });
+
+  it("blips each number of the resume countdown, then plays go", async () => {
+    const runs: (() => void)[] = [];
+    const { t, names } = withSounds({
+      schedule: (run) => {
+        runs.push(run);
+        return () => {};
+      },
+    });
+    await t.start();
+    t.control("pause");
+    t.control("resume");
+    expect(names()).toEqual(["go", "countdown"]);
+    for (const run of runs) run();
+    expect(names()).toEqual([
+      "go",
+      "countdown",
+      "countdown",
+      "countdown",
+      "go",
+    ]);
+  });
+
+  it("plays go at once after a pause with no countdown", async () => {
+    const { t, names } = withSounds({ countdownFrom: () => 0 });
+    await t.start();
+    t.control("pause");
+    t.control("resume");
+    expect(names()).toEqual(["go", "go"]);
+  });
+
+  it("plays linePerfect when Mia's Line ends Perfect!", async () => {
+    const { t, names } = withSounds();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 3);
+    t.frames(2400);
+    expect(names()).not.toContain("linePerfect");
+    sing(t, 4, 7);
+    t.frames(4500);
+    expect(names().filter((n) => n === "linePerfect")).toHaveLength(1);
+  });
+
+  it("plays no linePerfect for a Line that is not Perfect!", async () => {
+    const { t, names } = withSounds();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 1); // half the first Line
+    t.frames(4500);
+    expect(names()).not.toContain("linePerfect");
+  });
+
+  it("glints while Mia hits a golden Note, at most once per 250 ms", async () => {
+    const golden = testDetail();
+    for (const n of golden.song.voices[0]?.lines[0]?.notes ?? []) {
+      n.kind = "golden";
+    }
+    const { t, played } = withSounds({
+      loadSong: () => Promise.resolve(golden),
+    });
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 7);
+    const glints = played.filter((p) => p.name === "goldenHit");
+    expect(glints.length).toBeGreaterThan(1);
+    for (let i = 1; i < glints.length; i++) {
+      expect(
+        (glints[i]?.at ?? 0) - (glints[i - 1]?.at ?? 0),
+      ).toBeGreaterThanOrEqual(250);
+    }
+  });
+
+  it("does not glint on normal Notes", async () => {
+    const { t, names } = withSounds();
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    view.clock.play();
+    sing(t, 0, 7);
+    t.frames(4500);
+    expect(names()).not.toContain("goldenHit");
+  });
+});
