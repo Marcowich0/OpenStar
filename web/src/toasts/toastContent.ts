@@ -410,7 +410,8 @@ export function toastContent(
       // One option by its name ("Sam changed Effects"), more as the Options.
       const option = changedOptionName(event.params.options);
       if (option === null) {
-        if (mine) return { actor, parts: tParts("toast.youStageOptionsChanged") };
+        if (mine)
+          return { actor, parts: tParts("toast.youStageOptionsChanged") };
         return actor
           ? {
               actor,
@@ -419,7 +420,10 @@ export function toastContent(
           : { actor, parts: tParts("partyEvent.stageOptionsChanged") };
       }
       if (mine)
-        return { actor, parts: tParts("toast.youStageOptionChanged", { option }) };
+        return {
+          actor,
+          parts: tParts("toast.youStageOptionChanged", { option }),
+        };
       return actor
         ? {
             actor,

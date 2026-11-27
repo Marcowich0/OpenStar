@@ -42,9 +42,10 @@ describe("the Stage options on a Phone", () => {
     ).toBeInTheDocument();
     expect(sheet.getByRole("heading", { name: "Sound" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(
-        sheet.getByRole("switch", { name: "Song video" }),
-      ).toHaveAttribute("aria-checked", "false");
+      expect(sheet.getByRole("switch", { name: "Song video" })).toHaveAttribute(
+        "aria-checked",
+        "false",
+      );
     });
     expect(
       sheet.getByRole("button", { name: /^Advanced/ }),
@@ -55,9 +56,10 @@ describe("the Stage options on a Phone", () => {
     const { sent } = renderTab();
     const sheet = await openOptions();
     await waitFor(() => {
-      expect(
-        sheet.getByRole("switch", { name: "Song video" }),
-      ).toHaveAttribute("aria-checked", "false");
+      expect(sheet.getByRole("switch", { name: "Song video" })).toHaveAttribute(
+        "aria-checked",
+        "false",
+      );
     });
     fireEvent.click(sheet.getByRole("switch", { name: "Effects" }));
     expect(sent).toContainEqual({

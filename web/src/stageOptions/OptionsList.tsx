@@ -373,12 +373,12 @@ function OptionRow({
   const atDefault = isDefault(options, row);
   const reset = (
     <button
-        type="button"
-        aria-label={t("options.resetLabel", { name })}
-        {...(atDefault ? { "aria-disabled": true } : {})}
-        onClick={() => {
-          if (!atDefault) onChange({ [row.key]: defaults[row.key] });
-        }}
+      type="button"
+      aria-label={t("options.resetLabel", { name })}
+      {...(atDefault ? { "aria-disabled": true } : {})}
+      onClick={() => {
+        if (!atDefault) onChange({ [row.key]: defaults[row.key] });
+      }}
       className={`${pill(compact)} bg-cream text-ink shadow-ledge-sm ${compact ? "ml-auto" : ""} ${atDefault ? "cursor-not-allowed opacity-45" : ""}`}
     >
       {t("options.reset")}
