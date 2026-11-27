@@ -427,6 +427,10 @@ export const en = {
   "stage.browser.carousel": "Songs",
   "stage.browser.best": "Best {total, number} · {name}",
   "stage.browser.empty": "No Songs in the Library yet",
+  "stage.browser.search": "Search",
+  "stage.browser.mutePreview": "Mute preview",
+  "stage.browser.previewOn": "Mute the preview (M)",
+  "stage.browser.previewMuted": "Preview muted: M plays it again",
   // The join card (`stage/joinCard/`): song browser and People overlay.
   "stage.joinCard.qr": "QR code to join the Party",
   "stage.joinCard.goTo": "Go to {address}",

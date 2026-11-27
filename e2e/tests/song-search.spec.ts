@@ -92,6 +92,48 @@ test("the Duets chip narrows the Songs overlay's carousel too", async ({
   await expect(songs).toHaveCount(0);
 });
 
+test("the host searches with the mouse: the Search button, then a click on a cover", async ({
+  stage,
+}) => {
+  await newParty(stage);
+  await stage.reload();
+  await expect(stage.getByTestId("carousel-selected")).toBeFocused();
+  const box = stage.getByRole("searchbox", { name: "Search songs or artists" });
+
+  await stage.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(box).toBeFocused();
+  // Letters that are Stage keys elsewhere are text in the box.
+  await stage.keyboard.type("two voices");
+  await expect(box).toHaveValue("two voices");
+  await expect(stage.getByRole("dialog")).toHaveCount(0);
+  await expect(title(stage)).toHaveText("Two Voices");
+
+  // Enter moves to the Song found; Esc clears and closes the box.
+  await stage.keyboard.press("Enter");
+  await expect(stage.getByTestId("carousel-selected")).toBeFocused();
+  await stage.keyboard.press("Escape");
+  await expect(box).toHaveCount(0);
+  await expect(
+    stage.getByRole("button", { name: "Search", exact: true }),
+  ).toBeVisible();
+});
+
+test("M and the Mute button mute the preview, and the choice survives a reload", async ({
+  stage,
+}) => {
+  await newParty(stage);
+  await stage.reload();
+  const mute = stage.getByRole("button", { name: "Mute preview" });
+  await expect(stage.getByTestId("carousel-selected")).toBeFocused();
+  await expect(mute).toHaveAttribute("aria-pressed", "false");
+  await stage.keyboard.press("m");
+  await expect(mute).toHaveAttribute("aria-pressed", "true");
+  await stage.reload();
+  await expect(mute).toHaveAttribute("aria-pressed", "true");
+  await mute.click();
+  await expect(mute).toHaveAttribute("aria-pressed", "false");
+});
+
 // The e2e server has no route to store a round, so the Song list and the
 // tables are answered here; the Stage's keys and the overlay are real.
 test("Enter on the best-score chip opens the Song detail, Esc closes it", async ({

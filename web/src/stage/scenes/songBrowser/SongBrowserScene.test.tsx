@@ -45,7 +45,9 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
+  window.localStorage.clear();
 });
 
 const song = (
@@ -555,6 +557,91 @@ describe("the preview", () => {
   });
 });
 
+describe("muting the preview", () => {
+  const mute = () => screen.getByRole("button", { name: "Mute preview" });
+
+  it("is a toggle beside Search, off at first", () => {
+    setup();
+    expect(mute()).toHaveAttribute("aria-pressed", "false");
+    expect(mute()).toHaveAttribute("aria-keyshortcuts", "M");
+    expect(mute().parentElement).toBe(
+      screen.getByRole("button", { name: "Search" }).parentElement,
+    );
+  });
+
+  it("stops the preview on a click, and plays the selected Song again on the next", () => {
+    setup();
+    click(mute());
+    expect(mute()).toHaveAttribute("aria-pressed", "true");
+    expect(preview.play).toHaveBeenLastCalledWith(null);
+    click(mute());
+    expect(mute()).toHaveAttribute("aria-pressed", "false");
+    expect(preview.play).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 1 }),
+    );
+  });
+
+  it("toggles on M, either case", () => {
+    setup();
+    press("m");
+    expect(mute()).toHaveAttribute("aria-pressed", "true");
+    expect(preview.play).toHaveBeenLastCalledWith(null);
+    press("M");
+    expect(mute()).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("plays nothing while muted, whatever is selected", () => {
+    setup(SONGS, [detail(1), detail(2)]);
+    press("m");
+    press("ArrowRight");
+    expect(title()).toHaveTextContent("Islands");
+    expect(preview.play).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: 2 }),
+    );
+  });
+
+  it("is remembered by this browser", () => {
+    const { unmount } = setup();
+    press("m");
+    expect(window.localStorage.getItem("openstar.previewMuted")).toBe("true");
+    unmount();
+    setup();
+    expect(mute()).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("starts muted when this browser chose so, and never plays", () => {
+    window.localStorage.setItem("openstar.previewMuted", "true");
+    setup();
+    expect(mute()).toHaveAttribute("aria-pressed", "true");
+    expect(preview.play).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: 1 }),
+    );
+  });
+
+  it("still works when the browser's storage is blocked", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    setup();
+    expect(mute()).toHaveAttribute("aria-pressed", "false");
+    click(mute());
+    expect(mute()).toHaveAttribute("aria-pressed", "true");
+    expect(preview.play).toHaveBeenLastCalledWith(null);
+  });
+
+  it("stays muted once Check A/V sync ends", () => {
+    const { avSync } = setup();
+    press("m");
+    avSync(true);
+    avSync(false);
+    expect(preview.play).toHaveBeenLastCalledWith(null);
+    expect(preview.play).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("search", () => {
   const box = () =>
     screen.getByRole("searchbox", { name: "Search songs or artists" });
@@ -663,6 +750,49 @@ describe("search", () => {
     songsArrive(SONGS);
     await screen.findByTestId("carousel-selected");
     expect(document.activeElement).toBe(box());
+  });
+
+  it("opens from the Search button, with the focus in the box", () => {
+    setup();
+    const open = screen.getByRole("button", { name: "Search" });
+    expect(open).toHaveAttribute("aria-keyshortcuts", "/");
+    click(open);
+    expect(document.activeElement).toBe(box());
+    // The box stands where the button was.
+    expect(screen.queryByRole("button", { name: "Search" })).toBeNull();
+    press("Escape");
+    expect(screen.getByRole("button", { name: "Search" })).toBeVisible();
+  });
+
+  it("takes s, q, p and m typed into the box as text, not as Stage keys", () => {
+    setup();
+    press("/");
+    for (const key of ["s", "q", "p", "m", "S", "M"]) press(key);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Mute preview" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(document.activeElement).toBe(box());
+  });
+
+  it("moves to the Song found on Enter, and a second Enter sings it", () => {
+    const { answer, sent } = setup();
+    answer({ search: "isl" }, [SONGS[1] as SongSummary]);
+    press("/");
+    type("isl");
+    press("Enter");
+    expect(document.activeElement).toBe(selectedCover());
+    expect(adds(sent)).toHaveLength(0);
+    press("Enter");
+    expect(adds(sent).at(-1)).toMatchObject({ songId: 2 });
+  });
+
+  it("selects a neighbour on a click while the box is open", () => {
+    setup();
+    press("/");
+    click(screen.getByTestId("carousel-cover-2"));
+    expect(title()).toHaveTextContent("Islands");
+    expect(box()).toBeInTheDocument();
   });
 
   it("keeps the focus in the box while the mouse passes over a cover", () => {

@@ -116,4 +116,29 @@ describe("search in the Songs overlay", () => {
     press("Escape");
     expect(screen.queryByRole("dialog", { name: "Songs" })).toBeNull();
   });
+
+  it("opens from the Search button too, with the focus in the box", () => {
+    openSongs();
+    click(within(dialog()).getByRole("button", { name: "Search" }));
+    expect(document.activeElement).toBe(box());
+    expect(
+      within(dialog()).queryByRole("button", { name: "Search" }),
+    ).toBeNull();
+  });
+
+  it("takes s, q and p typed into the box as text, not as overlay keys", () => {
+    openSongs();
+    press("/");
+    for (const key of ["s", "q", "p", "m"]) press(key);
+    expect(dialog()).toBeVisible();
+    expect(screen.queryByRole("dialog", { name: "Queue" })).toBeNull();
+    expect(document.activeElement).toBe(box());
+  });
+
+  it("has no Mute button: the overlay plays no preview", () => {
+    openSongs();
+    expect(
+      within(dialog()).queryByRole("button", { name: "Mute preview" }),
+    ).toBeNull();
+  });
 });

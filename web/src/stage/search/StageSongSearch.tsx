@@ -1,9 +1,12 @@
 // The search box at the top of the song browser (and of the Songs overlay):
-// `/` opens it, typing narrows the carousel, the filter chips are the
-// Remote's Songs tab's. ↓ moves from the box to the chips and on to the
-// carousel, ↑ back; Esc clears the search and closes the box.
+// `/` or the Search button opens it, typing narrows the carousel, the filter
+// chips are the Remote's Songs tab's. While closed, the Search button stands
+// where the box opens, so a mouse finds it too. ↓ moves from the box to the
+// chips and on to the carousel, ↑ back; Enter in the box moves to the
+// carousel, so a second Enter picks the Song found; Esc clears the search and
+// closes the box. Letters typed in the box are text, never Stage keys.
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 import { t } from "../../i18n/t";
 import {
@@ -21,18 +24,40 @@ import { useSongSearch } from "./songSearch";
 const CHIP =
   "shrink-0 cursor-pointer rounded-full px-5 py-1.5 text-2xl font-semibold whitespace-nowrap shadow-ledge-sm";
 
+/** A control in the search's row, as tall as the box: the Search button, Mute. */
+export const SEARCH_ROW_CONTROL =
+  "inline-flex h-[72px] shrink-0 cursor-pointer items-center gap-3 rounded-full px-7 text-[30px] font-semibold shadow-ledge-sm";
+
+/** The key that works a control, shown on it as a key cap (not words). */
+export function KeyHint({ keyName }: { keyName: string }) {
+  return (
+    <kbd
+      aria-hidden="true"
+      className="min-w-10 rounded-xl border-2 border-current px-2 text-center font-sans text-2xl leading-8 font-bold opacity-60"
+    >
+      {keyName}
+    </kbd>
+  );
+}
+
 /** Where the focus goes once the box has rendered. */
 type FocusAsk = "box" | "carousel" | null;
 
 export function StageSongSearch({
   filters,
-  boxClassName = "",
+  align = "center",
+  boxClassName = "w-[760px]",
+  controls,
   className = "",
 }: {
   /** The Library's filter values; no chips while they load. */
   filters: SongFilters | undefined;
-  /** Places the box; the chips row is centred under it. */
+  /** The row and the chips under it: centred, or from the left edge. */
+  align?: "center" | "start";
+  /** The box's width. */
   boxClassName?: string;
+  /** More controls in the row, after the Search button or the box. */
+  controls?: ReactNode;
   className?: string;
 }) {
   const search = useSongSearch();
@@ -61,14 +86,23 @@ export function StageSongSearch({
     else focusCarousel();
   });
 
+  const openBox = () => {
+    if (boxRef.current) boxRef.current.focus({ preventScroll: true });
+    else {
+      focusAsk.current = "box";
+      search.openBox();
+    }
+  };
+
   useStageKeys({
     "/": () => {
       if (isTextField(document.activeElement)) return false;
-      if (boxRef.current) boxRef.current.focus({ preventScroll: true });
-      else {
-        focusAsk.current = "box";
-        search.openBox();
-      }
+      openBox();
+      return true;
+    },
+    Enter: () => {
+      if (document.activeElement !== boxRef.current) return false;
+      focusCarousel();
       return true;
     },
     ArrowDown: () => {
@@ -100,12 +134,15 @@ export function StageSongSearch({
 
   // The root stays mounted while closed, so Esc can still move the focus.
   return (
-    <div ref={rootRef} className={className}>
-      {search.open && (
-        <div className="flex flex-col items-center">
+    <div
+      ref={rootRef}
+      className={`flex flex-col ${align === "start" ? "items-start" : "items-center"} ${className}`}
+    >
+      <div className="flex items-center gap-4">
+        {search.open ? (
           <label
             // The Stage's focus ring, on the pill rather than the bare input.
-            className={`flex h-[72px] w-[760px] items-center gap-4 rounded-full bg-white px-8 shadow-ledge-sm ring-4 ring-ledge focus-within:ring-6 focus-within:ring-yellow focus-within:outline-4 focus-within:outline-offset-6 focus-within:outline-ink ${boxClassName}`}
+            className={`flex h-[72px] items-center gap-4 rounded-full bg-white px-8 shadow-ledge-sm ring-4 ring-ledge focus-within:ring-6 focus-within:ring-yellow focus-within:outline-4 focus-within:outline-offset-6 focus-within:outline-ink ${boxClassName}`}
           >
             <Icon name="search" className="size-9 shrink-0 text-ink-2" />
             <input
@@ -123,30 +160,44 @@ export function StageSongSearch({
               className="min-w-0 grow bg-transparent text-[34px] font-medium outline-none placeholder:text-mute [&::-webkit-search-cancel-button]:hidden"
             />
           </label>
-          <div
-            ref={chipsRef}
-            role="group"
-            aria-label={t("songs.filters")}
-            className="flex max-w-[1500px] gap-3 overflow-x-auto px-4 pt-3.5 pb-3 [scrollbar-width:none]"
+        ) : (
+          <button
+            type="button"
+            aria-keyshortcuts="/"
+            onClick={openBox}
+            className={`${SEARCH_ROW_CONTROL} bg-white text-ink`}
           >
+            <Icon name="search" className="size-9" />
+            {t("stage.browser.search")}
+            <KeyHint keyName="/" />
+          </button>
+        )}
+        {controls}
+      </div>
+      {search.open && (
+        <div
+          ref={chipsRef}
+          role="group"
+          aria-label={t("songs.filters")}
+          className="flex max-w-full gap-3 overflow-x-auto px-4 pt-3.5 pb-3 [scrollbar-width:none]"
+        >
+          <FilterButton
+            on={noFilter(search.filters)}
+            onPress={search.clearFilters}
+          >
+            {t("songs.all")}
+          </FilterButton>
+          {(filters ? filterChips(filters) : []).map((chip) => (
             <FilterButton
-              on={noFilter(search.filters)}
-              onPress={search.clearFilters}
+              key={`${chip.field}-${String(chip.value)}`}
+              on={chipActive(search.filters, chip)}
+              onPress={() => {
+                search.toggle(chip);
+              }}
             >
-              {t("songs.all")}
+              {chipLabel(chip)}
             </FilterButton>
-            {(filters ? filterChips(filters) : []).map((chip) => (
-              <FilterButton
-                key={`${chip.field}-${String(chip.value)}`}
-                on={chipActive(search.filters, chip)}
-                onPress={() => {
-                  search.toggle(chip);
-                }}
-              >
-                {chipLabel(chip)}
-              </FilterButton>
-            ))}
-          </div>
+          ))}
         </div>
       )}
     </div>

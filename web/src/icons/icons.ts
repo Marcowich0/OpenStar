@@ -21,6 +21,8 @@ export const ICON_NAMES = [
   "skip",
   "stop",
   "tv",
+  "volume",
+  "volume-off",
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];

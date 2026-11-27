@@ -2,6 +2,8 @@
 // resting scene whenever the Queue is empty. The logo, the big cover
 // carousel, the selected Song's info and the breathing Sing!, which adds it
 // as a Request from the Stage; the head of the Queue then shows its Line-up.
+// Right of the logo, one control group: Search (`/`, #179) and Mute for the
+// carousel preview (`M`, `songBrowser/previewMute.tsx`).
 // The join card (`../joinCard/`) sits in the bottom-right corner; it holds
 // `data-testid="party-join-code"`, which the e2e tests read.
 
@@ -23,6 +25,7 @@ import { StageSongSearch } from "../search/StageSongSearch";
 import { useStageSongs } from "../search/songSearch";
 import { CAROUSEL_ARROWS, SongCarousel } from "./songBrowser/SongCarousel";
 import { SongInfo } from "./songBrowser/SongInfo";
+import { PreviewMuteButton, usePreviewMute } from "./songBrowser/previewMute";
 import { addStageRequest } from "./songBrowser/stageRequest";
 import { useCarouselPreview } from "./songBrowser/useCarouselPreview";
 
@@ -51,7 +54,9 @@ export function SongBrowserScene() {
   // Previews stop while Check A/V sync runs (#163), so only its click
   // plays, and from the Calibrate mics checklist until its run ends (#170).
   const held = useLive(selectHeld, store);
-  const detail = useCarouselPreview(song?.id ?? null, held);
+  // Muted, the carousel plays no preview either.
+  const [muted, toggleMuted] = usePreviewMute();
+  const detail = useCarouselPreview(song?.id ?? null, held || muted);
 
   const select = (next: number) => {
     const nextSong = songs?.[next];
@@ -94,11 +99,14 @@ export function SongBrowserScene() {
         {t("stage.logo")}
       </header>
 
-      {/* Between the logo and the pill row; the chips row is centred. */}
+      {/* Right of the logo, clear of the pill row; the box opens in place of
+          the Search button, and the chips row runs under it. */}
       <StageSongSearch
         filters={filters}
-        boxClassName="relative -left-[100px]"
-        className="absolute inset-x-0 top-8 z-10"
+        align="start"
+        boxClassName="w-[580px]"
+        controls={<PreviewMuteButton muted={muted} onToggle={toggleMuted} />}
+        className="absolute top-10 right-12 left-[456px] z-10"
       />
 
       {songs !== undefined && song === undefined && (

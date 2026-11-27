@@ -29,4 +29,6 @@
   --icon-skip: url("./skip.svg");
   --icon-stop: url("./stop.svg");
   --icon-tv: url("./tv.svg");
+  --icon-volume: url("./volume.svg");
+  --icon-volume-off: url("./volume-off.svg");
 }
