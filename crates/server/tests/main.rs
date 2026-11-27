@@ -55,6 +55,7 @@ mod phones;
 mod pin_wait;
 mod pitch_track;
 mod play;
+mod profile_stats;
 mod profiles;
 mod queue;
 mod read_only_library;
