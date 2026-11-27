@@ -60,7 +60,9 @@ for (const [button, heading] of [
     await phone.getByRole("button", { name: `Join as ${name}` }).click();
     const me = phone.getByRole("button", { name: `Me: ${name}` });
     await expect(me).toBeVisible();
-    const meBox = await me.boundingBox();
+    // The Me avatar's disc (44 px). The button around it is an inline box,
+    // a few px taller from its line height.
+    const meBox = await me.locator(":scope > *").first().boundingBox();
     expect(back?.height).toBeCloseTo(meBox?.height ?? 0, 0);
   });
 }
