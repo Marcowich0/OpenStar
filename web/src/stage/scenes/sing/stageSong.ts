@@ -83,7 +83,7 @@ import { introEnd } from "../../../playback/introSkip";
 import { ApiFailure } from "../../../api/api";
 import { SCORING } from "../../../scoring/constants";
 import { createGoldenHits } from "../../sound/goldenHits";
-import type { UiSounds } from "../../sound/uiSounds";
+import { silentSounds, type UiSounds } from "../../sound/uiSounds";
 import { stageOptions } from "../../../stageOptions/stageOptions";
 import { roundOutcome } from "./roundOutcome";
 import { singSetup, type SingSetup } from "./singSetup";
@@ -213,13 +213,6 @@ export type SingSounds = Pick<
   "countdown" | "go" | "linePerfect" | "goldenHit"
 >;
 
-const SILENT: SingSounds = {
-  countdown: () => {},
-  go: () => {},
-  linePerfect: () => {},
-  goldenHit: () => {},
-};
-
 export interface StageSong {
   view(): StageSongView;
   subscribe(listener: () => void): () => void;
@@ -278,7 +271,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
         setTimeout(resolve, ms);
       }));
   const stageNow = options.stageNow ?? (() => performance.now());
-  const sounds = options.sounds ?? SILENT;
+  const sounds = options.sounds ?? silentSounds();
   const requestFrame =
     options.requestFrame ??
     ((callback) => window.requestAnimationFrame(callback));
@@ -721,7 +714,11 @@ export function createStageSong(options: StageSongOptions): StageSong {
         if (s.controls && s.playback) {
           if (message.control === "restart") {
             s.startedAtMs = now();
-            sounds.go();
+            // From a pause or the countdown the controls change to playing,
+            // and that change plays `go`: once only.
+            if (view.kind === "singing" && view.controls.phase === "playing") {
+              sounds.go();
+            }
           }
           s.controls.apply(message.control);
         } else {

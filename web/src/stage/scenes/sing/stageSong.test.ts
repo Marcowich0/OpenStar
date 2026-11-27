@@ -1038,6 +1038,26 @@ describe("the game sounds of the sing screen (ticket 262)", () => {
     expect(names()).toEqual(["go", "go"]);
   });
 
+  it("plays go once for a Restart, whether playing, paused or counting down", async () => {
+    const runs: (() => void)[] = [];
+    const { t, names } = withSounds({
+      schedule: (run) => {
+        runs.push(run);
+        return () => {};
+      },
+    });
+    await t.start();
+    t.control("restart");
+    expect(names()).toEqual(["go", "go"]);
+    t.control("pause");
+    t.control("restart");
+    expect(names()).toEqual(["go", "go", "go"]);
+    t.control("pause");
+    t.control("resume");
+    t.control("restart");
+    expect(names()).toEqual(["go", "go", "go", "countdown", "go"]);
+  });
+
   it("plays linePerfect when Mia's Line ends Perfect!", async () => {
     const { t, names } = withSounds();
     await t.start();
