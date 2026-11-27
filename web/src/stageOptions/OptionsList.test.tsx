@@ -30,8 +30,18 @@ const groupIds = () =>
   );
 
 describe("the Options list", () => {
-  it("shows Players, Sing screen and Sound in order, and no Look while it has no option", () => {
+  it("shows Players, Look, Sing screen and Sound in order", () => {
     setup();
+    expect(groupIds()).toEqual(["players", "look", "singScreen", "sound"]);
+  });
+
+  it("shows no group that has no option", () => {
+    setup(
+      defaultStageOptions(),
+      OPTION_GROUPS.map((g) =>
+        g.id === "look" ? { ...g, rows: [], advanced: [] } : g,
+      ),
+    );
     expect(groupIds()).toEqual(["players", "singScreen", "sound"]);
     expect(screen.queryByRole("heading", { name: "Look" })).toBeNull();
   });

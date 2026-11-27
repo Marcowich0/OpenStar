@@ -5,6 +5,7 @@ import type { ParticleEntry } from "./effects";
 import { ParticlePool } from "./effects";
 import { frame, singVoices, type DrawEntry, type SingState } from "./frame";
 import { laneLayout } from "./laneLayout";
+import { singLayout } from "./singLook";
 import {
   LINE_RATING_SECONDS,
   lineEnded,
@@ -197,6 +198,20 @@ describe("a Perfect! Line", () => {
     }
     expect(ps.some((p) => p.colour === "sky")).toBe(true);
     expect(ps.some((p) => p.colour !== "sky")).toBe(true);
+  });
+
+  it("bursts at the lane header where the lanes moved up for an xl lyric bar", () => {
+    const pool = new ParticlePool(512, { seed: 7 });
+    const s = state(4, {
+      effects: pool,
+      look: { lyricSize: "xl", showNextLine: true, laneFrostingPercent: 66 },
+    });
+    lineEnded(s, 3, result(8));
+    const rect = singLayout(s)[3];
+    expect(rect?.y).toBeLessThan(laneLayout(4)[3]?.y ?? 0);
+    for (const p of particles(frame(s, 2, singLayout(s)))) {
+      expect(p.y).toBeCloseTo((rect?.y ?? 0) + (rect?.height ?? 0) / 2);
+    }
   });
 
   it("only Perfect! bursts", () => {

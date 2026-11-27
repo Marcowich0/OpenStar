@@ -15,6 +15,7 @@
  */
 
 import type { DrawList } from "../stage/sing/frame";
+import { DEFAULT_SING_LOOK, laneFill } from "../stage/sing/singLook";
 
 /** The strip the pattern is drawn in, and its parts. */
 export const AV_SYNC_FRAME = {
@@ -79,6 +80,7 @@ export function avSyncFrame(
       notesX: lane.x,
       radius: 40,
       colour: "sky",
+      fill: laneFill(DEFAULT_SING_LOOK),
       lost: null,
       separator: {
         x: lane.x,

@@ -23,6 +23,9 @@ describe("the Stage options", () => {
     };
     const number = (name: string) => Number(constant(name, "u8"));
     const bool = (name: string) => constant(name, "bool") === "true";
+    /** A lowercase-renamed enum constant as serde writes it (`LyricSize::Xl` → `xl`). */
+    const lowercase = (name: string, type: string) =>
+      constant(name, type).replace(`${type}::`, "").toLowerCase();
     const difficulty = constant(
       "STARTING_DIFFICULTY_DEFAULT",
       "Difficulty",
@@ -36,9 +39,17 @@ describe("the Stage options", () => {
         songVideo: bool("SONG_VIDEO_DEFAULT"),
         previewVolumePercent: number("PREVIEW_VOLUME_DEFAULT_PERCENT"),
         skipIntros: bool("SKIP_INTROS_DEFAULT"),
+        lyricSize: lowercase("LYRIC_SIZE_DEFAULT", "LyricSize"),
+        showNextLine: bool("SHOW_NEXT_LINE_DEFAULT"),
+        laneFrostingPercent: number("LANE_FROSTING_DEFAULT_PERCENT"),
       },
       resumeCountdownMaxSeconds: number("RESUME_COUNTDOWN_MAX_SECONDS"),
       previewVolumeStepPercent: number("PREVIEW_VOLUME_STEP_PERCENT"),
+      laneFrosting: {
+        min: number("LANE_FROSTING_MIN_PERCENT"),
+        max: number("LANE_FROSTING_MAX_PERCENT"),
+        step: number("LANE_FROSTING_STEP_PERCENT"),
+      },
     });
   });
 });

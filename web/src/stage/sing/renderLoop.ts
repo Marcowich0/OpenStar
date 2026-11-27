@@ -17,7 +17,8 @@
 import type { SongClock } from "../../clock/songClock";
 import { GoldenSparkles } from "./effects";
 import { frame, type DrawList, type SingState } from "./frame";
-import { laneLayout, type LaneLayout } from "./laneLayout";
+import { DEFAULT_NOTE_SPEED, laneLayout, type LaneLayout } from "./laneLayout";
+import { DEFAULT_SING_LOOK, lanesBottom } from "./singLook";
 
 export interface RenderLoopOptions {
   /** The current Song clock (#96). Only its `songTime()` is read. */
@@ -57,6 +58,7 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
       window.cancelAnimationFrame(handle);
     });
   let layout: LaneLayout = [];
+  let layoutBottom = NaN;
   const sparkles = new GoldenSparkles();
   let handle: number | null = null;
   /** The previous animation frame's time, ms; null on the first frame. */
@@ -66,8 +68,13 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
     const state = options.state();
     state.effects?.advance(delta);
     state.ratings?.advance(delta);
-    if (layout.length !== state.lanes.length) {
-      layout = laneLayout(state.lanes.length);
+    const bottom = lanesBottom(
+      state.look ?? DEFAULT_SING_LOOK,
+      state.voices.length,
+    );
+    if (layout.length !== state.lanes.length || bottom !== layoutBottom) {
+      layout = laneLayout(state.lanes.length, DEFAULT_NOTE_SPEED, bottom);
+      layoutBottom = bottom;
     }
     // The one place the drawing time is read.
     const drawTime = options.clock().songTime() - options.avOffset();

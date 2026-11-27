@@ -10,6 +10,7 @@ import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { LyricEntry, SingVoice } from "./frame";
 import { createLyricDriver, LyricBar } from "./LyricBar";
+import { DEFAULT_SING_LOOK, type SingLook } from "./singLook";
 
 function note(text: string, kind: NoteKind = "normal"): Note {
   return { kind, start: 0, length: 1, pitch: 0, text, line: 1 };
@@ -38,9 +39,19 @@ function entry(voiceIndex: number, line: number, note = -1): LyricEntry {
   };
 }
 
-function mount(voices: SingVoice[], entries: LyricEntry[]) {
+function mount(
+  voices: SingVoice[],
+  entries: LyricEntry[],
+  look?: Partial<SingLook>,
+) {
   const driver = createLyricDriver();
-  const utils = render(<LyricBar voices={voices} driver={driver} />);
+  const utils = render(
+    <LyricBar
+      voices={voices}
+      driver={driver}
+      {...(look ? { look: { ...DEFAULT_SING_LOOK, ...look } } : {})}
+    />,
+  );
   act(() => {
     driver.apply(entries);
   });
@@ -82,6 +93,39 @@ describe("the lyric bar's look", () => {
     expect(next()?.style.fontSize).toBe("36px");
     expect(next()?.style.fontWeight).toBe("600");
     expect(next()?.style.color).toBe("var(--color-mute)");
+  });
+
+  it("sizes its text by Lyric size: s, l, and xl at 1.5 × m", () => {
+    for (const [lyricSize, line, next] of [
+      ["s", "62.4px", "28.8px"],
+      ["l", "97.5px", "45px"],
+      ["xl", "117px", "54px"],
+    ] as const) {
+      const {
+        current,
+        next: nextLine,
+        unmount,
+      } = mount([SONG], [entry(0, 0)], { lyricSize });
+      expect(current()[0]?.style.fontSize, lyricSize).toBe(line);
+      expect(nextLine()?.style.fontSize, lyricSize).toBe(next);
+      unmount();
+    }
+  });
+
+  it("sizes a duet's Lines by Lyric size too", () => {
+    const other = voice([note("Oth"), note("er")]);
+    const { current } = mount([SONG, other], [entry(0, 0), entry(1, 0)], {
+      lyricSize: "xl",
+    });
+    expect(current().map((l) => l.style.fontSize)).toEqual(["90px", "90px"]);
+  });
+
+  it("shows no next Line when Show next Line is off", () => {
+    const { current, next } = mount([SONG], [entry(0, 0)], {
+      showNextLine: false,
+    });
+    expect(current()[0]?.textContent).toBe("Hello you ");
+    expect(next()).toBeNull();
   });
 
   it("shows no next Line after the last one", () => {

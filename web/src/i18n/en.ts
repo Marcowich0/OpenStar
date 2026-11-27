@@ -467,6 +467,20 @@ export const en = {
   "options.previewVolume.help":
     "How loud the song browser plays a preview, compared with the Song itself.",
   "options.previewVolume.value": "{percent, number} %",
+  "options.lyricSize": "Lyric size",
+  "options.lyricSize.help":
+    "How large the lyrics are. Larger lyrics move the lanes up rather than cover them.",
+  "options.lyricSize.s": "S",
+  "options.lyricSize.m": "M",
+  "options.lyricSize.l": "L",
+  "options.lyricSize.xl": "XL",
+  "options.showNextLine": "Next Line",
+  "options.showNextLine.help":
+    "Show the next Line small under the one being sung. A duet shows both Voices' Lines instead.",
+  "options.laneFrosting": "Lane frosting",
+  "options.laneFrosting.help":
+    "How white the lanes are. Less frosting shows more of the video behind them.",
+  "options.laneFrosting.value": "{percent, number} %",
   // Check A/V sync (#163), on the Stage and on a Remote's Stage tab.
   "avSync.later": "+{ms, number} ms",
   "avSync.earlier": "−{ms, number} ms",

@@ -5,7 +5,7 @@
 //! and a new Profile start.
 
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
-use openstar_protocol::stage_options::StageOptions;
+use openstar_protocol::stage_options::{LyricSize, StageOptions};
 use openstar_protocol::{
     ChangeTopic, ClientMessage, Identity, JoinAs, NewGuest, PhoneId, ServerMessage, UserMessage,
 };
@@ -35,6 +35,9 @@ fn changed_options() -> StageOptions {
         song_video: false,
         preview_volume_percent: 40,
         skip_intros: true,
+        lyric_size: LyricSize::Xl,
+        show_next_line: false,
+        lane_frosting_percent: 40,
     }
 }
 
@@ -81,6 +84,9 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
         serde_json::json!({ "resumeCountdownSeconds": 6 }),
         serde_json::json!({ "previewVolumePercent": 110 }),
         serde_json::json!({ "previewVolumePercent": 45 }),
+        serde_json::json!({ "laneFrostingPercent": 35 }),
+        serde_json::json!({ "laneFrostingPercent": 65 }),
+        serde_json::json!({ "laneFrostingPercent": 95 }),
     ] {
         let response = put(&app, &refused).await;
         assert_eq!(
@@ -93,7 +99,31 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
             UserMessage::InvalidMessage
         );
     }
+    // A value that is not one of its type's is refused before the range check.
+    let response = put(&app, &serde_json::json!({ "lyricSize": "xxl" })).await;
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(read(&app).await, StageOptions::default());
+}
+
+#[tokio::test]
+async fn a_v1_set_reads_with_the_new_options_at_their_defaults() {
+    let app = TestApp::start().await;
+    let v1 = serde_json::json!({
+        "startingDifficulty": "easy",
+        "resumeCountdownSeconds": 3,
+        "lineRatings": true,
+        "effects": true,
+        "songVideo": true,
+        "previewVolumePercent": 100,
+    });
+    assert_eq!(put(&app, &v1).await.status(), StatusCode::OK);
+    assert_eq!(
+        read(&app).await,
+        StageOptions {
+            starting_difficulty: Difficulty::Easy,
+            ..StageOptions::default()
+        }
+    );
 }
 
 #[tokio::test]

@@ -6,6 +6,7 @@ import {
   type StoredMicSettings,
 } from "../../../mics/micSettings";
 import { stageMicSettings } from "../../../mics/stageMicSettings";
+import { STAGE_OPTIONS } from "../../../stageOptions/stageOptions";
 import { singSetup } from "./singSetup";
 import {
   LEO_SEAT,
@@ -71,11 +72,45 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       detail: testDetail(),
       party,
       profiles: PROFILES,
-      display: { effects: false, lineRatings: false },
+      display: {
+        ...STAGE_OPTIONS.defaults,
+        effects: false,
+        lineRatings: false,
+      },
     });
     const bare = hidden.state([new PitchBuffer(8)]);
     expect(bare.effects).toBeUndefined();
     expect(bare.ratings).toBeUndefined();
+  });
+
+  it("gives the sing screen the Lyric size, Show next Line and Lane frosting options of Start", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const plain = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+    });
+    expect(plain.state([new PitchBuffer(8)]).look).toEqual({
+      lyricSize: "m",
+      showNextLine: true,
+      laneFrostingPercent: 66,
+    });
+    const set = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+      display: {
+        ...STAGE_OPTIONS.defaults,
+        lyricSize: "xl",
+        showNextLine: false,
+        laneFrostingPercent: 40,
+      },
+    });
+    expect(set.state([new PitchBuffer(8)]).look).toEqual({
+      lyricSize: "xl",
+      showNextLine: false,
+      laneFrostingPercent: 40,
+    });
   });
 
   it("puts each Player's own buffer in their lane's trace, with the Mic threshold fixed at Start", () => {

@@ -10,6 +10,7 @@ import { PitchBuffer } from "../../pitch/pitchBuffer";
 import { laneLayout } from "./laneLayout";
 import { lineEnded, LineRatings } from "./lineRating";
 import { LanePanels, SingScreen } from "./SingScreen";
+import { DEFAULT_SING_LOOK, singLayout } from "./singLook";
 
 // The real lane layout, watched: the panels are placed by it.
 vi.mock(import("./laneLayout"), async (original) => {
@@ -180,7 +181,9 @@ describe("SingScreen", () => {
       />,
     );
     const panel = container.querySelector<HTMLElement>("[data-lane-panel]");
-    expect(panel?.className).toMatch(/\bbg-white\/66\b/);
+    expect(panel?.style.backgroundColor).toBe(
+      "color-mix(in oklab, var(--color-white) 66%, transparent)",
+    );
     expect(panel?.className).toMatch(/\bbackdrop-blur-lg\b/);
     expect(panel?.className).toMatch(/\bbackdrop-saturate-130\b/);
     expect(panel?.style.borderRadius).toBe("40px");
@@ -190,6 +193,49 @@ describe("SingScreen", () => {
     const tint = panel?.firstElementChild as HTMLElement | null;
     expect(tint?.className).toMatch(/\bopacity-16\b/);
     expect(tint?.style.backgroundColor).toBe("var(--color-party-cherry)");
+  });
+
+  it("frosts the lane panels at the Lane frosting option", () => {
+    const { container } = render(
+      <SingScreen
+        state={{
+          ...state,
+          look: { ...DEFAULT_SING_LOOK, laneFrostingPercent: 40 },
+        }}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    for (const panel of container.querySelectorAll<HTMLElement>(
+      "[data-lane-panel]",
+    )) {
+      expect(panel.style.backgroundColor).toBe(
+        "color-mix(in oklab, var(--color-white) 40%, transparent)",
+      );
+    }
+  });
+
+  it("moves the panels and headers up above an xl lyric bar", () => {
+    const four: SingState = {
+      ...state,
+      lanes: [...state.lanes, ...state.lanes],
+      look: { ...DEFAULT_SING_LOOK, lyricSize: "xl" },
+    };
+    const { container } = render(
+      <SingScreen
+        state={four}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    const layout = singLayout(four);
+    expect(layout[3]?.y).toBeLessThan(laneLayout(4)[3]?.y ?? 0);
+    const panels = container.querySelectorAll<HTMLElement>("[data-lane-panel]");
+    expect([...panels].map((p) => p.style.top)).toEqual(
+      layout.map((lane) => `${String(lane.y)}px`),
+    );
+    const bar = container.querySelector<HTMLElement>("[data-lyric-line]");
+    expect(bar?.style.fontSize).toBe("117px");
   });
 
   it('heads each lane with the avatar, the name, "guest" for a Guest, and the running Score', () => {

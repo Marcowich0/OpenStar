@@ -30,6 +30,7 @@ import {
 import type { PaletteKey } from "../../../theme/tokens";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
+import type { SingLook } from "../../sing/singLook";
 import {
   singVoices,
   type LanePlayer,
@@ -71,9 +72,10 @@ export interface SingSetupInput {
   volume?: number;
   /**
    * Whether the sing screen shows effects (confetti, sparkles) and Line
-   * rating words. By default the Stage options as they are now.
+   * rating words, and its look (Lyric size, Show next Line, Lane frosting).
+   * By default the Stage options as they are now.
    */
-  display?: Pick<StageOptions, "effects" | "lineRatings">;
+  display?: Pick<StageOptions, "effects" | "lineRatings" | keyof SingLook>;
   /**
    * What is stored for a seated Mic at the current Stage output
    * (`undefined`: its defaults). By default the Stage's loaded values,
@@ -176,6 +178,11 @@ export function singSetup(input: SingSetupInput): SingSetup {
       grid: song.headers,
       voices,
       lengthSeconds: detail.lengthSeconds,
+      look: {
+        lyricSize: display.lyricSize,
+        showNextLine: display.showNextLine,
+        laneFrostingPercent: display.laneFrostingPercent,
+      },
       ...(display.effects
         ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
         : {}),

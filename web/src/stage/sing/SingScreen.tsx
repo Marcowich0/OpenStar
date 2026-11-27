@@ -27,10 +27,17 @@ import {
   createLineRatingWriter,
   type LineRatingWriter,
 } from "./lineRatingWriter";
-import { laneLayout, type LaneRect } from "./laneLayout";
+import { DEFAULT_NOTE_SPEED, laneLayout, type LaneRect } from "./laneLayout";
 import { createLyricDriver, LyricBar } from "./LyricBar";
 import { createPainter, referenceTransform } from "./painter";
 import { createRenderLoop } from "./renderLoop";
+import {
+  DEFAULT_SING_LOOK,
+  laneFill,
+  lanesBottom,
+  singLayout,
+  type SingLook,
+} from "./singLook";
 
 export interface SingScreenProps {
   /** What to sing: the Song's Voices and one lane per Player. */
@@ -160,7 +167,7 @@ export function SingScreen({
     transform: `translate(${String(frame.x)}px, ${String(frame.y)}px) scale(${String(frame.scale)})`,
     transformOrigin: "0 0",
   };
-  const lanes = laneLayout(state.lanes.length);
+  const lanes = singLayout(state);
 
   return (
     <div
@@ -176,7 +183,11 @@ export function SingScreen({
         className="pointer-events-none absolute top-0 left-0"
         style={referenceStyle}
       >
-        <LanePanels lanes={state.lanes} />
+        <LanePanels
+          lanes={state.lanes}
+          voices={state.voices.length}
+          look={state.look}
+        />
       </div>
       <canvas
         ref={lanesRef}
@@ -211,7 +222,7 @@ export function SingScreen({
         {lanes.map((_, i) => (
           <LineRatingWord key={i} index={i} writer={ratings} />
         ))}
-        <LyricBar voices={state.voices} driver={lyrics} />
+        <LyricBar voices={state.voices} driver={lyrics} look={state.look} />
       </div>
       <canvas
         ref={effectsRef}
@@ -226,33 +237,56 @@ export function SingScreen({
   );
 }
 
-/** Panels change only with the Line-up: how many Players, in which colours. */
-function sameLineUp(
-  a: { lanes: readonly SingLane[] },
-  b: { lanes: readonly SingLane[] },
-): boolean {
+interface LanePanelsProps {
+  lanes: readonly SingLane[];
+  /** The Song's Voice count: a duet's lyric bar is taller. */
+  voices?: number;
+  /** The lyric bar's size and the frosting; none: `DEFAULT_SING_LOOK`. */
+  look?: SingLook | undefined;
+}
+
+/**
+ * Panels change only with the Line-up (how many Players, in which colours)
+ * and the look.
+ */
+function sameLineUp(a: LanePanelsProps, b: LanePanelsProps): boolean {
+  const lookA = a.look ?? DEFAULT_SING_LOOK;
+  const lookB = b.look ?? DEFAULT_SING_LOOK;
   return (
     a.lanes.length === b.lanes.length &&
-    a.lanes.every((lane, i) => lane.colour === b.lanes[i]?.colour)
+    a.lanes.every((lane, i) => lane.colour === b.lanes[i]?.colour) &&
+    (a.voices ?? 1) === (b.voices ?? 1) &&
+    lookA.lyricSize === lookB.lyricSize &&
+    lookA.showNextLine === lookB.showNextLine &&
+    lookA.laneFrostingPercent === lookB.laneFrostingPercent
   );
 }
 
 /**
  * The frosted lane panels (DOM, for the backdrop blur), one per lane, placed
- * by the same `laneLayout` as the canvas and tinted in the Party colour. They
- * re-render only when the Line-up changes, not when a Score or a frame does.
+ * by the same `lanesBottom` as the canvas, frosted by the same `laneFill` as
+ * the draw list's lanes and tinted in the Party colour. They re-render only
+ * when the Line-up or the look changes, not when a Score or a frame does.
  */
 export const LanePanels = memo(function LanePanels({
   lanes,
-}: {
-  lanes: readonly SingLane[];
-}) {
-  return laneLayout(lanes.length).map((lane, i) => (
+  voices = 1,
+  look = DEFAULT_SING_LOOK,
+}: LanePanelsProps) {
+  const fill = laneFill(look);
+  const background = `color-mix(in oklab, ${tokenVar(fill.colour)} ${String(Math.round(fill.alpha * 100))}%, transparent)`;
+  const layout = laneLayout(
+    lanes.length,
+    DEFAULT_NOTE_SPEED,
+    lanesBottom(look, voices),
+  );
+  return layout.map((lane, i) => (
     <div
       key={i}
       data-lane-panel
-      className="absolute overflow-hidden bg-white/66 backdrop-blur-lg backdrop-saturate-130"
+      className="absolute overflow-hidden backdrop-blur-lg backdrop-saturate-130"
       style={{
+        backgroundColor: background,
         left: `${String(lane.x)}px`,
         top: `${String(lane.y)}px`,
         width: `${String(lane.width)}px`,
