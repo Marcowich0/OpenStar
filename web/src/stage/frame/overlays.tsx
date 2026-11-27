@@ -4,7 +4,8 @@
 // Calibrate mics `calibration/StageCalibration.tsx`, Check A/V sync
 // `avSync/StageAvSync.tsx`, Downloads `../overlays/DownloadsOverlay.tsx` (the
 // Admin area's Downloads section), Options `stageOptions/OptionsScreen.tsx`.
-// The Song detail is `../overlays/SongDetailOverlay.tsx`.
+// The Song detail is `../overlays/SongDetailOverlay.tsx`. The veil and the
+// close button are `data-stage-back`: they sound `back` (`../sound/`).
 
 import { useId, type ComponentType } from "react";
 
@@ -56,6 +57,7 @@ export function StageOverlay({ id }: { id: OverlayId }) {
       <div
         aria-hidden="true"
         data-testid="overlay-veil"
+        data-stage-back
         className="absolute inset-0 bg-veil"
         onClick={closeOverlay}
       />
@@ -74,6 +76,7 @@ export function StageOverlay({ id }: { id: OverlayId }) {
             <button
               type="button"
               aria-label={t("stage.overlay.close")}
+              data-stage-back
               onClick={closeOverlay}
               className="inline-flex size-16 cursor-pointer items-center justify-center rounded-full bg-white shadow-ledge-sm"
             >
