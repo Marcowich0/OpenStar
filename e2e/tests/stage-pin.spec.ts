@@ -22,6 +22,36 @@ test("a new browser goes from / to the Stage, gives the Admin PIN once, then bec
     ...(baseURL === undefined ? {} : { baseURL }),
   });
   const page = await context.newPage();
+  // Records how opaque the Admin PIN dialog is on every frame from the one
+  // it appears in, so the Stage heading behind it can never read through it
+  // while it opens (#246). The dialog's own opacity times every ancestor's.
+  await page.addInitScript(() => {
+    const seen: number[] = [];
+    (window as unknown as { pinDialogOpacity: number[] }).pinDialogOpacity =
+      seen;
+    const opacity = (element: Element | null): number => {
+      let product = 1;
+      for (let at = element; at !== null; at = at.parentElement)
+        product *= Number(getComputedStyle(at).opacity);
+      return product;
+    };
+    const sample = () => {
+      const dialog = document.querySelector(
+        '[role="dialog"][aria-label="Admin PIN"]',
+      );
+      if (dialog !== null) seen.push(opacity(dialog));
+      if (seen.length < 30) requestAnimationFrame(sample);
+    };
+    new MutationObserver((_, observer) => {
+      if (
+        document.querySelector('[role="dialog"][aria-label="Admin PIN"]') ===
+        null
+      )
+        return;
+      observer.disconnect();
+      sample();
+    }).observe(document, { childList: true, subtree: true });
+  });
 
   await page.goto("/");
   await expect(
@@ -33,6 +63,25 @@ test("a new browser goes from / to the Stage, gives the Admin PIN once, then bec
   await expect(page).toHaveURL(/\/stage$/);
   const pad = page.getByRole("dialog", { name: "Admin PIN" });
   await expect(pad).toBeVisible();
+  // Fully opaque from its first frame on.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { pinDialogOpacity: number[] }).pinDialogOpacity
+            .length,
+      ),
+    )
+    .toBe(30);
+  expect(
+    Math.min(
+      ...(await page.evaluate(
+        () =>
+          (window as unknown as { pinDialogOpacity: number[] })
+            .pinDialogOpacity,
+      )),
+    ),
+  ).toBe(1);
   // Before anything else: no Stage frame behind the pad.
   await expect(page.locator("[data-stage-frame]")).toHaveCount(0);
 
