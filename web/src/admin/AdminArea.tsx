@@ -7,6 +7,9 @@
 // in its own browser tab, so `/stage` is never navigated away from. The one
 // section the Stage shows itself is Downloads, in place in its Setup menu's
 // Downloads overlay (Marc asked for it, 2026-11-27; `noStageEntry.test.ts`).
+//
+// The other way does link: the header's Stage (`/stage`) and Phone (`/`)
+// take the owner from the Admin area back to the game (spec #241).
 
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 
@@ -22,6 +25,12 @@ export const ADMIN_SECTIONS = [
   { to: "/admin/profiles", label: "admin.profiles" },
 ] as const;
 
+/** The ways out of the Admin area, in its header. */
+const WAYS_OUT = [
+  { to: "/stage", label: "admin.toStage" },
+  { to: "/", label: "admin.toPhone" },
+] as const;
+
 export function AdminArea() {
   useUnlockHeartbeat();
   // The Timing editor is a desktop view: it takes the window's full width.
@@ -30,7 +39,7 @@ export function AdminArea() {
     <main
       className={`mx-auto flex w-full flex-col gap-6 px-4 py-6 ${wide ? "max-w-[1800px]" : "max-w-3xl"}`}
     >
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <Link
           to="/admin"
           className="flex items-center gap-2 rounded-full text-4xl font-bold outline-none focus-visible:outline-6 focus-visible:outline-yellow"
@@ -38,7 +47,23 @@ export function AdminArea() {
           <Icon name="lock" className="size-8" />
           {t("admin.title")}
         </Link>
-        <LockButton />
+        <div className="flex flex-wrap items-center gap-3">
+          <nav aria-label={t("admin.waysOut")}>
+            <ul className="flex items-center gap-2">
+              {WAYS_OUT.map(({ to, label }) => (
+                <li key={to}>
+                  <Link
+                    to={to}
+                    className="inline-flex min-h-12 items-center rounded-full bg-white px-5 text-xl font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+                  >
+                    {t(label)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <LockButton />
+        </div>
       </header>
       <nav aria-label={t("admin.sections")}>
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">

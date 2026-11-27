@@ -21,6 +21,7 @@ export const ICON_NAMES = [
   "search",
   "skip",
   "stop",
+  "trash",
   "tv",
   "volume",
   "volume-off",

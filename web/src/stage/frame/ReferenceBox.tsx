@@ -23,8 +23,23 @@ export function useReferenceScale(): number {
   );
 }
 
+/**
+ * The Stage layer a box is (`theme/layers.css`), when it is one of the
+ * frame's own layers. A scene or chrome box with an open pick list in it
+ * rises to the menu layer, so the list lies over the other boxes too.
+ */
+export type ReferenceBoxLayer = "scene" | "chrome" | "toast";
+
+// Whole class names, so Tailwind finds them.
+const LAYER_CLASS: Record<ReferenceBoxLayer, string> = {
+  scene: "z-scene has-[[role=menu]]:z-menu",
+  chrome: "z-chrome has-[[role=menu]]:z-menu",
+  toast: "z-toast",
+};
+
 export interface ReferenceBoxProps {
   children: ReactNode;
+  layer?: ReferenceBoxLayer;
   /**
    * The box lets the pointer through to what lies below; children that
    * take the pointer set `pointer-events-auto` themselves.
@@ -35,12 +50,13 @@ export interface ReferenceBoxProps {
 export function ReferenceBox({
   children,
   passThrough = false,
+  layer,
 }: ReferenceBoxProps) {
   const scale = useReferenceScale();
   return (
     <div
       data-reference-box
-      className={`absolute top-1/2 left-1/2 origin-center ${passThrough ? "pointer-events-none" : ""}`}
+      className={`absolute top-1/2 left-1/2 origin-center ${passThrough ? "pointer-events-none" : ""} ${layer ? LAYER_CLASS[layer] : ""}`}
       style={{
         width: REFERENCE_WIDTH,
         height: REFERENCE_HEIGHT,

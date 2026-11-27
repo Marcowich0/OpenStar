@@ -62,7 +62,7 @@ export function AdminPinDialog({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       isDismissable
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-veil p-4 transition-colors duration-300 ease-spring data-entering:bg-transparent data-exiting:bg-transparent"
+      className="fixed inset-0 z-dialog flex items-center justify-center overflow-y-auto bg-veil p-4 transition-colors duration-300 ease-spring data-entering:bg-transparent data-exiting:bg-transparent"
     >
       <Modal className="w-full max-w-md rounded-card bg-cream text-ink shadow-ledge-lg transition-transform duration-350 ease-spring data-entering:scale-90 data-exiting:scale-90">
         <AriaDialog

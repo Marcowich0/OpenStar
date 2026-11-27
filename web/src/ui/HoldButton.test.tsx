@@ -27,6 +27,19 @@ function wait(ms: number) {
 }
 
 describe("HoldButton", () => {
+  it("in outline-red is red on white with a red ring, for a careful action", () => {
+    render(
+      <HoldButton fill="outline-red" onHold={vi.fn()}>
+        Delete
+      </HoldButton>,
+    );
+    const classes = screen.getByRole("button", { name: "Delete" }).classList;
+    expect(classes).toContain("bg-white");
+    expect(classes).toContain("text-red");
+    expect(classes).toContain("ring-red");
+    expect(classes).not.toContain("bg-red");
+  });
+
   it("fires its action once after a 700 ms hold", () => {
     const { onHold, button } = setup();
     act(() => {
