@@ -534,3 +534,73 @@ describe("useStageKeys", () => {
     expect(onSpace).toHaveBeenCalledOnce();
   });
 });
+
+describe("TV-remote keys", () => {
+  const BACK_KEYS = ["BrowserBack", "GoBack", "Backspace"];
+
+  it.each(BACK_KEYS)("%s closes an open overlay, as Esc does", (back) => {
+    setup();
+    key("q");
+    expect(overlay()).toHaveAccessibleName("Queue");
+    key(back);
+    expect(overlay()).toBeNull();
+  });
+
+  it.each(BACK_KEYS)("%s fires a scene's Esc binding", (back) => {
+    const onEscape = vi.fn();
+    function BoundScene() {
+      useStageKeys({ Escape: onEscape });
+      return <button type="button">Bound</button>;
+    }
+    setup(party(), {
+      scenes: { ...SCENES, songBrowser: { component: BoundScene } },
+    });
+    key(back);
+    expect(onEscape).toHaveBeenCalledOnce();
+  });
+
+  it("MediaPlayPause fires a scene's Space binding", () => {
+    const onSpace = vi.fn();
+    function BoundScene() {
+      useStageKeys({ " ": onSpace });
+      return <button type="button">Bound</button>;
+    }
+    setup(party(), {
+      scenes: { ...SCENES, songBrowser: { component: BoundScene } },
+    });
+    key("MediaPlayPause");
+    expect(onSpace).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the browser's own Back from leaving the Stage", () => {
+    setup();
+    let notPrevented = true;
+    act(() => {
+      notPrevented = fireEvent.keyDown(document.body, { key: "BrowserBack" });
+    });
+    expect(notPrevented).toBe(false);
+  });
+
+  it("leaves Backspace in a text field to the field, but not the remote's Back", () => {
+    const onEscape = vi.fn();
+    function FieldScene() {
+      useStageKeys({ Escape: onEscape });
+      return <input aria-label="Field" data-stage-default />;
+    }
+    setup(party(), {
+      scenes: { ...SCENES, songBrowser: { component: FieldScene } },
+    });
+    const field = screen.getByRole("textbox", { name: "Field" });
+    act(() => {
+      field.focus();
+    });
+    let notPrevented = false;
+    act(() => {
+      notPrevented = fireEvent.keyDown(field, { key: "Backspace" });
+    });
+    expect(notPrevented).toBe(true);
+    expect(onEscape).not.toHaveBeenCalled();
+    key("BrowserBack");
+    expect(onEscape).toHaveBeenCalledOnce();
+  });
+});

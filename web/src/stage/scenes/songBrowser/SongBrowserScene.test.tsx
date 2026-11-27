@@ -756,6 +756,31 @@ describe("search", () => {
     expect(box()).toHaveValue("");
   });
 
+  it.each(["BrowserBack", "GoBack", "Backspace"])(
+    "closes the box with a TV remote's Back (%s) from the carousel",
+    (back) => {
+      setup();
+      press("/");
+      press("Enter");
+      expect(document.activeElement).toBe(selectedCover());
+      press(back);
+      expect(screen.queryByRole("searchbox")).toBeNull();
+    },
+  );
+
+  it("leaves Backspace in the box to the box, which stays open", () => {
+    setup();
+    press("/");
+    type("isl");
+    let notPrevented = false;
+    act(() => {
+      notPrevented = fireEvent.keyDown(box(), { key: "Backspace" });
+    });
+    expect(notPrevented).toBe(true);
+    expect(document.activeElement).toBe(box());
+    expect(box()).toHaveValue("isl");
+  });
+
   it("narrows the Songs overlay's carousel too", () => {
     const { answer } = setup();
     answer({ search: "isl" }, [SONGS[1] as SongSummary]);
