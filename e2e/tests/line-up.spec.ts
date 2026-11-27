@@ -126,11 +126,21 @@ test("a Request at the head shows its Line-up, edited from the Stage's keyboard"
     await expect(
       stage.getByText(`Then ${next[0]?.title ?? ""}, ${next[1]?.title ?? ""}`),
     ).toBeVisible();
-    // No QR code or Join code on the Line-up.
-    await expect(stage.getByText(code, { exact: true })).toHaveCount(0);
+    // The Line-up shows the Join code only in its small Join chip (#250), and
+    // no full join card.
+    await expect(stage.getByTestId("party-join-code")).toHaveCount(1);
+    await expect(stage.getByTestId("party-join-code")).toHaveText(code);
+    await expect(
+      stage.getByRole("button", { name: new RegExp(`^Join · ${code}`) }),
+    ).toBeVisible();
 
     // Seat the Phone's Profile from the Stage: Add a singer, then pick it.
-    await stage.getByRole("button", { name: /Add a singer/ }).focus();
+    // The seat's own button (it opens the Who sings menu), not the duet
+    // warning's "Add a singer" fix (#252).
+    await stage
+      .getByRole("button", { name: /Add a singer/ })
+      .and(stage.locator("[aria-haspopup='menu']"))
+      .focus();
     await stage.keyboard.press("Enter");
     await stage
       .getByRole("menu", { name: "Who sings" })
