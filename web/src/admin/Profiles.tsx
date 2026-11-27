@@ -2,10 +2,11 @@
 // Profile with its avatar, name and last sung, refreshed by the `profiles`
 // change notice. It is the only place a Profile is deleted: a guarded action
 // (it deletes kept data, the Profile's Score records with it) confirmed by a
-// press and hold. Without an Unlock the Admin PIN pad comes first.
+// press and hold. Without an Unlock the Admin PIN pad comes first. Stats
+// opens the Profile's page inline under its row (spec #244).
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { api, ApiFailure, type Refusal } from "../api/api";
 import { profilesQuery } from "../api/queries";
@@ -13,6 +14,7 @@ import type { Profile } from "../generated/Profile";
 import { useGuardedAction } from "../guarded/useGuardedAction";
 import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
+import { ProfilePage } from "../profile/ProfilePage";
 import { Avatar } from "../ui/Avatar";
 import { HoldButton } from "../ui/HoldButton";
 import { AdminSection } from "./AdminSection";
@@ -71,6 +73,8 @@ function problemText(problem: Problem): string {
 function AdminProfileRow({ profile }: { profile: Profile }) {
   const queryClient = useQueryClient();
   const [problem, setProblem] = useState<Problem | null>(null);
+  const [statsShown, setStatsShown] = useState(false);
+  const statsId = useId();
   const remove = useGuardedAction(() =>
     api("DELETE /api/profiles/{id}", { params: { id: String(profile.id) } }),
   );
@@ -112,6 +116,18 @@ function AdminProfileRow({ profile }: { profile: Profile }) {
                 })}
           </span>
         </div>
+        <button
+          type="button"
+          aria-label={t("admin.profiles.showStatsFor", { name: profile.name })}
+          aria-expanded={statsShown}
+          aria-controls={statsShown ? statsId : undefined}
+          onClick={() => {
+            setStatsShown((shown) => !shown);
+          }}
+          className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-base font-semibold shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow ${statsShown ? "bg-ink text-white" : "bg-white text-ink"}`}
+        >
+          {t("admin.profiles.showStats")}
+        </button>
         <HoldButton
           fill="red"
           size="small"
@@ -123,6 +139,11 @@ function AdminProfileRow({ profile }: { profile: Profile }) {
           {t("admin.profiles.deleteShort")}
         </HoldButton>
       </div>
+      {statsShown ? (
+        <div id={statsId} className="rounded-card-sm bg-cream-2 p-4">
+          <ProfilePage profileId={profile.id} headingLevel={3} />
+        </div>
+      ) : null}
       {problem ? (
         <p role="alert" className="font-semibold text-red">
           {problemText(problem)}

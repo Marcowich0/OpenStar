@@ -41,6 +41,25 @@ export function profileQuery(id: ProfileId) {
   });
 }
 
+/** The prefix of every Profile stats query's key. */
+export const profileStatsKey = ["profileStats"] as const;
+
+/**
+ * `GET /api/profiles/{id}/stats`: what the Profile has sung. Its key starts
+ * with `profileStatsKey`, which the `profiles` notice (a stored round, an
+ * edit) and the `library` notice (a Song's title, cover or leaving) refresh.
+ */
+export function profileStatsQuery(id: ProfileId) {
+  return queryOptions({
+    queryKey: [...profileStatsKey, id],
+    queryFn: ({ signal }) =>
+      api("GET /api/profiles/{id}/stats", {
+        params: { id: String(id) },
+        signal,
+      }),
+  });
+}
+
 /** The prefix of every Song query's key: the lists' and each Song's. */
 export const songsKey = ["songs"] as const;
 

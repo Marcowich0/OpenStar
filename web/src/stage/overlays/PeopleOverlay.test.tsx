@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { profileStatsQuery } from "../../api/queries";
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import {
   guestMember,
@@ -8,8 +9,9 @@ import {
   profile,
   profileMember,
 } from "../../phone/people/testPhone";
+import { STATS_ADA } from "../../profile/profileStatsFixture";
 import { HOLD_DURATION_MS } from "../../ui/hold";
-import { renderOverlays, press } from "./testOverlay";
+import { click, renderOverlays, press } from "./testOverlay";
 
 const bo = guestMember(1, "Bo", "sky", { onPhone: false });
 const lea = profileMember(2, 7, "tangerine");
@@ -186,6 +188,39 @@ describe("People overlay", () => {
     expect(
       within(dialog()).getByRole("img", { name: "QR code to join the Party" }),
     ).toBeVisible();
+  });
+
+  it("opens a Profile's page from its spot, and Esc goes back to the overlay", () => {
+    const { queries } = openPeople();
+    queries.setQueryData(profileStatsQuery(7).queryKey, STATS_ADA);
+    const open = within(spot("Lea")).getByRole("button", {
+      name: "Open Lea's Profile page",
+    });
+    act(() => {
+      open.focus();
+    });
+    click(open);
+    const page = screen.getByRole("dialog", { name: "Lea's Profile page" });
+    expect(
+      within(page).getByRole("heading", { name: "Lea" }),
+    ).toBeInTheDocument();
+    expect(within(page).getByText("Songs sung")).toBeInTheDocument();
+    // The Stage's arrows and Enter stay inside the page while it is up.
+    expect(page).toContainElement(document.activeElement as HTMLElement);
+
+    press("Escape");
+    expect(
+      screen.queryByRole("dialog", { name: "Lea's Profile page" }),
+    ).toBeNull();
+    expect(dialog()).toBeInTheDocument();
+    expect(open).toHaveFocus();
+  });
+
+  it("offers no Profile page for a Guest", () => {
+    openPeople();
+    expect(
+      within(spot("Bo")).queryByRole("button", { name: /Profile page/ }),
+    ).toBeNull();
   });
 
   it("never offers to delete a Profile", () => {
