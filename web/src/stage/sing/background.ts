@@ -7,7 +7,10 @@
  */
 
 import type { SongMedia } from "../../generated/SongMedia";
-import type { StageOptions } from "../../stageOptions/stageOptions";
+import {
+  effectsOff,
+  type StageOptions,
+} from "../../stageOptions/stageOptions";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { SingLane } from "./frame";
 
@@ -39,15 +42,6 @@ export function backgroundKind(
 ): BackgroundKind {
   if (songVideo && playableVideo(media) !== null) return "video";
   return media.background !== null ? "image" : "blobs";
-}
-
-/**
- * Effects set to **off**: the one place the sing screen asks. Today
- * `effects` is a switch; #268 makes it `"off" | "calm" | "full"` (a stored
- * `false` reads as `"off"`), and this becomes `options.effects === "off"`.
- */
-export function effectsOff(options: Pick<StageOptions, "effects">): boolean {
-  return !options.effects;
 }
 
 /**

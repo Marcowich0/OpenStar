@@ -25,6 +25,7 @@ import type { PitchBuffer } from "../../../pitch/pitchBuffer";
 import type { PitchMic } from "../../../pitch/pitchRouter";
 import { pitchBufferCapacity } from "../../../pitch/pitchCapacity";
 import {
+  effectsOff,
   stageOptions,
   type StageOptions,
 } from "../../../stageOptions/stageOptions";
@@ -213,9 +214,9 @@ export function singSetup(input: SingSetupInput): SingSetup {
       song: singSong,
       pauseHint,
       background,
-      ...(display.effects
-        ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
-        : {}),
+      ...(effectsOff(display)
+        ? {}
+        : { effects: new ParticlePool(EFFECTS_CAPACITY) }),
       ...(display.lineRatings ? { ratings: new LineRatings() } : {}),
       lanes: players.map((player, index): SingLane => {
         const readings = buffers[index];
