@@ -465,7 +465,10 @@ export const en = {
     "Show Perfect!, Great!, Good or OK when a Line ends. The Line bonus counts either way.",
   "options.effects": "Effects",
   "options.effects.help":
-    "Confetti on a Perfect! Line and sparkles while a golden Note is hit.",
+    "Full: confetti on a Perfect! Line, sparkles on golden Notes, and a bouncing ball and Line rating. Calm: only the sparkles. Off: none of them.",
+  "options.effects.off": "Off",
+  "options.effects.calm": "Calm",
+  "options.effects.full": "Full",
   "options.songVideo": "Song video",
   "options.songVideo.help":
     "Show the Song's video behind the lanes. Off shows its background or cover instead.",

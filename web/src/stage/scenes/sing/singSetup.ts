@@ -27,6 +27,7 @@ import {
   stageOptions,
   type StageOptions,
 } from "../../../stageOptions/stageOptions";
+import { EFFECTS } from "../../../stageOptions/effects";
 import type { PaletteKey } from "../../../theme/tokens";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
@@ -70,8 +71,9 @@ export interface SingSetupInput {
   /** The OpenStar volume the Mic thresholds are fixed at. */
   volume?: number;
   /**
-   * Whether the sing screen shows effects (confetti, sparkles) and Line
-   * rating words. By default the Stage options as they are now.
+   * How much the sing screen celebrates (Effects: confetti, sparkles,
+   * motion) and whether it shows Line rating words. By default the Stage
+   * options as they are now.
    */
   display?: Pick<StageOptions, "effects" | "lineRatings">;
   /**
@@ -176,7 +178,9 @@ export function singSetup(input: SingSetupInput): SingSetup {
       grid: song.headers,
       voices,
       lengthSeconds: detail.lengthSeconds,
-      ...(display.effects
+      effectsMode: display.effects,
+      // Calm still sparkles, so only Off goes without particles.
+      ...(EFFECTS.sparkles(display.effects)
         ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
         : {}),
       ...(display.lineRatings ? { ratings: new LineRatings() } : {}),

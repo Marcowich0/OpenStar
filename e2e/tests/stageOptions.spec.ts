@@ -49,22 +49,36 @@ test("the Stage changes an option, keeps it across a reload and resets it", asyn
     "Sing screen",
     "Sound",
   ]);
-  const effects = options.getByRole("switch", { name: "Effects" });
-  await expect(effects).toHaveAttribute("aria-checked", "true");
+  // Effects: Off, Calm or Full, at Full.
+  const effects = options.getByRole("group", { name: "Effects" });
+  await expect(effects.getByRole("button")).toHaveText(["Off", "Calm", "Full"]);
+  await expect(effects.getByRole("button", { name: "Full" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   const put = saved(stage);
-  await effects.click();
+  await effects.getByRole("button", { name: "Calm" }).click();
   expect((await put).ok()).toBe(true);
-  await expect(effects).toHaveAttribute("aria-checked", "false");
+  await expect(effects.getByRole("button", { name: "Calm" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
   await reload(stage);
   options = await open();
-  const kept = options.getByRole("switch", { name: "Effects" });
-  await expect(kept).toHaveAttribute("aria-checked", "false");
+  const kept = options.getByRole("group", { name: "Effects" });
+  await expect(kept.getByRole("button", { name: "Calm" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
   await options
     .getByRole("button", { name: "Reset Effects to its default" })
     .click();
-  await expect(kept).toHaveAttribute("aria-checked", "true");
+  await expect(kept.getByRole("button", { name: "Full" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 });
 
 test("an option under Advanced marks its fold, across a reload, until it is reset", async ({

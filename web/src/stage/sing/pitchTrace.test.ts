@@ -451,6 +451,18 @@ describe("the head ball", () => {
     expect(Math.min(...xs)).toBeLessThan(1.001);
   });
 
+  it("holds round with Effects calm or off: no screen motion", () => {
+    for (const effectsMode of ["calm", "off"] as const) {
+      const s = { ...state(trace(buffer(sung(3, 3.5, 60)))), effectsMode };
+      for (const t of [3.3, 3.35, 3.4, 3.45, 3.5]) {
+        const ball = frame(s, t, oneLane).find((e) => e.type === "headBall");
+        expect(ball, `${effectsMode} at ${String(t)}`).toMatchObject({
+          squash: { x: 1, y: 1 },
+        });
+      }
+    }
+  });
+
   it("is marked golden only while it hits a golden Note", () => {
     const golden = [note("golden", 4, 4, 0), note("goldenRap", 10, 2, 4)];
     const ball = (s: SingState, t: number) => {

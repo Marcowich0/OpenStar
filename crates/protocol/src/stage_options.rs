@@ -13,7 +13,10 @@
 //! stored before it existed still reads), its default constant, its check in
 //! [`StageOptions::is_valid`], and its row in the frontend's Options screen.
 
-use serde::{Deserialize, Serialize};
+use std::fmt;
+
+use serde::de::{self, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
 use ts_rs::TS;
 
 use crate::profile::Difficulty;
@@ -26,8 +29,9 @@ pub const RESUME_COUNTDOWN_MAX_SECONDS: u8 = 5;
 pub const RESUME_COUNTDOWN_DEFAULT_SECONDS: u8 = 3;
 /// Line rating words ("Perfect!", "Great!", ...) show when a Line ends.
 pub const LINE_RATINGS_DEFAULT: bool = true;
-/// Confetti on a Perfect! Line and sparkles on a golden Note show.
-pub const EFFECTS_DEFAULT: bool = true;
+/// Confetti on a Perfect! Line, sparkles on a golden Note and the sing
+/// screen's motion all show.
+pub const EFFECTS_DEFAULT: Effects = Effects::Full;
 /// A Song's video shows behind the lanes.
 pub const SONG_VIDEO_DEFAULT: bool = true;
 /// One step of the preview volume, in percent.
@@ -64,7 +68,7 @@ fn resume_countdown_default() -> u8 {
 fn line_ratings_default() -> bool {
     LINE_RATINGS_DEFAULT
 }
-fn effects_default() -> bool {
+fn effects_default() -> Effects {
     EFFECTS_DEFAULT
 }
 fn song_video_default() -> bool {
@@ -99,9 +103,9 @@ pub struct StageOptions {
     /// scored either way.
     #[serde(default = "line_ratings_default")]
     pub line_ratings: bool,
-    /// Whether confetti and sparkles show on the sing screen.
+    /// How much the sing screen celebrates: confetti, sparkles and motion.
     #[serde(default = "effects_default")]
-    pub effects: bool,
+    pub effects: Effects,
     /// Whether a Song's video shows behind the lanes; without it, its
     /// background or cover shows.
     #[serde(default = "song_video_default")]
@@ -119,6 +123,50 @@ pub struct StageOptions {
     /// its three values: any other is refused.
     #[serde(default = "theme_default")]
     pub theme: Theme,
+}
+
+/// How much the sing screen celebrates. Sent as `"off"`, `"calm"` or
+/// `"full"`; a set stored when Effects was a switch reads `true` as `full`
+/// and `false` as `off`, so it keeps its other options.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum Effects {
+    /// No confetti, no sparkles, and the Stage's motion turns into fades.
+    Off,
+    /// Golden-Note sparkles only: no confetti and no screen motion.
+    Calm,
+    /// Confetti on a Perfect! Line, sparkles on a golden Note, and motion.
+    Full,
+}
+
+impl<'de> Deserialize<'de> for Effects {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct EffectsVisitor;
+
+        impl Visitor<'_> for EffectsVisitor {
+            type Value = Effects;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str(r#""off", "calm", "full", or a stored true or false"#)
+            }
+
+            fn visit_bool<E: de::Error>(self, on: bool) -> Result<Effects, E> {
+                Ok(if on { Effects::Full } else { Effects::Off })
+            }
+
+            fn visit_str<E: de::Error>(self, name: &str) -> Result<Effects, E> {
+                match name {
+                    "off" => Ok(Effects::Off),
+                    "calm" => Ok(Effects::Calm),
+                    "full" => Ok(Effects::Full),
+                    other => Err(E::unknown_variant(other, &["off", "calm", "full"])),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(EffectsVisitor)
+    }
 }
 
 impl Default for StageOptions {
@@ -156,11 +204,11 @@ mod tests {
         assert!(StageOptions::default().is_valid());
         let read: StageOptions = serde_json::from_str("{}").unwrap();
         assert_eq!(read, StageOptions::default());
-        let read: StageOptions = serde_json::from_str(r#"{"effects":false}"#).unwrap();
+        let read: StageOptions = serde_json::from_str(r#"{"effects":"calm"}"#).unwrap();
         assert_eq!(
             read,
             StageOptions {
-                effects: false,
+                effects: Effects::Calm,
                 ..StageOptions::default()
             }
         );
@@ -188,6 +236,40 @@ mod tests {
         assert!(
             serde_json::from_value::<StageOptions>(serde_json::json!({ "theme": "pink" })).is_err()
         );
+    }
+
+    #[test]
+    fn a_stored_true_or_false_reads_as_full_or_off_and_keeps_the_other_options() {
+        // A set stored before Effects had three values.
+        let v1 = r#"{"startingDifficulty":"easy","resumeCountdownSeconds":0,
+            "lineRatings":false,"effects":true,"songVideo":false,
+            "previewVolumePercent":40}"#;
+        let read: StageOptions = serde_json::from_str(v1).unwrap();
+        assert_eq!(read.effects, Effects::Full);
+        assert_eq!(read.starting_difficulty, Difficulty::Easy);
+        assert_eq!(read.preview_volume_percent, 40);
+        let read: StageOptions = serde_json::from_str(r#"{"effects":false}"#).unwrap();
+        assert_eq!(read.effects, Effects::Off);
+    }
+
+    #[test]
+    fn each_effects_value_round_trips_as_its_name() {
+        for (effects, name) in [
+            (Effects::Off, "off"),
+            (Effects::Calm, "calm"),
+            (Effects::Full, "full"),
+        ] {
+            let options = StageOptions {
+                effects,
+                ..StageOptions::default()
+            };
+            let json = serde_json::to_value(&options).unwrap();
+            assert_eq!(json["effects"], name);
+            let read: StageOptions = serde_json::from_value(json).unwrap();
+            assert_eq!(read, options);
+        }
+        assert!(serde_json::from_str::<StageOptions>(r#"{"effects":"loud"}"#).is_err());
+        assert!(serde_json::from_str::<StageOptions>(r#"{"effects":1}"#).is_err());
     }
 
     #[test]
@@ -227,7 +309,7 @@ mod tests {
                 "startingDifficulty": "medium",
                 "resumeCountdownSeconds": 3,
                 "lineRatings": true,
-                "effects": true,
+                "effects": "full",
                 "songVideo": true,
                 "previewVolumePercent": 100,
                 "skipIntros": false,

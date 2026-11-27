@@ -107,6 +107,8 @@ export interface HeadBallEntry {
 
 /** The head ball's bounce at its widest: 14 % (#55). */
 export const HEAD_BALL_SQUASH = 0.14;
+/** A head ball that does not bounce (Effects calm or off). */
+const ROUND = { x: 1, y: 1 } as const;
 /** The bounce's speed, radians of Song time per second, as in the prototype. */
 const BOUNCE_RATE = 9;
 
@@ -197,6 +199,8 @@ export interface TraceLane {
   notesX: number;
   /** Lane height, for the narrow-lane sizes. */
   height: number;
+  /** The head ball bounces (Effects full); otherwise it holds round. */
+  bounce: boolean;
   /** Maps a Note pitch to y. */
   low: number;
   range: number;
@@ -383,7 +387,7 @@ export function traceLane(
         colour: g.colour,
         rim: "--color-white",
         rimWidth: 3,
-        squash: headBallSquash(songTime, g.lane),
+        squash: g.bounce ? headBallSquash(songTime, g.lane) : ROUND,
         golden: lastGolden,
       } satisfies HeadBallEntry);
     }
