@@ -18,6 +18,7 @@ import {
 import type { SongFilters } from "../../generated/SongFilters";
 import { Icon } from "../../ui/Icon";
 import { focusDefault, isTextField } from "../frame/focusables";
+import { KeyHint } from "../input/KeyHint";
 import { useStageKeys } from "../frame/stageFrameContext";
 import { useSongSearch } from "./songSearch";
 
@@ -27,18 +28,6 @@ const CHIP =
 /** A control in the search's row, as tall as the box: the Search button, Mute. */
 export const SEARCH_ROW_CONTROL =
   "inline-flex h-[72px] shrink-0 cursor-pointer items-center gap-3 rounded-full px-7 text-[30px] font-semibold shadow-ledge-sm";
-
-/** The key that works a control, shown on it as a key cap (not words). */
-export function KeyHint({ keyName }: { keyName: string }) {
-  return (
-    <kbd
-      aria-hidden="true"
-      className="min-w-10 rounded-xl border-2 border-current px-2 text-center font-sans text-2xl leading-8 font-bold opacity-60"
-    >
-      {keyName}
-    </kbd>
-  );
-}
 
 /** Where the focus goes once the box has rendered. */
 type FocusAsk = "box" | "carousel" | null;

@@ -564,6 +564,8 @@ export const en = {
   "stage.queue.singers": "Who sings {song}?",
   "stage.queue.singersHint":
     "Enter adds or takes off a singer, up to {seats, number}",
+  "stage.queue.singersHint.pad":
+    "Ⓐ adds or takes off a singer, up to {seats, number}",
   "stage.songs.added": "Added {song}",
   "stage.people.count": "{count, number} of 12 colours taken",
   "stage.people.colours": "Party colours",
@@ -630,6 +632,9 @@ export const en = {
   "stage.pause.skip": "Skip to the next Song",
   "stage.pause.end": "End and show results",
   "stage.pause.hint": "Restart, Skip and End: hold Enter or press and hold",
+  "stage.pause.hint.pad": "Restart, Skip and End: hold Ⓐ",
+  // The pad button glyphs a key hint shows after gamepad input (#275).
+  "pad.start": "Start",
   "stage.perf.measuring": "Measuring frame times",
   "stage.perf.current": "Frame {ms} ms",
   "stage.perf.mean": "Mean {ms} ms",
