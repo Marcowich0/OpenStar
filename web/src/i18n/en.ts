@@ -16,6 +16,8 @@ export const en = {
   "join.connecting": "Finding the Party…",
   "join.title": "Join the Party",
   "join.typeCode": "Type the 4 numbers shown on the Stage, under the QR code",
+  "join.stageHint": "Is this the TV or the computer by the big screen?",
+  "join.useAsStage": "Use this device as the Stage",
   "join.whosSinging": "Who's singing?",
   "join.tapProfile": "Tap your Profile. You can change it later.",
   "join.here": "here",

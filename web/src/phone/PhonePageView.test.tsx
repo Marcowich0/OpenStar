@@ -136,10 +136,12 @@ function renderPhone({
   joinCode,
   storage = memoryStorage({ "openstar.phoneId": PHONE_ID }),
   onInParty,
+  onUseAsStage,
 }: {
   joinCode?: string;
   storage?: PhoneStorage;
   onInParty?: () => void;
+  onUseAsStage?: () => void;
 } = {}) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
@@ -164,6 +166,7 @@ function renderPhone({
         store={store}
         storage={storage}
         {...(onInParty ? { onInParty } : {})}
+        {...(onUseAsStage ? { onUseAsStage } : {})}
       />
     </QueryClientProvider>,
   );
@@ -237,6 +240,43 @@ describe("the Phone page's join flow", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getAllByTestId("code-box")).toHaveLength(4);
+  });
+
+  it("offers Use this device as the Stage under the pad, by press and by keyboard", () => {
+    const onUseAsStage = vi.fn();
+    const { connect } = renderPhone({ onUseAsStage });
+    connect(null);
+
+    const button = screen.getByRole("button", {
+      name: "Use this device as the Stage",
+    });
+    expect(
+      screen.getByText("Is this the TV or the computer by the big screen?"),
+    ).toBeInTheDocument();
+    fireEvent.click(button);
+    expect(onUseAsStage).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      button.focus();
+    });
+    fireEvent.keyDown(button, { key: "Enter" });
+    fireEvent.keyUp(button, { key: "Enter" });
+    expect(onUseAsStage).toHaveBeenCalledTimes(2);
+  });
+
+  it("offers the Stage only on the pad, not on Who's singing?", async () => {
+    const onUseAsStage = vi.fn();
+    const { connect, server } = renderPhone({ onUseAsStage });
+    connect(null);
+    await typeCode("4821");
+    server({ type: "joinCodeValid", joinCode: "4821" });
+
+    expect(
+      await screen.findByRole("heading", { name: "Who's singing?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Use this device as the Stage" }),
+    ).toBeNull();
   });
 
   it("says once it is in the Party, so the QR link's code can be dropped", () => {

@@ -9,9 +9,11 @@ import {
 // Becoming the Stage needs the Admin PIN once per browser (#186). This spec
 // uses a browser context of its own that is not remembered yet; every other
 // spec gets a remembered one from the `stage` fixture. It makes one wrong
-// guess only: the wrong-guess wait is shared by the whole run.
+// guess only: the wrong-guess wait is shared by the whole run. It comes in
+// from `/`, by the join pad's "Use this device as the Stage", as a browser
+// whose owner did not type the address does.
 
-test("a new browser gives the Admin PIN on /stage once, then becomes the Stage with no pad", async ({
+test("a new browser goes from / to the Stage, gives the Admin PIN once, then becomes the Stage with no pad", async ({
   browser,
   baseURL,
 }) => {
@@ -21,7 +23,14 @@ test("a new browser gives the Admin PIN on /stage once, then becomes the Stage w
   });
   const page = await context.newPage();
 
-  await page.goto("/stage");
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Join the Party" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Use this device as the Stage" })
+    .click();
+  await expect(page).toHaveURL(/\/stage$/);
   const pad = page.getByRole("dialog", { name: "Admin PIN" });
   await expect(pad).toBeVisible();
   // Before anything else: no Stage frame behind the pad.

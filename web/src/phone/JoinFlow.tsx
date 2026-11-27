@@ -7,6 +7,7 @@ import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { phoneId, rememberProfile, type PhoneStorage } from "../live/phoneId";
 import { useLive } from "../live/useLive";
+import { Button } from "../ui/Button";
 import { NumberPad } from "../ui/NumberPad";
 import { JoinForm, type JoinFormKind } from "./JoinForm";
 import { checkJoinCode, joinParty, type JoinResult } from "./joinRequests";
@@ -46,6 +47,12 @@ export interface JoinFlowProps {
    * "Who's singing?" grid. `onDone` runs once it has switched.
    */
   switching?: { onBack: () => void; onDone: () => void };
+  /**
+   * "Use this device as the Stage" under the number pad: takes this browser
+   * to `/stage` (and its Admin PIN pad, unless it has Stage trust). Without
+   * it the pad shows alone.
+   */
+  onUseAsStage?: () => void;
 }
 
 /**
@@ -70,6 +77,7 @@ export function JoinFlow({
   storage,
   random,
   switching,
+  onUseAsStage,
 }: JoinFlowProps) {
   const answered = useLive(selectAnswered, store);
   const [step, setStep] = useState<Step>(() =>
@@ -226,6 +234,16 @@ export function JoinFlow({
               }}
             />
           </div>
+          {onUseAsStage ? (
+            <div className="mt-auto flex flex-col items-center gap-3 px-5 pt-4 pb-8">
+              <p className="text-center text-lg text-ink-2">
+                {t("join.stageHint")}
+              </p>
+              <Button className="min-h-14 px-6 text-xl" onPress={onUseAsStage}>
+                {t("join.useAsStage")}
+              </Button>
+            </div>
+          ) : null}
         </main>
       );
   }

@@ -40,10 +40,17 @@ export function PhoneScreen() {
       replace: true,
     });
   }, [navigate]);
+  // A whole page load, not a route change: the browser's one live socket is
+  // made for the page it starts on, and the Stage needs its own (`/ws/stage`,
+  // behind Stage trust).
+  const openStage = useCallback(() => {
+    void navigate({ to: "/stage", reloadDocument: true });
+  }, [navigate]);
   return (
     <PhonePageView
       joinCode={join}
       diagnostics={perf === true}
+      onUseAsStage={openStage}
       {...(join !== undefined ? { onInParty: dropJoinCode } : {})}
     />
   );
@@ -62,6 +69,8 @@ export interface PhonePageViewProps {
   onInParty?: () => void;
   /** `?perf`: the mic takeover shows its diagnostics readout. */
   diagnostics?: boolean;
+  /** The join pad's "Use this device as the Stage": opens `/stage`. */
+  onUseAsStage?: () => void;
 }
 
 /** The Phone page: one of its states, picked from the store by `phonePage`. */
@@ -73,6 +82,7 @@ export function PhonePageView({
   mic: givenMic,
   onInParty,
   diagnostics = false,
+  onUseAsStage,
 }: PhonePageViewProps) {
   const myPhoneId = phoneId(storage);
   // The Request whose After the Song screen was closed with Done.
@@ -185,6 +195,7 @@ export function PhonePageView({
           store={store}
           storage={storage}
           {...(random ? { random } : {})}
+          {...(onUseAsStage ? { onUseAsStage } : {})}
         />
       );
     case "calibrating":
