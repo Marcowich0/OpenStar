@@ -117,7 +117,7 @@ test("the Join code on the Line-up's chip lets a Phone join, and the chip opens 
     ).toBeVisible();
 
     await chip(stage).click();
-    const people = stage.getByRole("dialog", { name: "Tonight's Party" });
+    const people = stage.getByRole("dialog", { name: "People" });
     await expect(people).toBeVisible();
     await expect(people.getByTestId("party-join-code")).toHaveText(code);
     await stage.keyboard.press("Escape");
