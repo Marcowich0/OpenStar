@@ -380,7 +380,13 @@ function SongRow({
     <li className={`flex items-center bg-white ${style.row}`}>
       <Cover
         src={song.cover}
-        tileColour={song.tileColour}
+        // A Song that left the Library has no id: its generated cover keeps
+        // the stored tile colour and title's letter, with the first pattern.
+        song={{
+          id: song.id ?? 0,
+          title: song.title,
+          tileColour: song.tileColour,
+        }}
         rim={style.rim}
         className={style.cover}
       />
