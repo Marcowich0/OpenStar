@@ -203,6 +203,8 @@ export const en = {
   "stageTab.upNext": "Up next: who sings?",
   "stageTab.noMic": "no mic",
   "stageTab.addSinger": "Add a singer",
+  "stageTab.pickMic": "Pick a mic",
+  "stageTab.pickVoice": "Pick a voice",
   "stageTab.start": "Start",
   "stageTab.results": "Results on the Stage",
   "stageTab.yourScore": "Your Score: {total, number}",

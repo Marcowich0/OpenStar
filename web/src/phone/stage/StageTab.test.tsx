@@ -91,6 +91,56 @@ describe("the Stage tab while a Line-up waits", () => {
     ).toBeInTheDocument();
   });
 
+  it("gives a Mic warning a Pick a mic button that opens that seat's sheet at its Mic", async () => {
+    renderTab({
+      ...LINE_UP,
+      canStart: false,
+      seats: [BO_SEAT, { ...JONAS_SEAT, mic: null }],
+      warnings: [{ code: "noMic", params: { memberId: 2 } }],
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Pick a mic" }));
+    const sheet = await screen.findByRole("dialog", { name: "Jonas" });
+    const mics = within(sheet).getByRole("group", { name: "Mic" });
+    await waitFor(() => {
+      expect(mics).toContainElement(document.activeElement as HTMLElement);
+    });
+    expect(document.activeElement).toBeEnabled();
+  });
+
+  it("gives a missing Voice a Pick a voice button that opens the last seat's sheet at that Voice", async () => {
+    renderTab({
+      ...LINE_UP,
+      duet: true,
+      canStart: false,
+      warnings: [{ code: "duetNeedsVoice", params: { voice: "p2" } }],
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Pick a voice" }),
+    );
+    const sheet = await screen.findByRole("dialog", { name: "Jonas" });
+    await waitFor(() => {
+      expect(
+        within(sheet).getByRole("button", { name: "Voice 2" }),
+      ).toHaveFocus();
+    });
+  });
+
+  it("moves the focus to the first fix of a blocking warning when the greyed Start is pressed", async () => {
+    renderTab({
+      ...LINE_UP,
+      duet: true,
+      canStart: false,
+      warnings: [
+        { code: "micBlocked", params: { memberId: 1 } },
+        { code: "duetNeedsVoice", params: { voice: "p2" } },
+      ],
+    });
+    const start = await screen.findByRole("button", { name: "Start" });
+    fireEvent.click(start);
+    expect(start).toHaveAttribute("data-shaking", "true");
+    expect(screen.getByRole("button", { name: "Pick a voice" })).toHaveFocus();
+  });
+
   it("shows “Not calibrated” in the seat's row with a Calibrate mics button that ticks that seat's Mic, and Start stays on", async () => {
     const { sent } = renderTab({
       ...LINE_UP,
