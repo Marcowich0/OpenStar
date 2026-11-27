@@ -365,7 +365,11 @@ function UsdbSongRow({ song }: { song: UsdbSong }) {
       >
         <Cover
           src={song.cover}
-          tileColour={song.tileColour}
+          song={{
+            id: song.usdbId,
+            title: song.title,
+            tileColour: song.tileColour,
+          }}
           rim={3}
           lazy
           className="w-14 shrink-0"
