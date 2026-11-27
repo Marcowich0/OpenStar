@@ -8,6 +8,7 @@
 
 import type { TokenRef } from "../../theme/tokens";
 import type {
+  BackgroundEntry,
   DrawList,
   GridEntry,
   HeadBallEntry,
@@ -61,6 +62,27 @@ export function referenceTransform(
   };
 }
 
+/**
+ * The transform from the reference frame to a canvas of `cssWidth` ×
+ * `cssHeight` CSS pixels at `pixelRatio`, scaled uniformly to cover it and
+ * centred: the background layer fills the screen like the video does.
+ */
+export function coverTransform(
+  cssWidth: number,
+  cssHeight: number,
+  pixelRatio: number,
+): ReferenceTransform {
+  const cover = Math.max(
+    cssWidth / REFERENCE_WIDTH,
+    cssHeight / REFERENCE_HEIGHT,
+  );
+  return {
+    scale: cover * pixelRatio,
+    x: ((cssWidth - REFERENCE_WIDTH * cover) / 2) * pixelRatio,
+    y: ((cssHeight - REFERENCE_HEIGHT * cover) / 2) * pixelRatio,
+  };
+}
+
 export interface Painter {
   paint(list: DrawList, transform: ReferenceTransform): void;
 }
@@ -68,11 +90,12 @@ export interface Painter {
 const NO_DASH: readonly number[] = [];
 
 /**
- * Which canvas a painter draws: the lanes canvas (everything but particles),
- * or the effects canvas above the DOM lane headers and lyric bar (particles
- * only). Both read the same draw list.
+ * Which canvas a painter draws: the background canvas under the frosted lane
+ * panels (the background entry only), the lanes canvas (everything but
+ * particles and the background), or the effects canvas above the DOM lane
+ * headers and lyric bar (particles only). All read the same draw list.
  */
-export type PaintLayer = "lanes" | "effects";
+export type PaintLayer = "background" | "lanes" | "effects";
 
 /** A particle star's notch radius as a share of its point radius. */
 const PARTICLE_STAR_INNER = 0.45;
@@ -100,6 +123,13 @@ export function createPainter(
   let gradientBottom = "";
   const bands = new Map<number, CanvasGradient>();
   let bandColour = "";
+  // One unit radial gradient per blob colour, moved and scaled onto each blob.
+  const blobGradients = new Map<string, CanvasGradient>();
+  // What the background canvas shows now, to skip a repaint that changes nothing.
+  let painted: BackgroundEntry | null = null;
+  let paintedTransform: ReferenceTransform | null = null;
+  let paintedWidth = 0;
+  let paintedHeight = 0;
 
   function colour(ref: TokenRef): string {
     let value = colours.get(ref);
@@ -484,6 +514,105 @@ export function createPainter(
     text(style);
   }
 
+  function blobGradient(value: string) {
+    let gradient = blobGradients.get(value);
+    if (!gradient) {
+      // As the shimmer band: a nearly clear stop of the same colour, so the
+      // edge fades without a grey fringe.
+      gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+      gradient.addColorStop(0, value);
+      gradient.addColorStop(
+        0.5,
+        `color-mix(in srgb, ${value} 55%, transparent)`,
+      );
+      gradient.addColorStop(1, `color-mix(in srgb, ${value} 1%, transparent)`);
+      blobGradients.set(value, gradient);
+    }
+    return gradient;
+  }
+
+  /** The canvas already shows `entry` at `transform`: nothing to repaint. */
+  function unchanged(
+    entry: BackgroundEntry | null,
+    transform: ReferenceTransform,
+  ): boolean {
+    const was = painted;
+    if (
+      ctx.canvas.width !== paintedWidth ||
+      ctx.canvas.height !== paintedHeight
+    ) {
+      return false;
+    }
+    // Nothing to paint shows as a clear canvas, whatever the transform.
+    const clear = (e: BackgroundEntry | null) => e?.kind !== "blobs";
+    if (clear(entry) || clear(was)) return clear(entry) && clear(was);
+    const t = paintedTransform;
+    if (
+      !t ||
+      t.scale !== transform.scale ||
+      t.x !== transform.x ||
+      t.y !== transform.y
+    ) {
+      return false;
+    }
+    if (entry.base !== was.base || entry.blobs.length !== was.blobs.length) {
+      return false;
+    }
+    for (let i = 0; i < entry.blobs.length; i++) {
+      const a = entry.blobs[i];
+      const b = was.blobs[i];
+      if (
+        !a ||
+        !b ||
+        a.x !== b.x ||
+        a.y !== b.y ||
+        a.radius !== b.radius ||
+        a.colour !== b.colour ||
+        a.alpha !== b.alpha
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * The background canvas: the blobs on their base, or clear for a video or
+   * an image (the DOM below shows them). Painted only when it changes.
+   */
+  function paintBackground(list: DrawList, transform: ReferenceTransform) {
+    let entry: BackgroundEntry | null = null;
+    for (const e of list) {
+      if (e.type === "background") {
+        entry = e;
+        break;
+      }
+    }
+    // The very first paint always happens, so the canvas starts known.
+    if (paintedTransform && unchanged(entry, transform)) return;
+    painted = entry;
+    paintedTransform = transform;
+    paintedWidth = ctx.canvas.width;
+    paintedHeight = ctx.canvas.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (entry?.kind !== "blobs") {
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      return;
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = colour(entry.base);
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const { scale, x, y } = transform;
+    for (const blob of entry.blobs) {
+      const r = blob.radius * scale;
+      ctx.setTransform(r, 0, 0, r, x + blob.x * scale, y + blob.y * scale);
+      ctx.globalAlpha = blob.alpha;
+      ctx.fillStyle = blobGradient(colour(blob.colour));
+      ctx.fillRect(-1, -1, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
   function paintEffects(list: DrawList) {
     for (const entry of list) {
       if (entry.type === "particle") particle(entry);
@@ -493,6 +622,10 @@ export function createPainter(
   return {
     paint(list, transform) {
       colours.clear();
+      if (layer === "background") {
+        paintBackground(list, transform);
+        return;
+      }
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
       const { scale, x, y } = transform;
@@ -544,6 +677,9 @@ export function createPainter(
             break;
           case "particle":
             // The effects canvas's painter draws these.
+            break;
+          case "background":
+            // The background canvas's painter draws this.
             break;
         }
       }

@@ -20,7 +20,6 @@ import { SingBackdrop } from "../../sing/SingBackdrop";
 import { SingScreen } from "../../sing/SingScreen";
 import { useStageAvOffset } from "../../output/useStageAvOffset";
 import { useStagePerf } from "../../perf/stagePerf";
-import { useStageOptions } from "../../../stageOptions/useStageOptions";
 import type { StageSong, StageSongView } from "./stageSong";
 import { writeLaneScore } from "./laneScore";
 import { useStageSong, useStageSongView } from "./useStageSong";
@@ -97,9 +96,10 @@ function Singing({
   // `?perf`: the frame-time overlay; `?perf&lanes=8`: synthetic lanes drawn
   // instead of the Line-up's, which then show no real Player's Score (#227).
   const perf = useStagePerf(view);
-  // Setup › Options: without the Song video, its background or cover shows
-  // (the video still plays under it when it carries the sound).
-  const { songVideo } = useStageOptions().options;
+  // Chosen at Start (#263) from Setup › Options and the Song's media: the
+  // video, the background image, or the blobs. Without the Song video, the
+  // video still plays hidden when it carries the sound.
+  const background = view.state.background;
   const synthetic = perf.state !== null;
   useEffect(
     () =>
@@ -140,7 +140,10 @@ function Singing({
         backdrop={
           <SingBackdrop
             media={view.detail.media}
-            showVideo={view.videoShown && songVideo}
+            showVideo={
+              view.videoShown && (background?.kind ?? "video") === "video"
+            }
+            {...(background ? { background: background.kind } : {})}
             {...(videoRef ? { videoRef } : {})}
           />
         }

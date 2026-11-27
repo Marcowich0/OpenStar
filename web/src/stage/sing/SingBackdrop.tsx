@@ -5,38 +5,36 @@
 // itself shows (`showVideo`: a separate video file shows once its position
 // reached 0, #212). The media owner (#53) plays the element through
 // `videoRef`; nothing here reads its position. A separate video file is
-// muted: the Song's audio file carries the sound.
+// muted: the Song's audio file carries the sound. When the background is the
+// blobs (#263), the background canvas above draws them and no image shows
+// here; a video that carries the sound still plays, hidden.
 
 import { useState, type Ref } from "react";
 
 import { avatarIconUrl } from "../../avatars/avatarIcons";
 import type { SongMedia } from "../../generated/SongMedia";
 import { tokenVar } from "../../theme/tokens";
+import { playableVideo, type BackgroundKind } from "./background";
 
 export interface SingBackdropProps {
   media: SongMedia;
   /** `false` keeps the backdrop in front of the video (before position 0). */
   showVideo?: boolean;
   videoRef?: Ref<HTMLVideoElement>;
-}
-
-/** The video's URL when the Stage can play it as it is; `null`: the backdrop only. */
-function playableVideo(media: SongMedia): string | null {
-  const video = media.video;
-  if (video === null) return null;
-  const file = video.kind === "inAudio" ? media.audio : video.file;
-  return file.native ? file.url : null;
+  /** The Song's background (`background.ts`); `"blobs"`: no image here. */
+  background?: BackgroundKind;
 }
 
 export function SingBackdrop({
   media,
   showVideo = true,
   videoRef,
+  background,
 }: SingBackdropProps) {
   const video = playableVideo(media);
   return (
     <div className="absolute inset-0 overflow-hidden">
-      <BackdropImage media={media} />
+      {background !== "blobs" && <BackdropImage media={media} />}
       {video !== null && (
         <video
           ref={videoRef}

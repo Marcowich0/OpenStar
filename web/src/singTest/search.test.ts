@@ -10,6 +10,10 @@ describe("parseSingTestSearch", () => {
     });
   });
 
+  it("takes the no-video case", () => {
+    expect(parseSingTestSearch("?case=noVideo&t=6").case).toBe("noVideo");
+  });
+
   it("falls back to one Player at 6 s for anything else", () => {
     expect(parseSingTestSearch("?case=nine&t=soon")).toEqual({
       case: "one",

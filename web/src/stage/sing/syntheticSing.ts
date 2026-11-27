@@ -13,6 +13,9 @@
 // and the second's (Great!) are caught settled, before they fade (#216).
 // The title card (#264) shows a made-up title and artist on the tile colour,
 // with the pause hint under it, until 4 s.
+// The no-video case's 2 Players share the one Voice over the moving blobs
+// (#263), caught at the frozen Song time; the other cases have no background,
+// so the page's tile backdrop shows as before.
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
@@ -111,6 +114,7 @@ const LANES: Record<SingTestCase, number[]> = {
   four: [0, 0, 0, 0],
   eight: [0, 0, 0, 0, 0, 0, 0, 0],
   duet: [0, 1],
+  noVideo: [0, 0],
 };
 
 /** Made-up Players, in lane order: [name, avatar, Score]. The second is a Guest. */
@@ -201,5 +205,8 @@ export function syntheticSing(name: SingTestCase): SingState {
       tileColour: "navy",
     },
     pauseHint: "keyboard",
+    ...(name === "noVideo"
+      ? { background: { kind: "blobs", still: false } as const }
+      : {}),
   };
 }

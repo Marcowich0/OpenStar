@@ -28,6 +28,11 @@ import {
   type PitchLineEntry,
 } from "./pitchTrace";
 
+import {
+  backgroundEntry,
+  type BackgroundEntry,
+  type SingBackground,
+} from "./background";
 import type { ParticleEntry, ParticlePool } from "./effects";
 import type { LineRatingEntry, LineRatings } from "./lineRating";
 import {
@@ -41,6 +46,7 @@ import {
   type TitleCardEntry,
 } from "./titleCard";
 
+export type { BackgroundEntry, BlobStyle } from "./background";
 export type { ParticleEntry } from "./effects";
 export type { LineRatingEntry } from "./lineRating";
 export type {
@@ -124,6 +130,12 @@ export interface SingState {
    * the first Song since the Party started. None: no hint.
    */
   pauseHint?: PauseHint | null;
+  /**
+   * What is behind the lanes (#263), chosen at Start: the Song video, its
+   * background image, or the blobs the painter draws. None: no background
+   * entry, and the painter draws no background.
+   */
+  background?: SingBackground;
 }
 
 /** A parsed Song's Voices, flattened once for drawing (not per frame). */
@@ -307,6 +319,7 @@ export interface LaneEndEntry {
 }
 
 export type DrawEntry =
+  | BackgroundEntry
   | ProgressEntry
   | LaneEntry
   | GridEntry
@@ -464,6 +477,10 @@ export function frame(
   const now = beatPosition(state.grid, songTime);
   const lanes = Math.min(state.lanes.length, layout.length);
   const length = songLength(state);
+  // First: the background layer is below everything else.
+  if (state.background) {
+    list.push(backgroundEntry(state.background, state.lanes, songTime));
+  }
   list.push({
     type: "progress",
     ...PROGRESS,

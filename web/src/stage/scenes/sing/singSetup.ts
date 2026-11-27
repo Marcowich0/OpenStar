@@ -28,6 +28,7 @@ import {
   type StageOptions,
 } from "../../../stageOptions/stageOptions";
 import type { PaletteKey } from "../../../theme/tokens";
+import { prefersReducedMotion, singBackground } from "../../sing/background";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
 import {
@@ -75,10 +76,15 @@ export interface SingSetupInput {
   /** The OpenStar volume the Mic thresholds are fixed at. */
   volume?: number;
   /**
-   * Whether the sing screen shows effects (confetti, sparkles) and Line
-   * rating words. By default the Stage options as they are now.
+   * Whether the sing screen shows effects (confetti, sparkles), Line rating
+   * words and the Song video. By default the Stage options as they are now.
    */
-  display?: Pick<StageOptions, "effects" | "lineRatings">;
+  display?: Pick<StageOptions, "effects" | "lineRatings" | "songVideo">;
+  /**
+   * The system asks for reduced motion, which keeps the background still.
+   * By default `prefersReducedMotion()` now.
+   */
+  reducedMotion?: boolean;
   /**
    * What is stored for a seated Mic at the current Stage output
    * (`undefined`: its defaults). By default the Stage's loaded values,
@@ -183,6 +189,11 @@ export function singSetup(input: SingSetupInput): SingSetup {
     requestId !== null && isFirstSong(party.partyId, requestId)
       ? pauseHintInput()
       : null;
+  const background = singBackground(
+    detail.media,
+    display,
+    input.reducedMotion ?? prefersReducedMotion(),
+  );
 
   return {
     players,
@@ -199,6 +210,7 @@ export function singSetup(input: SingSetupInput): SingSetup {
         tileColour: detail.media.tileColour,
       },
       pauseHint,
+      background,
       ...(display.effects
         ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
         : {}),

@@ -58,6 +58,55 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     expect(state.effects).toBeDefined();
   });
 
+  it("chooses the background at Start: blobs without a video or a background image, moving", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const setup = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+      reducedMotion: false,
+    });
+    expect(setup.state([new PitchBuffer(8)]).background).toEqual({
+      kind: "blobs",
+      still: false,
+    });
+  });
+
+  it("shows the video, or the background image with Song video off", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const detail = testDetail();
+    detail.media = {
+      ...detail.media,
+      video: { kind: "inAudio" },
+      background: "/api/songs/7/media/background",
+    };
+    const background = (songVideo: boolean) =>
+      singSetup({
+        detail,
+        party,
+        profiles: PROFILES,
+        display: { effects: true, lineRatings: true, songVideo },
+        reducedMotion: false,
+      }).state([new PitchBuffer(8)]).background?.kind;
+    expect(background(true)).toBe("video");
+    expect(background(false)).toBe("image");
+  });
+
+  it("keeps the blobs still with Effects off or reduced motion", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const still = (effects: boolean, reducedMotion: boolean) =>
+      singSetup({
+        detail: testDetail(),
+        party,
+        profiles: PROFILES,
+        display: { effects, lineRatings: true, songVideo: true },
+        reducedMotion,
+      }).state([new PitchBuffer(8)]).background?.still;
+    expect(still(true, false)).toBe(false);
+    expect(still(false, false)).toBe(true);
+    expect(still(true, true)).toBe(true);
+  });
+
   it("leaves out the effects and the Line rating words the Stage options switch off", () => {
     const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
     const shown = singSetup({
@@ -72,7 +121,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       detail: testDetail(),
       party,
       profiles: PROFILES,
-      display: { effects: false, lineRatings: false },
+      display: { effects: false, lineRatings: false, songVideo: true },
     });
     const bare = hidden.state([new PitchBuffer(8)]);
     expect(bare.effects).toBeUndefined();

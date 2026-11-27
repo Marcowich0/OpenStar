@@ -11,6 +11,7 @@ describe("syntheticSing", () => {
     ["four", 4, [0, 0, 0, 0]],
     ["eight", 8, [0, 0, 0, 0, 0, 0, 0, 0]],
     ["duet", 2, [0, 1]],
+    ["noVideo", 2, [0, 0]],
   ] as const)(
     "case %s has %i lanes singing Voices %j",
     (name, lanes, voices) => {
@@ -65,6 +66,14 @@ describe("syntheticSing", () => {
       expect(ratings).toHaveLength(Math.min(2, state.lanes.length));
     },
   );
+
+  it("draws the blobs only in the no-video case, moving but caught at the frozen time; the others keep the tile backdrop", () => {
+    for (const name of SING_TEST_CASES) {
+      expect(syntheticSing(name).background, name).toEqual(
+        name === "noVideo" ? { kind: "blobs", still: false } : undefined,
+      );
+    }
+  });
 
   it("covers every case the test entry accepts", () => {
     for (const name of SING_TEST_CASES)
