@@ -10,6 +10,7 @@ import { startGamepadInput } from "./gamepad";
 // keyboard's would.
 
 const A = 0;
+const START = 9;
 
 const pad = {
   connected: true,
@@ -25,11 +26,15 @@ const pad = {
   })),
 };
 
-function holdA(pressed: boolean) {
-  const button = pad.buttons[A];
-  if (!button) throw new Error("no A");
+function hold(index: number, pressed: boolean) {
+  const button = pad.buttons[index];
+  if (!button) throw new Error(`no button ${String(index)}`);
   button.pressed = pressed;
   button.value = pressed ? 1 : 0;
+}
+
+function holdA(pressed: boolean) {
+  hold(A, pressed);
 }
 
 function frames(ms: number) {
@@ -52,6 +57,7 @@ beforeEach(() => {
     ],
   });
   holdA(false);
+  hold(START, false);
   Object.defineProperty(navigator, "getGamepads", {
     configurable: true,
     value: () => [pad],
@@ -119,5 +125,47 @@ describe("A on the Stage's controls", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Hold for a moment");
     frames(2000);
     expect(onHold).not.toHaveBeenCalled();
+  });
+});
+
+describe("Start on the Stage's controls", () => {
+  it("starts no hold on a focused hold-to-confirm control, and still sends Space", () => {
+    const onHold = vi.fn();
+    const spaces: string[] = [];
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === " ") spaces.push(event.type);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    try {
+      render(<HoldButton onHold={onHold}>Skip</HoldButton>);
+      const button = screen.getByRole("button", { name: "Skip" });
+      button.focus();
+      hold(START, true);
+      frames(20);
+      expect(button).not.toHaveAttribute("data-holding");
+      frames(HOLD_DURATION_MS + 100);
+      hold(START, false);
+      frames(20);
+      expect(onHold).not.toHaveBeenCalled();
+      expect(screen.getByRole("status")).not.toHaveTextContent(
+        "Hold for a moment",
+      );
+      expect(spaces).toEqual(["keydown", "keyup"]);
+    } finally {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+    }
+  });
+
+  it("presses no focused Button", () => {
+    const onPress = vi.fn();
+    render(<Button onPress={onPress}>Start</Button>);
+    screen.getByRole("button", { name: "Start" }).focus();
+    hold(START, true);
+    frames(20);
+    hold(START, false);
+    frames(200);
+    expect(onPress).not.toHaveBeenCalled();
   });
 });

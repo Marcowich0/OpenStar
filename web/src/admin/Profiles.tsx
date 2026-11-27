@@ -20,14 +20,12 @@ import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import type { LiveStore } from "../live/liveStore";
 import { liveStore } from "../live/useLive";
-import { LookForm } from "../phone/LookForm";
+import { formatDay } from "../profile/formatDay";
+import { LookForm } from "../profile/LookForm";
 import { ProfilePage } from "../profile/ProfilePage";
 import { Avatar } from "../ui/Avatar";
 import { HoldButton } from "../ui/HoldButton";
 import { AdminSection } from "./AdminSection";
-
-// The catalogue's language, as `t` formats numbers in it.
-const LAST_SUNG = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
 export function Profiles({
   store = liveStore(),
@@ -162,7 +160,7 @@ function AdminProfileRow({
             {profile.lastSungAt === null
               ? t("admin.profiles.neverSung")
               : t("admin.profiles.lastSung", {
-                  date: LAST_SUNG.format(profile.lastSungAt),
+                  date: formatDay(profile.lastSungAt),
                 })}
           </span>
         </div>

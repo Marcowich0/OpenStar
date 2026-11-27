@@ -6,25 +6,22 @@
 // - D-pad and left stick: the arrows. The stick counts past a 0.5 deadzone,
 //   along its stronger axis only. A held direction repeats after 400 ms,
 //   then every 120 ms.
-// - A: Enter, B: Esc, Start: Space, Y: `/` (search). No repeats.
+// - A: Enter, B: Esc, Start: Space, Y: `/` (search), as `padButtons.ts`
+//   has them. No repeats.
 //
 // A key down and its key up go where a keyboard's would, so holding A on a
 // hold-to-confirm control (`ui/HoldButton`) runs its 700 ms hold. As a
 // browser does for a real Enter, A clicks a focused button or link when no
 // handler took the key down (react-aria's buttons take it and press on key up).
+// Start's Space is the Stage's (start or pause), never the focused control's:
+// it goes to the document's body, so the Stage's key bindings get it and a
+// focused button or hold button does not (the pad's hold is holding A).
 //
 // Stage-only: it lives under `stage/` so the Phone bundle never loads it
 // (`codeSplit.test.ts`). Gamepad use on Phones and remapping are out of scope.
 
 import { markGamepadEvent } from "./inputDevice";
-
-/** The standard mapping's buttons, and the key each one sends. */
-const BUTTON_KEYS: readonly { button: number; key: string }[] = [
-  { button: 0, key: "Enter" }, // A
-  { button: 1, key: "Escape" }, // B
-  { button: 9, key: " " }, // Start
-  { button: 3, key: "/" }, // Y
-];
+import { PAD_BUTTONS } from "./padButtons";
 
 /** The D-pad's buttons, and the arrow each one sends. */
 const DPAD_KEYS: readonly { button: number; key: string }[] = [
@@ -67,7 +64,7 @@ function keysHeld(pads: readonly (Gamepad | null)[]): Set<string> {
   const held = new Set<string>();
   for (const pad of pads) {
     if (!pad?.connected) continue;
-    for (const { button, key } of [...BUTTON_KEYS, ...DPAD_KEYS]) {
+    for (const { button, key } of [...PAD_BUTTONS, ...DPAD_KEYS]) {
       if (isPressed(pad, button)) held.add(key);
     }
     const stick = stickKey(pad);
@@ -76,9 +73,14 @@ function keysHeld(pads: readonly (Gamepad | null)[]): Set<string> {
   return held;
 }
 
+/** Keys sent past the focused control, to the Stage itself. */
+const STAGE_ONLY_KEYS = new Set([" "]);
+
 /** Sends `key` to the focused element, as a keyboard would. */
 function sendKey(type: "keydown" | "keyup", key: string, repeat: boolean) {
-  const target = document.activeElement ?? document.body;
+  const target = STAGE_ONLY_KEYS.has(key)
+    ? document.body
+    : (document.activeElement ?? document.body);
   const event = new KeyboardEvent(type, {
     key,
     repeat,

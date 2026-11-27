@@ -9,6 +9,7 @@ import { t } from "../../i18n/t";
 import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
 import { useLive } from "../../live/useLive";
+import type { ShownProfile } from "../../profile/ProfilePage";
 import { Avatar } from "../../ui/Avatar";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
@@ -16,7 +17,7 @@ import { phoneMember } from "../phonePage";
 import { LeaveParty } from "./LeaveParty";
 import { removeMember, type Refusal } from "./memberRequests";
 import { peopleRows, type PeopleRow } from "./people";
-import { ProfileSheet, type ShownProfile } from "./ProfileSheet";
+import { ProfileSheet } from "./ProfileSheet";
 
 const NO_MEMBERS: readonly PartyMember[] = [];
 const selectMembers = (state: LiveState) =>

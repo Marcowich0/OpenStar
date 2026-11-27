@@ -1,16 +1,9 @@
 import { useState } from "react";
 
-import type { ProfileId } from "../../generated/ProfileId";
 import { t } from "../../i18n/t";
-import { ProfilePage } from "../../profile/ProfilePage";
+import { ProfilePage, type ShownProfile } from "../../profile/ProfilePage";
 import { Icon } from "../../ui/Icon";
 import { Sheet } from "../../ui/Sheet";
-
-/** The Profile a Phone's Profile page shows, and its name for the label. */
-export interface ShownProfile {
-  id: ProfileId;
-  name: string;
-}
 
 /**
  * A Profile page on the Phone (spec #244): a full-screen sheet, from the Me

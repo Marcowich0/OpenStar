@@ -17,13 +17,14 @@ import { t } from "../../i18n/t";
 import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
 import { useLive } from "../../live/useLive";
+import type { ShownProfile } from "../../profile/ProfilePage";
 import { Avatar } from "../../ui/Avatar";
 import { Sheet } from "../../ui/Sheet";
 import type { MemberLook } from "../memberLook";
 import { LeaveParty } from "./LeaveParty";
 import { setMyDifficulty } from "./memberRequests";
 import { myDifficulty, playingSeats, showsAdminLink } from "./people";
-import { ProfileSheet, type ShownProfile } from "./ProfileSheet";
+import { ProfileSheet } from "./ProfileSheet";
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "medium", "hard"];
 

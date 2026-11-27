@@ -45,8 +45,8 @@ pub(crate) fn stats(conn: &Connection, id: ProfileId) -> rusqlite::Result<Option
         best_per_difficulty: best_per_difficulty(conn, id, &mut songs)?,
         high_scores_held: high_scores_held(conn, id, &mut songs)?,
         most_sung: most_sung(conn, id, &mut songs)?,
-        first_sung: sung_at(conn, id, "ASC", &mut songs)?,
-        last_sung: sung_at(conn, id, "DESC", &mut songs)?,
+        first_sung: sung_at(conn, id, Sung::First, &mut songs)?,
+        last_sung: sung_at(conn, id, Sung::Latest, &mut songs)?,
     }))
 }
 
@@ -171,22 +171,34 @@ fn most_sung(
         .collect()
 }
 
-/// The Profile's first (`order` `ASC`) or latest (`DESC`) Score record.
+/// Which of a Profile's Score records [`sung_at`] takes.
+#[derive(Clone, Copy)]
+enum Sung {
+    First,
+    Latest,
+}
+
+/// The Profile's first or latest Score record.
 fn sung_at(
     conn: &Connection,
     id: ProfileId,
-    order: &str,
+    which: Sung,
     songs: &mut Songs,
 ) -> rusqlite::Result<Option<SungAt>> {
+    let sql = match which {
+        Sung::First => {
+            "SELECT song_identity, recorded_at_ms FROM score_records
+             WHERE profile_id = ?1 ORDER BY id ASC LIMIT 1"
+        }
+        Sung::Latest => {
+            "SELECT song_identity, recorded_at_ms FROM score_records
+             WHERE profile_id = ?1 ORDER BY id DESC LIMIT 1"
+        }
+    };
     let row = conn
-        .query_row(
-            &format!(
-                "SELECT song_identity, recorded_at_ms FROM score_records
-                 WHERE profile_id = ?1 ORDER BY id {order} LIMIT 1"
-            ),
-            [id.0],
-            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
-        )
+        .query_row(sql, [id.0], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })
         .optional()?;
     row.map(|(identity, at)| {
         Ok(SungAt {
@@ -218,12 +230,12 @@ impl Songs {
             rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, e.into())
         })?;
         let tile_colour = library::tile_colour(&identity);
-        let song = match library::listed_with_identity_key(conn, key)? {
-            Some(listed) => StatsSong {
-                id: Some(listed.id),
-                artist: listed.artist,
-                title: listed.title,
-                cover: listed.cover,
+        let song = match library::preferred_copy(conn, key)? {
+            Some(copy) => StatsSong {
+                id: Some(copy.id),
+                artist: copy.artist,
+                title: copy.title,
+                cover: copy.cover,
                 tile_colour,
             },
             None => {

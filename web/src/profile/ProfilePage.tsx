@@ -23,6 +23,7 @@ import { t } from "../i18n/t";
 import { tokenVar } from "../theme/tokens";
 import { Avatar } from "../ui/Avatar";
 import { Cover } from "../ui/Cover";
+import { formatDay } from "./formatDay";
 
 /**
  * How large it draws: `compact` on the Phone and in Admin, `stage` in the
@@ -92,8 +93,11 @@ const SIZES: Record<ProfilePageSize, SizeStyle> = {
   },
 };
 
-// The catalogue's language, as `t` formats numbers in it.
-const DATE = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
+/** The Profile a Profile page shows, and its name for the label. */
+export interface ShownProfile {
+  id: ProfileId;
+  name: string;
+}
 
 export interface ProfilePageProps {
   profileId: ProfileId;
@@ -185,7 +189,7 @@ export function ProfilePageView({
           {stats.firstSung ? (
             <span className={`text-ink-2 ${style.since}`}>
               {t("profilePage.since", {
-                date: DATE.format(stats.firstSung.at),
+                date: formatDay(stats.firstSung.at),
               })}
             </span>
           ) : null}
@@ -219,8 +223,8 @@ export function ProfilePageView({
                   song={best.song}
                   style={style}
                   lead={difficultyName(best.difficulty)}
-                  number={t("profilePage.total", { total: best.total })}
-                  sub={DATE.format(best.recordedAt)}
+                  number={t("profilePage.number", { value: best.total })}
+                  sub={formatDay(best.recordedAt)}
                 />
               ))}
             </ListSection>
@@ -264,7 +268,7 @@ function Tile({
       <span
         className={`leading-none font-bold tabular-nums ${style.tileNumber}`}
       >
-        {t("profilePage.total", { total: value })}
+        {t("profilePage.number", { value })}
       </span>
       <span className={`mt-1 leading-tight font-semibold ${style.tileLabel}`}>
         {children}
@@ -349,7 +353,7 @@ function HeldSection({
                 })
               : difficultyName(each.difficulty)
           }
-          number={t("profilePage.total", { total: each.total })}
+          number={t("profilePage.number", { value: each.total })}
         />
       ))}
     </ListSection>

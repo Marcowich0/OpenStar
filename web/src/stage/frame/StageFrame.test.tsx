@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ClientMessage } from "../../generated/ClientMessage";
@@ -581,6 +582,35 @@ describe("TV-remote keys", () => {
     expect(notPrevented).toBe(false);
   });
 
+  it.each(["BrowserBack", "GoBack"])(
+    "keeps %s from leaving the Stage while a dialog outside the frame has the focus",
+    (back) => {
+      const onEscape = vi.fn();
+      // A dialog portalled outside the frame, as the Admin PIN pad is.
+      function PortalScene() {
+        useStageKeys({ Escape: onEscape });
+        return createPortal(
+          <button type="button">Outside</button>,
+          document.body,
+        );
+      }
+      setup(party(), {
+        scenes: { ...SCENES, songBrowser: { component: PortalScene } },
+      });
+      const outside = screen.getByRole("button", { name: "Outside" });
+      act(() => {
+        outside.focus();
+      });
+      let notPrevented = true;
+      act(() => {
+        notPrevented = fireEvent.keyDown(outside, { key: back });
+      });
+      expect(notPrevented).toBe(false);
+      // The dialog still takes its own keys: the frame's bindings stay quiet.
+      expect(onEscape).not.toHaveBeenCalled();
+    },
+  );
+
   it("leaves Backspace in a text field to the field, but not the remote's Back", () => {
     const onEscape = vi.fn();
     function FieldScene() {
@@ -602,5 +632,91 @@ describe("TV-remote keys", () => {
     expect(onEscape).not.toHaveBeenCalled();
     key("BrowserBack");
     expect(onEscape).toHaveBeenCalledOnce();
+  });
+});
+
+describe("TV-remote keys on each screen", () => {
+  // Each remote key, and the Stage key it stands for.
+  const REMOTE_KEYS: readonly (readonly [string, "Escape" | " "])[] = [
+    ["BrowserBack", "Escape"],
+    ["GoBack", "Escape"],
+    ["Backspace", "Escape"],
+    ["MediaPlayPause", " "],
+  ];
+
+  /** A scene that records its Esc and Space bindings, focused on a button. */
+  function recordingScene(fired: string[]) {
+    return function RecordingScene() {
+      useStageKeys({
+        Escape: () => {
+          fired.push("Escape");
+        },
+        " ": () => {
+          fired.push(" ");
+        },
+      });
+      return (
+        <span data-stage-default>
+          <button type="button">Control</button>
+        </span>
+      );
+    };
+  }
+
+  const SCREENS = ["songBrowser", "lineUp"] as const;
+
+  it.each(
+    SCREENS.flatMap((screenId) =>
+      REMOTE_KEYS.map(([remote, stage]) => [screenId, remote, stage] as const),
+    ),
+  )("on the %s, %s acts as %j", (screenId, remote, stage) => {
+    const fired: string[] = [];
+    const scenes = {
+      ...SCENES,
+      [screenId]: { component: recordingScene(fired) },
+    };
+    setup(party(), { scenes, chooseScene: () => screenId });
+    let notPrevented = true;
+    act(() => {
+      notPrevented = fireEvent.keyDown(
+        document.activeElement ?? document.body,
+        {
+          key: remote,
+        },
+      );
+    });
+    expect(fired).toEqual([stage]);
+    expect(notPrevented).toBe(false);
+  });
+
+  it.each(REMOTE_KEYS)("on an overlay, %s acts as %j", (remote, stage) => {
+    const fired: string[] = [];
+    setup(party(), {
+      scenes: { ...SCENES, songBrowser: { component: recordingScene(fired) } },
+    });
+    key("q");
+    expect(overlay()).toHaveAccessibleName("Queue");
+    key(remote);
+    // Esc closes the overlay; Space is no overlay key, and the scene's
+    // bindings stay quiet under it.
+    if (stage === "Escape") expect(overlay()).toBeNull();
+    else expect(overlay()).toHaveAccessibleName("Queue");
+    expect(fired).toEqual([]);
+  });
+
+  it.each(REMOTE_KEYS)("on the sing screen, %s pauses the Song", (remote) => {
+    const { sent } = setup(
+      party({
+        queue: [request(1)],
+        head: 1,
+        playing: { requestId: 1, songId: 1, paused: false },
+      }),
+      { scenes: SCENES, chooseScene: () => "sing" },
+    );
+    sent.length = 0;
+    key(remote);
+    expect(sent).toEqual([
+      { type: "controlSong", requestId: 1, control: "pause" },
+    ]);
   });
 });
