@@ -16,6 +16,8 @@ import { isTextField } from "../../frame/focusables";
 import { useStageKeys } from "../../frame/stageFrameContext";
 import {
   CAROUSEL,
+  type CarouselReach,
+  FULL_REACH,
   carouselOffset,
   coverPlacement,
   steppedIndex,
@@ -31,6 +33,8 @@ export interface SongCarouselProps {
   onSelect: (index: number) => void;
   /** Enter or a click on the selected cover. */
   onPick: (song: SongSummary) => void;
+  /** Neighbours shown on each side; a cover stepping past fades out. */
+  reach?: CarouselReach;
   className?: string;
 }
 
@@ -39,6 +43,7 @@ export function SongCarousel({
   selected,
   onSelect,
   onPick,
+  reach = FULL_REACH,
   className = "",
 }: SongCarouselProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -95,7 +100,7 @@ export function SongCarousel({
         const offset = carouselOffset(index, selected, count);
         // One more on each side, hidden, so covers slide in and out.
         if (Math.abs(offset) > CAROUSEL.reach + 1) return null;
-        const place = coverPlacement(offset);
+        const place = coverPlacement(offset, reach);
         const isSelected = offset === 0;
         return (
           <div

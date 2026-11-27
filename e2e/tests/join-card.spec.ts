@@ -18,6 +18,34 @@ async function withPublicUrl(stage: Page) {
   });
 }
 
+/**
+ * What on the song browser overlaps the join card: every shown cover, the
+ * Song's title, artist and chips, and Sing!.
+ */
+async function overCard(stage: Page): Promise<string[]> {
+  return stage.evaluate(() => {
+    const card = document.querySelector("aside[data-layout]");
+    if (card === null) return ["no join card"];
+    const c = card.getBoundingClientRect();
+    const things = document.querySelectorAll(
+      "[data-testid^=carousel-cover-], [data-testid=song-info] h1, [data-testid=song-info] p, [data-testid=song-info] li, [data-carousel-arrows] button",
+    );
+    const hits: string[] = [];
+    for (const el of things) {
+      if (getComputedStyle(el).opacity === "0") continue;
+      const r = el.getBoundingClientRect();
+      if (
+        r.left < c.right &&
+        r.right > c.left &&
+        r.top < c.bottom &&
+        r.bottom > c.top
+      )
+        hits.push(el.getAttribute("data-testid") ?? el.tagName);
+    }
+    return hits;
+  });
+}
+
 test("the join card's QR code opens the public address with the Join code", async ({
   stage,
 }) => {
@@ -31,6 +59,16 @@ test("the join card's QR code opens the public address with the Join code", asyn
   expect(box?.x ?? 0).toBeGreaterThan(1300);
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThan(1920);
   expect(box?.y ?? 0).toBeGreaterThan(400);
+  // Nothing on the song browser runs under the card, whichever Song is
+  // selected: the carousel keeps out of the card's lane.
+  expect(await overCard(stage)).toEqual([]);
+  await stage.getByTestId("carousel-selected").focus();
+  for (const key of ["ArrowLeft", "ArrowRight", "ArrowRight"]) {
+    await stage.keyboard.press(key);
+    // The covers slide and fade for 600 ms.
+    await stage.waitForTimeout(700);
+    expect(await overCard(stage)).toEqual([]);
+  }
   await expect(qr).toHaveAttribute(
     "data-qr-text",
     `${PUBLIC_URL}/?join=${code}`,

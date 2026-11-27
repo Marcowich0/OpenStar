@@ -21,6 +21,8 @@ import type { LiveClientOptions } from "../../../live/liveClient";
 import { createLiveStore } from "../../../live/liveStore";
 import type { PreviewSong } from "../../../playback/songPreview";
 import { StageFrame } from "../../frame/StageFrame";
+import { JOIN_CARD_HIDDEN_KEY } from "../../joinCard/JoinCard";
+import { JOIN_LANE_PX } from "../SongBrowserScene";
 
 // The preview plays through the Stage's AudioContext, which jsdom lacks.
 const preview = vi.hoisted(() => ({
@@ -296,6 +298,30 @@ describe("the song browser", () => {
       "data-qr-text",
       "https://openstar.example.org/?join=0427",
     );
+  });
+
+  it("keeps the carousel out of the join card's lane until the card hides", () => {
+    // Africa selected: Islands one step right, Moon two, Wave one left.
+    setup();
+    const room = screen.getByTestId("song-browser-room");
+    const moon = () => screen.getByTestId("carousel-cover-3");
+    const islands = screen.getByTestId("carousel-cover-2");
+    const wave = screen.getByTestId("carousel-cover-4");
+    try {
+      expect(room.style.right).toBe(`${String(JOIN_LANE_PX)}px`);
+      expect(islands.style.opacity).toBe("1");
+      expect(wave.style.opacity).toBe("1");
+      // Two steps right would reach under the QR code.
+      expect(moon().style.opacity).toBe("0");
+
+      act(() => {
+        fireEvent.click(screen.getByRole("button", { name: "Hide" }));
+      });
+      expect(room.style.right).toBe("0px");
+      expect(moon().style.opacity).toBe("1");
+    } finally {
+      window.localStorage.removeItem(JOIN_CARD_HIDDEN_KEY);
+    }
   });
 
   it("starts with the focus on the selected cover", () => {

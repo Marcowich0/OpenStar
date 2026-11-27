@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { carouselOffset, coverPlacement, steppedIndex } from "./carousel";
+import {
+  carouselOffset,
+  coverHalfWidth,
+  coverPlacement,
+  reachWithin,
+  steppedIndex,
+} from "./carousel";
 
 describe("carouselOffset", () => {
   it("counts steps from the selected Song, the short way round", () => {
@@ -56,6 +62,27 @@ describe("coverPlacement", () => {
     expect(coverPlacement(4).shown).toBe(false);
     expect(coverPlacement(-4).shown).toBe(false);
     expect(coverPlacement(5).scale).toBe(0.5);
+  });
+
+  it("shows fewer on a side when the scene asks", () => {
+    const reach = { left: 3, right: 1 };
+    expect(coverPlacement(1, reach).shown).toBe(true);
+    expect(coverPlacement(2, reach).shown).toBe(false);
+    expect(coverPlacement(-3, reach).shown).toBe(true);
+  });
+});
+
+describe("reachWithin", () => {
+  it("counts the neighbours whose turned box fits on one side", () => {
+    // The first neighbour: 390 px out, 340 × 0.74 turned 5°, about 136 px each side.
+    expect(coverHalfWidth(1)).toBeCloseTo(136.3, 1);
+    expect(reachWithin(526)).toBe(0);
+    expect(reachWithin(527)).toBe(1);
+    // The second ends about 820 px out.
+    expect(reachWithin(819)).toBe(1);
+    expect(reachWithin(821)).toBe(2);
+    // Never more than the usual three.
+    expect(reachWithin(5000)).toBe(3);
   });
 });
 

@@ -4,7 +4,9 @@
 // join address (plain http, or `localhost`) a warning stands in place of the
 // QR code. The song browser's card can hide to a small "Join · 4821" chip;
 // the choice lives in this browser's own storage, not in Party state. The
-// People overlay shows the card with `hideable={false}`.
+// song browser holds that choice itself (`useJoinCardHidden`), because it
+// keeps a lane clear for the card only while the card shows. The People
+// overlay shows the card with `hideable={false}`.
 
 import { useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
@@ -16,6 +18,9 @@ import { QrCode } from "./QrCode";
 
 /** The `localStorage` key of the song browser's Hide choice. */
 export const JOIN_CARD_HIDDEN_KEY = "openstar.joinCardHidden";
+
+/** The width of the `tall` card, which the song browser keeps a lane for. */
+export const TALL_CARD_WIDTH_PX = 420;
 
 type HideStorage = Pick<Storage, "getItem" | "setItem">;
 
@@ -44,8 +49,30 @@ export interface JoinCardProps {
    * People overlay's bottom row): QR code beside it, so the card is short.
    */
   layout?: "tall" | "wide";
+  /**
+   * The Hide choice, when the caller holds it (`useJoinCardHidden`); the card
+   * holds its own otherwise.
+   */
+  hidden?: boolean;
+  onHiddenChange?: (hidden: boolean) => void;
   /** Placement from the caller, on a wrapper (card and chip alike). */
   className?: string;
+}
+
+/**
+ * The song browser's Hide choice, read from and written to this browser's
+ * storage. False, and never stored, when the card may not hide.
+ */
+export function useJoinCardHidden(
+  storage: () => HideStorage = browserStorage,
+  hideable = true,
+): [boolean, (hidden: boolean) => void] {
+  const [hidden, setHidden] = useState(() => hideable && readHidden(storage));
+  const hide = (next: boolean) => {
+    setHidden(next);
+    writeHidden(storage, next);
+  };
+  return [hideable && hidden, hide];
 }
 
 export function JoinCard({
@@ -54,13 +81,14 @@ export function JoinCard({
   hideable = true,
   storage = browserStorage,
   layout = "tall",
+  hidden: heldHidden,
+  onHiddenChange,
   className = "",
 }: JoinCardProps) {
-  const [hidden, setHidden] = useState(() => hideable && readHidden(storage));
-  const hide = (next: boolean) => {
-    setHidden(next);
-    writeHidden(storage, next);
-  };
+  const [ownHidden, setOwnHidden] = useJoinCardHidden(storage, hideable);
+  const held = heldHidden !== undefined && onHiddenChange !== undefined;
+  const hidden = hideable && (held ? heldHidden : ownHidden);
+  const hide = held ? onHiddenChange : setOwnHidden;
 
   if (hidden) {
     return (
@@ -96,7 +124,8 @@ export function JoinCard({
     <div className={className}>
       <aside
         data-layout={layout}
-        className={`relative flex items-center gap-4 rounded-card bg-white p-7 text-ink shadow-ledge-lg ${layout === "wide" ? "max-w-[760px] flex-row gap-7" : "w-[420px] flex-col"}`}
+        style={layout === "tall" ? { width: TALL_CARD_WIDTH_PX } : undefined}
+        className={`relative flex items-center gap-4 rounded-card bg-white p-7 text-ink shadow-ledge-lg ${layout === "wide" ? "max-w-[760px] flex-row gap-7" : "flex-col"}`}
       >
         {join.warning === "none" ? (
           <QrCode
