@@ -711,6 +711,7 @@ describe("the painter", () => {
       tile: "navy",
       rim: "--color-white",
       rimWidth: 4,
+      letter: null,
     },
     title: {
       text: "Made-up Song",
@@ -783,6 +784,47 @@ describe("the painter", () => {
       68,
       72,
       72,
+    ]);
+  });
+
+  it("draws a generated cover's letter over the image, centred, over its shadow", () => {
+    const { ctx, calls } = recordingContext();
+    const image = { naturalWidth: 100, naturalHeight: 100 } as HTMLImageElement;
+    const letter = {
+      text: "M",
+      x: 132,
+      y: 104,
+      size: 29,
+      weight: 700,
+      colour: "--color-white",
+      shadow: "--color-ink",
+      shadowAlpha: 0.25,
+      shadowDy: 2,
+    } as const;
+    createPainter(ctx, colour, "lanes", () => image).paint(
+      [{ ...titleCard, cover: { ...titleCard.cover, letter } }],
+      view,
+    );
+    const drawn = calls.findIndex(([op]) => op === "drawImage");
+    const shadow = calls.findIndex(
+      (c) => c[0] === "fillText" && c[1] === "M" && c[3] === 106,
+    );
+    const face = calls.findIndex(
+      (c) => c[0] === "fillText" && c[1] === "M" && c[3] === 104,
+    );
+    expect(shadow).toBeGreaterThan(drawn);
+    expect(face).toBeGreaterThan(shadow);
+    expect(calls[shadow]).toEqual(["fillText", "M", 132, 106]);
+    const before = calls.slice(drawn, face);
+    expect(before).toContainEqual(["set", "textAlign", "center"]);
+    expect(before).toContainEqual(["set", "textBaseline", "middle"]);
+    expect(before).toContainEqual(["set", "font", "700 29px value(--font-sans)"]);
+    expect(before).toContainEqual(["set", "fillStyle", "value(--color-ink)"]);
+    expect(before).toContainEqual(["set", "globalAlpha", 0.25]);
+    expect(calls.slice(shadow, face)).toContainEqual([
+      "set",
+      "fillStyle",
+      "value(--color-white)",
     ]);
   });
 

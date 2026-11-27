@@ -313,24 +313,39 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     }
   });
 
-  it("gives the title card the Song's title, artist and cover, or its tile colour without one", () => {
-    const party = testParty();
-    const state = (cover: string | null) =>
-      singSetup({
-        detail: {
-          ...testDetail(),
-          media: { ...testDetail().media, cover },
-        },
-        party,
-        profiles: PROFILES,
-      }).state([new PitchBuffer(8)]);
-    expect(state("/api/songs/7/cover").song).toEqual({
+  it("gives the title card the Song's title, artist and cover", () => {
+    const state = singSetup({
+      detail: {
+        ...testDetail(),
+        media: { ...testDetail().media, cover: "/api/songs/7/cover" },
+      },
+      party: testParty(),
+      profiles: PROFILES,
+    }).state([new PitchBuffer(8)]);
+    expect(state.song).toEqual({
+      id: testDetail().id,
       title: "Test Song",
       artist: "Test Artist",
       cover: "/api/songs/7/cover",
       tileColour: "navy",
+      letter: null,
     });
-    expect(state(null).song).toMatchObject({ cover: null, tileColour: "navy" });
+  });
+
+  it("gives the title card the generated cover without a cover, its letter left for the canvas (ticket 259)", () => {
+    const state = singSetup({
+      detail: {
+        ...testDetail(),
+        media: { ...testDetail().media, cover: null },
+      },
+      party: testParty(),
+      profiles: PROFILES,
+    }).state([new PitchBuffer(8)]);
+    const cover = state.song?.cover ?? "";
+    expect(cover.startsWith("data:image/svg+xml")).toBe(true);
+    // Drawn without its letter: the painter draws "T" in Fredoka over it.
+    expect(decodeURIComponent(cover)).not.toContain("<text");
+    expect(state.song).toMatchObject({ tileColour: "navy", letter: "T" });
   });
 
   it("shows the pause hint on the first Song since the Party started only", () => {

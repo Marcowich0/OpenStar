@@ -16,18 +16,51 @@
  * in the 1920 × 1080 reference frame, with colours as token names.
  */
 
+import type { SongDetail } from "../../generated/SongDetail";
 import { t } from "../../i18n/t";
+import {
+  coverSongOf,
+  generatedCover,
+  generatedCoverDataUrl,
+  type CoverSong,
+} from "../../ui/generatedCover";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { DrawList } from "./frame";
 
-/** What the title card shows of the Song. */
-export interface SingSong {
-  title: string;
+/**
+ * What the title card shows of the Song: its cover's Song (#259, whose
+ * `tileColour` fills the cover until the image loads), its artist and the
+ * cover image.
+ */
+export interface SingSong extends CoverSong {
   artist: string;
-  /** The cover image's URL; `null`: the Song's tile colour instead. */
+  /**
+   * The cover image's URL: the Song's cover, else its generated cover drawn
+   * without its letter; `null`: the tile colour only.
+   */
   cover: string | null;
-  /** The generated tile's colour, shown without a cover or until it loads. */
-  tileColour: PaletteKey;
+  /**
+   * The generated cover's letter, which the painter draws over `cover` in
+   * the theme's font (an SVG drawn as an image cannot use Fredoka);
+   * `null` over the Song's own cover.
+   */
+  letter: string | null;
+}
+
+/**
+ * The title card's Song from the full Song, built once at Start: the
+ * generated cover's image (it resolves the theme's colours now) stands in
+ * for a missing cover.
+ */
+export function singSongOf(detail: SongDetail): SingSong {
+  const song = coverSongOf(detail);
+  const own = detail.media.cover;
+  return {
+    ...song,
+    artist: detail.song.headers.artist,
+    cover: own ?? generatedCoverDataUrl(song, { letter: false }),
+    letter: own === null ? generatedCover(song).letter : null,
+  };
 }
 
 /**
@@ -59,6 +92,19 @@ export interface CoverStyle {
   tile: PaletteKey;
   rim: TokenName;
   rimWidth: number;
+  /** The generated cover's letter over the image; `null`: none. */
+  letter: CoverLetterStyle | null;
+}
+
+/**
+ * A generated cover's letter, centred on `x`, `y`, over a shadow of
+ * `shadow` at `shadowAlpha`, `shadowDy` px lower: what the cover's SVG
+ * draws, in the theme's font.
+ */
+export interface CoverLetterStyle extends TextStyle {
+  shadow: TokenName;
+  shadowAlpha: number;
+  shadowDy: number;
 }
 
 /**
@@ -119,6 +165,9 @@ const CARD = {
   paddingRight: 36,
   ledgeDepth: 6,
 };
+/** The cover's white rim, and the image's side inside it. */
+const COVER_RIM = 4;
+const COVER_IMAGE = CARD.cover - 2 * COVER_RIM;
 const HINT = { gap: 14, height: 48, padding: 22, size: 24 };
 /** Titles and artists longer than this are cut short with an ellipsis. */
 const MAX_CHARACTERS = 40;
@@ -201,7 +250,23 @@ export function topBand(
       url: song.cover,
       tile: song.tileColour,
       rim: "--color-white",
-      rimWidth: 4,
+      rimWidth: COVER_RIM,
+      letter:
+        song.letter === null
+          ? null
+          : {
+              text: song.letter,
+              x: x + CARD.inset + CARD.cover / 2,
+              y: CARD.y + CARD.inset + CARD.cover / 2,
+              // As the cover's SVG draws it: 40 % of the image's side, its
+              // shadow 2.5 % lower.
+              size: Math.round(0.4 * COVER_IMAGE),
+              weight: 700,
+              colour: "--color-white",
+              shadow: "--color-ink",
+              shadowAlpha: 0.25,
+              shadowDy: Math.round(0.025 * COVER_IMAGE),
+            },
     },
     title: {
       text: cut(song.title),
