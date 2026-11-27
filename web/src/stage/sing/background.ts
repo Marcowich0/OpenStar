@@ -7,10 +7,7 @@
  */
 
 import type { SongMedia } from "../../generated/SongMedia";
-import {
-  effectsOff,
-  type StageOptions,
-} from "../../stageOptions/stageOptions";
+import { effectsOff, type StageOptions } from "../../stageOptions/stageOptions";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { SingLane } from "./frame";
 
