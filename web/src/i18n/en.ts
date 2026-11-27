@@ -723,6 +723,9 @@ export const en = {
   "admin.intro":
     "Anyone may look around here. Changing the Library's files, deleting kept data and taking the Stage ask for the Admin PIN.",
   "admin.lock": "Lock",
+  "admin.waysOut": "Leave the Admin area",
+  "admin.toStage": "Stage",
+  "admin.toPhone": "Phone",
   "admin.downloads.search": "Search USDB by artist or title",
   "admin.downloads.sort": "Sort by",
   "admin.downloads.sort.views": "Views",

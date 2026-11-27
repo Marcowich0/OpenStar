@@ -74,6 +74,34 @@ test("every Admin area section opens at Phone width without a PIN", async ({
   await page.context().close();
 });
 
+test("the Admin header links to the Stage and the Phone, at Phone and desktop width", async ({
+  browser,
+}) => {
+  for (const viewport of [PHONE_WIDTH, { width: 1280, height: 800 }]) {
+    const context = await browser.newContext({ viewport });
+    const page = await context.newPage();
+    for (const url of ["/admin", "/admin/songs", "/admin/profiles"]) {
+      await page.goto(url);
+      const ways = page.getByRole("navigation", {
+        name: "Leave the Admin area",
+      });
+      await expect(ways.getByRole("link", { name: "Stage" })).toBeInViewport();
+      await expect(ways.getByRole("link", { name: "Stage" })).toHaveAttribute(
+        "href",
+        "/stage",
+      );
+      await expect(ways.getByRole("link", { name: "Phone" })).toBeInViewport();
+      await expectNoSideways(page);
+    }
+    await page
+      .getByRole("navigation", { name: "Leave the Admin area" })
+      .getByRole("link", { name: "Phone" })
+      .click();
+    await expect(page).toHaveURL(/\/$/);
+    await context.close();
+  }
+});
+
 test("a guarded action asks for the PIN once, completes, and Lock ends the Unlock", async ({
   browser,
 }) => {
