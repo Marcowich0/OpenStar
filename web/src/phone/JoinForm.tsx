@@ -4,7 +4,7 @@ import type { PartyMember } from "../generated/PartyMember";
 import type { UserMessage } from "../generated/UserMessage";
 import { t } from "../i18n/t";
 import type { LiveStore } from "../live/liveStore";
-import { Button } from "../ui/Button";
+import { BackButton } from "./BackButton";
 import { TopBar } from "./Logo";
 import { LookForm, type JoinFormKind } from "../profile/LookForm";
 import type { MemberLook } from "./memberLook";
@@ -47,13 +47,7 @@ export function JoinForm({ onBack, ...props }: JoinFormProps) {
   return (
     <main className="flex min-h-dvh flex-col">
       <TopBar>
-        <Button
-          size="medium"
-          className="min-h-12 px-5 text-xl"
-          onPress={onBack}
-        >
-          {t("join.back")}
-        </Button>
+        <BackButton onPress={onBack} />
       </TopBar>
       <LookForm title={title} {...props} />
     </main>

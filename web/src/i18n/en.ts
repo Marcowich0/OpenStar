@@ -57,6 +57,7 @@ export const en = {
   "joinForm.nameTakenTonight": "Someone already has that name tonight",
   "joinForm.join": "Join",
   "joinForm.joinAs": "Join as {name}",
+  "joinForm.previewName": "Your name",
   "remote.tabs": "Remote",
   "remote.songs": "Songs",
   "remote.queue": "Queue",
