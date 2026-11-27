@@ -891,6 +891,18 @@ const V1_ACTIONS: &[Action] = {
             ],
         },
         Action {
+            name: "Looking at a Profile's stats",
+            needs: Nothing,
+            via: &[Http("GET", "/api/profiles/{id}/stats")],
+            proofs: &[
+                (
+                    "profile_stats.rs",
+                    "known_rounds_over_two_difficulties_give_the_expected_stats_without_guests",
+                ),
+                ("profile_stats.rs", "an_unknown_profile_has_no_stats"),
+            ],
+        },
+        Action {
             name: "Checking a Join code, joining, rejoining, switching who a Phone is, editing a member",
             needs: Nothing,
             via: &[

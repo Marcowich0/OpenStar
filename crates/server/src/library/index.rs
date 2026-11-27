@@ -669,6 +669,37 @@ pub(crate) fn song_with_identity(
     .optional()
 }
 
+/// A listed Song as Profile stats show it: its id, artist, title and cover.
+pub(crate) struct ListedSong {
+    pub id: SongId,
+    pub artist: String,
+    pub title: String,
+    pub cover: Option<String>,
+}
+
+/// The listed Song (its preferred copy, see [`RANKED`]) with identity key
+/// `key` (`identity::key`), if one is in the Library now.
+pub(crate) fn listed_with_identity_key(
+    conn: &Connection,
+    key: &str,
+) -> rusqlite::Result<Option<ListedSong>> {
+    conn.prepare_cached(&format!(
+        "WITH {RANKED}
+         SELECT id, artist, title, cover_path IS NOT NULL FROM ranked
+         WHERE identity = ?1 AND copy = 1"
+    ))?
+    .query_row([key], |row| {
+        let id = song_id(row.get(0)?);
+        Ok(ListedSong {
+            id,
+            artist: row.get::<_, Option<String>>(1)?.unwrap_or_default(),
+            title: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            cover: image_url(id, MediaRole::Cover, row.get(3)?),
+        })
+    })
+    .optional()
+}
+
 /// Whether a playable Song with `identity` is in the Library now. Scoring
 /// shows a Song's Score records only while this holds; USDB search marks a
 /// song "In Library" by it.
