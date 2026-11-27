@@ -14,12 +14,7 @@
 // in a remembered Stage browser takes the Stage at once, mid-Song too; so
 // Stage first asks that tab (`stageTab.ts`) and, if it answers, says so.
 
-import {
-  Link,
-  Outlet,
-  useMatchRoute,
-  useNavigate,
-} from "@tanstack/react-router";
+import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { useUnlockHeartbeat } from "../guarded/useUnlockHeartbeat";
@@ -45,7 +40,6 @@ export function AdminArea() {
   useUnlockHeartbeat();
   // The Timing editor is a desktop view: it takes the window's full width.
   const wide = useMatchRoute()({ to: "/admin/songs/$song/timing" }) !== false;
-  const navigate = useNavigate();
   const [stageElsewhere, setStageElsewhere] = useState(false);
   return (
     <main
@@ -72,7 +66,9 @@ export function AdminArea() {
                             event.preventDefault();
                             void stageTabOpen().then((open) => {
                               setStageElsewhere(open);
-                              if (!open) void navigate({ to: "/stage" });
+                              // A full load: the Stage connects and starts as
+                              // the Stage only from a page load of `/stage`.
+                              if (!open) window.location.assign("/stage");
                             });
                           },
                         }
