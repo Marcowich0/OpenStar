@@ -797,6 +797,10 @@ export const en = {
   "admin.downloads.failed": "The USDB songs could not be loaded",
   "admin.downloads.credentialsMissing":
     "USDB is not set up. Set OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD to a USDB account (or OPENSTAR_USDB_USERNAME_FILE and OPENSTAR_USDB_PASSWORD_FILE for Docker secrets), then restart OpenStar.",
+  // The Stage's Downloads overlay says these; the text above is folded "For the owner".
+  "admin.downloads.stage.notSetUp": "Downloads aren't set up yet.",
+  "admin.downloads.stage.loginFailed":
+    "Downloads can't log in to USDB. Ask the owner.",
   "admin.downloads.checking": "Checking the USDB login…",
   "admin.downloads.loginFailed":
     "USDB login failed. Check OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD, then restart OpenStar.",
