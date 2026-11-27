@@ -4,13 +4,15 @@
 //! survives a restart, and the starting Difficulty is where a joining Guest
 //! and a new Profile start.
 
+use openstar::db::DATABASE_FILE;
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
-use openstar_protocol::stage_options::StageOptions;
+use openstar_protocol::stage_options::{Effects, StageOptions};
 use openstar_protocol::{
     ChangeTopic, ClientMessage, Identity, JoinAs, NewGuest, PhoneId, ServerMessage, UserMessage,
 };
 use openstar_test_harness::{TestApp, WsClient};
 use reqwest::StatusCode;
+use rusqlite::Connection;
 
 /// PUTs `body` with no Unlock and no Stage cookie, as any browser would.
 async fn put(app: &TestApp, body: &serde_json::Value) -> reqwest::Response {
@@ -31,7 +33,7 @@ fn changed_options() -> StageOptions {
         starting_difficulty: Difficulty::Easy,
         resume_countdown_seconds: 0,
         line_ratings: false,
-        effects: false,
+        effects: Effects::Calm,
         song_video: false,
         preview_volume_percent: 40,
         skip_intros: true,
@@ -63,15 +65,47 @@ async fn anyone_sets_them_and_they_survive_a_restart() {
 #[tokio::test]
 async fn a_field_left_out_is_stored_as_its_default() {
     let app = TestApp::start().await;
-    let response = put(&app, &serde_json::json!({ "effects": false })).await;
+    let response = put(&app, &serde_json::json!({ "effects": "off" })).await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         read(&app).await,
         StageOptions {
-            effects: false,
+            effects: Effects::Off,
             ..StageOptions::default()
         }
     );
+}
+
+#[tokio::test]
+async fn a_set_kept_when_effects_was_a_switch_reads_on_as_full_and_keeps_the_rest() {
+    let mut app = TestApp::start().await;
+    put(&app, &serde_json::to_value(changed_options()).unwrap()).await;
+    for (stored, effects) in [(true, Effects::Full), (false, Effects::Off)] {
+        let v1 = serde_json::json!({
+            "startingDifficulty": "easy",
+            "resumeCountdownSeconds": 0,
+            "lineRatings": false,
+            "effects": stored,
+            "songVideo": false,
+            "previewVolumePercent": 40,
+            "skipIntros": true,
+        });
+        Connection::open(app.appdata_dir().join(DATABASE_FILE))
+            .unwrap()
+            .execute(
+                "UPDATE stage_options SET options = ?1 WHERE id = 1",
+                [v1.to_string()],
+            )
+            .unwrap();
+        app.restart().await;
+        assert_eq!(
+            read(&app).await,
+            StageOptions {
+                effects,
+                ..changed_options()
+            }
+        );
+    }
 }
 
 #[tokio::test]
@@ -93,6 +127,9 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
             UserMessage::InvalidMessage
         );
     }
+    // A value Effects does not have does not read at all.
+    let response = put(&app, &serde_json::json!({ "effects": "loud" })).await;
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(read(&app).await, StageOptions::default());
 }
 

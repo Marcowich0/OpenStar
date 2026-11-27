@@ -13,6 +13,7 @@
 import { useId, useState, type ReactNode } from "react";
 
 import type { Difficulty } from "../generated/Difficulty";
+import type { Effects } from "../generated/Effects";
 import { t, type ArgsOf, type MessageKey } from "../i18n/t";
 import type { en } from "../i18n/en";
 import { Icon } from "../ui/Icon";
@@ -137,6 +138,7 @@ function stepperRow(
 }
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "medium", "hard"];
+const EFFECTS_VALUES: readonly Effects[] = ["off", "calm", "full"];
 
 /** Every option, in its group, in the order shown. */
 export const OPTION_GROUPS: readonly OptionGroupDef[] = [
@@ -169,7 +171,13 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
         "options.lineRatings",
         "options.lineRatings.help",
       ),
-      switchRow("effects", "options.effects", "options.effects.help"),
+      choiceRow(
+        "effects",
+        "options.effects",
+        "options.effects.help",
+        EFFECTS_VALUES,
+        (value) => t(`options.effects.${value}`),
+      ),
       switchRow("songVideo", "options.songVideo", "options.songVideo.help"),
       switchRow("skipIntros", "options.skipIntros", "options.skipIntros.help"),
     ],

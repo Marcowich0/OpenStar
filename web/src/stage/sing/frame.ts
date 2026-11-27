@@ -17,6 +17,7 @@ import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { ParsedSong } from "../../generated/ParsedSong";
+import { EFFECTS, type Effects } from "../../stageOptions/effects";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { LaneLayout } from "./laneLayout";
 import {
@@ -92,6 +93,12 @@ export interface SingState {
    * loop advances it by each frame's real delta, and `frame()` only reads it.
    */
   effects?: ParticlePool;
+  /**
+   * The Stage option Effects, fixed at the Song's start (`EFFECTS` says
+   * what each value shows); absent: `full`. Without `effects` there are no
+   * particles whatever it says.
+   */
+  effectsMode?: Effects;
   /**
    * The lanes' Line rating pops (#216). `lineEnded` starts one; the render
    * loop advances them by each frame's real delta, and `frame()` only reads
@@ -427,6 +434,7 @@ export function frame(
   const now = beatPosition(state.grid, songTime);
   const lanes = Math.min(state.lanes.length, layout.length);
   const length = songLength(state);
+  const motion = EFFECTS.screenMotion(state.effectsMode ?? "full");
   list.push({
     type: "progress",
     ...PROGRESS,
@@ -571,6 +579,7 @@ export function frame(
           pixelsPerSecond: rect.pixelsPerSecond,
           notesX: rect.notesX,
           height: rect.height,
+          bounce: motion,
           low,
           range,
           inner,
@@ -585,7 +594,7 @@ export function frame(
     list.push({ type: "laneEnd", lane });
   }
   lyricFill(list, state, now);
-  state.ratings?.draw(list, state.lanes, layout);
+  state.ratings?.draw(list, state.lanes, layout, motion);
   // Last: the painter draws these on the effects canvas, above the DOM layers.
   state.effects?.draw(list);
   return list;

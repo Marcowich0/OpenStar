@@ -23,6 +23,11 @@ describe("the Stage options", () => {
     };
     const number = (name: string) => Number(constant(name, "u8"));
     const bool = (name: string) => constant(name, "bool") === "true";
+    /** An enum's default, `Type::FooBar`, as its camelCase name `fooBar`. */
+    const variant = (name: string, type: string) => {
+      const value = constant(name, type).replace(`${type}::`, "");
+      return value.charAt(0).toLowerCase() + value.slice(1);
+    };
     const difficulty = constant(
       "STARTING_DIFFICULTY_DEFAULT",
       "Difficulty",
@@ -32,7 +37,7 @@ describe("the Stage options", () => {
         startingDifficulty: difficulty.toLowerCase(),
         resumeCountdownSeconds: number("RESUME_COUNTDOWN_DEFAULT_SECONDS"),
         lineRatings: bool("LINE_RATINGS_DEFAULT"),
-        effects: bool("EFFECTS_DEFAULT"),
+        effects: variant("EFFECTS_DEFAULT", "Effects"),
         songVideo: bool("SONG_VIDEO_DEFAULT"),
         previewVolumePercent: number("PREVIEW_VOLUME_DEFAULT_PERCENT"),
         skipIntros: bool("SKIP_INTROS_DEFAULT"),

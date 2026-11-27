@@ -71,12 +71,42 @@ describe("the Options list", () => {
   });
 
   it("changes the options outside the fold alone, and leaves its dot off", () => {
-    const { onChange } = setup({ ...defaultStageOptions(), effects: false });
+    const { onChange } = setup({ ...defaultStageOptions(), effects: "off" });
     expect(screen.queryByTestId("options-advanced-changed")).toBeNull();
-    fireEvent.click(row("effects").getByRole("switch"));
-    expect(onChange).toHaveBeenCalledExactlyOnceWith({ effects: true });
+    fireEvent.click(row("effects").getByRole("button", { name: "Full" }));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ effects: "full" });
     fireEvent.click(resetOf("effects"));
-    expect(onChange).toHaveBeenLastCalledWith({ effects: true });
+    expect(onChange).toHaveBeenLastCalledWith({ effects: "full" });
+  });
+
+  it("shows Effects as Off, Calm and Full, at Full by default, with Reset to Full", () => {
+    const pressed = () =>
+      row("effects")
+        .getAllByRole("button", { pressed: true })
+        .map((b) => b.textContent);
+    const choices = () =>
+      row("effects")
+        .getAllByRole("button")
+        .filter((b) => b.hasAttribute("aria-pressed"))
+        .map((b) => b.textContent);
+    const { onChange } = setup();
+    expect(choices()).toEqual(["Off", "Calm", "Full"]);
+    expect(pressed()).toEqual(["Full"]);
+    expect(resetOf("effects").getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(row("effects").getByRole("button", { name: "Calm" }));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ effects: "calm" });
+  });
+
+  it("shows a changed Effects pressed, and Reset puts Full back", () => {
+    const { onChange } = setup({ ...defaultStageOptions(), effects: "calm" });
+    expect(
+      row("effects")
+        .getByRole("button", { name: "Calm" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(resetOf("effects").getAttribute("aria-disabled")).toBeNull();
+    fireEvent.click(resetOf("effects"));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ effects: "full" });
   });
 
   it("shows Look once it has an option", () => {

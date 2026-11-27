@@ -93,7 +93,9 @@ describe("Setup › Options", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(
-      row("effects").getByRole("switch").getAttribute("aria-checked"),
+      row("effects")
+        .getByRole("button", { name: "Full" })
+        .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(row("resumeCountdownSeconds").getByText("3 seconds")).toBeTruthy();
     expect(row("previewVolumePercent").getByText("100 %")).toBeTruthy();
@@ -104,12 +106,14 @@ describe("Setup › Options", () => {
 
   it("saves each change at once as the whole set, and Reset puts the default back", async () => {
     const s = await setup();
-    fireEvent.click(row("effects").getByRole("switch"));
+    fireEvent.click(row("effects").getByRole("button", { name: "Calm" }));
     await settle();
-    expect(s.puts).toEqual([{ ...defaultStageOptions(), effects: false }]);
+    expect(s.puts).toEqual([{ ...defaultStageOptions(), effects: "calm" }]);
     expect(
-      row("effects").getByRole("switch").getAttribute("aria-checked"),
-    ).toBe("false");
+      row("effects")
+        .getByRole("button", { name: "Calm" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(resetOf("effects").getAttribute("aria-disabled")).toBeNull();
 
     fireEvent.click(
@@ -118,7 +122,7 @@ describe("Setup › Options", () => {
     await settle();
     expect(s.puts.at(-1)).toEqual({
       ...defaultStageOptions(),
-      effects: false,
+      effects: "calm",
       startingDifficulty: "hard",
     });
 
