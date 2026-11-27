@@ -137,12 +137,7 @@ export interface AdminSongRowProps {
 export function AdminSongRow({ song, children, below }: AdminSongRowProps) {
   return (
     <li className="flex min-w-0 flex-wrap items-center gap-3">
-      <Cover
-        src={song.cover}
-        tileColour={song.tileColour}
-        rim={3}
-        className="w-14 shrink-0"
-      />
+      <Cover src={song.cover} song={song} rim={3} className="w-14 shrink-0" />
       <div className="flex min-w-0 grow basis-0 flex-col gap-0.5">
         <span className="truncate text-lg leading-tight font-semibold text-ink">
           {song.title}

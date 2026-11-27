@@ -63,7 +63,7 @@ function UpNextBanner({ head }: { head: RequestId }) {
     >
       <Cover
         src={song?.cover ?? null}
-        tileColour={song?.tileColour ?? "teal"}
+        song={song ?? null}
         rim={4}
         className="w-20 shrink-0"
       />
