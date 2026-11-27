@@ -10,14 +10,14 @@ import { laneLayout } from "./laneLayout";
 import { createRenderLoop } from "./renderLoop";
 import { syntheticSing } from "./syntheticSing";
 
-/** Frozen Song time: Beat 10 of the synthetic Song (half a second per Beat). */
+/** Frozen Song time: Beat 42 of the synthetic Song (an eighth of a second per Beat). */
 const SONG_TIME = 6;
 /** +120 ms: the sound reaches the room 120 ms after the picture. */
 const OFFSET = 0.12;
 const lane = laneLayout(1)[0];
 if (!lane) throw new Error("no lane");
-/** 120 Beats a minute: two Beats a second. */
-const pixelsPerSecond = lane.pixelsPerBeat * 2;
+/** The lane scrolls this fast whatever the BPM. */
+const pixelsPerSecond = lane.pixelsPerSecond;
 
 /** The draw list the render loop paints at a frozen `songTime()` and offset. */
 function drawnAt(songTime: number, avOffset: number): DrawList {
@@ -63,34 +63,35 @@ describe("drawing with an A/V offset", () => {
     }
   });
 
-  it("keeps the playhead where it is, at the shifted Song time: the Note at Beat 10 starts just after it", () => {
+  it("keeps the playhead where it is, at the shifted Song time: the Note at Beat 42 starts just after it", () => {
     const [playhead] = only(shifted, "playhead");
     expect(playhead?.x).toBe(only(still, "playhead")[0]?.x);
-    // At 0 the Note at Beat 10 (6 s) starts on the playhead; 120 ms behind,
+    // At 0 the Note at Beat 42 (6 s) starts on the playhead; 120 ms behind,
     // it is 120 ms of scrolling to the right of it.
-    const onBeat10 = only(shifted, "pill").find((p) => p.note.start === 10);
-    expect(onBeat10?.x).toBeCloseTo(
+    const onBeat42 = only(shifted, "pill").find((p) => p.note.start === 42);
+    expect(onBeat42?.x).toBeCloseTo(
       (playhead?.x ?? 0) + OFFSET * pixelsPerSecond,
       6,
     );
-    expect(only(still, "pill").find((p) => p.note.start === 10)?.x).toBe(
+    expect(only(still, "pill").find((p) => p.note.start === 42)?.x).toBe(
       playhead?.x,
     );
   });
 
   it("fills the lyric as at the shifted time", () => {
-    // Beat 10 is a 2-Beat Note: at 6 s it has just started; at 5.88 s the
-    // Note before it (Beats 6–9, golden) is still the current one, fully sung.
+    // Beat 42 is a 2-Beat Note: at 6 s it has just started; at 5.88 s the
+    // Note before it (Beats 38–41, golden) is still the current one, fully sung.
     const [atZero] = only(still, "lyric");
     const [behind] = only(shifted, "lyric");
     expect(atZero).toMatchObject({ note: 2, fraction: 0, singing: true });
     expect(behind).toMatchObject({ note: 1, fraction: 1, singing: false });
 
-    // 0.62 s into a 1 s Note at 0, half of it at 120 ms behind.
+    // The golden Note at Beat 48 starts at 6.75 s and lasts 0.5 s: 0.31 s
+    // into it at 0, 0.19 s at 120 ms behind.
     const later = (avOffset: number) =>
-      drawnAt(6.62, avOffset).find((e): e is LyricEntry => e.type === "lyric");
+      drawnAt(7.06, avOffset).find((e): e is LyricEntry => e.type === "lyric");
     expect(later(0)?.fraction).toBeCloseTo(0.62, 6);
-    expect(later(OFFSET)?.fraction).toBeCloseTo(0.5, 6);
+    expect(later(OFFSET)?.fraction).toBeCloseTo(0.38, 6);
   });
 
   it("holds the pitch trace to the playhead at the shifted time, and moves the rest with the Notes", () => {

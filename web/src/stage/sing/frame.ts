@@ -475,6 +475,9 @@ export function frame(
     const height = Math.min(42, Math.max(8, (inner / range) * 1.5));
     const outline = outlineWidth(height);
     const right = rect.x + rect.width;
+    // The lane scrolls at a fixed speed in time, so a Beat's width follows the BPM.
+    const pixelsPerBeat =
+      (rect.pixelsPerSecond * 60) / state.grid.beatsPerMinute;
 
     const ys: number[] = [];
     for (let step = 0; step <= range; step += GRID_STEP) {
@@ -492,13 +495,10 @@ export function frame(
     });
 
     for (const note of voice.notes) {
-      const x = rect.playheadX + (note.start - now) * rect.pixelsPerBeat;
+      const x = rect.playheadX + (note.start - now) * pixelsPerBeat;
       // Lines keep file order and Notes are never re-sorted, so check each.
       if (x > right) continue;
-      const width = Math.max(
-        0,
-        (note.length - PILL_GAP_BEATS) * rect.pixelsPerBeat,
-      );
+      const width = Math.max(0, (note.length - PILL_GAP_BEATS) * pixelsPerBeat);
       if (x + width < rect.notesX) continue;
       const passed = x + width <= rect.playheadX;
       const centre = bottom - ((note.pitch - low) / range) * inner;
@@ -568,7 +568,7 @@ export function frame(
           lane,
           colour: player.colour,
           playheadX: rect.playheadX,
-          pixelsPerBeat: rect.pixelsPerBeat,
+          pixelsPerSecond: rect.pixelsPerSecond,
           notesX: rect.notesX,
           height: rect.height,
           low,
