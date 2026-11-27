@@ -34,7 +34,7 @@ import { AddMicBridge } from "./AddMicBridge";
 import { ForgetBridge } from "./ForgetBridge";
 import { useStageFrame, useStageKeys } from "../stage/frame/stageFrameContext";
 import { useLocalMics } from "./LocalMics";
-import { SILENCE_DBFS } from "./localMicCapture";
+import { SILENCE_DBFS, type UnavailableCause } from "./localMicCapture";
 import type { ThresholdSource } from "./micSettings";
 import { useMicThresholds, type MicThresholds } from "./StageMicSettings";
 import {
@@ -601,6 +601,25 @@ function NotFoundRow({
   );
 }
 
+/**
+ * Why this browser cannot read its microphones, with the next step; a
+ * refusal of no known kind gets the general line.
+ */
+function unavailableNotice(cause: UnavailableCause | undefined): string {
+  switch (cause) {
+    case "insecureContext":
+      return t("mics.unavailable.insecureContext");
+    case "noMediaDevices":
+      return t("mics.unavailable.noMediaDevices");
+    case "permissionDenied":
+      return t("mics.unavailable.permissionDenied");
+    case "noDevice":
+      return t("mics.noDevices");
+    case undefined:
+      return t("mics.unavailable");
+  }
+}
+
 export function MicsScreen() {
   const {
     capture,
@@ -672,7 +691,8 @@ export function MicsScreen() {
   );
 
   let notice: string | null = null;
-  if (snapshot.status === "unavailable") notice = t("mics.unavailable");
+  if (snapshot.status === "unavailable")
+    notice = unavailableNotice(snapshot.unavailableCause);
   else if (snapshot.status === "needsPermission")
     notice = t("mics.allowMicrophone");
   else if (snapshot.status === "ready" && snapshot.devices.length === 0)
