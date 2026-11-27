@@ -85,6 +85,18 @@ describe("code split by route", () => {
   });
 });
 
+describe("the Stage's UI sounds (ticket 261)", () => {
+  // A Phone may be a Mic: it must never make a sound, so it never loads them.
+  it("are in the Stage's code and never in the Phone's", () => {
+    const engine = path.join(src, "stage/sound/uiSounds.ts");
+    const entry = chunks.filter((c) => c.isEntry);
+    const phone = staticGraph([...entry, chunkOf("phone/PhoneScreen.tsx")]);
+    const stage = staticGraph([chunkOf("stage/StageScreen.tsx")]);
+    expect(phone.flatMap((c) => c.moduleIds)).not.toContain(engine);
+    expect(stage.flatMap((c) => c.moduleIds)).toContain(engine);
+  });
+});
+
 describe("the Stage's performance check (ticket 227)", () => {
   it("loads its tools and recorded readings only with ?perf, in a chunk of their own", () => {
     const stage = staticGraph([chunkOf("stage/StageScreen.tsx")]);
