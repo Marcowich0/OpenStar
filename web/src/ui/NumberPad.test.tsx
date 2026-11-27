@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { NumberPad } from "./NumberPad";
+import { UiCueContext, type UiCue } from "./uiCue";
 
 function press(name: string) {
   act(() => {
@@ -187,5 +188,24 @@ describe("NumberPad, Admin PIN form", () => {
     expect(screen.getByRole("button", { name: "5" }).classList).toContain(
       "h-16",
     );
+  });
+});
+
+describe("NumberPad sounds (Stage only, ticket 261)", () => {
+  it("bonks when its code or PIN is refused", async () => {
+    const cues: UiCue[] = [];
+    render(
+      <UiCueContext value={(cue) => cues.push(cue)}>
+        <NumberPad
+          form="adminPin"
+          onSubmit={vi.fn().mockResolvedValueOnce("refused")}
+        />
+      </UiCueContext>,
+    );
+    type("1234");
+    press("OK");
+    await settle();
+    expect(cues.filter((cue) => cue === "refuse")).toHaveLength(1);
+    expect(cues.at(-1)).toBe("refuse");
   });
 });

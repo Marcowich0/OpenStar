@@ -29,6 +29,7 @@ import {
   type PadForm,
 } from "./numberPad";
 import { isFormField } from "./formField";
+import { useUiCue } from "./uiCue";
 
 export type PadAnswer = "refused" | "accepted";
 
@@ -76,6 +77,8 @@ export function NumberPad({
   // Bumped on every refusal, so the shake restarts each time.
   const [refusals, setRefusals] = useState(0);
   const [shaking, setShaking] = useState(false);
+  // On the Stage a refusal also bonks (`uiCue.ts`).
+  const cue = useUiCue();
   const mounted = useRef(true);
   const onSubmitRef = useRef(onSubmit);
   useEffect(() => {
@@ -107,6 +110,7 @@ export function NumberPad({
     if (action.type === "refused") {
       setRefusals((n) => n + 1);
       setShaking(true);
+      cue?.("refuse");
     }
     if (step.submit === null) return;
     const answer = (value: PadAnswer | undefined) => {
