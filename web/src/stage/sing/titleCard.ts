@@ -65,8 +65,8 @@ export function singSongOf(detail: SongDetail): SingSong {
 }
 
 /**
- * Which input the pause hint names: the key, or the pad's button (#275
- * tracks the last one used; `pauseHintInput` reads it).
+ * Which input the pause hint names: the key, or the pad's button (the last
+ * input device, #275; `pauseHintInput` reads it).
  */
 export type PauseHint = "keyboard" | "gamepad";
 

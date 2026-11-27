@@ -8,15 +8,16 @@
 
 import type { PartyId } from "../../../generated/PartyId";
 import type { RequestId } from "../../../generated/RequestId";
+import { lastInputDevice } from "../../input/inputDevice";
 import type { PauseHint } from "../../sing/titleCard";
 
 /**
- * The input the pause hint names. Always the keyboard for now: the gamepad
- * ticket (#275) tracks the last input device and wires it here, so the hint
- * then reads "Start: pause" after pad input.
+ * The input the pause hint names, read when the Song starts: the pad's Start
+ * button when the gamepad was used last (#275), else the Space key (also
+ * after the mouse, which has no pause of its own).
  */
 export function pauseHintInput(): PauseHint {
-  return "keyboard";
+  return lastInputDevice() === "gamepad" ? "gamepad" : "keyboard";
 }
 
 export interface FirstSongMemory {

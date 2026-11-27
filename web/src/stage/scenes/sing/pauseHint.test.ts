@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { markGamepadEvent, trackInputDevices } from "../../input/inputDevice";
 import { createFirstSongMemory, pauseHintInput } from "./pauseHint";
 
 /** A Storage stand-in that keeps its items in a Map. */
@@ -59,7 +60,17 @@ describe("the first Song of a Party", () => {
 });
 
 describe("pauseHintInput", () => {
-  it("names the keyboard until the gamepad ticket (issue 275) tracks the last input device", () => {
-    expect(pauseHintInput()).toBe("keyboard");
+  it("names the device used last: the pad after gamepad input, else the keyboard", () => {
+    const stop = trackInputDevices();
+    try {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      expect(pauseHintInput()).toBe("keyboard");
+      markGamepadEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      expect(pauseHintInput()).toBe("gamepad");
+      window.dispatchEvent(new Event("pointerdown"));
+      expect(pauseHintInput()).toBe("keyboard");
+    } finally {
+      stop();
+    }
   });
 });
