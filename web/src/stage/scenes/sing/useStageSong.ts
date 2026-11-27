@@ -14,6 +14,7 @@ import type { LiveStore } from "../../../live/liveStore";
 import { createMediaPlayback } from "../../../playback/mediaPlayback";
 import { stageAudio } from "../../playback/stageAudio";
 import { stagePreview } from "../../playback/stagePreview";
+import { stageUiSounds } from "../../sound/StageSounds";
 import {
   createStageSong,
   type StageSong,
@@ -92,6 +93,7 @@ export function stageSongFor(
       },
       resumeAudio,
       postRound: (outcome) => api("POST /api/rounds", { body: outcome }),
+      sounds: stageUiSounds(),
     });
     songs.set(store, song);
   }
