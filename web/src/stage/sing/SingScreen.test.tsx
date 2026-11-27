@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Note } from "../../generated/Note";
 import type { ParsedSong } from "../../generated/ParsedSong";
+import { applyTheme } from "../../theme/themes";
 import { singVoices, type SingState } from "./frame";
 import { confettiBurst, ParticlePool } from "./effects";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
@@ -104,6 +105,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  applyTheme("bubblePop");
 });
 
 function runFrame(timestamp = 0) {
@@ -236,8 +238,9 @@ describe("SingScreen", () => {
     expect(panel?.style.backgroundColor).toBe(
       "color-mix(in oklab, var(--color-surface) 66%, transparent)",
     );
-    expect(panel?.className).toMatch(/\bbackdrop-blur-lg\b/);
-    expect(panel?.className).toMatch(/\bbackdrop-saturate-130\b/);
+    expect(panel?.style.getPropertyValue("backdrop-filter")).toBe(
+      "blur(16px) saturate(130%)",
+    );
     expect(panel?.style.borderRadius).toBe("40px");
     expect(panel?.style.boxShadow).toBe(
       "0 10px 0 var(--color-lane-ledge), 0 20px 40px var(--color-lane-shadow)",
@@ -264,6 +267,30 @@ describe("SingScreen", () => {
       expect(panel.style.backgroundColor).toBe(
         "color-mix(in oklab, var(--color-surface) 40%, transparent)",
       );
+    }
+  });
+
+  it("makes the lane panels solid with no blur in High contrast, whatever the Lane frosting, as soon as it shows", () => {
+    const { container } = render(
+      <SingScreen
+        state={{
+          ...state,
+          look: { ...DEFAULT_SING_LOOK, laneFrostingPercent: 40 },
+        }}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    act(() => {
+      applyTheme("highContrast");
+    });
+    const panels = container.querySelectorAll<HTMLElement>("[data-lane-panel]");
+    expect(panels).toHaveLength(2);
+    for (const panel of panels) {
+      expect(panel.style.backgroundColor).toBe(
+        "color-mix(in oklab, var(--color-surface) 100%, transparent)",
+      );
+      expect(panel.style.getPropertyValue("backdrop-filter")).toBe("none");
     }
   });
 

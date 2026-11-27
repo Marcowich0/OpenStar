@@ -6,8 +6,9 @@ import { expect, STAGE_VIEWPORT, test } from "../fixtures";
 // The painter screenshots (#203). The canvas painter is checked only by these:
 // the sing screen painted from `frame()` on fixed synthetic state at a frozen
 // Song time, for 1, 4 and 8 Players, a duet, 2 Players of a Song with no
-// video, over the blobs (#263), the title card (#264) at 1 s, and 4 Players at
-// Lyric size XL (the lanes moved up above the larger lyric bar).
+// video, over the blobs (#263), the title card (#264) at 1 s, 4 Players at
+// Lyric size XL (the lanes moved up above the larger lyric bar), and 4
+// Players in Bubble Pop Night and in High contrast (#267).
 //
 // The page (`web/sing-test.html`) is a test build of its own, which `just e2e`
 // writes to e2e/generated/screenshot-page/ (`vite build --mode screenshots`).
@@ -54,6 +55,18 @@ const CASES = [
     label: "4 Players at Lyric size XL",
     t: SONG_TIME,
     shot: "four-xl",
+  },
+  {
+    query: "case=four&theme=bubblePopNight",
+    label: "4 Players in Bubble Pop Night",
+    t: SONG_TIME,
+    shot: "four-night",
+  },
+  {
+    query: "case=four&theme=highContrast",
+    label: "4 Players in High contrast",
+    t: SONG_TIME,
+    shot: "four-high-contrast",
   },
 ] as const;
 

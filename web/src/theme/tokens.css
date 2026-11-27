@@ -22,7 +22,8 @@
  *   scrims). `white`: white in every theme, for text and marks on a colour
  *   or ink fill, and the sing screen's Note pills.
  * - `on-bright`: dark in every theme, for text and marks on a bright fill
- *   (yellow, green, golden, white), such as a QR code's modules.
+ *   (yellow, green, golden, white), such as a QR code's modules and the
+ *   outline of a filled Note pill.
  */
 
 @theme static {

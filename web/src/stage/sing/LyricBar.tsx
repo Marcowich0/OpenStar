@@ -9,7 +9,9 @@
 
 import { memo, useSyncExternalStore, type CSSProperties } from "react";
 
+import { THEMES } from "../../theme/themes";
 import { tokenVar } from "../../theme/tokens";
+import { useShownTheme } from "../../theme/useShownTheme";
 import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { DrawList, LyricColour, LyricEntry, SingVoice } from "./frame";
@@ -122,22 +124,26 @@ export function createLyricDriver(): LyricDriver {
 
 /**
  * The bar (#55), in the 1920 × 1080 reference frame, from `LYRIC_BAR`: it
- * grows upward from its fixed bottom as its text grows.
+ * grows upward from its fixed bottom as its text grows. Its fill is the
+ * box's, so the theme's: frosted in Bubble Pop, solid in High contrast.
  */
-const BAR_STYLE: CSSProperties = {
-  position: "absolute",
-  left: "50%",
-  bottom: `${String(LYRIC_BAR.bottomGap)}px`,
-  translate: "-50% 0",
-  background: `color-mix(in srgb, ${tokenVar(LYRIC_BAR.fill.colour)} ${String(LYRIC_BAR.fill.alpha * 100)}%, transparent)`,
-  backdropFilter: `blur(${String(LYRIC_BAR.blur)}px)`,
-  WebkitBackdropFilter: `blur(${String(LYRIC_BAR.blur)}px)`,
-  borderRadius: `${String(LYRIC_BAR.radius)}px`,
-  padding: `${String(LYRIC_BAR.paddingTop)}px ${String(LYRIC_BAR.paddingInline)}px ${String(LYRIC_BAR.paddingBottom)}px`,
-  boxShadow: "var(--shadow-ledge-lyric)",
-  lineHeight: LYRIC_BAR.lineHeight,
-  textAlign: "center",
-};
+function barStyle({ fill }: LyricBarBox): CSSProperties {
+  const backdrop = fill.blur > 0 ? `blur(${String(fill.blur)}px)` : "none";
+  return {
+    position: "absolute",
+    left: "50%",
+    bottom: `${String(LYRIC_BAR.bottomGap)}px`,
+    translate: "-50% 0",
+    background: `color-mix(in srgb, ${tokenVar(fill.colour)} ${String(Math.round(fill.alpha * 100))}%, transparent)`,
+    backdropFilter: backdrop,
+    WebkitBackdropFilter: backdrop,
+    borderRadius: `${String(LYRIC_BAR.radius)}px`,
+    padding: `${String(LYRIC_BAR.paddingTop)}px ${String(LYRIC_BAR.paddingInline)}px ${String(LYRIC_BAR.paddingBottom)}px`,
+    boxShadow: "var(--shadow-ledge-lyric)",
+    lineHeight: LYRIC_BAR.lineHeight,
+    textAlign: "center",
+  };
+}
 
 /** The current Line(s) and next Line's text styles for a bar's box. */
 function textStyles(box: LyricBarBox): {
@@ -229,7 +235,7 @@ export const LyricBar = memo(function LyricBar({
   look?: SingLook | undefined;
 }) {
   const lines = useSyncExternalStore(driver.subscribe, driver.lines);
-  const box = lyricBarBox(look, voices.length);
+  const box = lyricBarBox(look, voices.length, THEMES[useShownTheme()].sing);
   const styles = textStyles(box);
   const shown = voices.some((voice, v) => voice.lines[lines[v] ?? -1]);
   const next =
@@ -239,7 +245,7 @@ export const LyricBar = memo(function LyricBar({
       data-lyric-bar
       hidden={!shown}
       className="whitespace-pre text-ink"
-      style={BAR_STYLE}
+      style={barStyle(box)}
     >
       {voices.map((voice, v) => {
         const index = lines[v] ?? -1;

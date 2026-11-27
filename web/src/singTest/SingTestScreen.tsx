@@ -40,10 +40,16 @@ export function SingTestScreen({ search }: { search: SingTestSearch }) {
       avOffset={NO_OFFSET}
       frameTime={FROZEN}
       backdrop={
-        <SingBackdrop
-          media={TILE_ONLY}
-          {...(state.background ? { background: state.background.kind } : {})}
-        />
+        // Its own compositing layer, so the tile rasterises the same way
+        // whatever else on the page is composited: without one, a theme with
+        // no backdrop blur (High contrast) re-rasterises the tile's mark when
+        // the screenshot cancels the mic-lost dots' animation.
+        <div className="absolute inset-0 will-change-transform">
+          <SingBackdrop
+            media={TILE_ONLY}
+            {...(state.background ? { background: state.background.kind } : {})}
+          />
+        </div>
       }
     />
   );

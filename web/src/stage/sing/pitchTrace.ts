@@ -201,6 +201,8 @@ export interface TraceLane {
   height: number;
   /** The head ball bounces (Effects full); otherwise it holds round. */
   bounce: boolean;
+  /** The theme's ink edge, as a share of Bubble Pop's: 1, or 1.5 in High contrast. */
+  inkEdge: number;
   /** Maps a Note pitch to y. */
   low: number;
   range: number;
@@ -298,7 +300,7 @@ function addPoint(songTime: number, beat: number, guessed: boolean) {
         colour: g.colour,
         width,
         edge: EDGE,
-        edgeWidth: width + EDGE_EXTRA,
+        edgeWidth: width + EDGE_EXTRA * g.inkEdge,
       },
       miss: narrow ? MISS_NARROW : MISS_WIDE,
     } satisfies PitchLineEntry);

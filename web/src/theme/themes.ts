@@ -16,9 +16,33 @@ import type { TokenName } from "./tokens";
 /** A value for every token and palette key's token. */
 export type ThemeTokens = Readonly<Record<TokenName, string>>;
 
+/**
+ * A theme's sing screen beyond its colours (#267): how the lane panels and
+ * the lyric bar are frosted and how heavy its ink lines are. `frame()` puts
+ * these in the draw list, and the DOM panels and bar read the same values.
+ */
+export interface SingTheme {
+  /**
+   * `frosted`: the lane panels show the surface at the Lane frosting
+   * option over a blurred backdrop; `solid`: fully opaque, whatever it says.
+   */
+  lanes: "frosted" | "solid";
+  /** The frosted lane panels' backdrop blur, px. */
+  laneBlur: number;
+  /** The lyric bar's surface alpha and backdrop blur, px. */
+  lyricBar: { readonly alpha: number; readonly blur: number };
+  /** Every ink edge's width, as a share of Bubble Pop's: pill outlines, the pitch line's edge. */
+  inkEdge: number;
+  /** The faint ink lines' alphas: the pitch grid, the separator left of the Notes, the playhead. */
+  gridAlpha: number;
+  separatorAlpha: number;
+  playheadAlpha: number;
+}
+
 /** One theme. */
 export interface ThemeDef {
   tokens: ThemeTokens;
+  sing: SingTheme;
 }
 
 /** The three themes, in the order Options shows them. */
@@ -133,9 +157,19 @@ const BUBBLE_POP: ThemeTokens = {
  * palette. Text is light; `surface` cards sit a step lighter than the page;
  * `ink-fill` is the darkest fill, under white text. The candy fills keep
  * their Bubble Pop pairs.
+ *
+ * The four deep Party colours (navy, cocoa, berry, forest) would vanish on
+ * deep navy, so Night lifts them to lighter tones of the same hues (#267):
+ * every Party colour shows at 3 : 1 on Night's surfaces, as a lyric fill
+ * (large text) and a pitch line, and the twelve stay as far apart as
+ * Bubble Pop's for colour-blind viewers. The keys never change.
  */
 const BUBBLE_POP_NIGHT: ThemeTokens = {
   ...BUBBLE_POP,
+  "--color-party-navy": "#9282e4",
+  "--color-party-cocoa": "#bd6c34",
+  "--color-party-berry": "#b5628a",
+  "--color-party-forest": "#4d9c76",
   "--color-surface": "#2a3060",
   "--color-ink-fill": "#0d1027",
   "--color-cream": "#1b1f3f",
@@ -159,17 +193,112 @@ const BUBBLE_POP_NIGHT: ThemeTokens = {
   "--color-mic-lost-ledge": "rgba(0, 0, 0, 0.4)",
 };
 
+/**
+ * High contrast (#267): black ink on plain white, every text at WCAG AA on
+ * every surface it sits on (4.5 : 1; the lyric fill, large text, at 3 : 1),
+ * passed Notes clearly darker, and the sing screen solid (`SOLID` below).
+ * The page is plain white with no blobs, so coloured text reads on all of
+ * it. Green carries both white text and `on-bright` (black), so it sits at
+ * the one lightness where both read at 4.5 : 1. The light candy Party
+ * colours are deepened to 3 : 1 on white, still as far apart as Bubble
+ * Pop's for colour-blind viewers; the deep ones are Bubble Pop's.
+ */
+const HIGH_CONTRAST: ThemeTokens = {
+  ...BUBBLE_POP,
+  "--color-party-cherry": "#fc6156",
+  "--color-party-sky": "#4e95ef",
+  "--color-party-teal": "#2c8990",
+  "--color-party-lime": "#82a01f",
+  "--color-party-mint": "#02aa4b",
+  "--color-party-bubblegum": "#f34baf",
+  "--color-party-grape": "#9a5ff3",
+  "--color-party-tangerine": "#dd7001",
+  "--color-surface": "#ffffff",
+  "--color-ink-fill": "#000000",
+  "--color-on-bright": "#000000",
+  "--color-cream": "#ffffff",
+  "--color-cream-2": "#ffffff",
+  "--color-ink": "#000000",
+  "--color-ink-2": "#2b2d42",
+  "--color-mute": "#3d4055",
+  "--color-ledge": "rgba(0, 0, 0, 0.3)",
+  "--color-red": "#c8102e",
+  "--color-red-ledge": "#7a0a1c",
+  "--color-blue": "#0a5cc2",
+  "--color-green": "#258550",
+  "--color-green-ledge": "#0a4d27",
+  "--color-yellow-ledge": "#8a6400",
+  "--color-ink-ledge": "#585d78",
+  "--color-purple": "#6a2fd0",
+  "--color-slate": "#585d78",
+  "--color-passed": "#b4b7c9",
+  "--color-warn-fg": "#8f0f1f",
+  "--color-veil": "rgba(0, 0, 0, 0.6)",
+  "--color-blob-blue": "#ffffff",
+  "--color-blob-pink": "#ffffff",
+  "--color-blob-green": "#ffffff",
+  "--color-lane-ledge": "rgba(0, 0, 0, 0.4)",
+  "--color-lane-shadow": "rgba(0, 0, 0, 0.25)",
+  "--color-golden-text": "#8a5a00",
+  "--color-lyric-ledge": "rgba(0, 0, 0, 0.4)",
+  "--color-mic-lost-ledge": "rgba(0, 0, 0, 0.5)",
+};
+
+/** #55's sing screen: frosted lanes and lyric bar, thin faint ink lines. */
+const FROSTED: SingTheme = {
+  lanes: "frosted",
+  laneBlur: 16,
+  lyricBar: { alpha: 0.86, blur: 14 },
+  inkEdge: 1,
+  gridAlpha: 0.07,
+  separatorAlpha: 0.12,
+  playheadAlpha: 0.3,
+};
+
+/**
+ * High contrast's sing screen: solid lanes and lyric bar with nothing
+ * showing through, a 1.5 × ink edge, and the faint lines darker.
+ */
+const SOLID: SingTheme = {
+  lanes: "solid",
+  laneBlur: 0,
+  lyricBar: { alpha: 1, blur: 0 },
+  inkEdge: 1.5,
+  gridAlpha: 0.18,
+  separatorAlpha: 0.35,
+  playheadAlpha: 0.6,
+};
+
 /** Every theme's values. */
 export const THEMES: Readonly<Record<Theme, ThemeDef>> = {
-  bubblePop: { tokens: BUBBLE_POP },
-  bubblePopNight: { tokens: BUBBLE_POP_NIGHT },
-  // A placeholder until its own values are built (#267): solid lanes,
-  // thicker ink edges, AA text on every surface.
-  highContrast: { tokens: BUBBLE_POP },
+  bubblePop: { tokens: BUBBLE_POP, sing: FROSTED },
+  bubblePopNight: { tokens: BUBBLE_POP_NIGHT, sing: FROSTED },
+  highContrast: { tokens: HIGH_CONTRAST, sing: SOLID },
 };
 
 export function isTheme(value: unknown): value is Theme {
   return (THEME_NAMES as readonly unknown[]).includes(value);
+}
+
+/** The theme on the document root; Bubble Pop until one is applied there. */
+let shown: Theme = "bubblePop";
+const shownListeners = new Set<() => void>();
+
+/**
+ * The theme shown on this document: what `applyTheme` last put on the
+ * document root. The render loop reads it every frame; `useShownTheme`
+ * re-renders the DOM on a change.
+ */
+export function shownTheme(): Theme {
+  return shown;
+}
+
+/** Calls `listener` after each change of `shownTheme()`; returns the unsubscribe. */
+export function subscribeShownTheme(listener: () => void): () => void {
+  shownListeners.add(listener);
+  return () => {
+    shownListeners.delete(listener);
+  };
 }
 
 /**
@@ -188,4 +317,8 @@ export function applyTheme(
     else root.style.setProperty(name, value);
   }
   root.dataset.theme = theme;
+  if (root === document.documentElement && theme !== shown) {
+    shown = theme;
+    for (const listener of shownListeners) listener();
+  }
 }

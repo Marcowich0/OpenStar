@@ -19,7 +19,9 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { SongClock } from "../../clock/songClock";
+import { shownTheme, THEMES } from "../../theme/themes";
 import { readToken, tokenVar } from "../../theme/tokens";
+import { useShownTheme } from "../../theme/useShownTheme";
 import { t } from "../../i18n/t";
 import { Avatar } from "../../ui/Avatar";
 import { Icon } from "../../ui/Icon";
@@ -170,6 +172,7 @@ export function SingScreen({
       clock: () => latest.current.clock,
       avOffset: () => latest.current.avOffset(),
       state: () => latest.current.state,
+      theme: () => THEMES[shownTheme()].sing,
       frameTime: (timestamp) => latest.current.frameTime?.() ?? timestamp,
       paint: (list: DrawList) => {
         const view = latest.current.viewport;
@@ -312,15 +315,18 @@ function sameLineUp(a: LanePanelsProps, b: LanePanelsProps): boolean {
 /**
  * The frosted lane panels (DOM, for the backdrop blur), one per lane, placed
  * by the same `lanesBottom` as the canvas, frosted by the same `laneFill` as
- * the draw list's lanes and tinted in the Party colour. They re-render only
- * when the Line-up or the look changes, not when a Score or a frame does.
+ * the draw list's lanes (solid in High contrast) and tinted in the Party
+ * colour. They re-render only when the Line-up, the look or the shown theme
+ * changes, not when a Score or a frame does.
  */
 export const LanePanels = memo(function LanePanels({
   lanes,
   voices = 1,
   look = DEFAULT_SING_LOOK,
 }: LanePanelsProps) {
-  const fill = laneFill(look);
+  const fill = laneFill(look, THEMES[useShownTheme()].sing);
+  const backdrop =
+    fill.blur > 0 ? `blur(${String(fill.blur)}px) saturate(130%)` : "none";
   const background = `color-mix(in oklab, ${tokenVar(fill.colour)} ${String(Math.round(fill.alpha * 100))}%, transparent)`;
   const layout = laneLayout(
     lanes.length,
@@ -331,9 +337,11 @@ export const LanePanels = memo(function LanePanels({
     <div
       key={i}
       data-lane-panel
-      className="absolute overflow-hidden backdrop-blur-lg backdrop-saturate-130"
+      className="absolute overflow-hidden"
       style={{
         backgroundColor: background,
+        backdropFilter: backdrop,
+        WebkitBackdropFilter: backdrop,
         left: `${String(lane.x)}px`,
         top: `${String(lane.y)}px`,
         width: `${String(lane.width)}px`,

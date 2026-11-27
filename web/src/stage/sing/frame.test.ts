@@ -15,8 +15,9 @@ import {
 import { confettiBurst, ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 import { LineRatings } from "./lineRating";
+import { THEMES } from "../../theme/themes";
 import type { SingBackground } from "./background";
-import { singLayout, type SingLook } from "./singLook";
+import { DEFAULT_SING_LOOK, singLayout, type SingLook } from "./singLook";
 
 // One Beat lasts 0.5 s (beatsPerMinute is the real rate, #BPM × 4); Beat 0
 // falls at 1 s. Beat b starts at Song time 1 + b / 2.
@@ -116,7 +117,7 @@ describe("frame", () => {
         notesX: 320,
         radius: 40,
         colour: "cherry",
-        fill: { colour: "--color-surface", alpha: 0.66 },
+        fill: { colour: "--color-surface", alpha: 0.66, blur: 16 },
         lost: null,
         separator: {
           x: 318,
@@ -222,12 +223,14 @@ describe("frame", () => {
   });
 
   it("gives each kind its fill and outline: Normal, golden, Rap dashed, Freestyle hollow", () => {
+    // A filled pill's outline is a mark on a bright fill (on-bright: ink in
+    // Bubble Pop, still dark in Night); a hollow one sits on the lane, in ink.
     const list = frame(solo, 3, oneLane);
     const normal = pillFor(list, 4);
     expect(normal).toMatchObject({
       kind: "normal",
       fill: { type: "solid", colour: "--color-white" },
-      outline: "--color-ink",
+      outline: "--color-on-bright",
       dash: [],
     });
     expect(pillFor(list, 8)).toMatchObject({
@@ -237,14 +240,14 @@ describe("frame", () => {
         top: "--color-golden-top",
         bottom: "--color-golden-bottom",
       },
-      outline: "--color-ink",
+      outline: "--color-on-bright",
       dash: [],
     });
     const rap = pillFor(list, 12);
     expect(rap).toMatchObject({
       kind: "rap",
       fill: { type: "solid", colour: "--color-white" },
-      outline: "--color-ink",
+      outline: "--color-on-bright",
     });
     expect(rap.dash).toEqual([2 * rap.outlineWidth, 2 * rap.outlineWidth]);
     expect(pillFor(list, 14)).toMatchObject({
@@ -289,7 +292,7 @@ describe("frame", () => {
     const after = pillFor(frame(solo, 3.95, oneLane), 4);
     expect(after.passed).toBe(true);
     expect(after.fill).toEqual({ type: "solid", colour: "--color-passed" });
-    expect(after.outline).toBe("--color-ink");
+    expect(after.outline).toBe("--color-on-bright");
 
     // A golden Note greys too; a Freestyle Note stays hollow with a grey outline.
     expect(pillFor(frame(solo, 7.5, oneLane), 8).fill).toEqual({
@@ -635,7 +638,11 @@ describe("the lyric bar and the lane frosting (Stage options)", () => {
         look: look({ laneFrostingPercent }),
       });
       for (const lane of lanes) {
-        expect(lane.fill).toEqual({ colour: "--color-surface", alpha });
+        expect(lane.fill).toEqual({
+          colour: "--color-surface",
+          alpha,
+          blur: 16,
+        });
       }
     }
   });
@@ -684,6 +691,99 @@ describe("the lyric bar and the lane frosting (Stage options)", () => {
         }
       }
     }
+  });
+});
+
+describe("the theme's sing screen", () => {
+  const bubblePop = THEMES.bubblePop.sing;
+  const highContrast = THEMES.highContrast.sing;
+  const twoPlayers = state([
+    { colour: "cherry", voice: 0 },
+    { colour: "sky", voice: 0 },
+  ]);
+  const at66 = { ...twoPlayers, look: { ...DEFAULT_SING_LOOK } };
+
+  function lanesOf(list: readonly DrawEntry[]) {
+    return list.filter((e) => e.type === "lane");
+  }
+
+  it("frosts the lanes in Bubble Pop: the surface at the Lane frosting option, 16 px of blur", () => {
+    for (const lane of lanesOf(frame(at66, 3, singLayout(at66), bubblePop))) {
+      expect(lane.fill).toEqual({
+        colour: "--color-surface",
+        alpha: 0.66,
+        blur: 16,
+      });
+    }
+  });
+
+  it("draws Bubble Pop when no theme is given", () => {
+    expect(frame(at66, 3, singLayout(at66))).toEqual(
+      frame(at66, 3, singLayout(at66), bubblePop),
+    );
+  });
+
+  it("makes the lanes solid in High contrast, whatever the Lane frosting option, with no blur", () => {
+    for (const laneFrostingPercent of [40, 66, 90]) {
+      const s = {
+        ...twoPlayers,
+        look: { ...DEFAULT_SING_LOOK, laneFrostingPercent },
+      };
+      for (const lane of lanesOf(frame(s, 3, singLayout(s), highContrast))) {
+        expect(lane.fill).toEqual({
+          colour: "--color-surface",
+          alpha: 1,
+          blur: 0,
+        });
+      }
+    }
+  });
+
+  it("makes the lyric bar solid with no blur in High contrast; frosted at 86 % with 14 px of blur in Bubble Pop", () => {
+    const bar = (theme: typeof bubblePop) =>
+      frame(solo, 3, singLayout(solo), theme).find(
+        (e) => e.type === "lyricBar",
+      );
+    expect(bar(bubblePop)?.fill).toEqual({
+      colour: "--color-surface",
+      alpha: 0.86,
+      blur: 14,
+    });
+    expect(bar(highContrast)?.fill).toEqual({
+      colour: "--color-surface",
+      alpha: 1,
+      blur: 0,
+    });
+  });
+
+  it("draws every ink edge 1.5 × as thick in High contrast: pill outlines and Rap dashes", () => {
+    const pillsIn = (theme: typeof bubblePop) =>
+      pills(frame(solo, 3, oneLane, theme));
+    const plain = pillsIn(bubblePop);
+    const thick = pillsIn(highContrast);
+    expect(thick).toHaveLength(plain.length);
+    thick.forEach((pill, i) => {
+      const width = plain[i]?.outlineWidth ?? NaN;
+      expect(pill.outlineWidth).toBeCloseTo(width * 1.5);
+      if (pill.kind === "rap" || pill.kind === "goldenRap") {
+        expect(pill.dash).toEqual([3 * width, 3 * width]);
+      }
+    });
+  });
+
+  it("draws the grid, the separator and the playhead darker in High contrast", () => {
+    const faint = (theme: typeof bubblePop) => {
+      const list = frame(solo, 3, oneLane, theme);
+      const grid = list.find((e) => e.type === "grid");
+      const lane = list.find((e) => e.type === "lane");
+      const playhead = list.find((e) => e.type === "playhead");
+      return [grid?.alpha, lane?.separator.alpha, playhead?.alpha];
+    };
+    expect(faint(bubblePop)).toEqual([0.07, 0.12, 0.3]);
+    const [grid, separator, playhead] = faint(highContrast);
+    expect(grid).toBeGreaterThanOrEqual(0.15);
+    expect(separator).toBeGreaterThanOrEqual(0.3);
+    expect(playhead).toBeGreaterThanOrEqual(0.6);
   });
 });
 
