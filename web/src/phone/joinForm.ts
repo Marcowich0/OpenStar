@@ -55,25 +55,33 @@ export type FormNameCheck =
 
 /**
  * Checks the typed name against the Profiles and tonight's Guests. With
- * `self` (a member renaming themselves), their own name is free.
+ * `self` (a member renaming themselves, or a Profile edited in the Admin
+ * area), their own name is free.
  */
 export function formNameCheck(
   name: string,
   profiles: readonly Profile[],
   members: readonly PartyMember[],
-  self?: PartyMember,
+  self?: PartyMember | Profile,
 ): FormNameCheck {
   const key = nameKey(name);
   if (key === "") return { kind: "empty" };
+  const selfMember = self && "memberId" in self ? self : undefined;
   const ownProfile =
-    self?.identity.kind === "profile" ? self.identity.profileId : null;
+    self === undefined
+      ? null
+      : "memberId" in self
+        ? self.identity.kind === "profile"
+          ? self.identity.profileId
+          : null
+        : self.id;
   const profile = profiles.find(
     (p) => p.id !== ownProfile && nameKey(p.name) === key,
   );
   if (profile) return { kind: "profile", profile };
   const guestHasIt = members.some(
     (m) =>
-      m.memberId !== self?.memberId &&
+      m.memberId !== selfMember?.memberId &&
       m.identity.kind === "guest" &&
       nameKey(m.identity.name) === key,
   );
