@@ -204,6 +204,8 @@ export const en = {
   "stageTab.noMic": "no mic",
   "stageTab.addSinger": "Add a singer",
   "stageTab.start": "Start",
+  "stageTab.options": "Options",
+  "stageTab.optionsBack": "Back",
   "stageTab.results": "Results on the Stage",
   "stageTab.yourScore": "Your Score: {total, number}",
   "stageTab.newHighScore": "New high score!",
@@ -1096,6 +1098,8 @@ export const en = {
   "partyEvent.songAborted":
     "The Stage dropped, so {song} stopped. Its Line-up waits to start again",
   "partyEvent.autoFitAccepted": "The Auto-fit of {song} was accepted",
+  "partyEvent.stageOptionChanged": "{option} changed",
+  "partyEvent.stageOptionsChanged": "The Options changed",
   // Line-up warnings: the screen resolves the member's name.
   "lineUpWarning.noMic": "{name} has no mic",
   "lineUpWarning.notCalibrated": "Not calibrated",
@@ -1159,6 +1163,11 @@ export const en = {
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",
   "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",
   "toast.youAutoFitAccepted": "You accepted the Auto-fit of {song}",
+  // A Stage option changed from a Remote: one by its name, more as "the Options".
+  "toast.stageOptionChanged": "{actor} changed {option}",
+  "toast.stageOptionsChanged": "{actor} changed the Options",
+  "toast.youStageOptionChanged": "You changed {option}",
+  "toast.youStageOptionsChanged": "You changed the Options",
 
   // The Timing editor's edit list: one entry per edit, with the values
   // before and after it (GAP in ms, BPM as in the file, video gap in s).

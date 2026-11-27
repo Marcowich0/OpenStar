@@ -128,6 +128,38 @@ describe("a toast's content", () => {
     expect(text(shown)).toBe("The results of Africa");
   });
 
+  it("says who changed which Stage option, by the option's name", () => {
+    const changed = (options: string[]) =>
+      byMember(2, { code: "stageOptionsChanged", params: { options } });
+    expect(text(changed(["effects"]))).toBe("Mia changed Effects");
+    expect(text(changed(["previewVolumePercent"]))).toBe(
+      "Mia changed Preview volume",
+    );
+    // More than one, or one this build has no row for: the Options.
+    expect(text(changed(["effects", "songVideo"]))).toBe(
+      "Mia changed the Options",
+    );
+    expect(text(changed(["lyricSizeFromTheFuture"]))).toBe(
+      "Mia changed the Options",
+    );
+    expect(toastContent(changed(["effects"]), party, profiles).actor).toEqual({
+      name: "Mia",
+      avatar: { kind: "builtIn", key: "heart" },
+      colour: "mint",
+    });
+    // A member not known (yet), and this Phone's own change.
+    expect(
+      toastContent(changed(["effects"]), null, profiles)
+        .parts.map((part) => part.text)
+        .join(""),
+    ).toBe("Effects changed");
+    expect(
+      toastContent(changed(["effects"]), party, profiles, 2)
+        .parts.map((part) => part.text)
+        .join(""),
+    ).toBe("You changed Effects");
+  });
+
   it("says a Song stopped because the Stage dropped", () => {
     const aborted: Toast = {
       id: 0,

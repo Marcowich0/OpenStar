@@ -129,6 +129,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // seat follows the not-guarded Profile create.
         | ClientMessage::EditLineUp { .. }
         | ClientMessage::SetMyDifficulty { .. }
+        // The Stage options are everyone's (the not-guarded list in
+        // docs/agents/guard-rule.md): a Remote sets them like the PUT does.
+        | ClientMessage::SetStageOptions { .. }
         // Start, pause, Restart, End, Skip and Skip intro are for everyone in
         // the room; Next or Done from anyone (results come from the Stage
         // over `POST /api/rounds`).
