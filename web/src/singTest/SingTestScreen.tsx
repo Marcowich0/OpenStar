@@ -24,7 +24,10 @@ const TILE_ONLY: SongMedia = {
 };
 
 export function SingTestScreen({ search }: { search: SingTestSearch }) {
-  const state = useMemo(() => syntheticSing(search.case), [search.case]);
+  const state = useMemo(
+    () => syntheticSing(search.case, search.lyricSize),
+    [search.case, search.lyricSize],
+  );
   // A frozen clock: every frame draws the same Song time.
   const clock = useMemo(() => ({ songTime: () => search.t }), [search.t]);
   return (

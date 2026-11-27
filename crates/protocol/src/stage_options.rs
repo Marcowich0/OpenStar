@@ -40,6 +40,31 @@ pub const PREVIEW_VOLUME_STEP_PERCENT: u8 = 10;
 pub const PREVIEW_VOLUME_DEFAULT_PERCENT: u8 = 100;
 /// A Song plays its Intro; Skip intro is offered instead.
 pub const SKIP_INTROS_DEFAULT: bool = false;
+/// The lyric bar's text at #55's size.
+pub const LYRIC_SIZE_DEFAULT: LyricSize = LyricSize::M;
+/// The next Line shows small under the current one.
+pub const SHOW_NEXT_LINE_DEFAULT: bool = true;
+/// The least frosted the lane panels go, in percent.
+pub const LANE_FROSTING_MIN_PERCENT: u8 = 40;
+/// The most frosted the lane panels go, in percent.
+pub const LANE_FROSTING_MAX_PERCENT: u8 = 90;
+/// One step of the lane frosting, in percent.
+pub const LANE_FROSTING_STEP_PERCENT: u8 = 10;
+/// #55's frosting, off the 10 % steps: it is kept as the default.
+pub const LANE_FROSTING_DEFAULT_PERCENT: u8 = 66;
+
+/// How large the lyric bar's text is. `xl` is 1.5 × `m`; the bar grows
+/// upward, and the lanes move up rather than be covered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum LyricSize {
+    S,
+    #[default]
+    M,
+    L,
+    Xl,
+}
 
 fn starting_difficulty_default() -> Difficulty {
     STARTING_DIFFICULTY_DEFAULT
@@ -61,6 +86,15 @@ fn preview_volume_default() -> u8 {
 }
 fn skip_intros_default() -> bool {
     SKIP_INTROS_DEFAULT
+}
+fn lyric_size_default() -> LyricSize {
+    LYRIC_SIZE_DEFAULT
+}
+fn show_next_line_default() -> bool {
+    SHOW_NEXT_LINE_DEFAULT
+}
+fn lane_frosting_default() -> u8 {
+    LANE_FROSTING_DEFAULT_PERCENT
 }
 
 /// The Stage options: the body of `GET /api/stage-options` and of
@@ -98,6 +132,17 @@ pub struct StageOptions {
     /// starts there too.
     #[serde(default = "skip_intros_default")]
     pub skip_intros: bool,
+    /// How large the lyric bar's text is, `s` to `xl`.
+    #[serde(default = "lyric_size_default")]
+    pub lyric_size: LyricSize,
+    /// Whether the next Line shows small under the current one (never in a
+    /// duet, which shows both Voices' current Lines).
+    #[serde(default = "show_next_line_default")]
+    pub show_next_line: bool,
+    /// How opaque the lane panels' white frosting is: 66 %, or 40 to 90 %
+    /// in 10 % steps.
+    #[serde(default = "lane_frosting_default")]
+    pub lane_frosting_percent: u8,
 }
 
 /// How much the sing screen celebrates. Sent as `"off"`, `"calm"` or
@@ -154,6 +199,9 @@ impl Default for StageOptions {
             song_video: SONG_VIDEO_DEFAULT,
             preview_volume_percent: PREVIEW_VOLUME_DEFAULT_PERCENT,
             skip_intros: SKIP_INTROS_DEFAULT,
+            lyric_size: LYRIC_SIZE_DEFAULT,
+            show_next_line: SHOW_NEXT_LINE_DEFAULT,
+            lane_frosting_percent: LANE_FROSTING_DEFAULT_PERCENT,
         }
     }
 }
@@ -166,6 +214,12 @@ impl StageOptions {
             && self
                 .preview_volume_percent
                 .is_multiple_of(PREVIEW_VOLUME_STEP_PERCENT)
+            && (self.lane_frosting_percent == LANE_FROSTING_DEFAULT_PERCENT
+                || ((LANE_FROSTING_MIN_PERCENT..=LANE_FROSTING_MAX_PERCENT)
+                    .contains(&self.lane_frosting_percent)
+                    && self
+                        .lane_frosting_percent
+                        .is_multiple_of(LANE_FROSTING_STEP_PERCENT)))
     }
 }
 
@@ -186,6 +240,47 @@ mod tests {
                 ..StageOptions::default()
             }
         );
+    }
+
+    #[test]
+    fn a_v1_row_loads_with_the_new_options_at_their_defaults() {
+        let v1 = r#"{"startingDifficulty":"medium","resumeCountdownSeconds":3,"lineRatings":true,"effects":true,"songVideo":true,"previewVolumePercent":100}"#;
+        let read: StageOptions = serde_json::from_str(v1).unwrap();
+        assert_eq!(read, StageOptions::default());
+        assert_eq!(read.lyric_size, LyricSize::M);
+        assert!(read.show_next_line);
+        assert_eq!(read.lane_frosting_percent, 66);
+    }
+
+    #[test]
+    fn the_lane_frosting_is_its_default_or_40_to_90_in_tens() {
+        for percent in [40, 50, 60, 66, 70, 80, 90] {
+            let options = StageOptions {
+                lane_frosting_percent: percent,
+                ..StageOptions::default()
+            };
+            assert!(options.is_valid(), "{percent}");
+        }
+        for percent in [0, 30, 35, 45, 65, 67, 95, 100] {
+            let options = StageOptions {
+                lane_frosting_percent: percent,
+                ..StageOptions::default()
+            };
+            assert!(!options.is_valid(), "{percent}");
+        }
+    }
+
+    #[test]
+    fn a_lyric_size_is_sent_as_its_letter() {
+        for (size, text) in [
+            (LyricSize::S, "s"),
+            (LyricSize::M, "m"),
+            (LyricSize::L, "l"),
+            (LyricSize::Xl, "xl"),
+        ] {
+            assert_eq!(serde_json::to_value(size).unwrap(), text);
+        }
+        assert!(serde_json::from_str::<StageOptions>(r#"{"lyricSize":"xxl"}"#).is_err());
     }
 
     #[test]
@@ -263,6 +358,9 @@ mod tests {
                 "songVideo": true,
                 "previewVolumePercent": 100,
                 "skipIntros": false,
+                "lyricSize": "m",
+                "showNextLine": true,
+                "laneFrostingPercent": 66,
             })
         );
     }

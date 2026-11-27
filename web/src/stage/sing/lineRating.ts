@@ -19,7 +19,8 @@ import { EFFECTS } from "../../stageOptions/effects";
 import type { PaletteKey } from "../../theme/tokens";
 import { confettiBurst, MAX_FRAME_DELTA } from "./effects";
 import type { DrawList, SingLane, SingState } from "./frame";
-import { laneLayout, MAX_LANES, type LaneLayout } from "./laneLayout";
+import { MAX_LANES, type LaneLayout } from "./laneLayout";
+import { singLayout } from "./singLook";
 
 /** One showing Line rating, as the DOM writer places it. */
 export interface LineRatingEntry {
@@ -163,7 +164,7 @@ export function lineEnded(
   )
     return;
   const player = state.lanes[lane];
-  const rect = laneLayout(state.lanes.length)[lane];
+  const rect = singLayout(state)[lane];
   if (!player || !rect) return;
   confettiBurst(
     state.effects,

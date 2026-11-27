@@ -22,8 +22,9 @@ import { PALETTE_KEYS, type PaletteKey } from "../../theme/tokens";
 import type { SingTestCase } from "../../singTest/search";
 import { confettiBurst, EFFECTS_CAPACITY, ParticlePool } from "./effects";
 import { singVoices, type SingState } from "./frame";
-import { laneLayout } from "./laneLayout";
+import type { LyricSize } from "../../generated/LyricSize";
 import { LineRatings } from "./lineRating";
+import { DEFAULT_SING_LOOK, singLayout, type SingLook } from "./singLook";
 
 /** How long the synthetic Line ratings have been showing, seconds. */
 const RATING_AGE = 0.6;
@@ -42,9 +43,12 @@ function ratings(): LineRatings {
 const BURST_AGE = 0.12;
 
 /** A seeded confetti burst from the first lane header, `BURST_AGE` old. */
-function burst(lanes: number, colour: PaletteKey): ParticlePool {
+function burst(
+  state: Pick<SingState, "lanes" | "voices" | "look">,
+  colour: PaletteKey,
+): ParticlePool {
   const pool = new ParticlePool(EFFECTS_CAPACITY, { seed: 134 });
-  const rect = laneLayout(lanes)[0];
+  const rect = singLayout(state)[0];
   if (rect) {
     confettiBurst(
       pool,
@@ -166,7 +170,11 @@ function player(i: number) {
   };
 }
 
-export function syntheticSing(name: SingTestCase): SingState {
+/** Case `name` at Lyric size `lyricSize`, the other options at their defaults. */
+export function syntheticSing(
+  name: SingTestCase,
+  lyricSize: LyricSize = "m",
+): SingState {
   // Only the duet has a second Voice, so only its headers carry "· V1".
   const voices = singVoices({
     voices:
@@ -175,9 +183,11 @@ export function syntheticSing(name: SingTestCase): SingState {
         : [{ lines: voice(0, 0) }],
   });
   const lanes = LANES[name];
-  return {
+  const look: SingLook = { ...DEFAULT_SING_LOOK, lyricSize };
+  const state: SingState = {
     grid: GRID,
     voices,
+    look,
     lanes: lanes.map((v, i) => ({
       colour: PALETTE_KEYS[i] ?? "cherry",
       voice: v,
@@ -189,7 +199,7 @@ export function syntheticSing(name: SingTestCase): SingState {
         lostAt: name === "four" && i === lanes.length - 1 ? 5.6 : null,
       },
     })),
-    effects: burst(lanes.length, PALETTE_KEYS[0]),
     ratings: ratings(),
   };
+  return { ...state, effects: burst(state, PALETTE_KEYS[0]) };
 }

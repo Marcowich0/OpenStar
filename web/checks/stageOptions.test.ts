@@ -41,9 +41,17 @@ describe("the Stage options", () => {
         songVideo: bool("SONG_VIDEO_DEFAULT"),
         previewVolumePercent: number("PREVIEW_VOLUME_DEFAULT_PERCENT"),
         skipIntros: bool("SKIP_INTROS_DEFAULT"),
+        lyricSize: variant("LYRIC_SIZE_DEFAULT", "LyricSize"),
+        showNextLine: bool("SHOW_NEXT_LINE_DEFAULT"),
+        laneFrostingPercent: number("LANE_FROSTING_DEFAULT_PERCENT"),
       },
       resumeCountdownMaxSeconds: number("RESUME_COUNTDOWN_MAX_SECONDS"),
       previewVolumeStepPercent: number("PREVIEW_VOLUME_STEP_PERCENT"),
+      laneFrosting: {
+        min: number("LANE_FROSTING_MIN_PERCENT"),
+        max: number("LANE_FROSTING_MAX_PERCENT"),
+        step: number("LANE_FROSTING_STEP_PERCENT"),
+      },
     });
   });
 });

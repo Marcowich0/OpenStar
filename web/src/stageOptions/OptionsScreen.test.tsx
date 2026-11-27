@@ -72,11 +72,21 @@ describe("Setup › Options", () => {
   it("shows every option in its group with an explanation, at the defaults", async () => {
     await setup();
     openAdvanced("sound");
+    openAdvanced("look");
+    openAdvanced("singScreen");
     for (const [group, ids] of [
       ["options-players", ["startingDifficulty"]],
+      ["options-look", ["laneFrostingPercent"]],
       [
         "options-singScreen",
-        ["lineRatings", "effects", "songVideo", "skipIntros"],
+        [
+          "lyricSize",
+          "lineRatings",
+          "effects",
+          "songVideo",
+          "skipIntros",
+          "showNextLine",
+        ],
       ],
       ["options-sound", ["previewVolumePercent", "resumeCountdownSeconds"]],
     ] as const) {
@@ -99,6 +109,15 @@ describe("Setup › Options", () => {
     ).toBe("true");
     expect(row("resumeCountdownSeconds").getByText("3 seconds")).toBeTruthy();
     expect(row("previewVolumePercent").getByText("100 %")).toBeTruthy();
+    expect(
+      row("lyricSize")
+        .getByRole("button", { name: "M" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      row("showNextLine").getByRole("switch").getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(row("laneFrostingPercent").getByText("66 %")).toBeTruthy();
     expect(
       row("lineRatings").getByText(/The Line bonus counts either way/),
     ).toBeTruthy();
@@ -162,6 +181,52 @@ describe("Setup › Options", () => {
     );
     await settle();
     expect(s.puts.at(-1)?.previewVolumePercent).toBe(90);
+  });
+
+  it("picks a Lyric size and switches the next Line off, under Sing screen › Advanced", async () => {
+    const s = await setup();
+    const sizes = row("lyricSize").getAllByRole("button", { pressed: false });
+    expect(sizes.map((b) => b.textContent)).toEqual(["S", "L", "XL"]);
+    fireEvent.click(row("lyricSize").getByRole("button", { name: "XL" }));
+    await settle();
+    expect(s.puts.at(-1)).toEqual({
+      ...defaultStageOptions(),
+      lyricSize: "xl",
+    });
+    expect(document.querySelector('[data-option="showNextLine"]')).toBeNull();
+    openAdvanced("singScreen");
+    fireEvent.click(row("showNextLine").getByRole("switch"));
+    await settle();
+    expect(s.puts.at(-1)).toEqual({
+      ...defaultStageOptions(),
+      lyricSize: "xl",
+      showNextLine: false,
+    });
+  });
+
+  it("steps the Lane frosting from its default onto the 10s, within 40 to 90 %", async () => {
+    const s = await setup();
+    openAdvanced("look");
+    const frosting = row("laneFrostingPercent");
+    fireEvent.click(frosting.getByRole("button", { name: /up$/ }));
+    await settle();
+    expect(s.puts.at(-1)?.laneFrostingPercent).toBe(70);
+    fireEvent.click(resetOf("laneFrostingPercent"));
+    await settle();
+    fireEvent.click(frosting.getByRole("button", { name: /down$/ }));
+    await settle();
+    expect(s.puts.at(-1)?.laneFrostingPercent).toBe(60);
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(frosting.getByRole("button", { name: /down$/ }));
+      await settle();
+    }
+    expect(s.puts.at(-1)?.laneFrostingPercent).toBe(40);
+    expect(frosting.getByText("40 %")).toBeTruthy();
+    expect(
+      frosting
+        .getByRole("button", { name: /down$/ })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
   });
 
   it("keeps the Stage's holder filled, and refetches on a change notice", async () => {

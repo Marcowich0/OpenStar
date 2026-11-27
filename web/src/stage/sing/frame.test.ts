@@ -14,6 +14,7 @@ import {
 import { confettiBurst, ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 import { LineRatings } from "./lineRating";
+import { singLayout, type SingLook } from "./singLook";
 
 // One Beat lasts 0.5 s (beatsPerMinute is the real rate, #BPM × 4); Beat 0
 // falls at 1 s. Beat b starts at Song time 1 + b / 2.
@@ -111,6 +112,7 @@ describe("frame", () => {
         notesX: 320,
         radius: 40,
         colour: "cherry",
+        fill: { colour: "--color-white", alpha: 0.66 },
         lost: null,
         separator: {
           x: 318,
@@ -522,6 +524,9 @@ describe("frame", () => {
           case "lineRating":
             colours.push(entry.colour);
             break;
+          case "lyricBar":
+            colours.push(entry.fill.colour);
+            break;
           case "laneEnd":
             break;
         }
@@ -533,6 +538,131 @@ describe("frame", () => {
       expect(isPaletteKey(colour) || known.has(colour), String(colour)).toBe(
         true,
       );
+    }
+  });
+});
+
+describe("the lyric bar and the lane frosting (Stage options)", () => {
+  const look = (change: Partial<SingLook>): SingLook => ({
+    lyricSize: "m",
+    showNextLine: true,
+    laneFrostingPercent: 66,
+    ...change,
+  });
+  const players = (count: number) =>
+    Array.from({ length: count }, () => ({
+      colour: "cherry" as const,
+      voice: 0,
+    }));
+  function drawn(s: SingState) {
+    const list = frame(s, 3, singLayout(s));
+    const bar = list.find((e) => e.type === "lyricBar");
+    if (!bar) throw new Error("no lyric bar");
+    const lanes = list.filter((e) => e.type === "lane");
+    return { bar, lanes };
+  }
+
+  it("sizes the lyric bar by Lyric size, xl 1.5 × m, growing upward from 34 px above the bottom", () => {
+    // #55's m: a 78 px Line and a 36 px next Line, line height 1.1, and
+    // 10 + 16 px of padding.
+    const sizes = [
+      ["s", 62.4, 28.8, 126.32],
+      ["m", 78, 36, 151.4],
+      ["l", 97.5, 45, 182.75],
+      ["xl", 117, 54, 214.1],
+    ] as const;
+    for (const [lyricSize, line, next, height] of sizes) {
+      const { bar } = drawn({ ...solo, look: look({ lyricSize }) });
+      expect(bar.lineSize, lyricSize).toBeCloseTo(line);
+      expect(bar.nextSize, lyricSize).toBeCloseTo(next);
+      expect(bar.height, lyricSize).toBeCloseTo(height);
+      expect(bar.bottom, lyricSize).toBe(1046);
+      expect(bar.top, lyricSize).toBeCloseTo(1046 - height);
+    }
+  });
+
+  it("draws the lyric bar at m with the next Line when the state has no look", () => {
+    expect(drawn(solo).bar).toMatchObject({ lineSize: 78, nextSize: 36 });
+  });
+
+  it("leaves the next Line out when Show next Line is off, and the bar is shorter", () => {
+    const { bar } = drawn({ ...solo, look: look({ showNextLine: false }) });
+    expect(bar.nextSize).toBeNull();
+    expect(bar.height).toBeCloseTo(111.8);
+  });
+
+  it("shows no next Line in a duet, whose two current Lines are 60 px at m", () => {
+    const duet = state(
+      [
+        { colour: "cherry", voice: 0 },
+        { colour: "grape", voice: 1 },
+      ],
+      [notes, notes],
+    );
+    const { bar } = drawn(duet);
+    expect(bar).toMatchObject({ lineSize: 60, lines: 2, nextSize: null });
+    expect(bar.height).toBeCloseTo(158);
+  });
+
+  it("fills the lane panels with white at the Lane frosting's alpha", () => {
+    for (const [laneFrostingPercent, alpha] of [
+      [40, 0.4],
+      [66, 0.66],
+      [90, 0.9],
+    ] as const) {
+      const { lanes } = drawn({
+        ...state(players(2)),
+        look: look({ laneFrostingPercent }),
+      });
+      for (const lane of lanes) {
+        expect(lane.fill).toEqual({ colour: "--color-white", alpha });
+      }
+    }
+  });
+
+  it("keeps the lanes where they are at m and s, whatever the Players", () => {
+    for (const lyricSize of ["s", "m"] as const) {
+      for (const count of [1, 2, 4, 8]) {
+        const s = { ...state(players(count)), look: look({ lyricSize }) };
+        expect(singLayout(s)).toEqual(laneLayout(count));
+      }
+    }
+  });
+
+  it("at 4 Players and xl, moves the lanes up above the lyric bar, keeping their heights and gaps", () => {
+    const s = { ...state(players(4)), look: look({ lyricSize: "xl" }) };
+    const { bar, lanes } = drawn(s);
+    expect(lanes).toHaveLength(4);
+    const m = laneLayout(4);
+    const top = lanes[0]?.y ?? 0;
+    lanes.forEach((lane, i) => {
+      expect(lane.y + lane.height, `lane ${String(i)}`).toBeLessThanOrEqual(
+        bar.top,
+      );
+      expect(lane.height).toBe(m[i]?.height);
+      expect(lane.y - top).toBe((m[i]?.y ?? 0) - (m[0]?.y ?? 0));
+    });
+    // Moved up, but still clear of the progress bar along the top.
+    expect(top).toBeLessThan(m[0]?.y ?? 0);
+    expect(top).toBeGreaterThan(40);
+  });
+
+  it("keeps every lane clear of the lyric bar at every size, Player count and duet", () => {
+    for (const lyricSize of ["s", "m", "l", "xl"] as const) {
+      for (const showNextLine of [true, false]) {
+        for (const count of [1, 2, 3, 4, 5, 8]) {
+          for (const voices of [[notes], [notes, notes]]) {
+            const s = {
+              ...state(players(count), voices),
+              look: look({ lyricSize, showNextLine }),
+            };
+            const { bar, lanes } = drawn(s);
+            for (const lane of lanes) {
+              expect(lane.y + lane.height).toBeLessThanOrEqual(bar.top);
+            }
+          }
+        }
+      }
     }
   });
 });

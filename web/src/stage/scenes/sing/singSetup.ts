@@ -31,6 +31,7 @@ import { EFFECTS } from "../../../stageOptions/effects";
 import type { PaletteKey } from "../../../theme/tokens";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
+import type { SingLook } from "../../sing/singLook";
 import {
   singVoices,
   type LanePlayer,
@@ -72,10 +73,11 @@ export interface SingSetupInput {
   volume?: number;
   /**
    * How much the sing screen celebrates (Effects: confetti, sparkles,
-   * motion) and whether it shows Line rating words. By default the Stage
-   * options as they are now.
+   * motion), whether it shows Line rating words, and its look (Lyric size,
+   * Show next Line, Lane frosting). By default the Stage options as they
+   * are now.
    */
-  display?: Pick<StageOptions, "effects" | "lineRatings">;
+  display?: Pick<StageOptions, "effects" | "lineRatings" | keyof SingLook>;
   /**
    * What is stored for a seated Mic at the current Stage output
    * (`undefined`: its defaults). By default the Stage's loaded values,
@@ -178,6 +180,11 @@ export function singSetup(input: SingSetupInput): SingSetup {
       grid: song.headers,
       voices,
       lengthSeconds: detail.lengthSeconds,
+      look: {
+        lyricSize: display.lyricSize,
+        showNextLine: display.showNextLine,
+        laneFrostingPercent: display.laneFrostingPercent,
+      },
       effectsMode: display.effects,
       // Calm still sparkles, so only Off goes without particles.
       ...(EFFECTS.sparkles(display.effects)

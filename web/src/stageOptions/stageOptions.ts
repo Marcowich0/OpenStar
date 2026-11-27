@@ -35,9 +35,14 @@ export const STAGE_OPTIONS = {
     songVideo: true,
     previewVolumePercent: 100,
     skipIntros: false,
+    lyricSize: "m",
+    showNextLine: true,
+    laneFrostingPercent: 66,
   } satisfies StageOptions,
   resumeCountdownMaxSeconds: 5,
   previewVolumeStepPercent: 10,
+  /** 40 to 90 % in 10s; the default, 66, is off the steps. */
+  laneFrosting: { min: 40, max: 90, step: 10 },
 } as const;
 
 /** The defaults, as a fresh `StageOptions`. */

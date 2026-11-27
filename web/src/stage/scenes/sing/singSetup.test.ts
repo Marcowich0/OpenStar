@@ -6,6 +6,7 @@ import {
   type StoredMicSettings,
 } from "../../../mics/micSettings";
 import { stageMicSettings } from "../../../mics/stageMicSettings";
+import { STAGE_OPTIONS } from "../../../stageOptions/stageOptions";
 import { singSetup } from "./singSetup";
 import {
   LEO_SEAT,
@@ -71,11 +72,45 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       detail: testDetail(),
       party,
       profiles: PROFILES,
-      display: { effects: "off", lineRatings: false },
+      display: {
+        ...STAGE_OPTIONS.defaults,
+        effects: "off",
+        lineRatings: false,
+      },
     });
     const bare = hidden.state([new PitchBuffer(8)]);
     expect(bare.effects).toBeUndefined();
     expect(bare.ratings).toBeUndefined();
+  });
+
+  it("gives the sing screen the Lyric size, Show next Line and Lane frosting options of Start", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const plain = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+    });
+    expect(plain.state([new PitchBuffer(8)]).look).toEqual({
+      lyricSize: "m",
+      showNextLine: true,
+      laneFrostingPercent: 66,
+    });
+    const set = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+      display: {
+        ...STAGE_OPTIONS.defaults,
+        lyricSize: "xl",
+        showNextLine: false,
+        laneFrostingPercent: 40,
+      },
+    });
+    expect(set.state([new PitchBuffer(8)]).look).toEqual({
+      lyricSize: "xl",
+      showNextLine: false,
+      laneFrostingPercent: 40,
+    });
   });
 
   it("keeps a particle pool for sparkles with Effects calm or full, and carries the Effects into the state", () => {
@@ -85,7 +120,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
         detail: testDetail(),
         party,
         profiles: PROFILES,
-        display: { effects, lineRatings: true },
+        display: { ...STAGE_OPTIONS.defaults, effects, lineRatings: true },
       }).state([new PitchBuffer(8)]);
       expect(state.effectsMode, effects).toBe(effects);
       expect(state.effects !== undefined, effects).toBe(effects !== "off");

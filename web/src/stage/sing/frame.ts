@@ -21,6 +21,14 @@ import { EFFECTS, type Effects } from "../../stageOptions/effects";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { LaneLayout } from "./laneLayout";
 import {
+  DEFAULT_SING_LOOK,
+  laneFill,
+  lyricBarBox,
+  type LyricBarBox,
+  type SingLook,
+  type SurfaceFill,
+} from "./singLook";
+import {
   noteIndex,
   traceLane,
   type HeadBallEntry,
@@ -105,6 +113,12 @@ export interface SingState {
    * them.
    */
   ratings?: LineRatings;
+  /**
+   * The lyric bar's size and next Line and the lanes' frosting, from the
+   * Stage options at the Song's Start; none: `DEFAULT_SING_LOOK`. Lay the
+   * lanes out with `singLayout(state)`, which docks them above the bar.
+   */
+  look?: SingLook;
 }
 
 /** A parsed Song's Voices, flattened once for drawing (not per frame). */
@@ -153,6 +167,11 @@ export interface LaneEntry {
   /** The lane panel's corner radius; the Notes are clipped to its shape. */
   radius: number;
   colour: PaletteKey;
+  /**
+   * The lane panel's frosting, the Lane frosting option. The panel is DOM
+   * (`LanePanels`, for the backdrop blur), which reads the same `laneFill`.
+   */
+  fill: SurfaceFill;
   /** The lane's Mic is lost: the lane is greyed over its panel. */
   lost: LostStyle | null;
   /** The thin vertical line just left of the Notes area. */
@@ -281,6 +300,14 @@ export interface LyricEntry {
 
 export type LyricColour = PaletteKey | "--color-slate";
 
+/**
+ * The lyric bar's box at its tallest (DOM, not the canvas: `LyricBar` reads
+ * the same `lyricBarBox`). The lanes stay above `top`.
+ */
+export interface LyricBarEntry extends LyricBarBox {
+  type: "lyricBar";
+}
+
 /** Ends the clip a `lane` entry started. */
 export interface LaneEndEntry {
   type: "laneEnd";
@@ -297,6 +324,7 @@ export type DrawEntry =
   | HeadBallEntry
   | LaneEndEntry
   | LyricEntry
+  | LyricBarEntry
   | LineRatingEntry
   | ParticleEntry;
 export type DrawList = DrawEntry[];
@@ -434,6 +462,8 @@ export function frame(
   const now = beatPosition(state.grid, songTime);
   const lanes = Math.min(state.lanes.length, layout.length);
   const length = songLength(state);
+  const look = state.look ?? DEFAULT_SING_LOOK;
+  const fill = laneFill(look);
   const motion = EFFECTS.screenMotion(state.effectsMode ?? "full");
   list.push({
     type: "progress",
@@ -465,6 +495,7 @@ export function frame(
       notesX: rect.notesX,
       radius,
       colour: player.colour,
+      fill,
       lost: lost ? { colour: "--color-slate", alpha: 0.55, radius } : null,
       separator: {
         x: rect.notesX - SEPARATOR_WIDTH,
@@ -593,6 +624,10 @@ export function frame(
     }
     list.push({ type: "laneEnd", lane });
   }
+  list.push({
+    type: "lyricBar",
+    ...lyricBarBox(look, state.voices.length),
+  });
   lyricFill(list, state, now);
   state.ratings?.draw(list, state.lanes, layout, motion);
   // Last: the painter draws these on the effects canvas, above the DOM layers.

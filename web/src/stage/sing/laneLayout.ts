@@ -47,7 +47,10 @@ export const DEFAULT_NOTE_SPEED: NoteSpeed = "normal";
 /** One lane per Player, in Player order. */
 export type LaneLayout = readonly LaneRect[];
 
-/** The bottom of the lowest lane: the singing block docks above the lyric bar. */
+/**
+ * The bottom of the lowest lane at #55's lyric bar: the singing block docks
+ * above it. A larger lyric bar docks it higher (`lanesBottom` in `singLook`).
+ */
 export const LANES_BOTTOM = 872;
 /** Vertical space between lanes. */
 export const LANE_GAP = 10;
@@ -72,19 +75,25 @@ const TWO_COLUMNS = {
  */
 const TWO_COLUMN_SCALE = 34 / 44;
 
-/** The top of row `row` of `rows` rows of height `height`, docked at the bottom. */
-function rowTop(row: number, rows: number, height: number): number {
-  return LANES_BOTTOM - height - (rows - 1 - row) * (height + LANE_GAP);
+/** The top of row `row` of `rows` rows of height `height`, docked at `bottom`. */
+function rowTop(
+  row: number,
+  rows: number,
+  height: number,
+  bottom: number,
+): number {
+  return bottom - height - (rows - 1 - row) * (height + LANE_GAP);
 }
 
 /**
  * The lanes for `players` Players: one column for 1 to 4, two columns for 5
  * to 8 (Players 1 to 4 on the left, the rest on the right, row by row), with
- * the Notes scrolling at `speed`.
+ * the Notes scrolling at `speed`, the lowest lane ending at `bottom`.
  */
 export function laneLayout(
   players: number,
   speed: NoteSpeed = DEFAULT_NOTE_SPEED,
+  bottom: number = LANES_BOTTOM,
 ): LaneLayout {
   if (!Number.isInteger(players) || players < 0 || players > MAX_LANES) {
     throw new RangeError(`no lane layout for ${String(players)} Players`);
@@ -98,7 +107,7 @@ export function laneLayout(
     for (let i = 0; i < players; i++) {
       lanes.push({
         x: ONE_COLUMN.x,
-        y: rowTop(i, players, height),
+        y: rowTop(i, players, height, bottom),
         width: ONE_COLUMN.width,
         height,
         notesX: ONE_COLUMN.notes,
@@ -114,7 +123,7 @@ export function laneLayout(
     const columnX = TWO_COLUMNS.xs[i < ROWS ? 0 : 1];
     lanes.push({
       x: columnX,
-      y: rowTop(i % ROWS, ROWS, height),
+      y: rowTop(i % ROWS, ROWS, height, bottom),
       width: TWO_COLUMNS.width,
       height,
       notesX: columnX + TWO_COLUMNS.notes,

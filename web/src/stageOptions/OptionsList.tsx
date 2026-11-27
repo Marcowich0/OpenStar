@@ -19,6 +19,7 @@ import {
 } from "react";
 
 import type { Difficulty } from "../generated/Difficulty";
+import type { LyricSize } from "../generated/LyricSize";
 import type { Effects } from "../generated/Effects";
 import { t, type ArgsOf, type MessageKey } from "../i18n/t";
 import type { en } from "../i18n/en";
@@ -152,6 +153,7 @@ function stepperRow(
 }
 
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "medium", "hard"];
+const LYRIC_SIZES: readonly LyricSize[] = ["s", "m", "l", "xl"];
 const EFFECTS_VALUES: readonly Effects[] = ["off", "calm", "full"];
 
 /** Every option, in its group, in the order shown. */
@@ -174,12 +176,27 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
     id: "look",
     title: "options.group.look",
     rows: [],
-    advanced: [],
+    advanced: [
+      stepperRow(
+        "laneFrostingPercent",
+        "options.laneFrosting",
+        "options.laneFrosting.help",
+        STAGE_OPTIONS.laneFrosting,
+        (percent) => t("options.laneFrosting.value", { percent }),
+      ),
+    ],
   },
   {
     id: "singScreen",
     title: "options.group.singScreen",
     rows: [
+      choiceRow(
+        "lyricSize",
+        "options.lyricSize",
+        "options.lyricSize.help",
+        LYRIC_SIZES,
+        (size) => t(`options.lyricSize.${size}`),
+      ),
       switchRow(
         "lineRatings",
         "options.lineRatings",
@@ -195,7 +212,13 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
       switchRow("songVideo", "options.songVideo", "options.songVideo.help"),
       switchRow("skipIntros", "options.skipIntros", "options.skipIntros.help"),
     ],
-    advanced: [],
+    advanced: [
+      switchRow(
+        "showNextLine",
+        "options.showNextLine",
+        "options.showNextLine.help",
+      ),
+    ],
   },
   {
     id: "sound",
@@ -501,7 +524,10 @@ function SwitchControl({
 const STEP_BASE =
   "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white shadow-ledge-ink";
 
-/** A number within `min`..`max`, moved by `step` with − and +. */
+/**
+ * A number within `min`..`max`, moved by `step` with − and +. A value off the
+ * steps (a default such as 66 %) moves to the nearest step that way.
+ */
 function StepperControl({
   name,
   value,
@@ -523,7 +549,11 @@ function StepperControl({
   const stepClass = `${STEP_BASE} ${compact ? "size-12" : "size-14"}`;
   const iconClass = compact ? "size-6" : "size-7";
   const move = (by: number) => {
-    const next = Math.min(max, Math.max(min, value + by));
+    const onStep =
+      by > 0
+        ? Math.floor(value / step) * step + step
+        : Math.ceil(value / step) * step - step;
+    const next = Math.min(max, Math.max(min, onStep));
     if (next !== value) onSet(next);
   };
   return (

@@ -5,7 +5,8 @@ import { expect, STAGE_VIEWPORT, test } from "../fixtures";
 
 // The painter screenshots (#203). The canvas painter is checked only by these:
 // the sing screen painted from `frame()` on fixed synthetic state at a frozen
-// Song time, for 1, 4 and 8 Players and a duet.
+// Song time, for 1, 4 and 8 Players and a duet, and 4 Players at Lyric size
+// XL (the lanes moved up above the larger lyric bar).
 //
 // The page (`web/sing-test.html`) is a test build of its own, which `just e2e`
 // writes to e2e/generated/screenshot-page/ (`vite build --mode screenshots`).
@@ -27,10 +28,15 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 
 const CASES = [
-  { name: "one", label: "1 Player" },
-  { name: "four", label: "4 Players" },
-  { name: "eight", label: "8 Players" },
-  { name: "duet", label: "a duet" },
+  { name: "one", label: "1 Player", query: "case=one" },
+  { name: "four", label: "4 Players", query: "case=four" },
+  { name: "eight", label: "8 Players", query: "case=eight" },
+  { name: "duet", label: "a duet", query: "case=duet" },
+  {
+    name: "four-xl",
+    label: "4 Players at Lyric size XL",
+    query: "case=four&lyricSize=xl",
+  },
 ] as const;
 
 /** The frozen Song time every shot draws (a Note sits on the playhead). */
@@ -44,7 +50,7 @@ function pageFile(url: string): string | null {
   return file.startsWith(PAGE_DIR + "/") ? file : null;
 }
 
-for (const { name, label } of CASES) {
+for (const { name, label, query } of CASES) {
   test(`the painter draws the sing screen for ${label}`, async ({
     browser,
   }) => {
@@ -69,7 +75,7 @@ for (const { name, label } of CASES) {
     });
     const page = await context.newPage();
 
-    await page.goto(`/sing-test.html?case=${name}&t=${String(SONG_TIME)}`);
+    await page.goto(`/sing-test.html?${query}&t=${String(SONG_TIME)}`);
     await expect(page.locator("[data-sing-screen][data-painted]")).toHaveCount(
       1,
     );

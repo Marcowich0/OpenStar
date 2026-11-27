@@ -6,6 +6,7 @@ import { frame, singVoices, type DrawList, type SingState } from "./frame";
 import { ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 import { LineRatings } from "./lineRating";
+import { singLayout } from "./singLook";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
 import { SPARKLE_RATE } from "./effects";
 import { createRenderLoop } from "./renderLoop";
@@ -91,6 +92,22 @@ describe("the render loop", () => {
     };
     at(3);
     expect(painted[1]).toEqual(frame(current, 3, laneLayout(2)));
+  });
+
+  it("lays the lanes out above the lyric bar of the state's look", () => {
+    let current: SingState = {
+      ...state,
+      lanes: [...state.lanes, ...state.lanes, ...state.lanes, ...state.lanes],
+    };
+    const { at, painted } = setup({ state: () => current });
+    at(3);
+    current = {
+      ...current,
+      look: { lyricSize: "xl", showNextLine: true, laneFrostingPercent: 66 },
+    };
+    at(3);
+    expect(painted[1]).toEqual(frame(current, 3, singLayout(current)));
+    expect(painted[1]).not.toEqual(frame(current, 3, laneLayout(4)));
   });
 
   it("asks for each frame with the same callback, and stops on stop()", () => {

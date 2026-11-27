@@ -6,7 +6,7 @@
 
 use openstar::db::DATABASE_FILE;
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
-use openstar_protocol::stage_options::{Effects, StageOptions};
+use openstar_protocol::stage_options::{Effects, LyricSize, StageOptions};
 use openstar_protocol::{
     ChangeTopic, ClientMessage, Identity, JoinAs, NewGuest, PhoneId, ServerMessage, UserMessage,
 };
@@ -37,6 +37,9 @@ fn changed_options() -> StageOptions {
         song_video: false,
         preview_volume_percent: 40,
         skip_intros: true,
+        lyric_size: LyricSize::Xl,
+        show_next_line: false,
+        lane_frosting_percent: 40,
     }
 }
 
@@ -98,10 +101,15 @@ async fn a_set_kept_when_effects_was_a_switch_reads_on_as_full_and_keeps_the_res
             )
             .unwrap();
         app.restart().await;
+        // Options that did not exist yet read as their defaults.
+        let defaults = StageOptions::default();
         assert_eq!(
             read(&app).await,
             StageOptions {
                 effects,
+                lyric_size: defaults.lyric_size,
+                show_next_line: defaults.show_next_line,
+                lane_frosting_percent: defaults.lane_frosting_percent,
                 ..changed_options()
             }
         );
@@ -115,6 +123,9 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
         serde_json::json!({ "resumeCountdownSeconds": 6 }),
         serde_json::json!({ "previewVolumePercent": 110 }),
         serde_json::json!({ "previewVolumePercent": 45 }),
+        serde_json::json!({ "laneFrostingPercent": 35 }),
+        serde_json::json!({ "laneFrostingPercent": 65 }),
+        serde_json::json!({ "laneFrostingPercent": 95 }),
     ] {
         let response = put(&app, &refused).await;
         assert_eq!(
@@ -130,7 +141,31 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
     // A value Effects does not have does not read at all.
     let response = put(&app, &serde_json::json!({ "effects": "loud" })).await;
     assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    // Nor does a Lyric size it does not have.
+    let response = put(&app, &serde_json::json!({ "lyricSize": "xxl" })).await;
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(read(&app).await, StageOptions::default());
+}
+
+#[tokio::test]
+async fn a_v1_set_reads_with_the_new_options_at_their_defaults() {
+    let app = TestApp::start().await;
+    let v1 = serde_json::json!({
+        "startingDifficulty": "easy",
+        "resumeCountdownSeconds": 3,
+        "lineRatings": true,
+        "effects": true,
+        "songVideo": true,
+        "previewVolumePercent": 100,
+    });
+    assert_eq!(put(&app, &v1).await.status(), StatusCode::OK);
+    assert_eq!(
+        read(&app).await,
+        StageOptions {
+            starting_difficulty: Difficulty::Easy,
+            ..StageOptions::default()
+        }
+    );
 }
 
 #[tokio::test]
