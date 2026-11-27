@@ -127,7 +127,7 @@ function SongRow({ song, onOpen }: { song: SongSummary; onOpen: () => void }) {
     <li className="flex items-center gap-3">
       <Cover
         src={song.cover}
-        tileColour={song.tileColour}
+        song={song}
         rim={3}
         className="w-14"
       />

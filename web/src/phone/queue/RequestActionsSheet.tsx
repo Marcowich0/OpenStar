@@ -17,6 +17,7 @@ import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
 import { useLive } from "../../live/useLive";
 import { Cover } from "../../ui/Cover";
+import { coverSongOf } from "../../ui/generatedCover";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
 import { Sheet } from "../../ui/Sheet";
@@ -115,7 +116,7 @@ function SheetBody({
       <div className="flex items-center gap-3.5 pb-1">
         <Cover
           src={song?.media.cover ?? null}
-          tileColour={song?.media.tileColour ?? "teal"}
+          song={coverSongOf(song)}
           rim={3}
           className="w-14 shrink-0"
         />

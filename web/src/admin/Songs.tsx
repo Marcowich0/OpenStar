@@ -139,7 +139,7 @@ export function AdminSongRow({ song, children, below }: AdminSongRowProps) {
     <li className="flex min-w-0 flex-wrap items-center gap-3">
       <Cover
         src={song.cover}
-        tileColour={song.tileColour}
+        song={song}
         rim={3}
         className="w-14 shrink-0"
       />

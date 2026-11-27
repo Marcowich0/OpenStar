@@ -25,6 +25,7 @@ import { useLive } from "../../live/useLive";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
 import { Cover } from "../../ui/Cover";
+import { coverSongOf } from "../../ui/generatedCover";
 import { Icon } from "../../ui/Icon";
 import { Sheet } from "../../ui/Sheet";
 import { memberLook } from "../memberLook";
@@ -175,7 +176,7 @@ function SheetBody({
       <div className="flex items-center gap-3.5">
         <Cover
           src={song.data.media.cover}
-          tileColour={song.data.media.tileColour}
+          song={coverSongOf(song.data)}
           rim={3}
           className="w-21"
         />

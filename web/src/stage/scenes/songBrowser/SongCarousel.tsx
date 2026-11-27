@@ -139,7 +139,7 @@ export function SongCarousel({
             >
               <Cover
                 src={song.cover}
-                tileColour={song.tileColour}
+                song={song}
                 rim={CAROUSEL.rimPx}
                 className="size-full"
               >
