@@ -39,7 +39,7 @@ export function effectsOff(): boolean {
 export const DUCK_DB = -6;
 
 /** One layer of a sound, `at` seconds after it starts. */
-export type Voice =
+export type Layer =
   | {
       /** An oscillator, its pitch sliding from `hz` to `toHz`. */
       wave: OscillatorType;
@@ -93,7 +93,7 @@ const MENU = {
     { wave: "sine", hz: 1047, decay: 0.16, peak: 0.26 },
     { wave: "sine", hz: 1319, at: 0.075, decay: 0.22, peak: 0.26 },
   ],
-} as const satisfies Record<string, readonly Voice[]>;
+} as const satisfies Record<string, readonly Layer[]>;
 
 /** The game sounds (#262): the sing screen's big moments and the results. */
 const GAME = {
@@ -146,11 +146,11 @@ const GAME = {
     { wave: "sine", hz: 2637, at: 0.15, decay: 0.45, peak: 0.24 },
     { noise: "highpass", hz: 7000, at: 0.15, decay: 0.25, peak: 0.05 },
   ],
-} as const satisfies Record<string, readonly Voice[]>;
+} as const satisfies Record<string, readonly Layer[]>;
 
 /** Every sound's recipe, by name. */
 const SOUNDS: Readonly<
-  Record<keyof typeof MENU | keyof typeof GAME, readonly Voice[]>
+  Record<keyof typeof MENU | keyof typeof GAME, readonly Layer[]>
 > = { ...MENU, ...GAME };
 
 export type UiSoundName = keyof typeof SOUNDS;
@@ -189,7 +189,7 @@ export type UiSounds = { readonly [Name in UiSoundName]: () => void } & {
   setDucked(ducked: boolean): void;
 };
 
-/** Seconds of white noise kept for the noise voices; longer than any one. */
+/** Seconds of white noise kept for the noise layers; longer than any one. */
 const NOISE_SECONDS = 0.5;
 
 interface Made {
@@ -235,25 +235,25 @@ export function createUiSounds({
     return audio.noise;
   }
 
-  function playVoice(audio: Made, voice: Voice, start: number) {
+  function playLayer(audio: Made, layer: Layer, start: number) {
     const { context } = audio;
-    const attack = voice.attack ?? ATTACK;
-    const begin = start + (voice.at ?? 0);
-    const end = begin + attack + voice.decay;
+    const attack = layer.attack ?? ATTACK;
+    const begin = start + (layer.at ?? 0);
+    const end = begin + attack + layer.decay;
     const envelope = context.createGain();
     envelope.gain.setValueAtTime(0, begin);
-    envelope.gain.linearRampToValueAtTime(voice.peak, begin + attack);
+    envelope.gain.linearRampToValueAtTime(layer.peak, begin + attack);
     envelope.gain.linearRampToValueAtTime(0, end);
     envelope.connect(audio.ui);
 
     let source: AudioScheduledSourceNode;
     const nodes: AudioNode[] = [envelope];
-    if ("wave" in voice) {
+    if ("wave" in layer) {
       const osc = context.createOscillator();
-      osc.type = voice.wave;
-      osc.frequency.setValueAtTime(voice.hz, begin);
-      if (voice.toHz !== undefined) {
-        osc.frequency.exponentialRampToValueAtTime(voice.toHz, end);
+      osc.type = layer.wave;
+      osc.frequency.setValueAtTime(layer.hz, begin);
+      if (layer.toHz !== undefined) {
+        osc.frequency.exponentialRampToValueAtTime(layer.toHz, end);
       }
       osc.connect(envelope);
       source = osc;
@@ -261,8 +261,8 @@ export function createUiSounds({
       const noise = context.createBufferSource();
       noise.buffer = noiseBuffer(audio);
       const filter = context.createBiquadFilter();
-      filter.type = voice.noise;
-      filter.frequency.value = voice.hz;
+      filter.type = layer.noise;
+      filter.frequency.value = layer.hz;
       noise.connect(filter);
       filter.connect(envelope);
       nodes.push(filter);
@@ -282,7 +282,7 @@ export function createUiSounds({
     const audio = get();
     audio.ui.gain.value = uiGain();
     const start = audio.context.currentTime;
-    for (const voice of SOUNDS[name]) playVoice(audio, voice, start);
+    for (const layer of SOUNDS[name]) playLayer(audio, layer, start);
   }
 
   const named = Object.fromEntries(
