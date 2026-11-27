@@ -72,6 +72,15 @@ describe("the pause menu", () => {
     expect(onControl).toHaveBeenCalledExactlyOnceWith("resume");
   });
 
+  it.each(["BrowserBack", "GoBack", "Backspace"])(
+    "resumes on a TV remote's Back (%s)",
+    (back) => {
+      const { onControl } = setup();
+      key(back);
+      expect(onControl).toHaveBeenCalledExactlyOnceWith("resume");
+    },
+  );
+
   it.each([
     ["Restart", "restart"],
     ["Skip to the next Song", "skip"],
