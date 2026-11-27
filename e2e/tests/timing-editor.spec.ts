@@ -185,3 +185,51 @@ test("dragging empty space moves the whole Song and dragging a Line shifts it", 
     });
   await context.close();
 });
+
+// #257: at 1280×800 the shortcuts fold away and the Save bar is in view
+// without scrolling, also once the panel holds an edit and its preview.
+test("the Timing editor folds its keys away and keeps Save in view at 1280×800", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+  });
+  const page = await context.newPage();
+  await page.goto("/admin/songs");
+  await page.getByRole("link", { name: "Timing of Sine Melody" }).click();
+  const detail = page.getByRole("img", { name: /detail view/ });
+  await expect(detail).toHaveAttribute("data-pitch-track", "ready", {
+    timeout: 60_000,
+  });
+
+  const fold = page.getByRole("button", { name: "Keys and gestures" });
+  const dragHelp = page.getByText(/^Drag empty space: move the whole Song/);
+  await expect(fold).toHaveAttribute("aria-expanded", "false");
+  await expect(dragHelp).toBeHidden();
+  await page.keyboard.press("?");
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  await expect(dragHelp).toBeVisible();
+  await page.keyboard.press("?");
+  await expect(dragHelp).toBeHidden();
+
+  const gap = page.getByRole("textbox", { name: "#GAP (ms)" });
+  await gap.fill("1600");
+  await gap.press("Enter");
+  const bar = page.getByRole("group", { name: "Undo and Save" });
+  const section = bar.getByRole("region", { name: "What Save changes" });
+  await expect(section.getByRole("row")).toHaveCount(2);
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+  });
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(section.getByText("What Save changes")).toBeInViewport({
+    ratio: 1,
+  });
+  await expect(bar.getByRole("button", { name: "Save" })).toBeInViewport({
+    ratio: 1,
+  });
+  await expect(bar.getByRole("button", { name: "Undo" })).toBeInViewport({
+    ratio: 1,
+  });
+  await context.close();
+});

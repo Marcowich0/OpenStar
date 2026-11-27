@@ -1219,6 +1219,9 @@ export const en = {
     "Drag empty space: move the whole Song · double-click a Line: pin it, then drag far from it to stretch the tempo · click a Line to select it (Shift: a range), drag it to shift, drag ◀▶ to stretch · Alt-drag a Note: move it, or its right end: length",
   "timing.drag.keys":
     ", and .: nudge the Song by 10 ms (Shift 100 ms), or the selection by 1 beat (Shift 4) · [ and ]: tempo around the playhead · Esc: clear the selection",
+  // The fold under the views that holds the three lines above (#257).
+  "timing.keys.title": "Keys and gestures",
+  "timing.keys.shortcut": "?",
   // Checking by ear (#220): playback, speeds, clicks, hum, loop, A/V sync.
   "timing.play.section": "Playback",
   "timing.play.play": "Play",
@@ -1244,6 +1247,8 @@ export const en = {
   "timing.panel.undo": "Undo",
   "timing.panel.redo": "Redo",
   "timing.panel.backToTheFile": "Back to the file",
+  // The bar at the bottom of the side panel: Undo to Save (#257).
+  "timing.panel.saveBar": "Undo and Save",
   "timing.panel.keys":
     "Ctrl or Cmd + Z: undo · Ctrl or Cmd + Shift + Z or + Y: redo",
   "timing.panel.preview": "What Save changes",
