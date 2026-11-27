@@ -27,7 +27,6 @@ import { useMicThresholds } from "../../../mics/StageMicSettings";
 import { request } from "../../../phone/joinRequests";
 import { memberLook } from "../../../phone/memberLook";
 import { Button } from "../../../ui/Button";
-import { Cover } from "../../../ui/Cover";
 import { useStageFrame, useStageKeys } from "../../frame/stageFrameContext";
 import {
   localMicOptions,
@@ -40,6 +39,7 @@ import {
   type MicLabel,
   type MicLevels,
 } from "./lineUpView";
+import { LineUpHeader } from "./LineUpHeader";
 import { AddPlayerCard, SeatCard } from "./SeatCard";
 import { MicPickList, WhoPickList } from "./SeatPickLists";
 
@@ -205,22 +205,7 @@ function LineUpBody({
 
   return (
     <section className="relative flex h-full flex-col items-center">
-      <header className="mt-14 flex items-center gap-[26px]">
-        <Cover
-          src={head?.cover ?? null}
-          song={head ?? null}
-          rim={7}
-          className="w-[120px]"
-        />
-        <div>
-          <h1 className="text-[72px] leading-none font-bold">{head?.title}</h1>
-          <p className="mt-1.5 text-[32px] font-medium text-ink-2">
-            {head && lineUp.duet
-              ? t("stage.lineUp.artistDuet", { artist: head.artist })
-              : head?.artist}
-          </p>
-        </div>
-      </header>
+      <LineUpHeader song={head} duet={lineUp.duet} />
 
       {then.length > 0 && (
         <p className="absolute top-[140px] right-12 max-w-[520px] text-right text-[22px] leading-snug font-semibold text-ink-2">
