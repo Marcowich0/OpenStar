@@ -22,6 +22,13 @@ const HTTPS = joinAddress("https://openstar.example.org/", "http://10.0.0.5");
 const PLAIN = joinAddress(null, "http://10.0.0.5:8080");
 const LOCAL = joinAddress(null, "http://localhost:8080");
 
+function enter(element: Element) {
+  act(() => {
+    fireEvent.keyDown(element, { key: "Enter" });
+    fireEvent.keyUp(element, { key: "Enter" });
+  });
+}
+
 function press(element: Element) {
   act(() => {
     fireEvent.click(element);
@@ -57,10 +64,11 @@ describe("the join card", () => {
     ]);
     expect(screen.getByText("Go to openstar.example.org")).toBeVisible();
     expect(screen.getByText("Pick a song from your phone")).toBeVisible();
-    expect(screen.queryByText("Phones can't sing yet")).toBeNull();
+    expect(screen.queryByText(/secure address/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "For the owner" })).toBeNull();
   });
 
-  it("shows the plain-http warning in place of the QR code", () => {
+  it("says in one friendly line why Phones can't sing, with the plain-http detail folded for the owner", () => {
     render(
       <JoinCard
         joinCode="4821"
@@ -69,18 +77,28 @@ describe("the join card", () => {
       />,
     );
     expect(screen.queryByRole("img", { name: /QR code/ })).toBeNull();
-    expect(screen.getByText("Phones can't sing yet")).toBeVisible();
     expect(
-      screen.getByText(
-        "This Stage was opened over plain http://. Set up HTTPS (see the Caddy example), then reload.",
-      ),
+      screen.getByText("Phones need a secure address to sing. Ask the owner."),
     ).toBeVisible();
+    const fold = screen.getByRole("button", { name: "For the owner" });
+    expect(fold).toHaveAttribute("aria-expanded", "false");
+    const detail = screen.getByText(
+      "This Stage was opened over plain http://. Set up HTTPS (see the Caddy example), then reload.",
+    );
+    expect(detail).not.toBeVisible();
+    // The keyboard opens the fold: the Stage's Enter goes to the focused button.
+    act(() => {
+      fold.focus();
+    });
+    enter(fold);
+    expect(fold).toHaveAttribute("aria-expanded", "true");
+    expect(detail).toBeVisible();
     // The code and the address stay: typing them still reaches the server.
     expect(screen.getByTestId("party-join-code")).toHaveTextContent("4821");
     expect(screen.getByText("Go to 10.0.0.5:8080")).toBeVisible();
   });
 
-  it("shows the localhost warning instead when the join address is on localhost", () => {
+  it("folds the localhost detail instead when the join address is on localhost", () => {
     render(
       <JoinCard
         joinCode="4821"
@@ -89,13 +107,37 @@ describe("the join card", () => {
       />,
     );
     expect(screen.queryByRole("img", { name: /QR code/ })).toBeNull();
-    expect(screen.getByText("Phones can't sing yet")).toBeVisible();
     expect(
-      screen.getByText(
-        "Phones and other computers can't reach localhost. Set OPENSTAR_PUBLIC_URL to the server's HTTPS address.",
-      ),
+      screen.getByText("Phones need a secure address to sing. Ask the owner."),
     ).toBeVisible();
+    const detail = screen.getByText(
+      "Phones and other computers can't reach localhost. Set OPENSTAR_PUBLIC_URL to the server's HTTPS address.",
+    );
+    expect(detail).not.toBeVisible();
+    press(screen.getByRole("button", { name: "For the owner" }));
+    expect(detail).toBeVisible();
     expect(screen.queryByText(/plain http:\/\//)).toBeNull();
+  });
+
+  it("shows the friendly line at least 24 px, in a calm notice rather than a red dashed box", () => {
+    render(
+      <JoinCard
+        joinCode="4821"
+        join={PLAIN}
+        hideable={false}
+        layout="wide"
+        storage={memoryStorage().storage}
+      />,
+    );
+    const line = screen.getByText(
+      "Phones need a secure address to sing. Ask the owner.",
+    );
+    // The card is drawn in the 1920 × 1080 reference frame, so a reference px
+    // is a px at 1920 × 1080.
+    expect(line.className).toMatch(/text-\[(2[4-9]|[3-9]\d)px\]/);
+    const notice = line.closest("[data-join-warning]");
+    expect(notice).not.toBeNull();
+    expect(notice?.className).not.toMatch(/border-dashed|border-red/);
   });
 
   it("hides to a Join chip and opens again, remembered in the browser's storage", () => {

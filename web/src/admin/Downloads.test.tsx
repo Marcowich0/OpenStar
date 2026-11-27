@@ -211,6 +211,9 @@ describe("the Downloads section", () => {
     expect(text).toContain("OPENSTAR_USDB_USERNAME");
     expect(text).toContain("OPENSTAR_USDB_PASSWORD");
     expect(text).toContain("_FILE");
+    // The Admin area is the owner's: the full text, shown, with no fold.
+    expect(notices().querySelector("p")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "For the owner" })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Fetch the whole list again" }),
     ).toBeDisabled();
@@ -220,7 +223,10 @@ describe("the Downloads section", () => {
     usdbServer({ status: "loginFailed" });
     await renderLive((store) => <Downloads store={store} />);
 
-    expect(notices()).toHaveTextContent("USDB login failed");
+    expect(notices()).toHaveTextContent(
+      "USDB login failed. Check OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD, then restart OpenStar.",
+    );
+    expect(screen.queryByRole("button", { name: "For the owner" })).toBeNull();
   });
 
   it("shows the fill's progress and the songs mirrored so far, and follows the mirror's notices", async () => {

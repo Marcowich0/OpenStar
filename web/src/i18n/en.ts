@@ -393,6 +393,8 @@ export const en = {
   "live.stageMoved": "Another browser is the Stage now",
 
   // The Stage, the Mic bridge page and the Admin area.
+  // The fold that holds owner-only setup detail on the Stage (`ui/OwnerFold`).
+  "ownerFold.title": "For the owner",
   "stage.sing": "Sing!",
   "stage.start": "Start",
   "stage.volume": "Volume {volume, number}",
@@ -616,7 +618,10 @@ export const en = {
   "stage.joinCard.chip": "Join · {code}",
   // The chip when Phones can't reach a working join address (#250).
   "stage.joinCard.chipCantSing": "Join · {code} · Phones can't sing yet",
-  "stage.joinCard.cantSing": "Phones can't sing yet",
+  // The join card's line when Phones can't reach a working join address; the
+  // owner's detail (`.notHttps`, `.localhost`) is folded under "For the owner".
+  "stage.joinCard.needsSecureAddress":
+    "Phones need a secure address to sing. Ask the owner.",
   "stage.joinCard.notHttps":
     "This Stage was opened over plain http://. Set up HTTPS (see the Caddy example), then reload.",
   "stage.joinCard.localhost":
@@ -759,6 +764,9 @@ export const en = {
     "Make the file executable, write {address} into ~/.config/openstar-mic-bridge/server, then start it.",
   "bridge.uninstall": "To remove it again: openstar-mic-bridge --uninstall",
   "mics.addBridge": "Add a Mic bridge",
+  // Add a Mic bridge's line on the Stage; the guide is folded "For the owner".
+  "mics.addBridge.line":
+    "A Mic bridge brings every input of an audio interface to the Stage. Ask the owner to set one up.",
   "admin.title": "Admin",
   "admin.downloads": "Downloads",
   "admin.songs": "Songs",
@@ -789,6 +797,10 @@ export const en = {
   "admin.downloads.failed": "The USDB songs could not be loaded",
   "admin.downloads.credentialsMissing":
     "USDB is not set up. Set OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD to a USDB account (or OPENSTAR_USDB_USERNAME_FILE and OPENSTAR_USDB_PASSWORD_FILE for Docker secrets), then restart OpenStar.",
+  // The Stage's Downloads overlay says these; the text above is folded "For the owner".
+  "admin.downloads.stage.notSetUp": "Downloads aren't set up yet.",
+  "admin.downloads.stage.loginFailed":
+    "Downloads can't log in to USDB. Ask the owner.",
   "admin.downloads.checking": "Checking the USDB login…",
   "admin.downloads.loginFailed":
     "USDB login failed. Check OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD, then restart OpenStar.",
