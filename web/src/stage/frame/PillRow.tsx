@@ -1,5 +1,7 @@
-// The small pill row in the top right: Songs · Queue 4 · People 6 (live
+// The small pill row in the top right: Add songs · Queue 4 · People 6 (live
 // counts) and, on the song browser and the Line-up, Setup with its menu.
+// Add songs opens the Songs overlay; the song browser is a song list itself,
+// so it has no Add songs pill (`S` still opens the overlay there).
 
 import { useState } from "react";
 
@@ -26,7 +28,7 @@ const SETUP_ENTRIES = [
 ] as const satisfies readonly (readonly [OverlayId, string])[];
 
 export function PillRow({ setup }: { setup: boolean }) {
-  const { store, openOverlay } = useStageFrame();
+  const { store, scene, openOverlay } = useStageFrame();
   const party = useLive(selectParty, store);
   const [setupOpen, setSetupOpen] = useState(false);
   return (
@@ -35,15 +37,17 @@ export function PillRow({ setup }: { setup: boolean }) {
       className="pointer-events-auto absolute top-12 right-12 flex items-center gap-4"
       data-testid="pill-row"
     >
-      <button
-        type="button"
-        className={PILL}
-        onClick={() => {
-          openOverlay("songs");
-        }}
-      >
-        {t("stage.pill.songs")}
-      </button>
+      {scene !== "songBrowser" && (
+        <button
+          type="button"
+          className={PILL}
+          onClick={() => {
+            openOverlay("songs");
+          }}
+        >
+          {t("stage.pill.songs")}
+        </button>
+      )}
       <button
         type="button"
         className={PILL}

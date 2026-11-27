@@ -44,7 +44,7 @@ test("the Stage's People overlay lists the members, then the free colours, and r
   await joinAs(await openPhone(), code, ben);
 
   await stage.keyboard.press("p");
-  const people = stage.getByRole("dialog", { name: "Tonight's Party" });
+  const people = stage.getByRole("dialog", { name: "People" });
   await expect(people.getByText("2 of 12 colours taken")).toBeVisible();
   const cards = people
     .getByRole("list", { name: "Party members" })

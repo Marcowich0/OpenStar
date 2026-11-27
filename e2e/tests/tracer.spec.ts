@@ -30,7 +30,7 @@ test("the Stage and a Phone share one Party, and New party reaches both", async 
 
   // P opens People; New party needs a hold of Enter.
   await stage.keyboard.press("p");
-  const people = stage.getByRole("dialog", { name: "Tonight's Party" });
+  const people = stage.getByRole("dialog", { name: "People" });
   await expect(people).toBeVisible();
   await holdToConfirm(people.getByRole("button", { name: "New party" }));
   await expect(people.getByTestId("party-join-code")).not.toHaveText(
