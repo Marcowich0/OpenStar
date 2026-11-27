@@ -7,6 +7,7 @@ import { StageMicSettingsLoader } from "../mics/StageMicSettings";
 import { StageOptionsLoader } from "../stageOptions/useStageOptions";
 import { StageFrame } from "./frame/StageFrame";
 import { StageMicReports } from "./micDebug/StageMicReports";
+import { StageMotion } from "./StageMotion";
 import { StageOutputProvider } from "./output/StageOutput";
 import { StagePerfProvider } from "./perf/stagePerf";
 import { useStageSong } from "./scenes/sing/useStageSong";
@@ -37,6 +38,7 @@ export function StageScreen() {
           />
           <StageMicReports store={store} />
           <StageOptionsLoader />
+          <StageMotion />
           <LocalMicsProvider store={store}>
             <StageSoundsProvider store={store}>
               <StageFrame store={store} />

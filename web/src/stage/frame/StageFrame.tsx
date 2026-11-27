@@ -321,6 +321,37 @@ export function StageFrame({
     // topRoot reads refs only.
   }, []);
 
+  // The press squash for Enter (#260, `stageFrame.css`): the focused element
+  // is pressed while Enter is held down.
+  useEffect(() => {
+    let pressed: Element | null = null;
+    const release = () => {
+      pressed?.removeAttribute("data-stage-pressed");
+      pressed = null;
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" || event.repeat) return;
+      const active = document.activeElement;
+      release();
+      if (!active?.matches(FOCUSABLE) || !frameRef.current?.contains(active))
+        return;
+      pressed = active;
+      active.setAttribute("data-stage-pressed", "");
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Enter") release();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", release);
+    return () => {
+      release();
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", release);
+    };
+  }, []);
+
   const { component: Scene, fullScreen = false } = scenes[scene];
   const shownOverlay = rules.overlays ? overlay : null;
 
