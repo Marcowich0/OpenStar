@@ -146,19 +146,21 @@ export function FixButton({
   );
 }
 
-/** A red warning bubble with a pointer up to the card, and its fix. */
+/**
+ * A red warning bubble with a pointer up to the card, and its fix under the
+ * text: side by side, a bubble would be wider than a card and its gap, and
+ * touch the next seat's.
+ */
 function WarningBubble({ warning }: { warning: SeatWarning }) {
   const text = typeof warning === "string" ? warning : warning.text;
   return (
-    <div className="relative flex animate-pop-in items-center gap-4 rounded-[26px] bg-red px-[22px] py-2.5 text-center text-2xl font-bold whitespace-nowrap text-white shadow-[0_5px_0_var(--color-red-ledge)]">
+    <div className="relative flex animate-pop-in flex-col items-center gap-2.5 rounded-[26px] bg-red px-[22px] py-2.5 text-center text-2xl font-bold whitespace-nowrap text-white shadow-[0_5px_0_var(--color-red-ledge)]">
       <span
         aria-hidden="true"
         className="absolute -top-2 left-1/2 size-5 -translate-x-1/2 rotate-45 rounded-[3px] bg-red"
       />
       <p className="relative">{text}</p>
-      {typeof warning !== "string" && (
-        <FixButton fix={warning.fix} className="-mr-2.5" />
-      )}
+      {typeof warning !== "string" && <FixButton fix={warning.fix} />}
     </div>
   );
 }
