@@ -12,7 +12,7 @@
  *
  * To add an option: its field in `crates/protocol/src/stage_options.rs`, its
  * default and range in `STAGE_OPTIONS` below, and its row in
- * `OptionsScreen.tsx`.
+ * `OptionsList.tsx`.
  */
 
 import { queryOptions } from "@tanstack/react-query";

@@ -394,8 +394,11 @@ export const en = {
   // Setup › Options: the Stage options, each with its explanation and Reset.
   "options.hint": "Every change is saved at once and kept for every Party.",
   "options.group.players": "Players",
+  "options.group.look": "Look",
   "options.group.singScreen": "Sing screen",
-  "options.group.playback": "Sound and pauses",
+  "options.group.sound": "Sound",
+  "options.advanced": "Advanced",
+  "options.advanced.changed": "(changed)",
   "options.on": "On",
   "options.off": "Off",
   "options.reset": "Reset",

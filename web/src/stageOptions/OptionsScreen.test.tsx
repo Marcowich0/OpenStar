@@ -56,18 +56,26 @@ const row = (id: string) => {
 };
 const resetOf = (id: string) =>
   row(id).getByRole("button", { name: /^Reset .* to its default$/ });
+const openAdvanced = (group: string) => {
+  fireEvent.click(
+    within(screen.getByTestId(`options-${group}`)).getByRole("button", {
+      name: /^Advanced/,
+    }),
+  );
+};
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("Setup › Options", () => {
-  it("shows every option in its group with an explanation, at today's defaults", async () => {
+  it("shows every option in its group with an explanation, at the defaults", async () => {
     await setup();
+    openAdvanced("sound");
     for (const [group, ids] of [
       ["options-players", ["startingDifficulty"]],
       ["options-singScreen", ["lineRatings", "effects", "songVideo"]],
-      ["options-playback", ["resumeCountdownSeconds", "previewVolumePercent"]],
+      ["options-sound", ["previewVolumePercent", "resumeCountdownSeconds"]],
     ] as const) {
       const box = screen.getByTestId(group);
       for (const id of ids) {
@@ -130,6 +138,7 @@ describe("Setup › Options", () => {
       ...defaultStageOptions(),
       resumeCountdownSeconds: STAGE_OPTIONS.resumeCountdownMaxSeconds,
     });
+    openAdvanced("sound");
     const countdown = row("resumeCountdownSeconds");
     fireEvent.click(countdown.getByRole("button", { name: /up$/ }));
     await settle();
