@@ -178,7 +178,7 @@ test("a Request at the head shows its Line-up, edited from the Stage's keyboard"
     );
 
     // H leaves the waiting Line-up for the song browser; its Up next banner
-    // names the head's Song and the Browse songs pill comes back to it.
+    // names the head's Song and the ◀ Song browser pill comes back to it.
     await stage.keyboard.press("h");
     await expect(stage.locator("[data-stage-frame]")).toHaveAttribute(
       "data-scene",
@@ -191,7 +191,7 @@ test("a Request at the head shows its Line-up, edited from the Stage's keyboard"
       "data-scene",
       "lineUp",
     );
-    await stage.getByRole("button", { name: "Browse songs" }).click();
+    await stage.getByRole("button", { name: "◀ Song browser" }).click();
     await expect(upNext).toBeVisible();
     await stage.keyboard.press("h");
     await expect(card).toBeVisible();
