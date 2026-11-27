@@ -204,11 +204,15 @@ describe("the Mics screen", () => {
 
   it("offers Add a Mic bridge after the groups", () => {
     setup();
+    const dialog = openMicsScreen();
+    const guide = within(dialog).getByRole("region", {
+      name: "Add a Mic bridge",
+    });
+    const groups = within(dialog).getAllByRole("group");
+    const last = groups[groups.length - 1] as HTMLElement;
     expect(
-      within(openMicsScreen()).getByRole("button", {
-        name: "Add a Mic bridge",
-      }),
-    ).toHaveAttribute("aria-expanded", "false");
+      last.compareDocumentPosition(guide) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("shows a new channel switched off and a kept one as kept, with its stored name", () => {
