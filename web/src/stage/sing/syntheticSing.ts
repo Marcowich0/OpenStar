@@ -11,6 +11,12 @@
 // seeded burst, aged a fixed time, so the screenshots stay exact (the page
 // freezes the effects' frame time). The first lane's Line rating (Perfect!)
 // and the second's (Great!) are caught settled, before they fade (#216).
+// The title card (#264) shows a made-up title and artist with the Song's
+// generated cover (#259, its letter drawn on the canvas), with the pause hint
+// under it, until 4 s.
+// The no-video case's 2 Players share the one Voice over the moving blobs
+// (#263), caught at the frozen Song time; the other cases have no background,
+// so the page's tile backdrop shows as before.
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
@@ -23,6 +29,12 @@ import type { SingTestCase } from "../../singTest/search";
 import { confettiBurst, EFFECTS_CAPACITY, ParticlePool } from "./effects";
 import { singVoices, type SingState } from "./frame";
 import type { LyricSize } from "../../generated/LyricSize";
+import type { SingSong } from "./titleCard";
+import {
+  generatedCover,
+  generatedCoverDataUrl,
+  type CoverSong,
+} from "../../ui/generatedCover";
 import { LineRatings } from "./lineRating";
 import { DEFAULT_SING_LOOK, singLayout, type SingLook } from "./singLook";
 
@@ -113,6 +125,7 @@ const LANES: Record<SingTestCase, number[]> = {
   four: [0, 0, 0, 0],
   eight: [0, 0, 0, 0, 0, 0, 0, 0],
   duet: [0, 1],
+  noVideo: [0, 0],
 };
 
 /** Made-up Players, in lane order: [name, avatar, Score]. The second is a Guest. */
@@ -170,6 +183,25 @@ function player(i: number) {
   };
 }
 
+const COVER_SONG: CoverSong = {
+  id: 1,
+  title: "Placeholder Song",
+  tileColour: "navy",
+};
+
+/**
+ * The made-up Song of the title card, with its generated cover in the
+ * theme's colours as they are when the state is built.
+ */
+function syntheticSong(): SingSong {
+  return {
+    ...COVER_SONG,
+    artist: "Nobody in Particular",
+    cover: generatedCoverDataUrl(COVER_SONG, { letter: false }),
+    letter: generatedCover(COVER_SONG).letter,
+  };
+}
+
 /** Case `name` at Lyric size `lyricSize`, the other options at their defaults. */
 export function syntheticSing(
   name: SingTestCase,
@@ -200,6 +232,13 @@ export function syntheticSing(
       },
     })),
     ratings: ratings(),
+    // No cover image: the generated cover (#259), so the page needs no
+    // network.
+    song: syntheticSong(),
+    pauseHint: "keyboard",
+    ...(name === "noVideo"
+      ? { background: { kind: "blobs", still: false } as const }
+      : {}),
   };
   return { ...state, effects: burst(state, PALETTE_KEYS[0]) };
 }

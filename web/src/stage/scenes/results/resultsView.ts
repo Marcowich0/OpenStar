@@ -35,23 +35,32 @@ export interface ResultsView {
   endedEarly: boolean;
   /** One bar per Player, in the server's ranking, left to right. */
   bars: BarView[];
+  /** When the last bar has grown (the `fanfare`, #262), ms; `null` with no bars. */
+  landMs: number | null;
+  /** When the first "New high score!" sticker pops (`highScore`), ms. */
+  highScoreMs: number | null;
 }
 
 export function resultsView(players: readonly PlayerResult[]): ResultsView {
+  const bars = players.map((player, index): BarView => {
+    const growDelayMs = index * BAR_STAGGER_MS;
+    return {
+      player,
+      height: Math.min(1, Math.max(MIN_BAR_HEIGHT, player.total / MAX_TOTAL)),
+      parts: parts(player),
+      hatched: player.unfinished,
+      sticker: player.newHighScore && !player.unfinished,
+      growDelayMs,
+      stickerDelayMs: growDelayMs + BAR_GROW_MS + STICKER_AFTER_MS,
+    };
+  });
+  const last = bars.at(-1);
+  const sticker = bars.find((bar) => bar.sticker);
   return {
     endedEarly: players.length > 0 && players.every((p) => p.unfinished),
-    bars: players.map((player, index) => {
-      const growDelayMs = index * BAR_STAGGER_MS;
-      return {
-        player,
-        height: Math.min(1, Math.max(MIN_BAR_HEIGHT, player.total / MAX_TOTAL)),
-        parts: parts(player),
-        hatched: player.unfinished,
-        sticker: player.newHighScore && !player.unfinished,
-        growDelayMs,
-        stickerDelayMs: growDelayMs + BAR_GROW_MS + STICKER_AFTER_MS,
-      };
-    }),
+    bars,
+    landMs: last ? last.growDelayMs + BAR_GROW_MS : null,
+    highScoreMs: sticker ? sticker.stickerDelayMs : null,
   };
 }
 

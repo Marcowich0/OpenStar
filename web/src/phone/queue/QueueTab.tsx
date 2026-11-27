@@ -19,6 +19,7 @@ import type { LiveStore } from "../../live/liveStore";
 import { useLive } from "../../live/useLive";
 import { Avatar } from "../../ui/Avatar";
 import { Cover } from "../../ui/Cover";
+import { coverSongOf } from "../../ui/generatedCover";
 import { memberLook } from "../memberLook";
 import { RequestSheet } from "../songs/RequestSheet";
 import { headState } from "./queueActions";
@@ -144,7 +145,7 @@ function RequestCard({
         </span>
         <Cover
           src={song?.media.cover ?? null}
-          tileColour={song?.media.tileColour ?? "teal"}
+          song={coverSongOf(song)}
           rim={3}
           className="w-13 shrink-0"
         />

@@ -404,6 +404,8 @@ export const en = {
   "sing.lineRating.great": "Great!",
   "sing.lineRating.good": "Good",
   "sing.lineRating.ok": "OK",
+  "sing.pauseHint.keyboard": "Space: pause",
+  "sing.pauseHint.gamepad": "Start: pause",
 
   // The Stage frame (#120): the pill row, the Setup menu and the overlays.
   "stage.pill.songs": "Songs",
@@ -465,7 +467,7 @@ export const en = {
     "Show Perfect!, Great!, Good or OK when a Line ends. The Line bonus counts either way.",
   "options.effects": "Effects",
   "options.effects.help":
-    "Full: confetti on a Perfect! Line, sparkles on golden Notes, and a bouncing ball and Line rating. Calm: only the sparkles. Off: none of them.",
+    "Full: confetti on a Perfect! Line, sparkles on golden Notes, and a bouncing ball and Line rating. Calm: only the sparkles. Off: none of them, no Perfect! or golden Note sounds, a still background, and fades in place of the Stage's motion.",
   "options.effects.off": "Off",
   "options.effects.calm": "Calm",
   "options.effects.full": "Full",

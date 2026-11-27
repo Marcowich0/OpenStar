@@ -91,7 +91,21 @@ const BUBBLE_POP: ThemeTokens = {
   "--shadow-ledge-lyric": "0 10px 0 var(--color-lyric-ledge)",
   "--shadow-ledge-mic-lost": "0 6px 0 var(--color-mic-lost-ledge)",
   "--ease-spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+  "--ease-exit": "cubic-bezier(0.36, 0, 0.66, -0.56)",
   "--default-transition-timing-function": "var(--ease-spring)",
+  // Motion (#260). Every theme keeps these Bubble Pop values, so
+  // `applyTheme` leaves them to the stylesheet and its
+  // `:root[data-motion="fade"]` block still turns them into fades.
+  "--motion-spring": "450ms",
+  "--motion-bounce": "350ms",
+  "--motion-press": "200ms",
+  "--motion-exit": "250ms",
+  "--motion-fade": "120ms",
+  "--motion-press-scale": "0.94",
+  "--motion-focus-scale": "1.06",
+  "--motion-overlay-scale": "0.9",
+  "--motion-toast-drop": "-40px",
+  "--motion-sheet-rise": "100%",
   "--animate-breathe": "breathe 1.45s ease-in-out infinite",
   "--animate-pop-in": "pop-in 0.45s var(--ease-spring) both",
   "--animate-shake": "shake 0.3s linear",
@@ -101,6 +115,16 @@ const BUBBLE_POP: ThemeTokens = {
   "--animate-squish": "squish 0.65s var(--ease-spring)",
   "--animate-bob": "bob 3s ease-in-out infinite",
   "--animate-mic-lost-dot": "mic-lost-dot 1.2s infinite",
+  "--animate-focus-bounce":
+    "focus-bounce var(--motion-bounce) var(--ease-spring)",
+  "--animate-overlay-in":
+    "overlay-in var(--motion-spring) var(--ease-spring) both",
+  "--animate-overlay-out":
+    "overlay-out var(--motion-exit) var(--ease-exit) both",
+  "--animate-toast-in": "toast-in var(--motion-spring) var(--ease-spring) both",
+  "--animate-veil-out": "fade-out var(--motion-exit) ease-in both",
+  "--animate-fade-in": "fade-in var(--motion-fade) ease-out both",
+  "--animate-fade-out": "fade-out var(--motion-fade) ease-in both",
   "--font-sans": '"Fredoka", ui-rounded, system-ui, sans-serif',
 };
 

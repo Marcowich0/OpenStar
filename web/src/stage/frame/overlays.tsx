@@ -4,15 +4,17 @@
 // Calibrate mics `calibration/StageCalibration.tsx`, Check A/V sync
 // `avSync/StageAvSync.tsx`, Downloads `../overlays/DownloadsOverlay.tsx` (the
 // Admin area's Downloads section), Options `stageOptions/OptionsScreen.tsx`.
-// The Song detail is `../overlays/SongDetailOverlay.tsx`.
+// The Song detail is `../overlays/SongDetailOverlay.tsx`. The veil and the
+// close button are `data-stage-back`: they sound `back` (`../sound/`).
 
-import { useId, type ComponentType } from "react";
+import { useId, useRef, type ComponentType } from "react";
 
 import { t, type MessageKey } from "../../i18n/t";
 import { StageAvSync } from "../../avSync/StageAvSync";
 import { StageCalibration } from "../../calibration/StageCalibration";
 import { MicsScreen } from "../../mics/MicsScreen";
 import { OptionsScreen } from "../../stageOptions/OptionsScreen";
+import { useExitGhost } from "../../ui/exitGhost";
 import { Icon } from "../../ui/Icon";
 import { DownloadsOverlay } from "../overlays/DownloadsOverlay";
 import { PeopleOverlay } from "../overlays/PeopleOverlay";
@@ -46,17 +48,23 @@ export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
   },
 };
 
-/** The open overlay: veil, modal, heading and close control. */
+/**
+ * The open overlay: veil, modal, heading and close control. It springs in,
+ * and its ghost springs out when it closes (`exitGhost.ts`, #260).
+ */
 export function StageOverlay({ id }: { id: OverlayId }) {
   const { closeOverlay } = useStageFrame();
   const headingId = useId();
   const { title, component: Content } = OVERLAYS[id];
+  const root = useRef<HTMLDivElement>(null);
+  useExitGhost(root);
   return (
-    <div className="absolute inset-0 z-40" data-overlay={id}>
+    <div ref={root} className="absolute inset-0 z-40" data-overlay={id}>
       <div
         aria-hidden="true"
         data-testid="overlay-veil"
-        className="absolute inset-0 bg-veil"
+        data-stage-back
+        className="absolute inset-0 animate-fade-in bg-veil in-data-leaving:animate-veil-out"
         onClick={closeOverlay}
       />
       <ReferenceBox passThrough>
@@ -65,7 +73,7 @@ export function StageOverlay({ id }: { id: OverlayId }) {
           role="dialog"
           aria-modal
           aria-labelledby={headingId}
-          className="pointer-events-auto absolute top-1/2 left-1/2 flex max-h-[960px] w-[1300px] -translate-x-1/2 -translate-y-1/2 animate-pop-in flex-col gap-6 overflow-auto rounded-card bg-cream p-9 text-ink shadow-ledge-lg"
+          className="pointer-events-auto absolute top-1/2 left-1/2 flex max-h-[960px] w-[1300px] -translate-x-1/2 -translate-y-1/2 animate-overlay-in flex-col gap-6 overflow-auto rounded-card bg-cream p-9 text-ink shadow-ledge-lg in-data-leaving:animate-overlay-out"
         >
           <div className="flex items-center justify-between gap-6">
             <h2 id={headingId} className="text-4xl font-bold">
@@ -74,6 +82,7 @@ export function StageOverlay({ id }: { id: OverlayId }) {
             <button
               type="button"
               aria-label={t("stage.overlay.close")}
+              data-stage-back
               onClick={closeOverlay}
               className="inline-flex size-16 cursor-pointer items-center justify-center rounded-full bg-surface shadow-ledge-sm"
             >

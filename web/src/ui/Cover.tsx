@@ -1,17 +1,21 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
-import { avatarIconUrl } from "../avatars/avatarIcons";
-import { tokenVar, type PaletteKey } from "../theme/tokens";
+import { tokenVar } from "../theme/tokens";
+import {
+  generatedCover,
+  generatedCoverSvg,
+  type CoverSong,
+} from "./generatedCover";
 
 export interface CoverProps {
   /** The Song's cover image, or `null` when the Library found none. */
   src: string | null;
   /**
-   * The generated tile's colour: the palette key the Library picks from the
-   * Song's identity (v1 spec: Library, #46). Shown when there is no cover or
-   * it does not load.
+   * The Song the cover belongs to: without a cover image, or when it does
+   * not load, it shows the Song's generated cover (spec #242). `null` while
+   * the Song is not known yet: a plain tile.
    */
-  tileColour: PaletteKey;
+  song: CoverSong | null;
   /** The white rim's thickness in px (about 9 on the selected carousel cover). */
   rim: number;
   /**
@@ -31,7 +35,7 @@ export interface CoverProps {
  */
 export function Cover({
   src,
-  tileColour,
+  song,
   rim,
   lazy = false,
   className = "w-32",
@@ -47,11 +51,14 @@ export function Cover({
         borderWidth: rim,
         borderStyle: "solid",
         borderRadius: "14%",
-        backgroundColor: image === null ? tokenVar(tileColour) : undefined,
+        backgroundColor:
+          image === null
+            ? tokenVar(song?.tileColour ?? "--color-cream-2")
+            : undefined,
       }}
     >
       {image === null ? (
-        <GeneratedTile />
+        song !== null && <GeneratedArt song={song} />
       ) : (
         <img
           src={image}
@@ -69,18 +76,24 @@ export function Cover({
   );
 }
 
-/** The generated tile's mark: a faint white note on the tile colour. */
-function GeneratedTile() {
+/** The Song's generated cover, drawn with the theme's tokens. */
+function GeneratedArt({ song }: { song: CoverSong }) {
+  const { id, title, tileColour } = song;
+  const svg = useMemo(
+    () =>
+      generatedCoverSvg(generatedCover({ id, title, tileColour }), {
+        resolve: tokenVar,
+      }),
+    [id, title, tileColour],
+  );
   return (
-    <svg
-      viewBox="0 0 64 64"
+    <div
+      data-testid="generated-cover"
       aria-hidden="true"
-      className="absolute inset-[22%] opacity-35"
-    >
-      <use
-        href={avatarIconUrl("note", "glyph")}
-        style={{ fill: tokenVar("--color-white") }}
-      />
-    </svg>
+      className="absolute inset-0"
+      // Markup built by `generatedCoverSvg` alone, which escapes the title's
+      // letter and every resolved value.
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
   );
 }

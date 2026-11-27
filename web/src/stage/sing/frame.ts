@@ -37,11 +37,36 @@ import {
   type PitchLineEntry,
 } from "./pitchTrace";
 
+import {
+  backgroundEntry,
+  type BackgroundEntry,
+  type SingBackground,
+} from "./background";
 import type { ParticleEntry, ParticlePool } from "./effects";
 import type { LineRatingEntry, LineRatings } from "./lineRating";
+import {
+  BAR_RIGHT,
+  TIME_LEFT_ROOM,
+  topBand,
+  type PauseHint,
+  type PauseHintEntry,
+  type SingSong,
+  type TimeLeftEntry,
+  type TitleCardEntry,
+} from "./titleCard";
 
+export type { BackgroundEntry, BlobStyle } from "./background";
 export type { ParticleEntry } from "./effects";
 export type { LineRatingEntry } from "./lineRating";
+export type {
+  CoverStyle,
+  PauseHint,
+  PauseHintEntry,
+  SingSong,
+  TextStyle,
+  TimeLeftEntry,
+  TitleCardEntry,
+} from "./titleCard";
 export type {
   HeadBallEntry,
   LaneTrace,
@@ -92,10 +117,16 @@ export interface SingState {
   /** One per Player, in Player order. */
   lanes: readonly SingLane[];
   /**
-   * The Song's length in seconds (`#END`, else the audio's), for the
-   * progress bar; without one, the end of the last Note.
+   * The Song's length in seconds (`#END`, where playback stops, else the
+   * audio's), for the progress bar and the time left; without one, the end
+   * of the last Note.
    */
   lengthSeconds?: number | null;
+  /**
+   * The Song time play starts at (`#START`; 0 without one): the title card
+   * and the pause hint show for the first seconds from here.
+   */
+  startSeconds?: number;
   /**
    * The effects' particle pool (#134). Game code bursts into it; the render
    * loop advances it by each frame's real delta, and `frame()` only reads it.
@@ -119,6 +150,19 @@ export interface SingState {
    * lanes out with `singLayout(state)`, which docks them above the bar.
    */
   look?: SingLook;
+  /** The Song's title, artist and cover, for the title card (#264); none: no card. */
+  song?: SingSong | null;
+  /**
+   * The pause hint under the title card (#264), naming this input; only on
+   * the first Song since the Party started. None: no hint.
+   */
+  pauseHint?: PauseHint | null;
+  /**
+   * What is behind the lanes (#263), chosen at Start: the Song video, its
+   * background image, or the blobs the painter draws. None: no background
+   * entry, and the painter draws no background.
+   */
+  background?: SingBackground;
 }
 
 /** A parsed Song's Voices, flattened once for drawing (not per frame). */
@@ -315,6 +359,7 @@ export interface LaneEndEntry {
 }
 
 export type DrawEntry =
+  | BackgroundEntry
   | ProgressEntry
   | LaneEntry
   | GridEntry
@@ -326,6 +371,9 @@ export type DrawEntry =
   | LyricEntry
   | LyricBarEntry
   | LineRatingEntry
+  | TitleCardEntry
+  | PauseHintEntry
+  | TimeLeftEntry
   | ParticleEntry;
 export type DrawList = DrawEntry[];
 
@@ -356,8 +404,16 @@ const SHIMMER_PERIOD = 1.5;
 /** The shimmer band's width in px, and its strongest alpha. */
 export const SHIMMER_WIDTH = 48;
 const SHIMMER_ALPHA = 0.6;
-/** The progress bar (#55): 80 px from each side, 20 px from the top. */
-const PROGRESS = { x: 80, y: 20, width: 1920 - 2 * 80, height: 10 };
+/**
+ * The progress bar (#55): 80 px from each side, 20 px from the top, leaving
+ * room at its right end for the time left (#264).
+ */
+const PROGRESS = {
+  x: 80,
+  y: 20,
+  width: BAR_RIGHT - TIME_LEFT_ROOM - 80,
+  height: 10,
+};
 
 /** Semitones a lane shows beyond its Voice's lowest and highest Note. */
 const PITCH_MARGIN = 2;
@@ -465,6 +521,10 @@ export function frame(
   const look = state.look ?? DEFAULT_SING_LOOK;
   const fill = laneFill(look);
   const motion = EFFECTS.screenMotion(state.effectsMode ?? "full");
+  // First: the background layer is below everything else.
+  if (state.background) {
+    list.push(backgroundEntry(state.background, state.lanes, songTime));
+  }
   list.push({
     type: "progress",
     ...PROGRESS,
@@ -473,6 +533,7 @@ export function frame(
     trackAlpha: 0.5,
     fill: "--color-yellow",
   });
+  topBand(list, state, songTime, length);
 
   for (let lane = 0; lane < lanes; lane++) {
     const player = state.lanes[lane];

@@ -19,6 +19,7 @@ import { offersSkipIntro, secondsToSinging } from "../../playback/introSkip";
 import { useLive } from "../../live/useLive";
 import { Button } from "../../ui/Button";
 import { Cover } from "../../ui/Cover";
+import { coverSongOf } from "../../ui/generatedCover";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
 import type { StageCard } from "../remoteFrame";
@@ -59,7 +60,7 @@ export function PlayingCard({
       <div className="flex items-center gap-3">
         <Cover
           src={song?.media.cover ?? null}
-          tileColour={song?.media.tileColour ?? "teal"}
+          song={coverSongOf(song)}
           rim={2}
           className="w-13 shrink-0"
         />

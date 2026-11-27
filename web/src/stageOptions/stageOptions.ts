@@ -19,6 +19,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { api } from "../api/api";
 import type { StageOptions } from "../generated/StageOptions";
+import { EFFECTS } from "./effects";
 
 export type { StageOptions };
 
@@ -94,4 +95,14 @@ export function stageOptions(): StageOptionsHolder {
 export function previewGain(percent: number): number {
   const p = Math.min(Math.max(percent, 0), 100) / 100;
   return p * p;
+}
+
+/**
+ * Whether the Stage options turn Effects off (`EFFECTS.off`: only Off, not
+ * Calm), for the motion mode (its fades), the sing screen's background
+ * blobs, the results bars (through the motion mode) and the effect sounds.
+ * What Calm and Full show on the sing screen is `EFFECTS`' other tests.
+ */
+export function effectsOff(options: Pick<StageOptions, "effects">): boolean {
+  return EFFECTS.off(options.effects);
 }

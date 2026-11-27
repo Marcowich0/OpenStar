@@ -208,7 +208,7 @@ function LineUpBody({
       <header className="mt-14 flex items-center gap-[26px]">
         <Cover
           src={head?.cover ?? null}
-          tileColour={head?.tileColour ?? "teal"}
+          song={head ?? null}
           rim={7}
           className="w-[120px]"
         />
