@@ -10,7 +10,13 @@
 // one `switchRow`, `choiceRow` or `stepperRow` line in `rows` or `advanced`
 // of its group in `OPTION_GROUPS`. A group with no rows is not shown.
 
-import { useId, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useId,
+  useState,
+  type ReactNode,
+} from "react";
 
 import type { Difficulty } from "../generated/Difficulty";
 import type { LyricSize } from "../generated/LyricSize";
@@ -54,8 +60,16 @@ export interface OptionGroupDef {
 
 const defaults = STAGE_OPTIONS.defaults;
 
-const PILL =
-  "inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full px-7 text-2xl font-bold transition";
+/**
+ * The Phone's smaller list (`compact`): each row stacks its texts over its
+ * controls, which wrap, so it fits a 390 px wide screen.
+ */
+const Compact = createContext(false);
+
+const PILL_BASE =
+  "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full font-bold transition";
+const pill = (compact: boolean) =>
+  `${PILL_BASE} ${compact ? "min-h-12 px-5 text-lg" : "min-h-14 px-7 text-2xl"}`;
 const ON = "bg-green text-white shadow-ledge-green";
 const OFF = "bg-surface text-ink-2 shadow-ledge-sm";
 
@@ -239,10 +253,27 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
   },
 ];
 
+/**
+ * The shown name of the one option a change names (`stageOptionsChanged`:
+ * field names, as sent), or `null` for several, or for one with no row in
+ * this build: the toast then says "the Options".
+ */
+export function changedOptionName(options: readonly string[]): string | null {
+  const [only] = options;
+  if (options.length !== 1 || only === undefined) return null;
+  const row = OPTION_GROUPS.flatMap((group) => [
+    ...group.rows,
+    ...group.advanced,
+  ]).find((def) => def.key === only);
+  return row ? t(row.name) : null;
+}
+
 export interface OptionsListProps {
   options: StageOptions;
   /** Called with the changed fields; the caller saves them. */
   onChange: OnChange;
+  /** The Phone's smaller list, for one hand on a 390 px wide screen. */
+  compact?: boolean;
   /** Tests only: the groups to show. */
   groups?: readonly OptionGroupDef[];
 }
@@ -251,10 +282,11 @@ export interface OptionsListProps {
 export function OptionsList({
   options,
   onChange,
+  compact = false,
   groups = OPTION_GROUPS,
 }: OptionsListProps) {
   return (
-    <>
+    <Compact.Provider value={compact}>
       {groups
         .filter((group) => group.rows.length + group.advanced.length > 0)
         .map((group) => (
@@ -265,7 +297,7 @@ export function OptionsList({
             onChange={onChange}
           />
         ))}
-    </>
+    </Compact.Provider>
   );
 }
 
@@ -282,9 +314,10 @@ function OptionGroup({
   options: StageOptions;
   onChange: OnChange;
 }) {
+  const compact = useContext(Compact);
   const heading = `options-${group.id}`;
   const rows = (defs: readonly OptionRowDef[]) => (
-    <ul className="flex flex-col gap-4">
+    <ul className={`flex flex-col ${compact ? "gap-3" : "gap-4"}`}>
       {defs.map((row) => (
         <OptionRow
           key={row.key}
@@ -299,11 +332,14 @@ function OptionGroup({
     <section
       role="group"
       aria-labelledby={heading}
-      className="flex flex-col gap-4"
+      className={`flex flex-col ${compact ? "gap-3" : "gap-4"}`}
       data-testid={heading}
       data-options-group={group.id}
     >
-      <h3 id={heading} className="text-3xl font-bold">
+      <h3
+        id={heading}
+        className={compact ? "text-2xl font-bold" : "text-3xl font-bold"}
+      >
         {t(group.title)}
       </h3>
       {group.rows.length > 0 && rows(group.rows)}
@@ -327,10 +363,11 @@ function AdvancedFold({
   changed: boolean;
   children: ReactNode;
 }) {
+  const compact = useContext(Compact);
   const [open, setOpen] = useState(false);
   const inside = useId();
   return (
-    <div className="flex flex-col gap-4">
+    <div className={`flex flex-col ${compact ? "gap-3" : "gap-4"}`}>
       <button
         type="button"
         aria-expanded={open}
@@ -338,11 +375,11 @@ function AdvancedFold({
         onClick={() => {
           setOpen(!open);
         }}
-        className={`${PILL} gap-3 self-start bg-surface text-ink shadow-ledge-sm`}
+        className={`${pill(compact)} gap-3 self-start bg-surface text-ink shadow-ledge-sm`}
       >
         <Icon
           name="chevron"
-          className={`size-7 transition ${open ? "rotate-90" : ""}`}
+          className={`${compact ? "size-6" : "size-7"} transition ${open ? "rotate-90" : ""}`}
         />
         {t("options.advanced")}
         {changed && (
@@ -350,7 +387,7 @@ function AdvancedFold({
             <span
               aria-hidden="true"
               data-testid="options-advanced-changed"
-              className="size-4 rounded-full bg-red"
+              className={`${compact ? "size-3" : "size-4"} rounded-full bg-red`}
             />
             <span className="sr-only">{t("options.advanced.changed")}</span>
           </>
@@ -371,34 +408,61 @@ function OptionRow({
   options: StageOptions;
   onChange: OnChange;
 }) {
+  const compact = useContext(Compact);
   const name = t(row.name);
   const atDefault = isDefault(options, row);
+  const reset = (
+    <button
+      type="button"
+      aria-label={t("options.resetLabel", { name })}
+      {...(atDefault ? { "aria-disabled": true } : {})}
+      onClick={() => {
+        if (!atDefault) onChange({ [row.key]: defaults[row.key] });
+      }}
+      className={`${pill(compact)} bg-cream text-ink shadow-ledge-sm ${compact ? "ml-auto" : ""} ${atDefault ? "cursor-not-allowed opacity-45" : ""}`}
+    >
+      {t("options.reset")}
+    </button>
+  );
+  const texts = (
+    <div className="min-w-0 flex-1">
+      <h4
+        className={compact ? "text-xl font-semibold" : "text-3xl font-semibold"}
+      >
+        {name}
+      </h4>
+      <p className={`mt-1 ${compact ? "text-base" : "text-xl"} text-ink-2`}>
+        {t(row.help)}
+      </p>
+      <p className={`mt-1 ${compact ? "text-base" : "text-xl"} text-mute`}>
+        {t("options.default", { value: row.defaultText() })}
+      </p>
+    </div>
+  );
+  if (compact) {
+    return (
+      <li
+        className="flex flex-col gap-3 rounded-card bg-surface px-4 py-4"
+        data-option={row.key}
+      >
+        {texts}
+        <div className="flex flex-wrap items-center gap-2">
+          {row.control(options, onChange)}
+          {reset}
+        </div>
+      </li>
+    );
+  }
   return (
     <li
       className="flex items-center gap-8 rounded-card bg-surface px-8 py-5"
       data-option={row.key}
     >
-      <div className="min-w-0 flex-1">
-        <h4 className="text-3xl font-semibold">{name}</h4>
-        <p className="mt-1 text-xl text-ink-2">{t(row.help)}</p>
-        <p className="mt-1 text-xl text-mute">
-          {t("options.default", { value: row.defaultText() })}
-        </p>
-      </div>
+      {texts}
       <div className="flex shrink-0 items-center gap-4">
         {row.control(options, onChange)}
       </div>
-      <button
-        type="button"
-        aria-label={t("options.resetLabel", { name })}
-        {...(atDefault ? { "aria-disabled": true } : {})}
-        onClick={() => {
-          if (!atDefault) onChange({ [row.key]: defaults[row.key] });
-        }}
-        className={`${PILL} bg-cream text-ink shadow-ledge-sm ${atDefault ? "cursor-not-allowed opacity-45" : ""}`}
-      >
-        {t("options.reset")}
-      </button>
+      {reset}
     </li>
   );
 }
@@ -415,8 +479,13 @@ function ChoiceControl<V extends string>({
   choices: readonly { value: V; text: string }[];
   onPick: (value: V) => void;
 }) {
+  const compact = useContext(Compact);
   return (
-    <div role="group" aria-label={name} className="flex gap-3">
+    <div
+      role="group"
+      aria-label={name}
+      className={compact ? "flex flex-wrap gap-2" : "flex gap-3"}
+    >
       {choices.map((choice) => (
         <button
           key={choice.value}
@@ -425,7 +494,7 @@ function ChoiceControl<V extends string>({
           onClick={() => {
             onPick(choice.value);
           }}
-          className={`${PILL} ${choice.value === value ? ON : OFF}`}
+          className={`${pill(compact)} ${choice.value === value ? ON : OFF}`}
         >
           {choice.text}
         </button>
@@ -444,6 +513,7 @@ function SwitchControl({
   on: boolean;
   onSwitch: (on: boolean) => void;
 }) {
+  const compact = useContext(Compact);
   return (
     <button
       type="button"
@@ -453,15 +523,15 @@ function SwitchControl({
       onClick={() => {
         onSwitch(!on);
       }}
-      className={`${PILL} w-36 ${on ? ON : OFF}`}
+      className={`${pill(compact)} ${compact ? "w-24" : "w-36"} ${on ? ON : OFF}`}
     >
       {on ? t("options.on") : t("options.off")}
     </button>
   );
 }
 
-const STEP =
-  "inline-flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink-fill text-white shadow-ledge-ink";
+const STEP_BASE =
+  "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink-fill text-white shadow-ledge-ink";
 
 /**
  * A number within `min`..`max`, moved by `step` with − and +. A value off the
@@ -484,6 +554,9 @@ function StepperControl({
   text: string;
   onSet: (value: number) => void;
 }) {
+  const compact = useContext(Compact);
+  const stepClass = `${STEP_BASE} ${compact ? "size-12" : "size-14"}`;
+  const iconClass = compact ? "size-6" : "size-7";
   const move = (by: number) => {
     const onStep =
       by > 0
@@ -493,7 +566,7 @@ function StepperControl({
     if (next !== value) onSet(next);
   };
   return (
-    <div className="flex items-center gap-4">
+    <div className={`flex items-center ${compact ? "gap-2" : "gap-4"}`}>
       <button
         type="button"
         aria-label={t("options.down", { name })}
@@ -501,14 +574,14 @@ function StepperControl({
         onClick={() => {
           move(-step);
         }}
-        className={`${STEP} ${value <= min ? "opacity-45" : ""}`}
+        className={`${stepClass} ${value <= min ? "opacity-45" : ""}`}
       >
-        <Icon name="minus" className="size-7" />
+        <Icon name="minus" className={iconClass} />
       </button>
       <p
         aria-label={name}
         aria-live="polite"
-        className="min-w-44 text-center text-3xl font-bold tabular-nums"
+        className={`text-center font-bold tabular-nums ${compact ? "min-w-28 text-2xl" : "min-w-44 text-3xl"}`}
       >
         {text}
       </p>
@@ -519,9 +592,9 @@ function StepperControl({
         onClick={() => {
           move(step);
         }}
-        className={`${STEP} ${value >= max ? "opacity-45" : ""}`}
+        className={`${stepClass} ${value >= max ? "opacity-45" : ""}`}
       >
-        <Icon name="plus" className="size-7" />
+        <Icon name="plus" className={iconClass} />
       </button>
     </div>
   );

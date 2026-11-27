@@ -58,6 +58,44 @@ pub async fn set(db: &Database, options: StageOptions) -> anyhow::Result<()> {
     .await
 }
 
+/// Stores `options` (already checked with [`StageOptions::is_valid`]) in
+/// place of the stored set, in one transaction, and answers with the names
+/// of the options that changed: their camelCase field names as sent, in
+/// alphabetical order.
+pub async fn replace(db: &Database, options: StageOptions) -> anyhow::Result<Vec<String>> {
+    let json = serde_json::to_string(&options)?;
+    let before = db
+        .call(move |conn| {
+            let tx = conn.transaction()?;
+            let before = read_in(&tx)?;
+            tx.execute(
+                "INSERT INTO stage_options (id, options) VALUES (1, ?1)
+                 ON CONFLICT (id) DO UPDATE SET options = excluded.options",
+                params![json],
+            )?;
+            tx.commit()?;
+            Ok(before)
+        })
+        .await?;
+    changed_fields(&before, &options)
+}
+
+/// The fields of `after` that differ from `before`, by their names as sent.
+/// Read from the JSON, so a new option needs nothing here.
+fn changed_fields(before: &StageOptions, after: &StageOptions) -> anyhow::Result<Vec<String>> {
+    let serde_json::Value::Object(before) = serde_json::to_value(before)? else {
+        anyhow::bail!("the Stage options are not a JSON object");
+    };
+    let serde_json::Value::Object(after) = serde_json::to_value(after)? else {
+        anyhow::bail!("the Stage options are not a JSON object");
+    };
+    Ok(after
+        .into_iter()
+        .filter(|(name, value)| before.get(name) != Some(value))
+        .map(|(name, _)| name)
+        .collect())
+}
+
 fn server_error(error: anyhow::Error, doing: &str) -> Response {
     tracing::error!(?error, "{doing}");
     (

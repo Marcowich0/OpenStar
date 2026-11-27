@@ -738,6 +738,10 @@ pub enum PartyEvent {
     /// A Phone's Auto-fit of a Song was accepted and saved (#223). `title`
     /// is the Song's title in the saved file.
     AutoFitAccepted { song_id: SongId, title: String },
+    /// The Stage options were changed from a Remote or the Stage
+    /// (`ClientMessage::SetStageOptions`). `options` names the changed ones
+    /// by their camelCase field names, in alphabetical order.
+    StageOptionsChanged { options: Vec<String> },
 }
 
 /// One accepted change: who made it and what it was.

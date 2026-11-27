@@ -1,6 +1,7 @@
 // The Remote's Stage tab (v1 spec #49, "Stage tab"): what the Stage is doing,
-// in one card per state (`stageCard`), and the OpenStar volume under it in
-// every state. The waiting Line-up's card: "Up next: who sings?" with the
+// in one card per state (`stageCard`), and Options (the Stage options, as a
+// sheet: `StageOptionsSheet.tsx`) and the OpenStar volume under it in every
+// state. The waiting Line-up's card: "Up next: who sings?" with the
 // Song's cover and title, one row per seat, "Add a singer", the server's
 // warnings, and a big Start. The playing Song's card (`PlayingCard`), the
 // results' card (`ResultsCard`) with this Phone's own Player's result and
@@ -41,6 +42,7 @@ import { VolumeControl } from "../onStage/VolumeControl";
 import { stageCard } from "../remoteFrame";
 import { editLineUp, startSong } from "./lineUpCommands";
 import { SeatSheet, Tag } from "./SeatSheet";
+import { StageOptionsButton } from "./StageOptionsSheet";
 import { myResult } from "./myResult";
 import { micName } from "./seatMics";
 import { useLineUp } from "./useLineUp";
@@ -274,6 +276,7 @@ export function StageTab({
       )}
       {setup && <CalibrateMicsButton store={store} />}
       {setup && <AvSyncStartButton store={store} />}
+      <StageOptionsButton store={store} />
       <VolumeControl store={store} />
       <SeatSheet
         store={store}
