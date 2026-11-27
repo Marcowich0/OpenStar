@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 // S, Q and P overlays. Every module those screens import, directly or
 // through other modules, is read as text: none may call a guarded endpoint
 // or use the guarded-action flow (`guarded/`), which is what opens the Admin
-// PIN pad. Guarded actions live in the Admin area and, for Forget a Mic
-// bridge, on the Stage's Mics screen.
+// PIN pad. Guarded actions live in the Admin area, on the Stage's Mics
+// screen (Forget a Mic bridge) and in the Stage's Downloads overlay (starting
+// a Download, the Admin area's own Downloads section; Marc asked for it on the
+// Stage, 2026-11-27).
 
 /**
  * Every guarded endpoint, as `endpoints.rs` classifies it.
@@ -121,6 +123,15 @@ describe("the guard audit", () => {
       expect(offenders).toEqual([]);
     },
   );
+
+  it("sees the guarded Download start in the Stage's Downloads overlay", () => {
+    const reachable = reachableFrom("./stage/overlays/DownloadsOverlay.tsx");
+    expect(reachable).toContain("./admin/Downloads.tsx");
+    expect(guardedUses(source("./admin/Downloads.tsx"))).toEqual([
+      "POST /api/downloads",
+      "the guarded-action flow",
+    ]);
+  });
 
   it("would see a guarded action that one of them reached", () => {
     expect(reachableFrom("./mics/MicsScreen.tsx")).toContain(

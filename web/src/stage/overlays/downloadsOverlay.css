@@ -1,0 +1,17 @@
+/*
+ * The Downloads overlay's USDB search box takes the Stage's focus ring on
+ * its pill, as the song browser's search box does, rather than on the bare
+ * input inside it (`../frame/stageFrame.css`).
+ */
+[data-stage-frame] [data-downloads-overlay] input[data-stage-focus]:focus {
+  box-shadow: none;
+  scale: none;
+}
+
+[data-stage-frame]
+  [data-downloads-overlay]
+  :has(> input[data-stage-focus]:focus) {
+  box-shadow:
+    0 0 0 6px var(--color-yellow),
+    0 0 0 10px var(--color-ink);
+}

@@ -7,7 +7,8 @@
 // overlay), the arrows move the focus (`focusMove.ts`), Enter picks the
 // focused element, `S`/`Q`/`P` toggle the Songs, Queue and People overlays.
 // Buttons pick themselves on Enter; hold buttons (`ui/HoldButton`) take Enter
-// key down and up for the hold. Toasts (`../toasts/StageToasts.tsx`) lie
+// key down and up for the hold. While the focus is in a dialog outside the
+// frame (react-aria's modals), the frame leaves every key to it. Toasts (`../toasts/StageToasts.tsx`) lie
 // above every scene and overlay and take no focus.
 
 import "./stageFrame.css";
@@ -211,6 +212,16 @@ export function StageFrame({
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
+      // A dialog above the frame, portalled outside it (the Downloads
+      // overlay's video picker, the Admin PIN pad), takes its own keys.
+      const focused = document.activeElement;
+      if (
+        focused instanceof HTMLElement &&
+        focused !== document.body &&
+        !frameRef.current?.contains(focused)
+      ) {
+        return;
+      }
       if (runBindings(event)) {
         event.preventDefault();
         return;

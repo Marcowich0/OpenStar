@@ -16,17 +16,17 @@ Every new HTTP endpoint, in every area, is classified by this one rule.
 
 ## Guarded actions (the complete v1 list)
 
-| Action                                                                                                                  | Where                 | Needs                      | Writes the Library |
-| ----------------------------------------------------------------------------------------------------------------------- | --------------------- | -------------------------- | ------------------ |
-| Starting a Download (the PIN is asked when the Download starts, after the video pick)                                   | Admin area, Downloads | Unlock                     | yes                |
-| Saving a Timing edit in the desktop Timing editor                                                                       | Admin area, Songs     | Unlock                     | yes                |
-| Running "Fit to the singing" on a Phone, and accepting its proposal                                                     | Admin area, Songs     | Unlock                     | yes                |
-| Restore Original                                                                                                        | Admin area, Songs     | Unlock                     | yes                |
-| Deleting a Song (to the 30-day trash); refused while it plays                                                           | Admin area, Songs     | Unlock plus press and hold | yes                |
-| Restoring a Song from the trash                                                                                         | Admin area, Songs     | Unlock plus press and hold | yes                |
-| Deleting a Profile (and its Score records); refused while that Profile sings                                            | Admin area, Profiles  | Unlock plus press and hold | no                 |
-| Forget a Mic bridge (removes its approval token and its Local mics, with their Mic delays and bleed levels)             | Stage, Mics screen    | Unlock plus press and hold | no                 |
-| Becoming the Stage: the first Stage on a fresh server, taking over by opening `/stage`, and "Make this the Stage again" | `/stage`              | PIN once per browser       | no                 |
+| Action                                                                                                                  | Where                                               | Needs                      | Writes the Library |
+| ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------- | ------------------ |
+| Starting a Download (the PIN is asked when the Download starts, after the video pick)                                   | Admin area, Downloads; Stage, Setup menu, Downloads | Unlock                     | yes                |
+| Saving a Timing edit in the desktop Timing editor                                                                       | Admin area, Songs                                   | Unlock                     | yes                |
+| Running "Fit to the singing" on a Phone, and accepting its proposal                                                     | Admin area, Songs                                   | Unlock                     | yes                |
+| Restore Original                                                                                                        | Admin area, Songs                                   | Unlock                     | yes                |
+| Deleting a Song (to the 30-day trash); refused while it plays                                                           | Admin area, Songs                                   | Unlock plus press and hold | yes                |
+| Restoring a Song from the trash                                                                                         | Admin area, Songs                                   | Unlock plus press and hold | yes                |
+| Deleting a Profile (and its Score records); refused while that Profile sings                                            | Admin area, Profiles                                | Unlock plus press and hold | no                 |
+| Forget a Mic bridge (removes its approval token and its Local mics, with their Mic delays and bleed levels)             | Stage, Mics screen                                  | Unlock plus press and hold | no                 |
+| Becoming the Stage: the first Stage on a fresh server, taking over by opening `/stage`, and "Make this the Stage again" | `/stage`                                            | PIN once per browser       | no                 |
 
 Becoming the Stage is not an Unlock, and an Unlock does not make a browser the Stage. It needs Stage trust instead: `POST /api/stage/trust` checks the Admin PIN itself, through the same PIN check and wrong-guess wait as the Unlock, and remembers the browser by its own cookie. `GET /ws/stage`, which makes a browser the Stage, refuses one without Stage trust (`403 stagePinRequired`). Both are classified `NotGuarded` in `endpoints.rs`, because the guard there checks an Unlock, which these must not need. Their handlers do the check instead.
 

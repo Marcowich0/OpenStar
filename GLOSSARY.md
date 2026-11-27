@@ -37,7 +37,7 @@ The one secret number that guards whatever changes the Library's files, deletes 
 _Avoid_: Password, admin login, passcode
 
 **Admin area**:
-The screens for Downloads, Songs, Library problems and Profiles, reachable from the Stage's computer, a laptop or a Phone. Anyone may look; the guarded actions in it need the Admin PIN.
+The screens for Downloads, Songs, Library problems and Profiles, reachable from the Stage's computer, a laptop or a Phone. Anyone may look; the guarded actions in it need the Admin PIN. The Stage itself shows only Downloads, as an overlay from its Setup menu, and never navigates to the Admin area.
 _Avoid_: Settings, admin panel, back office
 
 **Unlock**:

@@ -19,6 +19,9 @@ const SETUP_ENTRIES = [
   ["mics", "stage.overlay.mics"],
   ["calibrateMics", "stage.overlay.calibrateMics"],
   ["avSync", "stage.overlay.avSync"],
+  // Marc asked for Downloads on the Stage (2026-11-27): an overlay, so the
+  // Stage never navigates to the Admin area (`noStageEntry.test.ts`).
+  ["downloads", "stage.overlay.downloads"],
 ] as const satisfies readonly (readonly [OverlayId, string])[];
 
 export function PillRow({ setup }: { setup: boolean }) {

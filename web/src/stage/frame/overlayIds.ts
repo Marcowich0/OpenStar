@@ -1,6 +1,6 @@
 /**
  * The Stage's overlays: Songs, Queue and People (`S`, `Q`, `P` and the pill
- * row), the three screens the Setup menu opens, and the Song detail (the
+ * row), the screens the Setup menu opens, and the Song detail (the
  * best-score chip, `openSongDetail`). Add one here and in `OVERLAYS`
  * (`overlays.tsx`).
  */
@@ -11,6 +11,7 @@ export type OverlayId =
   | "mics"
   | "calibrateMics"
   | "avSync"
+  | "downloads"
   | "songDetail";
 
 /** The overlay each letter key toggles. */

@@ -2,7 +2,8 @@
 // screen and a cream modal (44 px radius) in the reference frame. Songs,
 // Queue and People are `../overlays/`. Mics is `mics/MicsScreen.tsx`,
 // Calibrate mics `calibration/StageCalibration.tsx`, Check A/V sync
-// `avSync/StageAvSync.tsx`. The Song detail is
+// `avSync/StageAvSync.tsx`, Downloads `../overlays/DownloadsOverlay.tsx` (the
+// Admin area's Downloads section). The Song detail is
 // `../overlays/SongDetailOverlay.tsx`.
 
 import { useId, type ComponentType } from "react";
@@ -12,6 +13,7 @@ import { StageAvSync } from "../../avSync/StageAvSync";
 import { StageCalibration } from "../../calibration/StageCalibration";
 import { MicsScreen } from "../../mics/MicsScreen";
 import { Icon } from "../../ui/Icon";
+import { DownloadsOverlay } from "../overlays/DownloadsOverlay";
 import { PeopleOverlay } from "../overlays/PeopleOverlay";
 import { QueueOverlay } from "../overlays/QueueOverlay";
 import { SongDetailOverlay } from "../overlays/SongDetailOverlay";
@@ -35,6 +37,7 @@ export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
     component: StageCalibration,
   },
   avSync: { title: "stage.overlay.avSync", component: StageAvSync },
+  downloads: { title: "stage.overlay.downloads", component: DownloadsOverlay },
   songDetail: {
     title: "stage.overlay.songDetail",
     component: SongDetailOverlay,

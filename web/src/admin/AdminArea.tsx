@@ -4,7 +4,9 @@
 // the Unlock alive with the heartbeat.
 //
 // Nothing on the Stage links here: on the Stage computer the Admin area opens
-// in its own browser tab, so `/stage` is never navigated away from.
+// in its own browser tab, so `/stage` is never navigated away from. The one
+// section the Stage shows itself is Downloads, in place in its Setup menu's
+// Downloads overlay (Marc asked for it, 2026-11-27; `noStageEntry.test.ts`).
 
 import { Link, Outlet, useMatchRoute } from "@tanstack/react-router";
 

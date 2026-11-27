@@ -6,6 +6,11 @@ import { Card } from "../ui/Card";
 export interface AdminSectionProps {
   title: string;
   /**
+   * Shows the heading; off where a frame around the section already names
+   * it (the Stage's Downloads overlay).
+   */
+  showTitle?: boolean;
+  /**
    * The section holds guarded actions that write the Library, so it shows
    * the read-only Library notice while those are disabled.
    */
@@ -21,13 +26,14 @@ export interface AdminSectionProps {
  */
 export function AdminSection({
   title,
+  showTitle = true,
   writesLibrary = false,
   notices,
   children,
 }: AdminSectionProps) {
   return (
     <section className="flex min-w-0 flex-col gap-4">
-      <h2 className="text-3xl font-bold">{title}</h2>
+      {showTitle ? <h2 className="text-3xl font-bold">{title}</h2> : null}
       <div className="flex flex-col gap-3" data-section-notices>
         {writesLibrary ? <LibraryReadOnlyNotice /> : null}
         {notices}

@@ -11,7 +11,8 @@
 // is guarded: without an Unlock the PIN pad opens then, and on a read-only
 // Library the button is disabled with the notice that says why. The list
 // of Downloads above the search (`DownloadList`, #196) follows each one
-// live and cancels it without a PIN.
+// live and cancels it without a PIN. The Stage shows this same section in its
+// Downloads overlay (`stage/overlays/DownloadsOverlay.tsx`).
 
 import {
   keepPreviousData,
@@ -57,9 +58,12 @@ function searchQuery(search: string, sort: UsdbSort): UsdbSearchQuery {
 
 export function Downloads({
   store,
+  showTitle = true,
 }: {
   /** The live store the list follows; the browser's own by default. */
   store?: LiveStore | undefined;
+  /** Shows the section's heading; the Stage's overlay has its own. */
+  showTitle?: boolean;
 } = {}) {
   const status = useQuery(usdbStatusQuery).data?.state;
   const mirror = useQuery(usdbMirrorQuery).data;
@@ -68,6 +72,7 @@ export function Downloads({
   return (
     <AdminSection
       title={t("admin.downloads")}
+      showTitle={showTitle}
       writesLibrary
       notices={<UsdbNotices status={status} mirror={mirror} />}
     >
@@ -254,6 +259,8 @@ function Search() {
         >
           <Icon name="search" className="size-5.5 shrink-0 text-ink-2" />
           <Input
+            // The Stage's focus ring reaches it in the Downloads overlay.
+            data-stage-focus=""
             placeholder={t("admin.downloads.search")}
             autoComplete="off"
             className="min-w-0 grow bg-transparent text-lg text-ink outline-none placeholder:text-mute [&::-webkit-search-cancel-button]:hidden"
