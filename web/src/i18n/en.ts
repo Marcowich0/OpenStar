@@ -393,6 +393,8 @@ export const en = {
   "live.stageMoved": "Another browser is the Stage now",
 
   // The Stage, the Mic bridge page and the Admin area.
+  // The fold that holds owner-only setup detail on the Stage (`ui/OwnerFold`).
+  "ownerFold.title": "For the owner",
   "stage.sing": "Sing!",
   "stage.start": "Start",
   "stage.volume": "Volume {volume, number}",
@@ -616,7 +618,10 @@ export const en = {
   "stage.joinCard.chip": "Join · {code}",
   // The chip when Phones can't reach a working join address (#250).
   "stage.joinCard.chipCantSing": "Join · {code} · Phones can't sing yet",
-  "stage.joinCard.cantSing": "Phones can't sing yet",
+  // The join card's line when Phones can't reach a working join address; the
+  // owner's detail (`.notHttps`, `.localhost`) is folded under "For the owner".
+  "stage.joinCard.needsSecureAddress":
+    "Phones need a secure address to sing. Ask the owner.",
   "stage.joinCard.notHttps":
     "This Stage was opened over plain http://. Set up HTTPS (see the Caddy example), then reload.",
   "stage.joinCard.localhost":
