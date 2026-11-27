@@ -34,6 +34,7 @@ import {
 } from "../../phone/songs/requestCommands";
 import { Avatar } from "../../ui/Avatar";
 import { Cover } from "../../ui/Cover";
+import { coverSongOf } from "../../ui/generatedCover";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
 import { StagePickList, StagePickListEntry } from "../frame/StagePickList";
@@ -137,7 +138,7 @@ function QueueRow({
         </span>
         <Cover
           src={song?.media.cover ?? null}
-          tileColour={song?.media.tileColour ?? "teal"}
+          song={coverSongOf(song)}
           rim={4}
           className="w-24 shrink-0"
         />
