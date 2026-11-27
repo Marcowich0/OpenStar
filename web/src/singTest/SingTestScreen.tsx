@@ -14,7 +14,10 @@ const NO_OFFSET = () => 0;
 /** A frozen frame time: the synthetic confetti stays where it was caught. */
 const FROZEN = () => 0;
 
-/** No video and no images: the generated tile, so the page needs no network. */
+/**
+ * No video and no images: the generated tile, so the page needs no network.
+ * The no-video case draws the blobs over it instead (#263).
+ */
 const TILE_ONLY: SongMedia = {
   audio: { url: "", native: false },
   video: null,
@@ -33,7 +36,12 @@ export function SingTestScreen({ search }: { search: SingTestSearch }) {
       clock={clock}
       avOffset={NO_OFFSET}
       frameTime={FROZEN}
-      backdrop={<SingBackdrop media={TILE_ONLY} />}
+      backdrop={
+        <SingBackdrop
+          media={TILE_ONLY}
+          {...(state.background ? { background: state.background.kind } : {})}
+        />
+      }
     />
   );
 }

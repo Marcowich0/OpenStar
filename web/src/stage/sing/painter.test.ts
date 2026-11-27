@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Note } from "../../generated/Note";
 import type { TokenRef } from "../../theme/tokens";
 import type {
+  BackgroundEntry,
   DrawList,
   HeadBallEntry,
   LaneEntry,
@@ -15,7 +16,7 @@ import type {
   TitleCardEntry,
   TracePoint,
 } from "./frame";
-import { createPainter, referenceTransform } from "./painter";
+import { coverTransform, createPainter, referenceTransform } from "./painter";
 import painterSource from "./painter.ts?raw";
 
 type Call = [string, ...unknown[]];
@@ -24,12 +25,25 @@ type Call = [string, ...unknown[]];
 function recordingContext(width = 3840, height = 2160) {
   const calls: Call[] = [];
   const gradients: { stops: [number, string][] }[] = [];
+  const radials: { args: unknown[]; stops: [number, string][] }[] = [];
   const target: Record<string, unknown> = {
     canvas: { width, height },
     // Every text is 10 px wide per character.
     measureText: (text: string) => {
       calls.push(["measureText", text]);
       return { width: 10 * text.length };
+    },
+    createRadialGradient: (...args: unknown[]) => {
+      calls.push(["createRadialGradient", ...args]);
+      const gradient = {
+        args,
+        stops: [] as [number, string][],
+        addColorStop(offset: number, colour: string) {
+          gradient.stops.push([offset, colour]);
+        },
+      };
+      radials.push(gradient);
+      return gradient;
     },
     createLinearGradient: (...args: unknown[]) => {
       calls.push(["createLinearGradient", ...args]);
@@ -54,7 +68,12 @@ function recordingContext(width = 3840, height = 2160) {
       return true;
     },
   });
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, gradients };
+  return {
+    ctx: ctx as unknown as CanvasRenderingContext2D,
+    calls,
+    gradients,
+    radials,
+  };
 }
 
 /** Each token resolves to a recognisable fake value. */
@@ -134,6 +153,129 @@ describe("referenceTransform", () => {
       x: 0,
       y: 270,
     });
+  });
+});
+
+describe("coverTransform", () => {
+  it("scales the reference frame uniformly to cover the screen, centred", () => {
+    expect(coverTransform(1920, 1080, 0.25)).toEqual({
+      scale: 0.25,
+      x: 0,
+      y: 0,
+    });
+    // A 16:10 screen: the frame is cropped left and right, not letterboxed.
+    expect(coverTransform(1280, 800, 1)).toEqual({
+      scale: 800 / 1080,
+      x: (1280 - (1920 * 800) / 1080) / 2,
+      y: 0,
+    });
+  });
+});
+
+const blobs: BackgroundEntry = {
+  type: "background",
+  kind: "blobs",
+  base: "--color-cream",
+  blobs: [
+    { x: 300, y: 200, radius: 500, colour: "cherry", alpha: 0.7 },
+    { x: 1500, y: 800, radius: 520, colour: "--color-slate", alpha: 0.7 },
+    { x: 900, y: 600, radius: 480, colour: "cherry", alpha: 0.7 },
+  ],
+};
+
+describe("the background painter", () => {
+  const small = referenceTransform(480, 270, 1);
+
+  it("fills the whole canvas with the base, then each blob as a soft radial gradient at its alpha", () => {
+    const { ctx, calls } = recordingContext(480, 270);
+    createPainter(ctx, colour, "background").paint([blobs], small);
+    expect(calls.slice(0, 4)).toEqual([
+      ["setTransform", 1, 0, 0, 1, 0, 0],
+      ["set", "globalAlpha", 1],
+      ["set", "fillStyle", "value(--color-cream)"],
+      ["fillRect", 0, 0, 480, 270],
+    ]);
+    // Each blob: a unit gradient moved and scaled onto it.
+    const placed = calls.filter(([op]) => op === "setTransform").slice(1);
+    expect(placed).toEqual([
+      ["setTransform", 0.25 * 500, 0, 0, 0.25 * 500, 0.25 * 300, 0.25 * 200],
+      ["setTransform", 0.25 * 520, 0, 0, 0.25 * 520, 0.25 * 1500, 0.25 * 800],
+      ["setTransform", 0.25 * 480, 0, 0, 0.25 * 480, 0.25 * 900, 0.25 * 600],
+    ]);
+    expect(calls.filter(([op]) => op === "fillRect").slice(1)).toEqual([
+      ["fillRect", -1, -1, 2, 2],
+      ["fillRect", -1, -1, 2, 2],
+      ["fillRect", -1, -1, 2, 2],
+    ]);
+    expect(calls).toContainEqual(["set", "globalAlpha", 0.7]);
+  });
+
+  it("makes one gradient per colour, fading to a clear stop of the same colour", () => {
+    const { ctx, radials } = recordingContext(480, 270);
+    const painter = createPainter(ctx, colour, "background");
+    painter.paint([blobs], small);
+    painter.paint(
+      [{ ...blobs, blobs: blobs.blobs.map((b) => ({ ...b, x: b.x + 1 })) }],
+      small,
+    );
+    expect(radials).toHaveLength(2);
+    expect(radials[0]?.args).toEqual([0, 0, 0, 0, 0, 1]);
+    expect(radials[0]?.stops[0]).toEqual([0, "value(cherry)"]);
+    expect(radials[0]?.stops.at(-1)).toEqual([
+      1,
+      "color-mix(in srgb, value(cherry) 1%, transparent)",
+    ]);
+  });
+
+  it("repaints only when the background changed: still blobs or a paused Song cost nothing", () => {
+    const { ctx, calls } = recordingContext(480, 270);
+    const painter = createPainter(ctx, colour, "background");
+    painter.paint([blobs], small);
+    const first = calls.length;
+    painter.paint(
+      [{ ...blobs, blobs: blobs.blobs.map((b) => ({ ...b })) }],
+      small,
+    );
+    expect(calls).toHaveLength(first);
+    const moved = blobs.blobs.map((b, i) =>
+      i === 1 ? { ...b, y: b.y + 0.5 } : b,
+    );
+    painter.paint([{ ...blobs, blobs: moved }], small);
+    expect(calls.length).toBeGreaterThan(first);
+    const again = calls.length;
+    painter.paint(
+      [{ ...blobs, blobs: moved }],
+      referenceTransform(960, 540, 1),
+    );
+    expect(calls.length).toBeGreaterThan(again);
+  });
+
+  it("clears its canvas once for a video or an image, which the DOM shows", () => {
+    const { ctx, calls } = recordingContext(480, 270);
+    const painter = createPainter(ctx, colour, "background");
+    painter.paint([blobs], small);
+    calls.length = 0;
+    painter.paint([{ type: "background", kind: "video" }, lane, pill], small);
+    expect(calls).toEqual([
+      ["setTransform", 1, 0, 0, 1, 0, 0],
+      ["clearRect", 0, 0, 480, 270],
+    ]);
+    calls.length = 0;
+    painter.paint([{ type: "background", kind: "video" }], small);
+    painter.paint([], small);
+    expect(calls).toEqual([]);
+  });
+
+  it("draws nothing but the background", () => {
+    const { ctx, calls } = recordingContext(480, 270);
+    createPainter(ctx, colour, "background").paint(
+      [lane, pill, playhead, dot, { type: "laneEnd", lane: 0 }],
+      small,
+    );
+    expect(calls).toEqual([
+      ["setTransform", 1, 0, 0, 1, 0, 0],
+      ["clearRect", 0, 0, 480, 270],
+    ]);
   });
 });
 
@@ -711,6 +853,12 @@ describe("the painter", () => {
   it("leaves particles to the effects canvas", () => {
     const { ctx, calls } = recordingContext();
     createPainter(ctx, colour).paint([dot], view);
+    expect(calls).toHaveLength(3);
+  });
+
+  it("leaves the background to the background canvas", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint([blobs], view);
     expect(calls).toHaveLength(3);
   });
 

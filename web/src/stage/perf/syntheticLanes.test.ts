@@ -69,6 +69,23 @@ describe("the recorded readings", () => {
 const singing = readingsRuns(files).filter((run) => run.kind === "singing");
 
 describe("synthetic lanes", () => {
+  it("keeps the Song's background", () => {
+    const synthetic = createSyntheticLanes({
+      base: {
+        ...syntheticSing("duet"),
+        background: { kind: "blobs", still: false },
+      },
+      count: 8,
+      runs: [shortRun],
+      clock: steadyClock,
+      now: () => 0,
+    });
+    expect(synthetic.state.background).toEqual({
+      kind: "blobs",
+      still: false,
+    });
+  });
+
   it("lays out at most as many lanes as the route accepts", () => {
     expect(MAX_SYNTHETIC_LANES).toBe(MAX_LANES);
   });
