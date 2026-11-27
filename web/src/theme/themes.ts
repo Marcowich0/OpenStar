@@ -11,7 +11,10 @@
 // non-CSS values (the sing screen's, #267) go in `ThemeDef` beside `tokens`.
 
 import type { Theme } from "../generated/Theme";
+import { DEFAULT_THEME } from "./themeNames";
 import type { TokenName } from "./tokens";
+
+export { DEFAULT_THEME, isTheme, THEME_NAMES } from "./themeNames";
 
 /** A value for every token and palette key's token. */
 export type ThemeTokens = Readonly<Record<TokenName, string>>;
@@ -39,21 +42,11 @@ export interface SingTheme {
   playheadAlpha: number;
 }
 
-/** Bubble Pop: v1's look (`THEME_DEFAULT` on the server). */
-export const DEFAULT_THEME: Theme = "bubblePop";
-
 /** One theme. */
 export interface ThemeDef {
   tokens: ThemeTokens;
   sing: SingTheme;
 }
-
-/** The three themes, in the order Options shows them. */
-export const THEME_NAMES = [
-  "bubblePop",
-  "bubblePopNight",
-  "highContrast",
-] as const satisfies readonly Theme[];
 
 /** Bubble Pop: cream and candy colours, exactly `tokens.css`. */
 const BUBBLE_POP: ThemeTokens = {
@@ -278,10 +271,6 @@ export const THEMES: Readonly<Record<Theme, ThemeDef>> = {
   bubblePopNight: { tokens: BUBBLE_POP_NIGHT, sing: FROSTED },
   highContrast: { tokens: HIGH_CONTRAST, sing: SOLID },
 };
-
-export function isTheme(value: unknown): value is Theme {
-  return (THEME_NAMES as readonly unknown[]).includes(value);
-}
 
 /** The theme on the document root; Bubble Pop until one is applied there. */
 let shown: Theme = DEFAULT_THEME;

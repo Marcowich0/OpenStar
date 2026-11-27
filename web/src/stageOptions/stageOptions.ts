@@ -20,7 +20,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { api } from "../api/api";
 import type { StageOptions } from "../generated/StageOptions";
-import { DEFAULT_THEME } from "../theme/themes";
+import { DEFAULT_THEME } from "../theme/themeNames";
 import { DEFAULT_EFFECTS, EFFECTS } from "./effects";
 
 export type { StageOptions };
