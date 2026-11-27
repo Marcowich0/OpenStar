@@ -5,31 +5,25 @@
 // query's key starts with that topic's prefix. `StageScreen` mounts it inside
 // `StageOutputProvider`. It renders nothing.
 
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
-import { api } from "../api/api";
 import type { MicKey } from "../generated/MicKey";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
 import { OPENSTAR_VOLUME } from "../playback/gain";
 import { useStageOutput } from "../stage/output/StageOutput";
-import { atReferenceVolume, type ThresholdSource } from "./micSettings";
+import { type ThresholdSource } from "./micSettings";
+import {
+  handReferenceDbfs,
+  stageOutputMicSettingsQuery,
+} from "./micSettingsQuery";
 import {
   seatMicSettings,
   stageMicSettings,
   type StageMicSettings,
 } from "./stageMicSettings";
-
-/** `GET /api/mic-settings`: every Mic's values at one Stage output. */
-export function stageOutputMicSettingsQuery(stageOutput: string) {
-  return queryOptions({
-    queryKey: ["micSettings", "stageOutput", stageOutput],
-    queryFn: ({ signal }) =>
-      api("GET /api/mic-settings", { query: { stageOutput }, signal }),
-  });
-}
 
 export function StageMicSettingsLoader({
   outputKey: givenKey,
@@ -84,9 +78,6 @@ export function StageMicSettingsLoader({
 
 const selectVolume = (live: LiveState) => live.volume;
 
-/** The meters' range, in dBFS: a threshold line set by hand stays inside it. */
-export const METER_RANGE_DBFS = { floor: -60, top: 0 } as const;
-
 export interface MicThresholds {
   /**
    * The effective Mic threshold a meter draws for a Mic: what Start would
@@ -104,6 +95,11 @@ export interface MicThresholds {
   setByHand: (localMicId: string, effectiveDbfs: number) => void;
   /** Moves a Local mic's line by `stepDb` (±1 for the arrow keys). */
   nudge: (localMicId: string, stepDb: number) => void;
+  /**
+   * `nudge` for any Mic: a Local mic, or a Phone (a Line-up seat's meter),
+   * whose hand setting goes to the server as `setPhoneMicThreshold`.
+   */
+  nudgeMic: (mic: MicKey, stepDb: number) => void;
   /**
    * Whether a Stage output's stored values have loaded: until then a hand
    * setting has no output to be kept for, so the lines cannot be moved.
@@ -128,22 +124,28 @@ export function useMicThresholds(
     seatMicSettings(mic, mic ? settings.storedFor(mic) : undefined, volume);
   const effectiveDbfs = (mic: MicKey | null) =>
     resolved(mic).effectiveThresholdDbfs;
-  const setByHand = (localMicId: string, effective: number) => {
-    const shown = Math.max(
-      METER_RANGE_DBFS.floor,
-      Math.min(METER_RANGE_DBFS.top, effective),
-    );
-    // Hundredths of a dB: no float noise in what is kept.
-    const referenceDbfs =
-      Math.round(atReferenceVolume(shown, volume) * 100) / 100;
-    const stageOutput = settings.setByHand(localMicId, referenceDbfs);
+  const setByHandFor = (mic: MicKey, effective: number) => {
+    const referenceDbfs = handReferenceDbfs(effective, volume);
+    const stageOutput = settings.setByHandFor(mic, referenceDbfs);
     if (stageOutput === null) return;
-    store.send({
-      type: "setMicThreshold",
-      stageOutput,
-      localMicId,
-      referenceDbfs,
-    });
+    store.send(
+      mic.kind === "localMic"
+        ? {
+            type: "setMicThreshold",
+            stageOutput,
+            localMicId: mic.localMicId,
+            referenceDbfs,
+          }
+        : {
+            type: "setPhoneMicThreshold",
+            stageOutput,
+            phoneId: mic.phoneId,
+            referenceDbfs,
+          },
+    );
+  };
+  const setByHand = (localMicId: string, effective: number) => {
+    setByHandFor({ kind: "localMic", localMicId }, effective);
   };
   return {
     effectiveDbfs,
@@ -155,6 +157,9 @@ export function useMicThresholds(
         localMicId,
         effectiveDbfs({ kind: "localMic", localMicId }) + stepDb,
       );
+    },
+    nudgeMic: (mic, stepDb) => {
+      setByHandFor(mic, effectiveDbfs(mic) + stepDb);
     },
   };
 }

@@ -4,9 +4,12 @@
 //! The Stage computes every value (Calibration analysis, the + 6 dB margin,
 //! the conversion to the reference volume) in TypeScript and sends finished
 //! values; the server only keeps them. Writes are WebSocket messages
-//! accepted only from the active Stage
+//! accepted from the active Stage
 //! ([`crate::ClientMessage::StoreCalibration`],
-//! [`crate::ClientMessage::SetMicThreshold`]); reads are
+//! [`crate::ClientMessage::SetMicThreshold`],
+//! [`crate::ClientMessage::SetPhoneMicThreshold`]) and, for its own Mic
+//! threshold, from a Phone ([`crate::ClientMessage::SetPhoneMicThreshold`]);
+//! reads are
 //! `GET /api/mic-settings?stageOutput=…`. After every accepted write every
 //! browser gets [`crate::ChangeTopic::MicSettings`].
 
@@ -39,9 +42,9 @@ pub struct CalibrationResult {
     pub mic_delay_ms: f64,
     /// The bleed level, in dBFS at the reference volume.
     pub bleed_level_dbfs: f64,
-    /// For a Local mic: its Mic threshold (bleed level + 6 dB), in dBFS at
-    /// the reference volume. Stored as set by Calibration. Left out, the
-    /// stored Mic threshold stays as it was.
+    /// Its Mic threshold (bleed level + 6 dB), in dBFS at the reference
+    /// volume. Stored as set by Calibration, replacing one set by hand. Left
+    /// out, the stored Mic threshold stays as it was.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub mic_threshold_dbfs: Option<f64>,
@@ -85,8 +88,8 @@ pub struct StoredMicSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub calibration: Option<StoredCalibration>,
-    /// The Mic threshold, if one was stored. v1 stores one only for Local
-    /// mics; Phones ignore it.
+    /// The Mic threshold, if one was stored: by Calibration or by hand, for a
+    /// Local mic or a Phone. Last write wins.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub mic_threshold: Option<StoredMicThreshold>,

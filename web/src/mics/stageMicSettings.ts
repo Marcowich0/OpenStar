@@ -34,6 +34,8 @@ export interface StageMicSettings {
    * so nothing to set it for).
    */
   setByHand(localMicId: string, referenceDbfs: number): string | null;
+  /** `setByHand` for any Mic: a Local mic or a Phone. */
+  setByHandFor(mic: MicKey, referenceDbfs: number): string | null;
   /**
    * Replaces the input delays the Local mics report now, by Local mic id:
    * a Stage-browser device's (its track's `latency`) and a Mic bridge
@@ -65,25 +67,28 @@ export function createStageMicSettings(): StageMicSettings {
   };
   const storedFor = (mic: MicKey) =>
     loaded?.mics.find((entry) => sameMic(entry.mic, mic))?.settings;
+  const setByHandFor = (mic: MicKey, referenceDbfs: number) => {
+    if (!loaded) return null;
+    const { stageOutput, mics } = loaded;
+    const settings: StoredMicSettings = {
+      ...storedFor(mic),
+      micThreshold: { referenceDbfs, setBy: "hand" },
+    };
+    set({
+      stageOutput,
+      mics: [
+        ...mics.filter((entry) => !sameMic(entry.mic, mic)),
+        { mic, settings },
+      ],
+    });
+    return stageOutput;
+  };
   return {
     set,
     storedFor,
+    setByHandFor,
     setByHand(localMicId, referenceDbfs) {
-      if (!loaded) return null;
-      const { stageOutput, mics } = loaded;
-      const mic: MicKey = { kind: "localMic", localMicId };
-      const settings: StoredMicSettings = {
-        ...storedFor(mic),
-        micThreshold: { referenceDbfs, setBy: "hand" },
-      };
-      set({
-        stageOutput,
-        mics: [
-          ...mics.filter((entry) => !sameMic(entry.mic, mic)),
-          { mic, settings },
-        ],
-      });
-      return stageOutput;
+      return setByHandFor({ kind: "localMic", localMicId }, referenceDbfs);
     },
     setReportedInputDelays(delays) {
       reported = delays;

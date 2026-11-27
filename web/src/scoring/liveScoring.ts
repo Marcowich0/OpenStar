@@ -10,11 +10,17 @@
  * Restart, outside the Song) never reach a Beat.
  *
  * Each `tick()` reads Song time once through `songTime()` and finalises every
- * Beat whose end plus the grace period (300 ms of Song time) it has reached:
- * the Beat's value is computed once from the readings in its span
- * (`beatValue`), stored, and judged by the Player's incremental scorer. A
- * reading that arrives later is still drawn but never scores. A pause freezes
- * Song time, so Beats waiting for their grace period stay open across it.
+ * Beat whose end plus the Player's Mic delay plus the grace period (300 ms of
+ * Song time) it has reached: the Beat's value is computed once from the
+ * readings in its span (`beatValue`), stored, and judged by the Player's
+ * incremental scorer. The Mic delay is in the wait because a reading sung at
+ * the Beat's end is captured that much later on the Stage's clock: without
+ * it, a Mic whose delay nears the grace period (a Phone through a TV or a
+ * soundbar) would have most of its readings arrive after their Beat was
+ * fixed. The grace period is then what the reading's trip to the Stage may
+ * take. A reading that arrives later is still drawn but never scores. A pause
+ * freezes Song time, so Beats waiting for their grace period stay open across
+ * it.
  *
  * The lost-Mic rule runs per seat (`createMicWatch`, Stage time): a Beat
  * during which a tick saw the seat's Mic lost counts as no voice, and the
@@ -146,6 +152,8 @@ export interface LiveScoring {
 /** One Player's running state. */
 interface ScoringSeat {
   input: Readonly<LiveScoringPlayer>;
+  /** Song time (s) from a Beat's end until it is finalised: Mic delay + grace. */
+  wait: number;
   scorer: Scorer;
   range: BeatRange;
   /** Values of the Beats of the range, filled as they are finalised. */
@@ -164,11 +172,20 @@ interface ScoringSeat {
 
 const NO_VOICE: BeatValue = { kind: "noVoice" };
 
+/**
+ * How long (ms of Song time) after a Beat's end it is finalised, for a Mic
+ * with Mic delay `micDelayMs`: the delay (never less than 0) plus the grace
+ * period. A reading captured at the Beat's end may take the grace period to
+ * reach the Stage and still score.
+ */
+export function finalisationWaitMs(micDelayMs: number): number {
+  return Math.max(0, micDelayMs) + SCORING.gracePeriodMs;
+}
+
 export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
   const { song, clock } = options;
   const grid = song.headers;
   const now = options.now ?? (() => performance.now());
-  const graceSeconds = SCORING.gracePeriodMs / 1000;
   const players = options.players.map((p) => Object.freeze({ ...p }));
   const listeners = new Set<(change: LiveScoringChange) => void>();
 
@@ -182,6 +199,7 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
     const size = Math.max(range.lastBeat - range.firstBeat + 1, 0);
     return {
       input,
+      wait: finalisationWaitMs(input.micDelayMs) / 1000,
       scorer,
       range,
       values: [],
@@ -259,7 +277,7 @@ export function createLiveScoring(options: LiveScoringOptions): LiveScoring {
       for (
         ;
         seat.next <= seat.range.lastBeat &&
-        beatStart(grid, seat.next + 1) + graceSeconds <= songTime;
+        beatStart(grid, seat.next + 1) + seat.wait <= songTime;
         seat.next++
       ) {
         const value = valueOf(seat, buffer, seat.next);

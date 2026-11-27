@@ -69,7 +69,7 @@ The Song's own sound reaching a Mic from the speakers, which must never score as
 _Avoid_: Echo, feedback, crosstalk
 
 **Mic threshold**:
-The loudness a Mic's Pitch reading must reach to count as singing, so that Bleed never scores. Each Mic has its own. A Local mic's can also be set by hand, and stays the same for the whole of a Song.
+The loudness a Mic's Pitch reading must reach to count as singing, so that Bleed never scores. Each Mic has its own, set by Calibration or by hand (a Local mic's on the Stage, a Phone's on the Stage or on that Phone), and it stays the same for the whole of a Song.
 _Avoid_: Loudness gate, noise gate, sensitivity
 
 **Mic delay**:

@@ -27,7 +27,10 @@ export const SCORING = {
   octaveFoldCents: 600,
   /** A reading is voiced when it passes the Mic threshold and has this clarity or more. */
   voicedMinClarity: 0.8,
-  /** A Beat's value is fixed this long (Song time) after the Beat ends. */
+  /**
+   * A Beat's value is fixed this long (Song time) after the Beat ends plus
+   * the Player's Mic delay: how long a reading may take to reach the Stage.
+   */
   gracePeriodMs: 300,
   /** A Mic with no readings for this long (Stage time) is lost. */
   micLostAfterMs: 1000,

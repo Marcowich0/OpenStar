@@ -99,7 +99,14 @@ describe("the Stage's Calibration tones", () => {
     expect(sent).toEqual([
       {
         type: "finishCalibration",
-        results: [{ mic: phone("bo"), micDelayMs: 102, bleedLevelDbfs: -40 }],
+        results: [
+          {
+            mic: phone("bo"),
+            micDelayMs: 102,
+            bleedLevelDbfs: -40,
+            micThresholdDbfs: -34,
+          },
+        ],
       },
     ]);
     expect(listening()).toBe(0);
@@ -163,7 +170,14 @@ describe("the Stage's Calibration tones", () => {
     expect(sent).toEqual([
       {
         type: "finishCalibration",
-        results: [{ mic: phone("bo"), micDelayMs: 110, bleedLevelDbfs: -40 }],
+        results: [
+          {
+            mic: phone("bo"),
+            micDelayMs: 110,
+            bleedLevelDbfs: -40,
+            micThresholdDbfs: -34,
+          },
+        ],
       },
     ]);
   });

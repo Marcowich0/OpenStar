@@ -55,6 +55,11 @@ export interface LiveState {
    * threshold line.
    */
   volume: number | null;
+  /**
+   * The Stage output that volume belongs to (its output key), or `null`
+   * until the server has told it: a Phone reads its own Mic settings at it.
+   */
+  stageOutput: string | null;
   /** How many volume steps (from the Stage or a Remote) the server has told. */
   volumeSteps: number;
   /**
@@ -111,6 +116,7 @@ export const initialLiveState: LiveState = {
   phone: null,
   validJoinCode: null,
   volume: null,
+  stageOutput: null,
   volumeSteps: 0,
   songProgress: null,
   lineScore: null,
@@ -142,6 +148,8 @@ export type LiveStateMessage = Exclude<
     type:
       | "pitchReading"
       | "clockPing"
+      | "micReportRequest"
+      | "micReport"
       | "clockPong"
       | "micClosed"
       | "micPage"
@@ -225,6 +233,7 @@ export function receive(
       return {
         ...state,
         volume: message.volume,
+        stageOutput: message.stageOutput ?? null,
         volumeSteps: state.volumeSteps + (message.stepped ? 1 : 0),
       };
     case "songProgress": {

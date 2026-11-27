@@ -15,20 +15,13 @@ import type {
   SenderSession,
 } from "../clock/senderSession";
 import type { PitchWorkletReading } from "../worklet/pitchMessages";
+import { micConstraints } from "./micDiagnostics";
 
 /**
  * The spec's constraints for a Phone mic: the browser's echo cancellation
  * and noise suppression on, auto gain off, one channel.
  */
-export const MIC_CONSTRAINTS = {
-  audio: {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: false,
-    channelCount: { ideal: 1 },
-  },
-  video: false,
-} as const satisfies MediaStreamConstraints;
+export const MIC_CONSTRAINTS = micConstraints("standard");
 
 /** What the pipeline uses of an `AudioContext`. */
 export type CaptureAudioContext = Pick<
@@ -38,7 +31,35 @@ export type CaptureAudioContext = Pick<
   | "close"
   | "createMediaStreamSource"
   | "createChannelSplitter"
->;
+> &
+  Partial<Pick<AudioContext, "baseLatency" | "outputLatency">>;
+
+/** How one reading went from the worklet to the main thread (diagnostics). */
+export interface WorkletReadingTiming {
+  /** When the main thread handled it, ms on the page's clock. */
+  handledMs: number;
+  /**
+   * How much longer than the quickest of the last second it waited between
+   * its last audio frame and the main thread, ms; null until it is stamped.
+   */
+  workletWaitMs: number | null;
+}
+
+/** What the open capture is, for the diagnostics. */
+export interface CaptureInfo {
+  sampleRate: number;
+  /** The context's `baseLatency` and `outputLatency`, ms (null: not told). */
+  baseLatencyMs: number | null;
+  outputLatencyMs: number | null;
+  /** The constraints the mic was asked for. */
+  requested: MediaStreamConstraints;
+  /** What the browser applied: the track's `getSettings()`. */
+  settings: MediaTrackSettings | null;
+  /** The track's label, `muted` and `readyState`. */
+  label: string | null;
+  muted: boolean | null;
+  readyState: MediaStreamTrackState | null;
+}
 
 /** What the pipeline uses of a pitch node (`createPitchNode`). */
 export interface PitchNodeLike {
@@ -70,7 +91,12 @@ export interface CapturePipelineOptions {
    */
   onPong?: (listener: (pong: ClockPongFields) => void) => () => void;
   /** Told of every reading the worklet makes, stamped or not (diagnostics). */
-  onWorkletReading?: (reading: PitchWorkletReading) => void;
+  onWorkletReading?: (
+    reading: PitchWorkletReading,
+    timing: WorkletReadingTiming,
+  ) => void;
+  /** The mic's constraints; `MIC_CONSTRAINTS` when left out. */
+  constraints?: MediaStreamConstraints;
   setTimer?: (run: () => void, ms: number) => unknown;
   clearTimer?: (timer: unknown) => void;
 }
@@ -80,9 +106,14 @@ export interface CapturePipeline {
   restartSync: () => void;
   /** Stage clock − page clock; null before an offset exists (0 when local). */
   offsetMs: () => number | null;
+  /** The context, the constraints and the track, read now. */
+  info: () => CaptureInfo;
   /** Releases the mic, the context and the clock session. */
   stop: () => void;
 }
+
+/** Half the detector window (2048 frames): a reading's stamp is its centre. */
+const HALF_WINDOW_FRAMES = 1024;
 
 const defaultSetTimer = (run: () => void, ms: number): unknown =>
   setTimeout(run, ms);
@@ -102,7 +133,8 @@ export async function startCapture(
   // Both inside the gesture.
   const context = options.createContext();
   const resumed = context.resume();
-  const opened = options.getUserMedia(MIC_CONSTRAINTS);
+  const requested = options.constraints ?? MIC_CONSTRAINTS;
+  const opened = options.getUserMedia(requested);
 
   let stream: MediaStream | null = null;
   let session: SenderSession | null = null;
@@ -167,9 +199,20 @@ export async function startCapture(
     const splitter = context.createChannelSplitter(1);
     source.connect(splitter);
     const made = await options.createPitchNode(context, (reading) => {
-      options.onWorkletReading?.(reading);
-      if (session !== live) return;
-      const stamped = live.stampReading(reading, options.now());
+      const handledMs = options.now();
+      const stamped =
+        session === live ? live.stampReading(reading, handledMs) : null;
+      const offset = stamped ? live.offsetMs() : null;
+      // The stamp is the window centre on the Stage's clock: back on this
+      // page's clock and moved to the window's end, what is left of the
+      // handling time is the wait beyond the quickest reading's.
+      const workletWaitMs =
+        stamped && offset !== null
+          ? handledMs -
+            (stamped.captureMs - offset) -
+            (HALF_WINDOW_FRAMES / reading.sampleRate) * 1000
+          : null;
+      options.onWorkletReading?.(reading, { handledMs, workletWaitMs });
       if (stamped) options.deliver(stamped);
     });
     node = made;
@@ -185,6 +228,27 @@ export async function startCapture(
       schedulePing();
     },
     offsetMs: () => session?.offsetMs() ?? null,
+    info() {
+      // Fakes in tests, and old browsers, may lack either method.
+      const media: Partial<Pick<MediaStream, "getAudioTracks">> | null = stream;
+      const track = media?.getAudioTracks?.()[0] ?? null;
+      const readable: Partial<Pick<MediaStreamTrack, "getSettings">> | null =
+        track;
+      const latency = (seconds: number | undefined) =>
+        typeof seconds === "number" && Number.isFinite(seconds)
+          ? seconds * 1000
+          : null;
+      return {
+        sampleRate: context.sampleRate,
+        baseLatencyMs: latency(context.baseLatency),
+        outputLatencyMs: latency(context.outputLatency),
+        requested,
+        settings: readable?.getSettings?.() ?? null,
+        label: track?.label ?? null,
+        muted: track ? track.muted : null,
+        readyState: track ? track.readyState : null,
+      };
+    },
     stop: release,
   };
 }

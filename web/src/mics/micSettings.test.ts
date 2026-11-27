@@ -93,22 +93,50 @@ describe("a Phone's Mic settings", () => {
       },
     },
     {
-      case: "uncalibrated, ignoring a reported input delay and a stored hand setting",
+      case: "uncalibrated, set by hand, ignoring a reported input delay",
       stored: { micThreshold: { referenceDbfs: -50, setBy: "hand" as const } },
       reportedInputDelayMs: 12,
       volume: 80,
       expected: {
         micDelayMs: 100,
-        effectiveThresholdDbfs: -30,
+        effectiveThresholdDbfs: -50,
         calibrated: false,
-        thresholdSource: "default",
+        thresholdSource: "hand",
       },
     },
     {
-      case: "calibrated, ignoring a stored hand setting",
+      case: "uncalibrated, set by hand at volume 40",
+      stored: { micThreshold: { referenceDbfs: -36, setBy: "hand" as const } },
+      volume: 40,
+      expected: {
+        micDelayMs: 100,
+        effectiveThresholdDbfs: -48.0412,
+        calibrated: false,
+        thresholdSource: "hand",
+      },
+    },
+    {
+      case: "calibrated, then set by hand: the hand setting wins",
       stored: {
         calibration: calibrated,
         micThreshold: { referenceDbfs: -50, setBy: "hand" as const },
+      },
+      volume: 80,
+      expected: {
+        micDelayMs: 104,
+        effectiveThresholdDbfs: -50,
+        calibrated: true,
+        thresholdSource: "hand",
+      },
+    },
+    {
+      case: "set by hand, then calibrated: Calibration's threshold wins",
+      stored: {
+        calibration: calibrated,
+        micThreshold: {
+          referenceDbfs: -32,
+          setBy: "calibration" as const,
+        },
       },
       volume: 80,
       expected: {

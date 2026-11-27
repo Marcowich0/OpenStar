@@ -66,12 +66,13 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - setting the OpenStar volume, from the Stage or a Remote;
 - hiding the join card;
 - on the Mics screen: switching Local mics on and off, renaming a Local mic, Find it, and setting a Mic threshold;
+- a Phone's Mic threshold set by hand, from that Phone's own meter or from its Line-up seat on the Stage;
 - Add a Mic bridge, the `/bridge` page and its download;
 - approving a new Mic bridge on the Stage's Mics screen (the Stage browser is already trusted through the PIN);
 - Switch to Pro Audio for a Mic bridge's interface, on the Mics screen or in the bridge window (it changes a sound card's profile on the bridge's computer, no Library file and no kept data);
 - Lock, the Unlock status and the PIN attempt itself;
 - the job list (`GET /api/jobs`) and the job updates on the WebSocket;
-- what Mics, the Stage and Mic bridges report over the WebSocket (Pitch readings, clock sync, levels, input delays, which Local mics are present, capture or are silent, the Song position and Line scores): none changes the Library or deletes kept data;
+- what Mics, the Stage and Mic bridges report over the WebSocket (Pitch readings, clock sync, a Phone's mic diagnostics and the Stage's answer, levels, input delays, which Local mics are present, capture or are silent, the Song position and Line scores): none changes the Library or deletes kept data;
 - storing a round's outcome and its Score records (`POST /api/rounds`), which adds kept data and deletes none.
 
 The test-only routes `POST /api/test/jobs` and `POST /api/test/jobs/{id}/cancel` (mounted only by `Server::with_test_routes`) are not guarded: a test job runs a harmless child process and touches nothing kept. The test-only route `POST /api/test/songs/{id}/pitch-track?timeoutMs=` is the Pitch track request with a short timeout, so it is not guarded either. The test-only route `POST /api/test/library/new-song` publishes a new Song folder the way a Download does, so it is `Guarded(Library::Writes)`.

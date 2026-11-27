@@ -143,7 +143,7 @@ export interface SeatCardProps {
   readLevel: () => number | null;
   /** The seat Mic's effective Mic threshold now, dBFS (its meter's line). */
   micThresholdDbfs: number;
-  /** A Local mic seat: its meter holds the focus and has the adjust mode. */
+  /** A seat with a Mic: its meter holds the focus and has the adjust mode. */
   thresholdAdjustable: boolean;
   /** The adjust mode is on (the line is yellow). */
   adjustingThreshold: boolean;

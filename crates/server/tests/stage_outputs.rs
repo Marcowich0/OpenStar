@@ -10,18 +10,33 @@ use openstar_protocol::{
 };
 use openstar_test_harness::{TestApp, WsClient};
 
-/// The next message on `socket`, past change notices and Party changes.
+/// The next message on `socket`, past change notices and Party changes. A
+/// volume's Stage output is checked in `phone_mic_diagnostics.rs`; here it
+/// is left out.
 async fn recv(socket: &mut WsClient) -> ServerMessage {
     loop {
         match socket.recv().await {
             ServerMessage::Changed { .. } | ServerMessage::PartyChanged { .. } => {}
+            ServerMessage::Volume {
+                volume, stepped, ..
+            } => {
+                return ServerMessage::Volume {
+                    volume,
+                    stepped,
+                    stage_output: None,
+                };
+            }
             message => return message,
         }
     }
 }
 
 fn volume(volume: u8, stepped: bool) -> ServerMessage {
-    ServerMessage::Volume { volume, stepped }
+    ServerMessage::Volume {
+        volume,
+        stepped,
+        stage_output: None,
+    }
 }
 
 /// Opens the Stage, past its live state, and returns it with the Join code.

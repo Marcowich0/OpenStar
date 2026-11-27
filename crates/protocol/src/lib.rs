@@ -126,6 +126,30 @@ pub enum ClientMessage {
     /// readings) or is visible again, relayed to the current Stage as a
     /// [`ServerMessage::MicPage`] (dropped while there is none).
     MicPage { visible: bool },
+    /// Sets a Phone's Mic threshold by hand at `stage_output`, in dBFS at the
+    /// reference volume: from the active Stage for any Phone (a Line-up
+    /// seat's meter), or from a Phone for its own (the Phone id its
+    /// connection presented) at the Stage's current output. Refused with
+    /// [`UserMessage::NotTheStage`] for another Phone's, and with
+    /// [`UserMessage::NoStage`] from a Phone when `stage_output` is not the
+    /// Stage's current output. Needs no Admin PIN. Every browser gets
+    /// [`ChangeTopic::MicSettings`].
+    SetPhoneMicThreshold {
+        stage_output: String,
+        phone_id: PhoneId,
+        reference_dbfs: f64,
+    },
+    /// A Phone's mic diagnostics ask what the Stage receives from it, about
+    /// once a second while they are open: relayed to the current Stage as
+    /// [`ServerMessage::MicReportRequest`] (dropped while there is none).
+    MicReportRequest,
+    /// The Stage's answer to a [`ServerMessage::MicReportRequest`], relayed
+    /// to that Phone alone as [`ServerMessage::MicReport`]. Refused with
+    /// [`UserMessage::NotTheStage`] from anyone but the active Stage.
+    MicReport {
+        mic: MicId,
+        report: pitch::StageMicReport,
+    },
     /// Stores a Calibration run's successful results at `stage_output`, one
     /// per Mic included; a Mic left out keeps every value it had. Accepted
     /// only from the active Stage; needs no Admin PIN.
@@ -529,6 +553,12 @@ pub enum ServerMessage {
     /// Stage only: a Phone's page was hidden or is visible again (the
     /// lost-Mic signals `pageHidden` and `pageVisible`).
     MicPage { mic: MicId, visible: bool },
+    /// Stage only: a Phone's mic diagnostics ask what the Stage receives
+    /// from it. Answer with a [`ClientMessage::MicReport`] naming the same
+    /// Mic.
+    MicReportRequest { mic: MicId },
+    /// The Stage's answer to this Phone's [`ClientMessage::MicReportRequest`].
+    MicReport { report: pitch::StageMicReport },
     /// The answer to a [`ClientMessage::CheckJoinCode`] with the current code.
     JoinCodeValid { join_code: JoinCode },
     /// Sent to a connection after its [`ClientMessage::Hello`] or accepted
@@ -547,7 +577,15 @@ pub enum ServerMessage {
     /// has reported its output. `stepped` is true when a
     /// [`ClientMessage::StepVolume`] changed it (the Stage shows its volume
     /// pill then), false when the output changed or a browser connected.
-    Volume { volume: u8, stepped: bool },
+    Volume {
+        volume: u8,
+        stepped: bool,
+        /// The Stage output the volume belongs to (its output key): a Phone
+        /// reads its own Mic settings at it. Always sent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        stage_output: Option<String>,
+    },
     /// Whether Check A/V sync runs on the Stage, sent to every connection
     /// when it starts and ends, and to a new connection after its
     /// [`ServerMessage::LiveState`] while it runs. A Remote shows its big

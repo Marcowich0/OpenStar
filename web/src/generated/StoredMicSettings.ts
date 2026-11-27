@@ -11,7 +11,7 @@ export type StoredMicSettings = {
  */
 calibration?: StoredCalibration, 
 /**
- * The Mic threshold, if one was stored. v1 stores one only for Local
- * mics; Phones ignore it.
+ * The Mic threshold, if one was stored: by Calibration or by hand, for a
+ * Local mic or a Phone. Last write wins.
  */
 micThreshold?: StoredMicThreshold, };

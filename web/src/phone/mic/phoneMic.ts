@@ -21,9 +21,12 @@
 // open path and clears the report when it opens.
 
 import type { ClientMessage } from "../../generated/ClientMessage";
+import type { StageMicReport } from "../../generated/StageMicReport";
+import { MIC_THRESHOLD } from "../../mics/micSettings";
 import type { ClockPongFields } from "../../pitch/clock/senderSession";
 import {
   startCapture,
+  type CaptureInfo,
   type CapturePipeline,
   type CapturePipelineOptions,
 } from "../../pitch/capture/capturePipeline";
@@ -31,6 +34,12 @@ import {
   createRateCounter,
   type DetectorCost,
 } from "../../pitch/capture/diagnostics";
+import {
+  createFrameStats,
+  micConstraints,
+  type FrameStatsSummary,
+  type MicProcessing,
+} from "../../pitch/capture/micDiagnostics";
 
 /** `lost`: the page was hidden while the mic was open; Sing again reopens it. */
 export type PhoneMicState = "off" | "opening" | "on" | "failed" | "lost";
@@ -94,6 +103,45 @@ export interface PhoneMic {
    * Returns the unsubscribe.
    */
   onLevel: (listener: (loudnessDbfs: number) => void) => () => void;
+  /**
+   * The effective Mic threshold the Stage would score this Phone with now
+   * (dBFS), for the diagnostics' gated share.
+   */
+  setThreshold: (dbfs: number) => void;
+  /** Everything the diagnostics show, measured now. */
+  diagnostics: () => PhoneMicDiagnostics;
+  /**
+   * While on, asks the Stage once a second what it receives from this Phone
+   * (`micReportRequest`); its answers show in `diagnostics().stage`.
+   */
+  watchStage: (on: boolean) => void;
+  /**
+   * Opens the mic again on a new context (a tap's handler): after the
+   * voice processing changed in the diagnostics. Only while on or opening.
+   */
+  reopen: () => void;
+}
+
+/** What the diagnostics view shows and copies: one moment of the mic. */
+export interface PhoneMicDiagnostics {
+  /** When it was taken: `Date.now()` and this page's clock. */
+  takenAt: string;
+  state: PhoneMicState;
+  processing: MicProcessing;
+  /** The capture while it is open. */
+  capture: CaptureInfo | null;
+  frames: FrameStatsSummary;
+  /** Stage clock − this page's clock, ms; null before sync. */
+  clockOffsetMs: number | null;
+  /** The detector's cost per window, once measured. */
+  detector: DetectorCost | null;
+  /** Whether the screen Wake Lock is held now. */
+  wakeLock: boolean;
+  /** Whether this page is hidden now. */
+  hidden: boolean;
+  /** The Stage's newest answer, and how old it is (ms). */
+  stage: StageMicReport | null;
+  stageReportAgeMs: number | null;
 }
 
 /** The page's visibility (`document.visibilityState`). */
@@ -131,10 +179,18 @@ export interface PhoneMicOptions {
   page?: PageVisibility;
   /** Requests the screen Wake Lock (`navigator.wakeLock.request("screen")`). */
   wakeLock?: () => Promise<WakeLockHold>;
+  /** The voice processing to open the mic with (default `standard`). */
+  processing?: () => MicProcessing;
+  /** Subscribes to the Stage's `micReport`s; returns the unsubscribe. */
+  onMicReport?: (listener: (report: StageMicReport) => void) => () => void;
+  /** The wall clock for `takenAt` (`Date.now()`). */
+  wallClock?: () => number;
 }
 
 /** How often the readout's readings per second is refreshed. */
 const READOUT_EVERY_MS = 500;
+/** How often the diagnostics ask the Stage for its report. */
+const STAGE_REPORT_EVERY_MS = 1000;
 
 export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
   const { store, capture } = options;
@@ -148,6 +204,14 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
   const listeners = new Set<() => void>();
   const levelListeners = new Set<(loudnessDbfs: number) => void>();
   const rate = createRateCounter();
+  const frames = createFrameStats(MIC_THRESHOLD.phoneFallbackDbfs);
+  const processing = options.processing ?? (() => "standard" as const);
+  let openedWith: MicProcessing = processing();
+  let stageReport: { report: StageMicReport; atMs: number } | null = null;
+  let stageWatch: unknown = null;
+  options.onMicReport?.((report) => {
+    stageReport = { report, atMs: capture.now() };
+  });
   let snapshot: PhoneMicSnapshot = {
     state: "off",
     blocked: null,
@@ -244,23 +308,31 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
   function open() {
     const mine = ++attempt;
     update({ state: "opening", blocked: null });
+    openedWith = processing();
+    frames.clear();
     // Synchronous up to the first await: still inside the tap.
     startCapture({
       ...capture,
       mode: "remote",
+      constraints: micConstraints(openedWith),
       deliver: (reading) => {
         store.send({ type: "pitchReading", reading });
-        rate.add(capture.now());
+        const at = capture.now();
+        rate.add(at);
+        frames.sent(at);
       },
       sendPing: (t0) => {
         store.send({ type: "clockPing", t0 });
       },
       onPong: (listener) =>
         store.onClockPong((pong) => {
+          const at = capture.now();
+          frames.pong(at, at - pong.t0);
           listener(pong);
           refreshSynced();
         }),
-      onWorkletReading: (reading) => {
+      onWorkletReading: (reading, timing) => {
+        frames.reading(timing.handledMs, reading, timing.workletWaitMs);
         for (const listener of [...levelListeners]) listener(reading.loudness);
       },
     }).then(
@@ -349,6 +421,41 @@ export function createPhoneMic(options: PhoneMicOptions): PhoneMic {
       return () => {
         levelListeners.delete(listener);
       };
+    },
+    setThreshold(dbfs) {
+      frames.setThreshold(dbfs);
+    },
+    diagnostics() {
+      const now = capture.now();
+      return {
+        takenAt: new Date((options.wallClock ?? Date.now)()).toISOString(),
+        state: snapshot.state,
+        processing: openedWith,
+        capture: pipeline?.info() ?? null,
+        frames: frames.summary(now),
+        clockOffsetMs: pipeline?.offsetMs() ?? null,
+        detector: snapshot.detector,
+        wakeLock: wakeLock !== null,
+        hidden: options.page?.hidden() ?? false,
+        stage: stageReport?.report ?? null,
+        stageReportAgeMs: stageReport ? now - stageReport.atMs : null,
+      };
+    },
+    watchStage(on) {
+      if (stageWatch !== null) clearTimer(stageWatch);
+      stageWatch = null;
+      if (!on) return;
+      const ask = () => {
+        store.send({ type: "micReportRequest" });
+        stageWatch = setTimer(ask, STAGE_REPORT_EVERY_MS);
+      };
+      ask();
+    },
+    reopen() {
+      const { state } = snapshot;
+      if (state !== "on" && state !== "opening") return;
+      stopPipeline();
+      open();
     },
   };
 }

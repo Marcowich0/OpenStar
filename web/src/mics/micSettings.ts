@@ -15,7 +15,14 @@ import type { ThresholdSetBy } from "../generated/ThresholdSetBy";
 export const MIC_THRESHOLD = {
   /** Calibration sets a Mic threshold to its bleed level + this margin. */
   bleedMarginDb: 6,
-  /** An uncalibrated Phone's Mic threshold. */
+  /**
+   * A Phone's Mic threshold when never calibrated nor set by hand. Kept at
+   * −30: the recorded Phone runs (`fixtures/readings/`) put Bleed at up to
+   * about −33 dBFS on the one Phone measured, so a lower fixed value lets
+   * Bleed score (−32 already breaks the 4 % limit), while singing on that
+   * Phone sits around −22 to −34. No one fixed value fits every Phone and
+   * room: Calibration or a hand setting with the Phone's meter does.
+   */
   phoneFallbackDbfs: -30,
   /** A Local mic's Mic threshold when never calibrated nor set by hand. */
   localMicDefaultDbfs: -40,
@@ -137,9 +144,24 @@ export function resolveMicSettings(input: MicSettingsInput): MicSettings {
     };
   }
 
+  // A Phone: a stored Mic threshold (by hand, or by a Calibration run since
+  // Phones store one too) wins, last write wins. A Phone calibrated before
+  // Calibration stored its threshold has only its bleed level: + 6 dB.
+  const threshold = input.stored?.micThreshold;
+  const micDelayMs = calibration
+    ? calibration.micDelayMs
+    : MIC_DELAY.phoneDefaultMs;
+  if (threshold) {
+    return {
+      micDelayMs,
+      effectiveThresholdDbfs: threshold.referenceDbfs + level,
+      calibrated: calibration !== undefined,
+      thresholdSource: threshold.setBy,
+    };
+  }
   if (calibration) {
     return {
-      micDelayMs: calibration.micDelayMs,
+      micDelayMs,
       effectiveThresholdDbfs:
         calibration.bleedLevelDbfs + MIC_THRESHOLD.bleedMarginDb + level,
       calibrated: true,
@@ -147,7 +169,7 @@ export function resolveMicSettings(input: MicSettingsInput): MicSettings {
     };
   }
   return {
-    micDelayMs: MIC_DELAY.phoneDefaultMs,
+    micDelayMs,
     effectiveThresholdDbfs: MIC_THRESHOLD.phoneFallbackDbfs + level,
     calibrated: false,
     thresholdSource: "default",

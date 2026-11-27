@@ -98,12 +98,10 @@ function LineUpBody({
   const levels = useMicLevels();
   const thresholds = useMicThresholds(store);
   const [picking, setPicking] = useState<Picking | null>(null);
-  // The seat whose meter is in the adjust mode; only a Local mic seat's.
+  // The seat whose meter is in the adjust mode; only a seat with a Mic.
   const [adjusting, setAdjusting] = useState<number | null>(null);
-  const adjustingMic = (() => {
-    const mic = adjusting === null ? null : lineUp.seats[adjusting]?.mic;
-    return mic?.kind === "localMic" ? mic.localMicId : null;
-  })();
+  const adjustingMic =
+    adjusting === null ? null : (lineUp.seats[adjusting]?.mic ?? null);
   const startRef = useRef<HTMLDivElement>(null);
 
   const songOf = (id: SongId | undefined): SongSummary | undefined =>
@@ -165,10 +163,10 @@ function LineUpBody({
       startRef.current?.querySelector("button")?.click();
       return true;
     },
-    // Enter on a Local mic seat's meter starts and ends its adjust mode,
-    // in which ←/→ move the Mic threshold line 1 dB; Esc ends it too. Not
-    // before the Stage output's stored values have loaded: a hand setting
-    // would have no output to be kept for.
+    // Enter on a seat's meter (a Local mic's or a Phone's) starts and ends
+    // its adjust mode, in which ←/→ move the Mic threshold line 1 dB; Esc
+    // ends it too. Not before the Stage output's stored values have loaded:
+    // a hand setting would have no output to be kept for.
     Enter: () => {
       if (adjustingMic !== null) {
         setAdjusting(null);
@@ -186,12 +184,12 @@ function LineUpBody({
     },
     ArrowLeft: () => {
       if (adjustingMic === null) return false;
-      thresholds.nudge(adjustingMic, -1);
+      thresholds.nudgeMic(adjustingMic, -1);
       return true;
     },
     ArrowRight: () => {
       if (adjustingMic === null) return false;
-      thresholds.nudge(adjustingMic, 1);
+      thresholds.nudgeMic(adjustingMic, 1);
       return true;
     },
   });
@@ -254,7 +252,7 @@ function LineUpBody({
                   seatLevelDbfs(seat.mic, party.localMics, levels)
                 }
                 micThresholdDbfs={thresholds.effectiveDbfs(seat.mic)}
-                thresholdAdjustable={seat.mic?.kind === "localMic"}
+                thresholdAdjustable={seat.mic !== null}
                 adjustingThreshold={
                   adjustingMic !== null && adjusting === index
                 }

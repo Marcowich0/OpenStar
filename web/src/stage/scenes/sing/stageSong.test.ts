@@ -537,7 +537,7 @@ describe("the Stage plays the head's Request", () => {
     view.clock.play(); // the media plays from Stage time 0
 
     sing(t, 0, 3); // delivered late, but inside the grace period
-    t.frames(2300); // Beat 3 final at 2.0 s + 300 ms
+    t.frames(2400); // Beat 3 final at 2.0 s + 100 ms Mic delay + 300 ms
     // 12 scored Beats: 750 points each.
     expect(view.state.lanes[0]?.player?.score).toBe(3000);
     expect(totals.at(-1)).toBe(3000);
@@ -566,14 +566,14 @@ describe("the Stage plays the head's Request", () => {
     if (view.kind !== "singing") throw new Error("not singing");
     view.clock.play();
     sing(t, 0, 3);
-    t.frames(2300);
+    t.frames(2400);
     expect(view.state.lanes[0]?.player?.score).toBe(3000);
 
     t.control("restart");
     view.clock.seek(0); // the media's Restart re-anchors the clock
     expect(view.state.lanes[0]?.player?.score).toBe(0);
     sing(t, 0, 0, 2300);
-    t.frames(4600); // Beat 0 final at 1.25 s + 300 ms after the Restart
+    t.frames(4700); // Beat 0 final at 1.25 s + 100 + 300 ms after the Restart
     expect(view.state.lanes[0]?.player?.score).toBe(750);
   });
 
@@ -641,7 +641,7 @@ describe("the Stage plays the head's Request", () => {
     t.song.onScoring((change) => scores.push(change.score));
     view.clock.play();
     sing(t, 0, 3);
-    t.frames(2300);
+    t.frames(2400);
     const lane = view.state.lanes[0];
     expect(lane?.trace?.lostAt).toBeNull();
 
@@ -649,8 +649,8 @@ describe("the Stage plays the head's Request", () => {
     t.server({ type: "micClosed", mic: MIA_MIC });
     t.frames(4000);
     // Lost from the first frame after the close, in Song time.
-    expect(lane?.trace?.lostAt).toBeGreaterThanOrEqual(2.3);
-    expect(lane?.trace?.lostAt).toBeLessThanOrEqual(2.34);
+    expect(lane?.trace?.lostAt).toBeGreaterThanOrEqual(2.4);
+    expect(lane?.trace?.lostAt).toBeLessThanOrEqual(2.44);
     // No Note points while lost (a Line that ends still gets its bonus).
     expect(scores.at(-1)?.notes).toBe(3000);
     expect(t.song.view()).toMatchObject({ controls: { phase: "playing" } });
@@ -777,7 +777,7 @@ describe("the Score on each seat's Phone", () => {
     view.clock.play();
 
     sing(t, 0, 3);
-    t.frames(2300);
+    t.frames(2400);
     // Mid-Line: the Score moved, but nothing is reported yet.
     expect(view.state.lanes[0]?.player?.score).toBeGreaterThan(0);
     expect(lineScores(t.sent)).toEqual([]);
@@ -822,7 +822,7 @@ describe("Line ratings on the sing screen (ticket 216)", () => {
     view.clock.play();
 
     sing(t, 0, 3);
-    t.frames(2300);
+    t.frames(2400);
     // Mid-Line: no rating yet.
     expect(shown(view.state)).toEqual([]);
     expect(view.state.effects?.live).toBe(0);

@@ -1,9 +1,16 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { PhoneStorage } from "../../live/phoneId";
 import type { PhoneMic, PhoneMicSnapshot } from "../mic/phoneMic";
+import { quietDiagnostics } from "../mic/testPhoneMic";
 import { PhonePageView } from "../PhoneScreen";
 import {
   BO_SEAT,
@@ -13,6 +20,7 @@ import {
   PARTY,
   renderWithParty,
   stubFetch,
+  stubFetchWith,
 } from "../stage/testParty";
 import {
   playerResult,
@@ -64,6 +72,10 @@ function fakeMic(state: PhoneMicSnapshot["state"] = "off") {
     level(dbfs: number) {
       for (const listener of levels) listener(dbfs);
     },
+    setThreshold: vi.fn(),
+    diagnostics: quietDiagnostics,
+    watchStage: vi.fn(),
+    reopen: vi.fn(),
   } satisfies PhoneMic & Record<string, unknown>;
   return mic;
 }
@@ -98,6 +110,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // The diagnostics toggle is remembered in the browser's storage.
+  localStorage.clear();
 });
 
 describe("the mic takeover", () => {
@@ -276,6 +290,65 @@ describe("the mic takeover", () => {
     await screen.findByRole("heading", { name: "Sing it!" });
     expect(screen.queryByRole("button", { name: /Medium/ })).toBeNull();
     expect(within(takeover()).getByText("Medium")).toBeTruthy();
+  });
+
+  it("sets this Phone's own Mic threshold by hand from the mic check's slider", async () => {
+    stubFetchWith((url) =>
+      url.pathname === "/api/mic-settings"
+        ? Response.json({
+            stageOutput: url.searchParams.get("stageOutput"),
+            mics: [],
+          })
+        : undefined,
+    );
+    const { sent, server } = renderPage(PARTY, fakeMic("on"));
+    server({
+      type: "volume",
+      volume: 80,
+      stepped: false,
+      stageOutput: "Speakers",
+    });
+    const slider = await screen.findByRole("slider", { name: /Mic threshold/ });
+    // An uncalibrated Phone's default.
+    expect(slider).toHaveValue("-30");
+    await waitFor(() => {
+      expect(slider).toBeEnabled();
+    });
+    expect(screen.getByText(/Default: not calibrated/)).toBeTruthy();
+    fireEvent.change(slider, { target: { value: "-38" } });
+    // Shown at once (kept in the query's cache), sent once the slider rests.
+    await waitFor(() => {
+      expect(slider).toHaveValue("-38");
+    });
+    expect(screen.getByText(/Set by hand/)).toBeTruthy();
+    expect(sent.some((m) => m.type === "setPhoneMicThreshold")).toBe(false);
+    await waitFor(() => {
+      expect(sent).toContainEqual({
+        type: "setPhoneMicThreshold",
+        stageOutput: "Speakers",
+        phoneId: MY_PHONE,
+        referenceDbfs: -38,
+      });
+    });
+  });
+
+  it("opens the mic diagnostics from their toggle, asking the Stage what it receives", async () => {
+    const mic = fakeMic("on");
+    renderPage(PARTY, mic);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Show mic diagnostics" }),
+    );
+    const panel = screen.getByRole("region", { name: "Mic diagnostics" });
+    expect(within(panel).getByText("Audio buffer and worklet")).toBeTruthy();
+    expect(within(panel).getByText("no answer from the Stage")).toBeTruthy();
+    expect(mic.watchStage).toHaveBeenLastCalledWith(true);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Hide mic diagnostics" }),
+    );
+    expect(
+      screen.queryByRole("region", { name: "Mic diagnostics" }),
+    ).toBeNull();
+    expect(mic.watchStage).toHaveBeenLastCalledWith(false);
   });
 
   it("shows the Player no diagnostics", async () => {

@@ -124,7 +124,10 @@ async fn the_a_v_offset_and_the_openstar_volume_of_one_output_are_kept_apart() {
     let mut stage = app.connect_stage().await;
     report(&mut stage, "stage-1", "Speakers").await;
     loop {
-        if let ServerMessage::Volume { volume, stepped } = recv(&mut stage).await {
+        if let ServerMessage::Volume {
+            volume, stepped, ..
+        } = recv(&mut stage).await
+        {
             assert_eq!((volume, stepped), (80, false));
             break;
         }
@@ -138,7 +141,8 @@ async fn the_a_v_offset_and_the_openstar_volume_of_one_output_are_kept_apart() {
         recv(&mut stage).await,
         ServerMessage::Volume {
             volume: 85,
-            stepped: true
+            stepped: true,
+            stage_output: Some("Speakers".into()),
         }
     );
     // Stepping the volume keeps the offset, and a new offset keeps the volume.

@@ -303,6 +303,28 @@ fn every_client_message() -> Vec<ClientMessage> {
             epoch: 0.0,
         },
         ClientMessage::MicPage { visible: false },
+        ClientMessage::MicReportRequest,
+        ClientMessage::MicReport {
+            mic: MicId::Phone {
+                phone_id: PhoneId("phone".into()),
+            },
+            report: openstar_protocol::pitch::StageMicReport {
+                received_per_second: 0,
+                arrival_p50_ms: None,
+                arrival_p95_ms: None,
+                arrival_max_ms: None,
+                largest_gap_ms: None,
+                late_share: None,
+                loudness_dbfs: None,
+                mic_delay_ms: 100.0,
+                mic_threshold_dbfs: -30.0,
+            },
+        },
+        ClientMessage::SetPhoneMicThreshold {
+            stage_output: String::new(),
+            phone_id: PhoneId("phone".into()),
+            reference_dbfs: -30.0,
+        },
         ClientMessage::StoreCalibration {
             stage_output: String::new(),
             results: Vec::new(),
@@ -1026,6 +1048,21 @@ const V1_ACTIONS: &[Action] = {
             )],
         },
         Action {
+            name: "A Phone's Mic threshold by hand, from that Phone or a Line-up seat",
+            needs: Nothing,
+            via: &[Ws("setPhoneMicThreshold")],
+            proofs: &[
+                (
+                    "phone_mic_diagnostics.rs",
+                    "a_phone_sets_its_own_mic_threshold_without_a_pin",
+                ),
+                (
+                    "phone_mic_diagnostics.rs",
+                    "the_stage_sets_any_phones_mic_threshold",
+                ),
+            ],
+        },
+        Action {
             name: "On the Mics screen: Local mics on and off, renaming one, Find it, a Mic threshold",
             needs: Nothing,
             via: &[
@@ -1122,6 +1159,8 @@ const V1_ACTIONS: &[Action] = {
                 Ws("clockPing"),
                 Ws("clockPong"),
                 Ws("micPage"),
+                Ws("micReportRequest"),
+                Ws("micReport"),
                 Ws("reportMicBlocked"),
                 Ws("reportSongPosition"),
                 Ws("reportLineScore"),
@@ -1135,6 +1174,10 @@ const V1_ACTIONS: &[Action] = {
                 (
                     "relay.rs",
                     "a_ping_reaches_the_stage_and_its_pong_goes_back_to_the_phone_that_pinged_alone",
+                ),
+                (
+                    "phone_mic_diagnostics.rs",
+                    "a_phones_report_request_reaches_the_stage_and_the_answer_only_that_phone",
                 ),
                 (
                     "unlock.rs",

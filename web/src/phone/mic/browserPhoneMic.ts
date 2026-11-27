@@ -12,6 +12,7 @@ import {
 import type { PhoneId } from "../../generated/PhoneId";
 import { onReconnect } from "./reconnect";
 import { followLineUp } from "./micLineUp";
+import { storedMicProcessing } from "./micProcessing";
 import {
   createPhoneMic,
   MediaDevicesMissingError,
@@ -77,6 +78,8 @@ export function phoneMicFor(store: LiveStore, phoneId: PhoneId): PhoneMic {
         }),
       page: documentPage,
       wakeLock: requestWakeLock,
+      processing: storedMicProcessing,
+      onMicReport: store.onMicReport,
     });
     followLineUp(store, phoneId, mic);
     mics.set(store, mic);

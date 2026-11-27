@@ -164,16 +164,36 @@ const P = (pitch: number): BeatValue => ({ kind: "pitch", pitch });
 const NONE: BeatValue = { kind: "noVoice" };
 
 describe("finalising a Beat", () => {
-  it("fixes a Beat's value only once Song time reaches its end plus 300 ms, readings placed with the Mic delay", () => {
+  it("fixes a Beat's value only once Song time reaches its end plus the Mic delay plus 300 ms, readings placed with the Mic delay", () => {
     // A Phone with a 100 ms Mic delay: captured 100 ms after it was sung.
     const r = rig({ players: [player({ micDelayMs: 100 })] });
     r.to(beatMs(2) + 100);
     singBeat(r, 0, 60, 0, 100);
     singBeat(r, 1, 60, 0, 100);
-    // Beat 1 ends at beatMs(2); grace runs until beatMs(2) + 300.
-    r.at(beatMs(2) + 299);
+    // Beat 1 ends at beatMs(2); it waits until beatMs(2) + 100 + 300.
+    r.at(beatMs(2) + 399);
     expect(r.session.score(0).total).toBe(2250); // Beat 0 only: 9000 / 4
-    r.at(beatMs(2) + 300);
+    r.at(beatMs(2) + 400);
+    expect(r.session.score(0).total).toBe(4500 + 500);
+  });
+
+  it("still scores a Mic whose Mic delay is longer than the grace period", () => {
+    // A Phone heard through a TV: 400 ms Mic delay, and each reading takes
+    // another 150 ms to reach the Stage. Waiting only 300 ms after the Beat
+    // (the old rule) fixed every Beat before any of its readings arrived.
+    const r = rig({ players: [player({ micDelayMs: 400 })] });
+    for (let b = 0; b <= 1; b++) {
+      for (const offset of [25, 85, 145, 205]) {
+        const captured = beatMs(b) + offset + 400;
+        r.run(captured + 150);
+        r.sing(captured, 60);
+      }
+    }
+    r.run(beatMs(2) + 400 + 300);
+    expect(r.session.outcome().players[0]?.beatValues.slice(0, 2)).toEqual([
+      P(60),
+      P(60),
+    ]);
     expect(r.session.score(0).total).toBe(4500 + 500);
   });
 });
@@ -195,7 +215,7 @@ describe("Beat values with a Mic delay", () => {
     r.sing(beatMs(1) + 40, 61, { clarity: 0.5 });
     r.sing(beatMs(1) + 40 + 100, 61);
     r.sing(beatMs(1) + 40 + 200, null, { loudness: -60 });
-    r.run(beatMs(2) + 300);
+    r.run(beatMs(2) + 40 + 300);
     expect(r.session.outcome().players[0]?.beatValues.slice(0, 2)).toEqual([
       P(60),
       { kind: "voiceWithoutPitch" },

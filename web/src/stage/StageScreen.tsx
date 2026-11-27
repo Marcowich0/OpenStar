@@ -5,6 +5,7 @@ import { liveStore } from "../live/useLive";
 import { LocalMicsProvider } from "../mics/LocalMics";
 import { StageMicSettingsLoader } from "../mics/StageMicSettings";
 import { StageFrame } from "./frame/StageFrame";
+import { StageMicReports } from "./micDebug/StageMicReports";
 import { StageOutputProvider } from "./output/StageOutput";
 import { StagePerfProvider } from "./perf/stagePerf";
 import { useStageSong } from "./scenes/sing/useStageSong";
@@ -31,6 +32,7 @@ export function StageScreen() {
               store.showStageToast({ code: "soundOutputChanged" });
             }}
           />
+          <StageMicReports store={store} />
           <LocalMicsProvider store={store}>
             <StageFrame store={store} />
           </LocalMicsProvider>
