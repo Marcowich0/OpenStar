@@ -7,6 +7,7 @@
 // `Record`s, so tsc names every place), and the state that selects it to
 // `pickScene` (with a test in `scenes.test.ts`).
 
+import type { RequestId } from "../../generated/RequestId";
 import type { StageState } from "../../live/liveState";
 
 export type SceneId =
@@ -44,4 +45,23 @@ export function pickScene(stage: StageState | null): SceneId {
   if (party?.playing != null) return "sing";
   if (party?.head != null) return "lineUp";
   return "songBrowser";
+}
+
+/**
+ * The scene the Stage shows, with its own "browsing" choice on top of the
+ * server's: `browsing` is the head whose Line-up the Stage set aside for the
+ * song browser (the Line-up's Browse songs, or `H`). It holds only while
+ * the server's scene is still that same head's Line-up. A Song that starts,
+ * its results, Stage moved here, an empty Queue or a different head (a
+ * Request removed, skipped or played next) all end it, so a Stage left on
+ * the song browser comes back to the Line-up the Phones are filling.
+ */
+export function browsedScene(
+  scene: SceneId,
+  stage: StageState | null,
+  browsing: RequestId | null,
+): { scene: SceneId; browsing: RequestId | null } {
+  const holds =
+    browsing !== null && scene === "lineUp" && stage?.party?.head === browsing;
+  return holds ? { scene: "songBrowser", browsing } : { scene, browsing: null };
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { StageState } from "../../live/liveState";
-import { SCENE_RULES, pickScene } from "./scenes";
+import { SCENE_RULES, browsedScene, pickScene } from "./scenes";
 
 const party = (over: Partial<PartySnapshot> = {}): PartySnapshot => ({
   partyId: "p",
@@ -97,6 +97,61 @@ describe("pickScene", () => {
         }),
       ),
     ).toBe("stageMoved");
+  });
+});
+
+describe("browsedScene", () => {
+  const waiting = stage({ party: party({ queue: [request], head: 1 }) });
+  const browse = (s: StageState | null, browsing: number | null) =>
+    browsedScene(pickScene(s), s, browsing);
+
+  it("shows the server's scene when the Stage browses nothing", () => {
+    expect(browse(waiting, null)).toEqual({ scene: "lineUp", browsing: null });
+    expect(browse(stage(), null)).toEqual({
+      scene: "songBrowser",
+      browsing: null,
+    });
+  });
+
+  it("shows the song browser over the same head's waiting Line-up", () => {
+    expect(browse(waiting, 1)).toEqual({ scene: "songBrowser", browsing: 1 });
+  });
+
+  it("brings the Line-up back once the head is a different Request", () => {
+    const next = stage({
+      party: party({ queue: [{ ...request, requestId: 2 }], head: 2 }),
+    });
+    expect(browse(next, 1)).toEqual({ scene: "lineUp", browsing: null });
+  });
+
+  it("ends when the Queue empties, a Song plays, results show or the Stage moved", () => {
+    expect(browse(stage(), 1)).toEqual({
+      scene: "songBrowser",
+      browsing: null,
+    });
+    const playing = { requestId: 1, songId: 1, paused: false };
+    expect(
+      browse(
+        stage({ party: party({ queue: [request], head: 1, playing }) }),
+        1,
+      ),
+    ).toEqual({ scene: "sing", browsing: null });
+    const results = {
+      requestId: 1,
+      songId: 1,
+      ended: "played" as const,
+      players: [],
+    };
+    expect(
+      browse(
+        stage({ party: party({ queue: [request], head: 1, results }) }),
+        1,
+      ),
+    ).toEqual({ scene: "results", browsing: null });
+    expect(browse({ ...waiting, stageMoved: true }, 1)).toEqual({
+      scene: "stageMoved",
+      browsing: null,
+    });
   });
 });
 

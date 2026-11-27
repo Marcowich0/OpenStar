@@ -6,6 +6,12 @@
 // the frame's own: Esc dismisses the top layer (a pick list before an
 // overlay), the arrows move the focus (`focusMove.ts`), Enter picks the
 // focused element, `S`/`Q`/`P` toggle the Songs, Queue and People overlays.
+// `H` (`BrowseToggle.tsx`) leaves the head's waiting Line-up for the song
+// browser and comes back to it, like the Line-up's Browse songs pill and the
+// song browser's Up next banner; it acts only in the scene layer and never
+// in a text field. That choice is the Stage's own: the server still says
+// which scene it is, and the Line-up comes back by itself once the head
+// changes (`browsedScene` in `scenes.ts`).
 // Buttons pick themselves on Enter; hold buttons (`ui/HoldButton`) take Enter
 // key down and up for the hold. While the focus is in a dialog outside the
 // frame (react-aria's modals), the frame leaves every key to it. Toasts (`../toasts/StageToasts.tsx`) lie
@@ -15,6 +21,7 @@ import "./stageFrame.css";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import type { RequestId } from "../../generated/RequestId";
 import type { SongSummary } from "../../generated/SongSummary";
 import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
@@ -28,13 +35,14 @@ import {
 import { nextFocus, type FocusDirection } from "./focusMove";
 import { OVERLAY_KEYS, type OverlayId } from "./overlayIds";
 import { StageOverlay } from "./overlays";
+import { BrowseToggle } from "./BrowseToggle";
 import { PillRow } from "./PillRow";
 import { StageToasts } from "../toasts/StageToasts";
 import { SongSearchProvider } from "../search/songSearch";
 import { StageVolume } from "../volume/StageVolume";
 import { ReferenceBox } from "./ReferenceBox";
 import { SCENES, type SceneDefinition } from "./sceneComponents";
-import { SCENE_RULES, pickScene, type SceneId } from "./scenes";
+import { SCENE_RULES, browsedScene, pickScene, type SceneId } from "./scenes";
 import {
   FrameContext,
   LayerContext,
@@ -74,7 +82,13 @@ export function StageFrame({
   chooseScene = pickScene,
 }: StageFrameProps) {
   const stage = useLive(selectStage, store);
-  const scene = chooseScene(stage);
+  const serverScene = chooseScene(stage);
+  const head = stage?.party?.head ?? null;
+  // The song browser over the head's waiting Line-up, while it holds.
+  const [browsingHead, setBrowsingHead] = useState<RequestId | null>(null);
+  const shown = browsedScene(serverScene, stage, browsingHead);
+  if (shown.browsing !== browsingHead) setBrowsingHead(shown.browsing);
+  const { scene, browsing } = shown;
   const rules = SCENE_RULES[scene];
   const [overlay, setOverlay] = useState<OverlayId | null>(null);
   const [songDetail, setSongDetail] = useState<SongSummary | null>(null);
@@ -138,10 +152,28 @@ export function StageFrame({
         endShared(overlay);
         setOverlay(null);
       },
+      browsing,
+      browseSongs: () => {
+        if (serverScene === "lineUp" && head !== null) setBrowsingHead(head);
+      },
+      backToLineUp: () => {
+        setBrowsingHead(null);
+      },
       store,
       takeStageBack,
     };
-  }, [scene, overlay, songDetail, allowOverlays, store, takeStageBack]);
+  }, [
+    scene,
+    overlay,
+    songDetail,
+    allowOverlays,
+    browsing,
+    serverScene,
+    head,
+    store,
+    takeStageBack,
+    setBrowsingHead,
+  ]);
   const internals = useMemo<FrameInternals>(
     () => ({ api, layersRef, keysRef }),
     [api],
@@ -329,6 +361,7 @@ export function StageFrame({
               )}
               {rules.pillRow && (
                 <ReferenceBox passThrough>
+                  <BrowseToggle />
                   <PillRow setup={rules.setup} />
                 </ReferenceBox>
               )}

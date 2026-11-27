@@ -1,8 +1,9 @@
 // The seams the Stage's screens use inside the frame (`StageFrame.tsx`):
 //
 // - `useStageFrame()`: the current scene and overlay, `openOverlay(id)`,
-//   `openSongDetail(song)`, `closeOverlay()`, the live store and
-//   `takeStageBack()`.
+//   `openSongDetail(song)`, `closeOverlay()`, the song browser shown over a
+//   waiting Line-up (`browsing`, `browseSongs()`, `backToLineUp()`), the live
+//   store and `takeStageBack()`.
 // - `useStageKeys(bindings, { global })`: key bindings. They fire only while
 //   the layer they were bound in is the top one (the scene, an overlay or a
 //   pick list), before the frame's own keys; `global` bindings fire on every
@@ -22,6 +23,7 @@ import {
   type ReactNode,
 } from "react";
 
+import type { RequestId } from "../../generated/RequestId";
 import type { SongSummary } from "../../generated/SongSummary";
 import type { LiveStore } from "../../live/liveStore";
 import { focusDefault } from "./focusables";
@@ -39,6 +41,15 @@ export interface StageFrameApi {
   /** Opens the Song detail overlay: the Song's High score tables. */
   openSongDetail: (song: SongSummary) => void;
   closeOverlay: () => void;
+  /**
+   * The head whose waiting Line-up the Stage set aside for the song
+   * browser, or `null` (`browsedScene` in `scenes.ts`).
+   */
+  browsing: RequestId | null;
+  /** Leaves the head's waiting Line-up for the song browser. */
+  browseSongs: () => void;
+  /** Shows the head's waiting Line-up again. */
+  backToLineUp: () => void;
   store: LiveStore;
   /** Makes this browser the Stage again (Stage moved here). */
   takeStageBack: () => void;

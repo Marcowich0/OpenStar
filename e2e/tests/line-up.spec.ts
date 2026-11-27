@@ -176,6 +176,25 @@ test("a Request at the head shows its Line-up, edited from the Stage's keyboard"
       "data-scene",
       "lineUp",
     );
+
+    // H leaves the waiting Line-up for the song browser; its Up next banner
+    // names the head's Song and the Browse songs pill comes back to it.
+    await stage.keyboard.press("h");
+    await expect(stage.locator("[data-stage-frame]")).toHaveAttribute(
+      "data-scene",
+      "songBrowser",
+    );
+    const upNext = stage.getByTestId("browse-up-next");
+    await expect(upNext).toContainText(duet.title);
+    await upNext.click();
+    await expect(stage.locator("[data-stage-frame]")).toHaveAttribute(
+      "data-scene",
+      "lineUp",
+    );
+    await stage.getByRole("button", { name: "Browse songs" }).click();
+    await expect(upNext).toBeVisible();
+    await stage.keyboard.press("h");
+    await expect(card).toBeVisible();
   } finally {
     for (const { requestId } of party.queue)
       await sendFromPhone(phone, { type: "removeRequest", requestId });
