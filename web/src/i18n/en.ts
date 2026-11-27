@@ -635,6 +635,7 @@ export const en = {
   "stage.lineUp.addProfile": "+ Profile",
   "stage.lineUp.namePlaceholder": "Type a name",
   "stage.lineUp.ok": "OK",
+  "stage.lineUp.cancel": "Cancel",
   "stage.sing.loading": "Getting the Song ready",
   "stage.sing.failed": "The Song could not be loaded",
   "stage.sing.notPlaying": "This Song is not playing here",

@@ -150,3 +150,112 @@ test("the Stage seats a Profile not in the Party and a new Guest from its keyboa
     }
   }
 });
+
+test("the Stage's + Guest form fits at 1280×800 with big tinted pictures, and Cancel and Esc close it", async ({
+  stage,
+  openPhone,
+  request,
+}) => {
+  await stage.setViewportSize({ width: 1280, height: 800 });
+  const code = await newParty(stage);
+  const host = await createProfile(request, "Host", "bubblegum");
+  const { songs } = (await (await request.get("/api/songs")).json()) as {
+    songs: { id: number; path: string }[];
+  };
+  const song = songs.find((s) => s.path === FIXTURE_SONGS.sineMelody);
+  if (!song) throw new Error("the fixture Library has no sine melody");
+
+  const phone = await openPhone();
+  await phone.goto(`/?join=${code}`);
+  await phone.getByRole("button", { name: host.name, exact: true }).click();
+  await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();
+  let party = await sendFromPhone(phone, {
+    type: "addRequest",
+    songId: song.id,
+    requestedPlayers: null,
+  });
+  const membersBefore = party.members.length;
+  try {
+    await expect(stage.locator("[data-stage-frame]")).toHaveAttribute(
+      "data-scene",
+      "lineUp",
+    );
+    const whoList = stage.getByRole("menu", { name: "Who sings" });
+    const addSinger = stage.getByRole("button", { name: /Add a singer/ });
+    const openGuestForm = async () => {
+      await addSinger.focus();
+      await stage.keyboard.press("Enter");
+      await stage.mouse.move(0, 0);
+      await whoList.getByRole("menuitem", { name: "+ Guest" }).focus();
+      await stage.keyboard.press("Enter");
+      await expect(
+        whoList.getByRole("textbox", { name: "Name" }),
+      ).toBeFocused();
+      await whoList.evaluate((element) =>
+        Promise.all(
+          element.getAnimations().map((animation) => animation.finished),
+        ),
+      );
+    };
+
+    await openGuestForm();
+    // The whole form shows in the window, and the page does not scroll.
+    const form = await whoList.boundingBox();
+    expect(form).not.toBeNull();
+    if (!form) return;
+    expect(form.x).toBeGreaterThanOrEqual(0);
+    expect(form.y).toBeGreaterThanOrEqual(0);
+    expect(form.x + form.width).toBeLessThanOrEqual(1280);
+    expect(form.y + form.height).toBeLessThanOrEqual(800);
+    expect(
+      await stage.evaluate(
+        () =>
+          document.documentElement.scrollHeight <= window.innerHeight &&
+          document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+
+    // Each picture is at least 48 px, in the chosen colour, and recoloured
+    // when the colour changes.
+    const pictures = whoList.getByRole("radiogroup", { name: "Picture" });
+    const fills = () =>
+      pictures.evaluate((group) => [
+        ...new Set(
+          [...group.querySelectorAll("circle")].map(
+            (circle) => getComputedStyle(circle).fill,
+          ),
+        ),
+      ]);
+    for (const box of await Promise.all(
+      (await pictures.locator("[role=img]").all()).map((img) =>
+        img.boundingBox(),
+      ),
+    )) {
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(48);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(48);
+    }
+    const before = await fills();
+    expect(before).toHaveLength(1);
+    await stage.keyboard.press("ArrowDown");
+    await stage.keyboard.press("ArrowRight");
+    const after = await fills();
+    expect(after).toHaveLength(1);
+    expect(after).not.toEqual(before);
+
+    // Esc closes it without adding anyone, back on Add a singer.
+    await stage.keyboard.press("Escape");
+    await expect(whoList).toHaveCount(0);
+    await expect(addSinger).toBeFocused();
+
+    // So does Cancel.
+    await openGuestForm();
+    await stage.keyboard.type("Nobody");
+    await whoList.getByRole("button", { name: "Cancel" }).click();
+    await expect(whoList).toHaveCount(0);
+    await expect(addSinger).toBeFocused();
+  } finally {
+    for (const { requestId } of party.queue)
+      party = await sendFromPhone(phone, { type: "removeRequest", requestId });
+  }
+  expect(party.members).toHaveLength(membersBefore);
+});
