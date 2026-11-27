@@ -161,6 +161,7 @@ export function createSyntheticLanes(
     ...(base.lengthSeconds !== undefined
       ? { lengthSeconds: base.lengthSeconds }
       : {}),
+    ...(base.background ? { background: base.background } : {}),
     effects: new ParticlePool(EFFECTS_CAPACITY),
     ratings: new LineRatings(),
   };

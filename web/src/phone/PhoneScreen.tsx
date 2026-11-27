@@ -6,6 +6,7 @@ import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { phoneId, type PhoneStorage } from "../live/phoneId";
 import { liveStore, useLive } from "../live/useLive";
+import { MotionMode } from "../theme/motion";
 import { CalibratingTakeover } from "./calibrating/CalibratingTakeover";
 import { isCalibrating } from "./calibrating/calibrating";
 import { FavouriteTaken } from "./FavouriteTaken";
@@ -47,12 +48,16 @@ export function PhoneScreen() {
     void navigate({ to: "/stage", reloadDocument: true });
   }, [navigate]);
   return (
-    <PhonePageView
-      joinCode={join}
-      diagnostics={perf === true}
-      onUseAsStage={openStage}
-      {...(join !== undefined ? { onInParty: dropJoinCode } : {})}
-    />
+    <>
+      {/* The Effects option is the Stage's: a Phone follows reduced motion. */}
+      <MotionMode effectsOff={false} />
+      <PhonePageView
+        joinCode={join}
+        diagnostics={perf === true}
+        onUseAsStage={openStage}
+        {...(join !== undefined ? { onInParty: dropJoinCode } : {})}
+      />
+    </>
   );
 }
 

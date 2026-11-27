@@ -7,6 +7,7 @@ import { isPaletteKey, TOKEN_NAMES } from "../../theme/tokens";
 import {
   frame,
   singVoices,
+  type BackgroundEntry,
   type DrawEntry,
   type PillEntry,
   type SingState,
@@ -14,6 +15,7 @@ import {
 import { confettiBurst, ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 import { LineRatings } from "./lineRating";
+import type { SingBackground } from "./background";
 
 // One Beat lasts 0.5 s (beatsPerMinute is the real rate, #BPM × 4); Beat 0
 // falls at 1 s. Beat b starts at Song time 1 + b / 2.
@@ -55,6 +57,8 @@ function state(
 ): SingState {
   return { grid, voices: singVoices(song(voices)), lanes };
 }
+
+const BLOBS: SingBackground = { kind: "blobs", still: false };
 
 const solo = state([{ colour: "cherry", voice: 0 }]);
 const oneLane = laneLayout(1).map((lane) => ({
@@ -421,7 +425,7 @@ describe("frame", () => {
     expect(band(7.5)).toBeNull();
   });
 
-  it("draws the progress bar across the top: 80 px in, 20 px down, about 10 px tall", () => {
+  it("draws the progress bar across the top: 80 px in, 20 px down, about 10 px tall, with room for the time left", () => {
     // The last Note ends at Beat 62: Song time 1 + 62 / 2 = 32 s.
     const progress = (t: number, s: SingState = solo) =>
       frame(s, t, oneLane).filter((e) => e.type === "progress");
@@ -430,7 +434,7 @@ describe("frame", () => {
         type: "progress",
         x: 80,
         y: 20,
-        width: 1760,
+        width: 1660,
         height: 10,
         fraction: 0.5,
         track: "--color-white",
@@ -484,7 +488,7 @@ describe("frame", () => {
     const colours: unknown[] = [];
     for (const t of [3, 3.95, 9]) {
       for (const entry of frame(
-        { ...duet, effects, ratings },
+        { ...duet, effects, ratings, background: BLOBS },
         t,
         laneLayout(2),
       )) {
@@ -522,6 +526,22 @@ describe("frame", () => {
           case "lineRating":
             colours.push(entry.colour);
             break;
+          case "titleCard":
+            colours.push(entry.fill, entry.ledge, entry.cover.tile);
+            colours.push(entry.cover.rim, entry.title.colour);
+            colours.push(entry.artist.colour);
+            break;
+          case "pauseHint":
+            colours.push(entry.fill, entry.text.colour);
+            break;
+          case "timeLeft":
+            colours.push(entry.text.colour, entry.outline);
+            break;
+          case "background":
+            if (entry.kind === "blobs") {
+              colours.push(entry.base, ...entry.blobs.map((b) => b.colour));
+            }
+            break;
           case "laneEnd":
             break;
         }
@@ -534,5 +554,129 @@ describe("frame", () => {
         true,
       );
     }
+  });
+});
+
+describe("the background layer (ticket 263)", () => {
+  function background(list: readonly DrawEntry[]): BackgroundEntry {
+    const entry = list.find((e) => e.type === "background");
+    if (!entry) throw new Error("no background entry");
+    return entry;
+  }
+  function blobs(list: readonly DrawEntry[]) {
+    const entry = background(list);
+    if (entry.kind !== "blobs") throw new Error(`a ${entry.kind} background`);
+    return entry.blobs;
+  }
+
+  it("comes first, below everything else, and names its kind", () => {
+    for (const kind of ["video", "image", "blobs"] as const) {
+      const list = frame(
+        { ...solo, background: { kind, still: false } },
+        3,
+        oneLane,
+      );
+      expect(list[0]).toMatchObject({ type: "background", kind });
+      expect(list.filter((e) => e.type === "background")).toHaveLength(1);
+    }
+  });
+
+  it("leaves the video and the image to the DOM: their entry carries nothing to paint", () => {
+    const list = frame(
+      { ...solo, background: { kind: "image", still: false } },
+      3,
+      oneLane,
+    );
+    expect(background(list)).toEqual({ type: "background", kind: "image" });
+  });
+
+  it("has none without a background in the state", () => {
+    expect(frame(solo, 3, oneLane).some((e) => e.type === "background")).toBe(
+      false,
+    );
+  });
+
+  it("draws large soft blobs in the Line-up's Party colours, in lane order, on cream", () => {
+    const two = state(
+      [
+        { colour: "cherry", voice: 0 },
+        { colour: "teal", voice: 1 },
+      ],
+      [notes, notes],
+    );
+    const list = frame({ ...two, background: BLOBS }, 3, laneLayout(2));
+    expect(background(list)).toMatchObject({ base: "--color-cream" });
+    const colours = blobs(list).map((b) => b.colour);
+    // At least three blobs: the Line-up's colours, again as needed.
+    expect(colours).toEqual(["cherry", "teal", "cherry"]);
+    for (const blob of blobs(list)) {
+      expect(blob.radius).toBeGreaterThanOrEqual(400);
+    }
+  });
+
+  it("adds a slate blob for a Voice that several Players share", () => {
+    const shared = state([
+      { colour: "cherry", voice: 0 },
+      { colour: "grape", voice: 0 },
+      { colour: "lime", voice: 0 },
+    ]);
+    const list = frame({ ...shared, background: BLOBS }, 3, laneLayout(3));
+    expect(blobs(list).map((b) => b.colour)).toEqual([
+      "cherry",
+      "grape",
+      "lime",
+      "--color-slate",
+    ]);
+  });
+
+  it("gives every Player of an 8-Player Line-up a blob", () => {
+    const keys = [
+      "cherry",
+      "sky",
+      "navy",
+      "cocoa",
+      "teal",
+      "lime",
+      "berry",
+      "mint",
+    ] as const;
+    const eight = state(
+      keys.map((colour, i) => ({ colour, voice: i % 2 })),
+      [notes, notes],
+    );
+    const list = frame({ ...eight, background: BLOBS }, 3, laneLayout(8));
+    expect(blobs(list).map((b) => b.colour)).toEqual([
+      ...keys,
+      "--color-slate",
+      "--color-slate",
+    ]);
+  });
+
+  it("moves the blobs slowly with Song time: a little in a frame, more over seconds", () => {
+    const at = (t: number) =>
+      blobs(frame({ ...solo, background: BLOBS }, t, oneLane));
+    const now = at(10);
+    const nextFrame = at(10 + 1 / 60);
+    const later = at(14);
+    for (let i = 0; i < now.length; i++) {
+      const a = now[i];
+      const b = nextFrame[i];
+      const c = later[i];
+      if (!a || !b || !c) throw new Error("blob missing");
+      const step = Math.hypot(b.x - a.x, b.y - a.y);
+      expect(step).toBeGreaterThan(0);
+      expect(step).toBeLessThan(2);
+      expect(Math.hypot(c.x - a.x, c.y - a.y)).toBeGreaterThan(20);
+    }
+  });
+
+  it("keeps the blobs still when the background says so (Effects off, reduced motion)", () => {
+    const still: SingState = {
+      ...solo,
+      background: { kind: "blobs", still: true },
+    };
+    expect(blobs(frame(still, 2, oneLane))).toEqual(
+      blobs(frame(still, 47.5, oneLane)),
+    );
   });
 });

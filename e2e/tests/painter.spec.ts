@@ -5,7 +5,8 @@ import { expect, STAGE_VIEWPORT, test } from "../fixtures";
 
 // The painter screenshots (#203). The canvas painter is checked only by these:
 // the sing screen painted from `frame()` on fixed synthetic state at a frozen
-// Song time, for 1, 4 and 8 Players and a duet.
+// Song time, for 1, 4 and 8 Players, a duet, and 2 Players of a Song with no
+// video, over the blobs (#263), and the title card (#264) at 1 s.
 //
 // The page (`web/sing-test.html`) is a test build of its own, which `just e2e`
 // writes to e2e/generated/screenshot-page/ (`vite build --mode screenshots`).
@@ -26,15 +27,28 @@ const CONTENT_TYPES: Record<string, string> = {
   ".svg": "image/svg+xml",
 };
 
-const CASES = [
-  { name: "one", label: "1 Player" },
-  { name: "four", label: "4 Players" },
-  { name: "eight", label: "8 Players" },
-  { name: "duet", label: "a duet" },
-] as const;
-
-/** The frozen Song time every shot draws (a Note sits on the playhead). */
+/** The frozen Song time most shots draw (a Note sits on the playhead). */
 const SONG_TIME = 6;
+
+const CASES = [
+  { name: "one", label: "1 Player", t: SONG_TIME, shot: "one" },
+  { name: "four", label: "4 Players", t: SONG_TIME, shot: "four" },
+  { name: "eight", label: "8 Players", t: SONG_TIME, shot: "eight" },
+  { name: "duet", label: "a duet", t: SONG_TIME, shot: "duet" },
+  // The title card and pause hint show from 0 to 4 s.
+  {
+    name: "one",
+    label: "1 Player with the title card at 1 s",
+    t: 1,
+    shot: "title-card",
+  },
+  {
+    name: "noVideo",
+    label: "no video, 2 Players",
+    t: SONG_TIME,
+    shot: "noVideo",
+  },
+] as const;
 
 /** The test build's file for `url`, or null for anything that is not on {@link ORIGIN}. */
 function pageFile(url: string): string | null {
@@ -44,7 +58,7 @@ function pageFile(url: string): string | null {
   return file.startsWith(PAGE_DIR + "/") ? file : null;
 }
 
-for (const { name, label } of CASES) {
+for (const { name, label, t, shot } of CASES) {
   test(`the painter draws the sing screen for ${label}`, async ({
     browser,
   }) => {
@@ -69,12 +83,23 @@ for (const { name, label } of CASES) {
     });
     const page = await context.newPage();
 
-    await page.goto(`/sing-test.html?case=${name}&t=${String(SONG_TIME)}`);
+    await page.goto(`/sing-test.html?case=${name}&t=${String(t)}`);
     await expect(page.locator("[data-sing-screen][data-painted]")).toHaveCount(
       1,
     );
     await page.evaluate(() => document.fonts.ready);
-    await expect(page).toHaveScreenshot(`${name}.png`);
+    // The lyric bar's Lines come in with a CSS animation (`animate-line-in`);
+    // a shot taken while one plays catches it half-way. Wait for every finite
+    // animation on the page to end (the looping ones never do).
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+          .map((a) => a.finished),
+      ),
+    );
+    await expect(page).toHaveScreenshot(`${shot}.png`);
 
     await context.close();
   });

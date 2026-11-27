@@ -4,6 +4,7 @@ import { songQuery } from "../api/queries";
 import { t } from "../i18n/t";
 import type { LiveStore } from "../live/liveStore";
 import { Cover } from "../ui/Cover";
+import { coverSongOf } from "../ui/generatedCover";
 import { Icon } from "../ui/Icon";
 import { controlSong, usePlayerNames } from "./onStage/playing";
 import type { StatusStrip as Strip } from "./remoteFrame";
@@ -38,7 +39,7 @@ export function StatusStrip({
   const cover = (
     <Cover
       src={song?.media.cover ?? null}
-      tileColour={song?.media.tileColour ?? "teal"}
+      song={coverSongOf(song)}
       rim={2}
       className="w-10 shrink-0"
     />

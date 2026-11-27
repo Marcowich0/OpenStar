@@ -19,15 +19,19 @@ import {
   stageMicSettings,
 } from "../../../mics/stageMicSettings";
 import { OPENSTAR_VOLUME } from "../../../playback/gain";
+import { playbackPlan } from "../../../playback/playbackPlan";
 import { memberLook } from "../../../phone/memberLook";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
 import type { PitchMic } from "../../../pitch/pitchRouter";
 import { pitchBufferCapacity } from "../../../pitch/pitchCapacity";
 import {
+  effectsOff,
   stageOptions,
   type StageOptions,
 } from "../../../stageOptions/stageOptions";
 import type { PaletteKey } from "../../../theme/tokens";
+import { prefersReducedMotion } from "../../../theme/motion";
+import { singBackground } from "../../sing/background";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
 import {
@@ -37,6 +41,12 @@ import {
   type SingState,
 } from "../../sing/frame";
 import { laneLayout } from "../../sing/laneLayout";
+import { singSongOf } from "../../sing/titleCard";
+import {
+  pauseHintInput,
+  stageFirstSongMemory,
+  type FirstSongMemory,
+} from "./pauseHint";
 
 /** One seated Player of the Song, in seat order. */
 export interface SingPlayer {
@@ -70,10 +80,15 @@ export interface SingSetupInput {
   /** The OpenStar volume the Mic thresholds are fixed at. */
   volume?: number;
   /**
-   * Whether the sing screen shows effects (confetti, sparkles) and Line
-   * rating words. By default the Stage options as they are now.
+   * Whether the sing screen shows effects (confetti, sparkles), Line rating
+   * words and the Song video. By default the Stage options as they are now.
    */
-  display?: Pick<StageOptions, "effects" | "lineRatings">;
+  display?: Pick<StageOptions, "effects" | "lineRatings" | "songVideo">;
+  /**
+   * The system asks for reduced motion, which keeps the background still.
+   * By default `prefersReducedMotion()` now.
+   */
+  reducedMotion?: boolean;
   /**
    * What is stored for a seated Mic at the current Stage output
    * (`undefined`: its defaults). By default the Stage's loaded values,
@@ -85,6 +100,11 @@ export interface SingSetupInput {
    * while it is not calibrated. By default what the Stage holds now.
    */
   reportedInputDelayFor?: (localMicId: string) => number | null;
+  /**
+   * Whether this Request is the Party's first Song, which shows the pause
+   * hint (#264). By default the Stage browser's memory of it.
+   */
+  isFirstSong?: FirstSongMemory["isFirstSong"];
 }
 
 export interface SingSetup {
@@ -167,6 +187,19 @@ export function singSetup(input: SingSetupInput): SingSetup {
 
   const voices = singVoices(song);
   const layout = laneLayout(players.length);
+  const isFirstSong = input.isFirstSong ?? stageFirstSongMemory().isFirstSong;
+  const requestId = party.playing?.requestId ?? party.head;
+  const pauseHint =
+    requestId !== null && isFirstSong(party.partyId, requestId)
+      ? pauseHintInput()
+      : null;
+  const singSong = singSongOf(detail);
+  const plan = playbackPlan(detail);
+  const background = singBackground(
+    detail.media,
+    display,
+    input.reducedMotion ?? prefersReducedMotion(),
+  );
 
   return {
     players,
@@ -175,10 +208,15 @@ export function singSetup(input: SingSetupInput): SingSetup {
     state: (buffers) => ({
       grid: song.headers,
       voices,
-      lengthSeconds: detail.lengthSeconds,
-      ...(display.effects
-        ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
-        : {}),
+      // Where playback starts and stops (`#START`, `#END`).
+      lengthSeconds: plan.endSeconds ?? detail.lengthSeconds,
+      startSeconds: plan.startSeconds,
+      song: singSong,
+      pauseHint,
+      background,
+      ...(effectsOff(display)
+        ? {}
+        : { effects: new ParticlePool(EFFECTS_CAPACITY) }),
       ...(display.lineRatings ? { ratings: new LineRatings() } : {}),
       lanes: players.map((player, index): SingLane => {
         const readings = buffers[index];

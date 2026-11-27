@@ -1,8 +1,12 @@
 // The sing screen's layers and its one render loop. Layers, bottom to top, as
-// in the prototype: the video (or backdrop), the frosted lane panels, the
-// lanes canvas, the DOM lane headers and lyric bar, the effects canvas, then
-// toasts and overlays. Both canvases cover the screen at device pixels; the
-// DOM layers sit in the same 1920 × 1080 reference frame, scaled the same way.
+// in the prototype: the video (or backdrop), the background canvas (the blobs
+// of a Song without a video or background image, #263), the frosted lane
+// panels, the lanes canvas, the DOM lane headers and lyric bar, the effects
+// canvas, then toasts and overlays. The lanes and effects canvases cover the
+// screen at device pixels; the background canvas holds a quarter of the CSS
+// pixels, stretched over the screen, which smooths its soft blobs for free.
+// The DOM layers sit in the same 1920 × 1080 reference frame, scaled the
+// same way.
 //
 // #211 adds the Bubble Pop panels and lane headers, #133 the lyric text and
 // its fill, #134 the effects canvas and its particles; the lyric bar's look
@@ -20,6 +24,7 @@ import { t } from "../../i18n/t";
 import { Avatar } from "../../ui/Avatar";
 import { Icon } from "../../ui/Icon";
 import { Score } from "../../ui/Score";
+import { createImageCache } from "./coverImages";
 import type { DrawList, SingLane, SingState } from "./frame";
 import { laneHeaderSizes } from "./laneHeader";
 import { createLaneLostWriter, type LaneLostWriter } from "./laneLost";
@@ -29,7 +34,12 @@ import {
 } from "./lineRatingWriter";
 import { laneLayout, type LaneRect } from "./laneLayout";
 import { createLyricDriver, LyricBar } from "./LyricBar";
-import { createPainter, referenceTransform } from "./painter";
+import {
+  coverTransform,
+  createPainter,
+  referenceTransform,
+  type ReferenceTransform,
+} from "./painter";
 import { createRenderLoop } from "./renderLoop";
 
 export interface SingScreenProps {
@@ -64,12 +74,23 @@ function currentViewport(): Viewport {
   };
 }
 
-/** Sizes a canvas's backing store to the viewport in device pixels. */
-function fitCanvas(canvas: HTMLCanvasElement | null, view: Viewport) {
+/** Sizes a canvas's backing store to the viewport, `ratio` pixels per CSS pixel. */
+function fitCanvas(
+  canvas: HTMLCanvasElement | null,
+  view: Viewport,
+  ratio = view.ratio,
+) {
   if (!canvas) return;
-  canvas.width = Math.round(view.width * view.ratio);
-  canvas.height = Math.round(view.height * view.ratio);
+  canvas.width = Math.round(view.width * ratio);
+  canvas.height = Math.round(view.height * ratio);
 }
+
+/**
+ * The background canvas's pixels per CSS pixel, whatever the device's: the
+ * blobs are soft gradients, so a quarter of the pixels look the same once
+ * the browser stretches them, and cost a sixteenth to paint.
+ */
+const BACKGROUND_SCALE = 1 / 4;
 
 const FULL_SCREEN = "pointer-events-none absolute inset-0 h-full w-full";
 
@@ -85,12 +106,15 @@ export function SingScreen({
   children,
 }: SingScreenProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const backgroundRef = useRef<HTMLCanvasElement>(null);
   const lanesRef = useRef<HTMLCanvasElement>(null);
   const effectsRef = useRef<HTMLCanvasElement>(null);
   const [viewport, setViewport] = useState(currentViewport);
   const [lyrics] = useState(createLyricDriver);
   const [lost] = useState(createLaneLostWriter);
   const [ratings] = useState(createLineRatingWriter);
+  // The title card's cover (#264), loaded once per URL.
+  const [images] = useState(() => createImageCache());
 
   // The loop reads the latest props each frame without restarting.
   const latest = useRef({ state, clock, avOffset, frameTime, viewport });
@@ -109,6 +133,7 @@ export function SingScreen({
   }, []);
 
   useEffect(() => {
+    fitCanvas(backgroundRef.current, viewport, BACKGROUND_SCALE);
     fitCanvas(lanesRef.current, viewport);
     fitCanvas(effectsRef.current, viewport);
   }, [viewport]);
@@ -116,12 +141,22 @@ export function SingScreen({
   useEffect(() => {
     const ctx = lanesRef.current?.getContext("2d");
     if (!ctx) return;
-    const painter = createPainter(ctx, (ref) => readToken(ref));
+    const painter = createPainter(
+      ctx,
+      (ref) => readToken(ref),
+      "lanes",
+      images.get,
+    );
     const effectsCtx = effectsRef.current?.getContext("2d");
     const effects =
       effectsCtx &&
       createPainter(effectsCtx, (ref) => readToken(ref), "effects");
+    const backgroundCtx = backgroundRef.current?.getContext("2d");
+    const background =
+      backgroundCtx &&
+      createPainter(backgroundCtx, (ref) => readToken(ref), "background");
     let transform = referenceTransform(1, 1, 1);
+    let backgroundTransform: ReferenceTransform = transform;
     let transformFor: Viewport | null = null;
     let painted = false;
     const loop = createRenderLoop({
@@ -133,8 +168,14 @@ export function SingScreen({
         const view = latest.current.viewport;
         if (view !== transformFor) {
           transform = referenceTransform(view.width, view.height, view.ratio);
+          backgroundTransform = coverTransform(
+            view.width,
+            view.height,
+            BACKGROUND_SCALE,
+          );
           transformFor = view;
         }
+        background?.paint(list, backgroundTransform);
         painter.paint(list, transform);
         effects?.paint(list, transform);
         lyrics.apply(list);
@@ -151,7 +192,7 @@ export function SingScreen({
     return () => {
       loop.stop();
     };
-  }, [lyrics, lost, ratings]);
+  }, [lyrics, lost, ratings, images]);
 
   const frame = referenceTransform(viewport.width, viewport.height, 1);
   const referenceStyle = {
@@ -171,6 +212,12 @@ export function SingScreen({
       <div data-layer="backdrop" className="absolute inset-0">
         {backdrop}
       </div>
+      <canvas
+        ref={backgroundRef}
+        data-layer="background"
+        aria-hidden
+        className={FULL_SCREEN}
+      />
       <div
         data-layer="panels"
         className="pointer-events-none absolute top-0 left-0"

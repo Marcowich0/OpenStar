@@ -30,6 +30,11 @@ function subscribe(listener: () => void) {
   };
 }
 
+/** The device used last, read once (the sing screen's pause hint, #264). */
+export function lastInputDevice(): InputDevice {
+  return device;
+}
+
 /** The device used last. */
 export function useInputDevice(): InputDevice {
   return useSyncExternalStore(subscribe, () => device);
