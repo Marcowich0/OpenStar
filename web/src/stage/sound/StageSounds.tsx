@@ -11,7 +11,7 @@
 //   button and veil), or an Esc the Stage acted on (it dismissed a layer).
 // - `refuse`: a click on a greyed (`aria-disabled`) button, or the server
 //   refusing one of the Stage's actions.
-// - `toast`: each new toast.
+// - `toast`: each new toast (not those already showing when it mounts).
 // - Shared controls that sound themselves (`ui/Button`, `ui/HoldButton`,
 //   marked `data-ui-cue`) ask through `UiCueContext` instead: `select`,
 //   `refuse` (a greyed one shaking), `holdTick` and `holdDone`.
@@ -105,11 +105,12 @@ export function StageSoundsProvider({
     if (rejection !== null) sounds.refuse();
   }, [sounds, rejection]);
 
-  // Toast ids only grow, so a higher one is a new toast.
+  // Toast ids only grow, so a higher one is a new toast. The toasts
+  // already showing when the provider mounts are not new.
   const toasts = useLive(selectToasts, store);
-  const newestToast = useRef(-Infinity);
+  const newestToast = useRef(newestToastId(toasts));
   useEffect(() => {
-    const newest = Math.max(...toasts.map((toast) => toast.id));
+    const newest = newestToastId(toasts);
     if (newest > newestToast.current) {
       newestToast.current = newest;
       sounds.toast();
@@ -128,6 +129,10 @@ export function StageSoundsProvider({
       <UiCueContext value={cue}>{children}</UiCueContext>
     </StageSoundsContext>
   );
+}
+
+function newestToastId(toasts: LiveState["toasts"]): number {
+  return Math.max(-Infinity, ...toasts.map((toast) => toast.id));
 }
 
 function useGestureAndDomSounds(sounds: UiSounds) {
