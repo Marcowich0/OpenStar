@@ -14,7 +14,10 @@ const NO_OFFSET = () => 0;
 /** A frozen frame time: the synthetic confetti stays where it was caught. */
 const FROZEN = () => 0;
 
-/** No video and no images: the generated tile, so the page needs no network. */
+/**
+ * No video and no images: the generated tile, so the page needs no network.
+ * The no-video case draws the blobs over it instead (#263).
+ */
 const TILE_ONLY: SongMedia = {
   audio: { url: "", native: false },
   video: null,
@@ -42,7 +45,10 @@ export function SingTestScreen({ search }: { search: SingTestSearch }) {
         // no backdrop blur (High contrast) re-rasterises the tile's mark when
         // the screenshot cancels the mic-lost dots' animation.
         <div className="absolute inset-0 will-change-transform">
-          <SingBackdrop media={TILE_ONLY} />
+          <SingBackdrop
+            media={TILE_ONLY}
+            {...(state.background ? { background: state.background.kind } : {})}
+          />
         </div>
       }
     />

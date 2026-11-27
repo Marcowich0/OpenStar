@@ -11,6 +11,9 @@
 // A disabled hold button (`isDisabled`, for example a Library write while the
 // Library is read-only) never fills or fires; a press shakes it instead, like
 // a disabled `Button` (v1 spec #55).
+//
+// On the Stage a hold ticks `HOLD_TICKS` times and sounds `holdDone` as it
+// fires, and a greyed one bonks (`uiCue.ts`); on a Phone nothing sounds.
 
 import {
   useEffect,
@@ -23,9 +26,13 @@ import {
 
 import { t } from "../i18n/t";
 import { HOLD_DURATION_MS, IDLE, holdStep, type HoldEvent } from "./hold";
+import { CUES_ITSELF, useUiCue } from "./uiCue";
 
 /** How long the "Hold for a moment" hint stays after a short tap. */
 const HINT_MS = 2000;
+
+/** How many `holdTick` sounds a full hold makes, evenly from the press. */
+const HOLD_TICKS = 4;
 
 export type HoldButtonFill = "white" | "red" | "ink";
 
@@ -71,6 +78,8 @@ export function HoldButton({
   const state = useRef(IDLE);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const tickTimer = useRef<ReturnType<typeof setInterval>>(undefined);
+  const cue = useUiCue();
   const [holding, setHolding] = useState(false);
   const [hint, setHint] = useState(false);
   const [shaking, setShaking] = useState(false);
@@ -83,13 +92,17 @@ export function HoldButton({
     () => () => {
       clearTimeout(timer.current);
       clearTimeout(hintTimer.current);
+      clearInterval(tickTimer.current);
     },
     [],
   );
 
   function dispatch(event: HoldEvent) {
     if (isDisabled) {
-      if (event.type === "press") setShaking(true);
+      if (event.type === "press") {
+        setShaking(true);
+        cue?.("refuse");
+      }
       return;
     }
     const step = holdStep(state.current, event);
@@ -102,8 +115,12 @@ export function HoldButton({
         dispatch({ type: "tick", at: Date.now() });
       }, HOLD_DURATION_MS);
       setHint(false);
+      startTicking();
     }
-    if (!isHolding) clearTimeout(timer.current);
+    if (!isHolding) {
+      clearTimeout(timer.current);
+      clearInterval(tickTimer.current);
+    }
     if (step.hint) {
       setHint(true);
       clearTimeout(hintTimer.current);
@@ -111,7 +128,22 @@ export function HoldButton({
         setHint(false);
       }, HINT_MS);
     }
-    if (step.fire) onHoldRef.current();
+    if (step.fire) {
+      cue?.("holdDone");
+      onHoldRef.current();
+    }
+  }
+
+  function startTicking() {
+    clearInterval(tickTimer.current);
+    if (cue === null) return;
+    cue("holdTick");
+    let ticks = 1;
+    tickTimer.current = setInterval(() => {
+      cue("holdTick");
+      ticks++;
+      if (ticks >= HOLD_TICKS) clearInterval(tickTimer.current);
+    }, HOLD_DURATION_MS / HOLD_TICKS);
   }
 
   function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
@@ -153,6 +185,7 @@ export function HoldButton({
         aria-disabled={isDisabled || undefined}
         data-holding={holding || undefined}
         data-shaking={shaking || undefined}
+        {...CUES_ITSELF}
         onAnimationEnd={() => {
           setShaking(false);
         }}

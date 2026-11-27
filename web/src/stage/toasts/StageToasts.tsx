@@ -1,6 +1,6 @@
 // Toasts on the Stage (v1 spec #55, "Toasts"): ink pills at the top centre,
 // one per Party change the live store keeps (`live/toasts.ts`: only changes
-// made from a Remote, at most three, oldest first). Each pops in, stays
+// made from a Remote, at most three, oldest first). Each drops in, stays
 // about 4 s, fades up and is then dropped from the store. They sit above
 // every scene and overlay, and during a Song higher up, in the clear video
 // above the lanes.
@@ -90,7 +90,7 @@ function ToastPill({
     <li
       data-leaving={phase === "showing" ? undefined : ""}
       className={`flex items-center gap-3.5 rounded-full bg-ink-fill py-2.5 pr-7.5 text-[28px] font-medium whitespace-nowrap text-white shadow-ledge-ink ${
-        phase === "showing" ? "animate-pop-in" : "animate-toast-out"
+        phase === "showing" ? "animate-toast-in" : "animate-toast-out"
       } ${actor ? "pl-3" : "pl-7.5"}`}
     >
       {actor && (

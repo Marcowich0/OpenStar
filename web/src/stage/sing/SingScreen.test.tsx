@@ -79,7 +79,11 @@ beforeEach(() => {
       const calls: string[] = [];
       contexts.set(this, calls);
       return new Proxy(
-        { canvas: this, createLinearGradient: () => ({ addColorStop() {} }) },
+        {
+          canvas: this,
+          createLinearGradient: () => ({ addColorStop() {} }),
+          createRadialGradient: () => ({ addColorStop() {} }),
+        },
         {
           get: (obj, prop: string) =>
             prop in obj
@@ -116,7 +120,7 @@ function layers(container: HTMLElement) {
 }
 
 describe("SingScreen", () => {
-  it("stacks its layers bottom to top: backdrop, panels, lanes, headers and lyrics, effects, overlays", () => {
+  it("stacks its layers bottom to top: backdrop, background, panels, lanes, headers and lyrics, effects, overlays", () => {
     const { container } = render(
       <SingScreen
         state={state}
@@ -126,6 +130,7 @@ describe("SingScreen", () => {
     );
     expect(layers(container)).toEqual([
       "backdrop",
+      "background",
       "panels",
       "lanes",
       "headers",
@@ -142,7 +147,11 @@ describe("SingScreen", () => {
         avOffset={() => 0}
       />,
     );
-    const canvases = [...container.querySelectorAll("canvas")];
+    const canvases = [
+      ...container.querySelectorAll<HTMLCanvasElement>(
+        'canvas[data-layer="lanes"], canvas[data-layer="effects"]',
+      ),
+    ];
     expect(canvases).toHaveLength(2);
     for (const canvas of canvases) {
       expect([canvas.width, canvas.height]).toEqual([3840, 2160]);
@@ -154,6 +163,49 @@ describe("SingScreen", () => {
     for (const canvas of canvases) {
       expect([canvas.width, canvas.height]).toEqual([1920, 1080]);
     }
+  });
+
+  it("renders the background canvas at a quarter of the CSS pixels: the browser smooths the soft blobs up", () => {
+    const { container } = render(
+      <SingScreen
+        state={state}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    const canvas = container.querySelector<HTMLCanvasElement>(
+      'canvas[data-layer="background"]',
+    );
+    expect([canvas?.width, canvas?.height]).toEqual([480, 270]);
+    act(() => {
+      setWindow(1280, 720, 1.5);
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect([canvas?.width, canvas?.height]).toEqual([320, 180]);
+  });
+
+  it("paints the blobs on the background canvas, under the frosted panels, and nothing else there", () => {
+    const { container } = render(
+      <SingScreen
+        state={{ ...state, background: { kind: "blobs", still: false } }}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    runFrame();
+    const canvas = (layer: string) => {
+      const el = container.querySelector<HTMLCanvasElement>(
+        `canvas[data-layer="${layer}"]`,
+      );
+      return (el && contexts.get(el)) ?? [];
+    };
+    // The base, then one rectangle per blob: Mia, Bo, and slate for the
+    // Voice they share.
+    expect(canvas("background").filter((c) => c === "fillRect")).toHaveLength(
+      1 + 3,
+    );
+    expect(canvas("background")).not.toContain("roundRect");
+    expect(canvas("lanes")).not.toContain("fillRect");
   });
 
   it("places one frosted panel per lane, from the lane layout", () => {

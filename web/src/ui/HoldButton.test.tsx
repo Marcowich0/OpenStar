@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HOLD_DURATION_MS } from "./hold";
 import { HoldButton } from "./HoldButton";
+import { UiCueContext, type UiCue } from "./uiCue";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -165,5 +166,62 @@ describe("HoldButton", () => {
     });
     wait(HOLD_DURATION_MS * 2);
     expect(onHold).not.toHaveBeenCalled();
+  });
+});
+
+describe("HoldButton sounds (Stage only, ticket 261)", () => {
+  function withCues(disabled = false) {
+    const cues: UiCue[] = [];
+    const onHold = vi.fn();
+    render(
+      <UiCueContext value={(cue) => cues.push(cue)}>
+        <HoldButton onHold={onHold} isDisabled={disabled}>
+          Skip
+        </HoldButton>
+      </UiCueContext>,
+    );
+    return { cues, onHold, button: screen.getByRole("button") };
+  }
+
+  it("ticks four times while held, then sounds done as it fires", () => {
+    const { cues, button } = withCues();
+    act(() => {
+      fireEvent.pointerDown(button);
+    });
+    expect(cues).toEqual(["holdTick"]);
+    wait(HOLD_DURATION_MS - 1);
+    expect(cues).toEqual(["holdTick", "holdTick", "holdTick", "holdTick"]);
+    wait(1);
+    expect(cues.at(-1)).toBe("holdDone");
+    wait(2000);
+    expect(cues.filter((cue) => cue === "holdDone")).toHaveLength(1);
+    expect(cues.filter((cue) => cue === "holdTick")).toHaveLength(4);
+  });
+
+  it("stops ticking when the hold is let go early", () => {
+    const { cues, button } = withCues();
+    act(() => {
+      fireEvent.pointerDown(button);
+    });
+    wait(200);
+    act(() => {
+      fireEvent.pointerUp(button);
+    });
+    wait(2000);
+    expect(cues).toEqual(["holdTick", "holdTick"]);
+  });
+
+  it("bonks when a greyed one is pressed", () => {
+    const { cues, button } = withCues(true);
+    act(() => {
+      fireEvent.pointerDown(button);
+    });
+    wait(2000);
+    expect(cues).toEqual(["refuse"]);
+  });
+
+  it("is marked as sounding itself, so its click is not a select", () => {
+    const { button } = withCues();
+    expect(button).toHaveAttribute("data-ui-cue");
   });
 });

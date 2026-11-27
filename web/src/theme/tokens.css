@@ -109,10 +109,38 @@
   --shadow-ledge-lyric: 0 10px 0 var(--color-lyric-ledge);
   --shadow-ledge-mic-lost: 0 6px 0 var(--color-mic-lost-ledge);
 
+  /*
+   * Motion (#260): the spring durations, easings and sizes the focus ring,
+   * the buttons, the overlays and the toasts use on the Stage and the Phone.
+   * With reduced motion or Effects off, the block `:root[data-motion="fade"]`
+   * below turns each of them into a 120 ms fade (`theme/motion.ts`).
+   */
   /* The one springy back-out easing for all UI motion. */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Leaving: a small wind-up, then away (an overlay springing out). */
+  --ease-exit: cubic-bezier(0.36, 0, 0.66, -0.56);
   /* Every `transition` utility uses it unless told otherwise. */
   --default-transition-timing-function: var(--ease-spring);
+  /* Overlays, sheets and toasts arriving. */
+  --motion-spring: 450ms;
+  /* The focus ring landing on an element. */
+  --motion-bounce: 350ms;
+  /* A press squashing and springing back. */
+  --motion-press: 200ms;
+  /* An overlay leaving. */
+  --motion-exit: 250ms;
+  /* Every motion with reduced motion or Effects off. */
+  --motion-fade: 120ms;
+  /* A pressed button's size. */
+  --motion-press-scale: 0.94;
+  /* The top of the focus ring's bounce. */
+  --motion-focus-scale: 1.06;
+  /* An overlay springs in from, and out to, this size. */
+  --motion-overlay-scale: 0.9;
+  /* A toast drops in from this far up. */
+  --motion-toast-drop: -40px;
+  /* A Phone sheet rises from this far down (its own height). */
+  --motion-sheet-rise: 100%;
 
   /*
    * Animations. They use the individual `scale` and `translate` properties, so
@@ -127,6 +155,14 @@
   --animate-squish: squish 0.65s var(--ease-spring);
   --animate-bob: bob 3s ease-in-out infinite;
   --animate-mic-lost-dot: mic-lost-dot 1.2s infinite;
+  --animate-focus-bounce: focus-bounce var(--motion-bounce) var(--ease-spring);
+  --animate-overlay-in: overlay-in var(--motion-spring) var(--ease-spring) both;
+  --animate-overlay-out: overlay-out var(--motion-exit) var(--ease-exit) both;
+  --animate-toast-in: toast-in var(--motion-spring) var(--ease-spring) both;
+  /* The veil behind a leaving overlay fades as long as the overlay leaves. */
+  --animate-veil-out: fade-out var(--motion-exit) ease-in both;
+  --animate-fade-in: fade-in var(--motion-fade) ease-out both;
+  --animate-fade-out: fade-out var(--motion-fade) ease-in both;
 
   /* The breathing Sing / Start button: one breath, up to 6 % larger. */
   @keyframes breathe {
@@ -210,6 +246,80 @@
     }
   }
 
+  /* The focus ring landing: 1 → 1.06 → 1. */
+  @keyframes focus-bounce {
+    40% {
+      scale: var(--motion-focus-scale);
+    }
+  }
+
+  /* An overlay springing in, and out again. */
+  @keyframes overlay-in {
+    from {
+      scale: var(--motion-overlay-scale);
+      opacity: 0;
+    }
+  }
+
+  @keyframes overlay-out {
+    to {
+      scale: var(--motion-overlay-scale);
+      opacity: 0;
+    }
+  }
+
+  /* A toast dropping in from above. */
+  @keyframes toast-in {
+    from {
+      translate: 0 var(--motion-toast-drop);
+      opacity: 0;
+    }
+  }
+
+  /* The fades that stand in for every motion with reduced motion. */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
   /* Fredoka, bundled (see `fonts.ts`), for everything. */
   --font-sans: "Fredoka", ui-rounded, system-ui, sans-serif;
+}
+
+/*
+ * Reduced motion or Effects off (`MotionMode` in `theme/motion.ts`): every
+ * motion token becomes a 120 ms fade. Nothing scales, moves or turns;
+ * whatever entered or left with a spring fades instead, and the endless
+ * motions (breathing, bobbing, floating, squishing) stop. A disabled
+ * button's shake is a quick fade, so a press on it still shows.
+ */
+:root[data-motion="fade"] {
+  --motion-spring: var(--motion-fade);
+  --motion-bounce: var(--motion-fade);
+  --motion-press: var(--motion-fade);
+  --motion-exit: var(--motion-fade);
+  --motion-press-scale: 1;
+  --motion-focus-scale: 1;
+  --motion-overlay-scale: 1;
+  --motion-toast-drop: 0px;
+  --motion-sheet-rise: 0px;
+  --animate-focus-bounce: none;
+  --animate-pop-in: var(--animate-fade-in);
+  --animate-line-in: var(--animate-fade-in);
+  --animate-overlay-in: var(--animate-fade-in);
+  --animate-toast-in: var(--animate-fade-in);
+  --animate-overlay-out: var(--animate-fade-out);
+  --animate-toast-out: var(--animate-fade-out);
+  --animate-shake: var(--animate-fade-in);
+  --animate-breathe: none;
+  --animate-squish: none;
+  --animate-bob: none;
+  --animate-float: none;
 }

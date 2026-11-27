@@ -24,6 +24,7 @@ import { SEATS } from "../../live/seats";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
 import { Cover } from "../../ui/Cover";
+import { coverSongOf } from "../../ui/generatedCover";
 import { Icon } from "../../ui/Icon";
 import {
   AvSyncCard,
@@ -152,7 +153,7 @@ export function StageTab({
           <div className="mb-2 flex items-center gap-3">
             <Cover
               src={song?.media.cover ?? null}
-              tileColour={song?.media.tileColour ?? "teal"}
+              song={coverSongOf(song)}
               rim={2}
               className="w-13 shrink-0"
             />

@@ -27,6 +27,12 @@
  *   in `lastRound()`.
  * - **Skip** stops the Song and reports the skipped round once
  *   (`POST /api/rounds`, no Scores); the server has already moved the Party on.
+ * - **Game sounds** (#262): `go` when the Song starts playing (also after a
+ *   Restart), a `countdown` blip for each number of the resume countdown and
+ *   `go` when it plays on, `linePerfect` when a Line ends Perfect!, and
+ *   `goldenHit` while a seat's golden Notes score, at most once per 250 ms
+ *   per seat. The sound engine silences them at a UI sounds level of 0, and
+ *   the last two with Effects off.
  *
  * A Stage that drops (the socket reconnects, another browser takes over) or a
  * Party that stops playing the Song stops it and reports nothing. A Stage
@@ -75,6 +81,9 @@ import {
 } from "../../playback/songControls";
 import { introEnd } from "../../../playback/introSkip";
 import { ApiFailure } from "../../../api/api";
+import { SCORING } from "../../../scoring/constants";
+import { createGoldenHits } from "../../sound/goldenHits";
+import { silentSounds, type UiSounds } from "../../sound/uiSounds";
 import { stageOptions } from "../../../stageOptions/stageOptions";
 import { roundOutcome } from "./roundOutcome";
 import { singSetup, type SingSetup } from "./singSetup";
@@ -194,7 +203,15 @@ export interface StageSongOptions {
    * (`SingSetupInput.micIdFor`); by default `pitchMicFor`.
    */
   micIdFor?: (mic: MicKey) => PitchMic | null;
+  /** The game sounds the sing screen plays (the Stage's UI sounds); none by default. */
+  sounds?: SingSounds;
 }
+
+/** The UI sounds the playing Song plays (#262). */
+export type SingSounds = Pick<
+  UiSounds,
+  "countdown" | "go" | "linePerfect" | "goldenHit"
+>;
 
 export interface StageSong {
   view(): StageSongView;
@@ -254,6 +271,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
         setTimeout(resolve, ms);
       }));
   const stageNow = options.stageNow ?? (() => performance.now());
+  const sounds = options.sounds ?? silentSounds();
   const requestFrame =
     options.requestFrame ??
     ((callback) => window.requestAnimationFrame(callback));
@@ -345,7 +363,13 @@ export function createStageSong(options: StageSongOptions): StageSong {
       buffers: () => s.buffers,
       scorers: () => (scoring ? [scoring, effectsOf(s)] : []),
       onChange: (controls) => {
-        if (session === s) update({ controls });
+        if (session !== s) return;
+        const before = view.kind === "singing" ? view.controls : null;
+        if (controls.phase === "countdown") sounds.countdown();
+        else if (controls.phase === "playing" && before?.phase !== "playing") {
+          sounds.go();
+        }
+        update({ controls });
       },
       onPlayFailed: () => {
         if (session === s) update({ playFailed: true });
@@ -381,6 +405,8 @@ export function createStageSong(options: StageSongOptions): StageSong {
         if (s.pendingPause) {
           s.pendingPause = false;
           s.controls?.pause();
+        } else {
+          sounds.go();
         }
       })
       .catch(() => {
@@ -570,6 +596,14 @@ export function createStageSong(options: StageSongOptions): StageSong {
       s.sing = state;
       // The last running total each seat's Phone was told (#167).
       const told: (number | null)[] = setup.players.map(() => null);
+      // Each seat's golden points so far: more of them is a golden Note hit.
+      const golden: number[] = setup.players.map(() => 0);
+      const goldenHits = createGoldenHits({
+        play: () => {
+          sounds.goldenHit();
+        },
+        now: stageNow,
+      });
       scoring.onChange((change) => {
         if (session !== s) return;
         // The seat's Phone shows its Score at each Line end, and 0 again
@@ -594,7 +628,13 @@ export function createStageSong(options: StageSongOptions): StageSong {
         // Each ended Line pops its rating; Perfect! throws confetti (#216).
         for (const result of change.lineEnds) {
           lineEnded(state, change.player, result);
+          if (result.rating >= SCORING.lineRatingScale) sounds.linePerfect();
         }
+        const goldenNow = change.score.golden;
+        if (goldenNow > (golden[change.player] ?? 0)) {
+          goldenHits.hit(change.player);
+        }
+        golden[change.player] = goldenNow;
         if (change.back) {
           const seat = setup.players[change.player];
           if (seat) {
@@ -672,7 +712,14 @@ export function createStageSong(options: StageSongOptions): StageSong {
       case "restart":
         if (s.stopped || s.ended !== null) return;
         if (s.controls && s.playback) {
-          if (message.control === "restart") s.startedAtMs = now();
+          if (message.control === "restart") {
+            s.startedAtMs = now();
+            // From a pause or the countdown the controls change to playing,
+            // and that change plays `go`: once only.
+            if (view.kind === "singing" && view.controls.phase === "playing") {
+              sounds.go();
+            }
+          }
           s.controls.apply(message.control);
         } else {
           s.pendingPause = message.control === "pause";

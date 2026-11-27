@@ -7,8 +7,17 @@ import type { LyricSize } from "../generated/LyricSize";
 import type { Theme } from "../generated/Theme";
 import { isTheme } from "../theme/themes";
 
-/** The synthetic sing screens: 1, 4 and 8 Players, and a duet. */
-export const SING_TEST_CASES = ["one", "four", "eight", "duet"] as const;
+/**
+ * The synthetic sing screens: 1, 4 and 8 Players, a duet, and 2 Players of a
+ * Song with no video, over the blobs (#263).
+ */
+export const SING_TEST_CASES = [
+  "one",
+  "four",
+  "eight",
+  "duet",
+  "noVideo",
+] as const;
 export type SingTestCase = (typeof SING_TEST_CASES)[number];
 
 export interface SingTestSearch {
@@ -38,7 +47,7 @@ function isCase(value: unknown): value is SingTestCase {
 }
 
 /**
- * `?case=<one|four|eight|duet>&t=<seconds>&lyricSize=<s|m|l|xl>&theme=<a
+ * `?case=<one|four|eight|duet|noVideo>&t=<seconds>&lyricSize=<s|m|l|xl>&theme=<a
  * theme>`; anything else takes the default.
  */
 export function parseSingTestSearch(search: string): SingTestSearch {

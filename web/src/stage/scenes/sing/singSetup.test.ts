@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { Effects } from "../../../generated/Effects";
+
 import { PitchBuffer } from "../../../pitch/pitchBuffer";
 import {
   MIC_THRESHOLD,
@@ -7,6 +9,7 @@ import {
 } from "../../../mics/micSettings";
 import { stageMicSettings } from "../../../mics/stageMicSettings";
 import { STAGE_OPTIONS } from "../../../stageOptions/stageOptions";
+import { createFirstSongMemory } from "./pauseHint";
 import { singSetup } from "./singSetup";
 import {
   LEO_SEAT,
@@ -56,6 +59,56 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     ]);
     expect(state.lengthSeconds).toBe(30);
     expect(state.effects).toBeDefined();
+  });
+
+  it("chooses the background at Start: blobs without a video or a background image, moving", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const setup = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+      reducedMotion: false,
+    });
+    expect(setup.state([new PitchBuffer(8)]).background).toEqual({
+      kind: "blobs",
+      still: false,
+    });
+  });
+
+  it("shows the video, or the background image with Song video off", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const detail = testDetail();
+    detail.media = {
+      ...detail.media,
+      video: { kind: "inAudio" },
+      background: "/api/songs/7/media/background",
+    };
+    const background = (songVideo: boolean) =>
+      singSetup({
+        detail,
+        party,
+        profiles: PROFILES,
+        display: { ...STAGE_OPTIONS.defaults, songVideo },
+        reducedMotion: false,
+      }).state([new PitchBuffer(8)]).background?.kind;
+    expect(background(true)).toBe("video");
+    expect(background(false)).toBe("image");
+  });
+
+  it("keeps the blobs still with Effects off or reduced motion", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const still = (effects: Effects, reducedMotion: boolean) =>
+      singSetup({
+        detail: testDetail(),
+        party,
+        profiles: PROFILES,
+        display: { ...STAGE_OPTIONS.defaults, effects },
+        reducedMotion,
+      }).state([new PitchBuffer(8)]).background?.still;
+    expect(still("full", false)).toBe(false);
+    expect(still("calm", false)).toBe(false);
+    expect(still("off", false)).toBe(true);
+    expect(still("full", true)).toBe(true);
   });
 
   it("leaves out the effects and the Line rating words the Stage options switch off", () => {
@@ -310,6 +363,83 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     } finally {
       stageMicSettings().set(null);
     }
+  });
+
+  it("counts the top band from #START to #END, where playback starts and stops", () => {
+    const detail = testDetail();
+    const state = (startSeconds: number | null, endSeconds: number | null) =>
+      singSetup({
+        detail: {
+          ...detail,
+          lengthSeconds: 200,
+          song: {
+            ...detail.song,
+            headers: { ...detail.song.headers, startSeconds, endSeconds },
+          },
+        },
+        party: testParty(),
+        profiles: PROFILES,
+      }).state([new PitchBuffer(8)]);
+    expect(state(20, 150)).toMatchObject({
+      startSeconds: 20,
+      lengthSeconds: 150,
+    });
+    // Without #START and #END: from 0 to the audio's end.
+    expect(state(null, null)).toMatchObject({
+      startSeconds: 0,
+      lengthSeconds: 200,
+    });
+  });
+
+  it("gives the title card the Song's title, artist and cover", () => {
+    const state = singSetup({
+      detail: {
+        ...testDetail(),
+        media: { ...testDetail().media, cover: "/api/songs/7/cover" },
+      },
+      party: testParty(),
+      profiles: PROFILES,
+    }).state([new PitchBuffer(8)]);
+    expect(state.song).toEqual({
+      id: testDetail().id,
+      title: "Test Song",
+      artist: "Test Artist",
+      cover: "/api/songs/7/cover",
+      tileColour: "navy",
+      letter: null,
+    });
+  });
+
+  it("gives the title card the generated cover without a cover, its letter left for the canvas (ticket 259)", () => {
+    const state = singSetup({
+      detail: {
+        ...testDetail(),
+        media: { ...testDetail().media, cover: null },
+      },
+      party: testParty(),
+      profiles: PROFILES,
+    }).state([new PitchBuffer(8)]);
+    const cover = state.song?.cover ?? "";
+    expect(cover.startsWith("data:image/svg+xml")).toBe(true);
+    // Drawn without its letter: the painter draws "T" in Fredoka over it.
+    expect(decodeURIComponent(cover)).not.toContain("<text");
+    expect(state.song).toMatchObject({ tileColour: "navy", letter: "T" });
+  });
+
+  it("shows the pause hint on the first Song since the Party started only", () => {
+    const memory = createFirstSongMemory(null);
+    const hint = (partyId: string, head: number) =>
+      singSetup({
+        detail: testDetail(),
+        party: testParty({ partyId, head }),
+        profiles: PROFILES,
+        isFirstSong: memory.isFirstSong,
+      }).state([new PitchBuffer(8)]).pauseHint;
+    expect(hint("party-1", 5)).toBe("keyboard");
+    // A Restart of that Song builds its state again: still the first.
+    expect(hint("party-1", 5)).toBe("keyboard");
+    expect(hint("party-1", 6)).toBeNull();
+    expect(hint("party-2", 9)).toBe("keyboard");
   });
 
   it("refuses a Party with no Line-up", () => {

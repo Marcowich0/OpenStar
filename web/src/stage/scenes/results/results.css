@@ -30,9 +30,8 @@
   paint-order: stroke fill;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .results-bar,
-  .results-sticker {
-    animation: none;
-  }
+/* The fade motion mode (reduced motion, or Effects off: `MotionMode`, #260)
+   holds them still. */
+:root[data-motion="fade"] :is(.results-bar, .results-sticker) {
+  animation: none;
 }

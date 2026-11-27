@@ -3,16 +3,20 @@ import { describe, expect, it, vi } from "vitest";
 import type { Note } from "../../generated/Note";
 import type { TokenRef } from "../../theme/tokens";
 import type {
+  BackgroundEntry,
   DrawList,
   HeadBallEntry,
   LaneEntry,
   ParticleEntry,
   PillEntry,
   PitchLineEntry,
+  PauseHintEntry,
   PlayheadEntry,
+  TimeLeftEntry,
+  TitleCardEntry,
   TracePoint,
 } from "./frame";
-import { createPainter, referenceTransform } from "./painter";
+import { coverTransform, createPainter, referenceTransform } from "./painter";
 import painterSource from "./painter.ts?raw";
 
 type Call = [string, ...unknown[]];
@@ -21,8 +25,26 @@ type Call = [string, ...unknown[]];
 function recordingContext(width = 3840, height = 2160) {
   const calls: Call[] = [];
   const gradients: { stops: [number, string][] }[] = [];
+  const radials: { args: unknown[]; stops: [number, string][] }[] = [];
   const target: Record<string, unknown> = {
     canvas: { width, height },
+    // Every text is 10 px wide per character.
+    measureText: (text: string) => {
+      calls.push(["measureText", text]);
+      return { width: 10 * text.length };
+    },
+    createRadialGradient: (...args: unknown[]) => {
+      calls.push(["createRadialGradient", ...args]);
+      const gradient = {
+        args,
+        stops: [] as [number, string][],
+        addColorStop(offset: number, colour: string) {
+          gradient.stops.push([offset, colour]);
+        },
+      };
+      radials.push(gradient);
+      return gradient;
+    },
     createLinearGradient: (...args: unknown[]) => {
       calls.push(["createLinearGradient", ...args]);
       const gradient = {
@@ -46,7 +68,12 @@ function recordingContext(width = 3840, height = 2160) {
       return true;
     },
   });
-  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, gradients };
+  return {
+    ctx: ctx as unknown as CanvasRenderingContext2D,
+    calls,
+    gradients,
+    radials,
+  };
 }
 
 /** Each token resolves to a recognisable fake value. */
@@ -127,6 +154,129 @@ describe("referenceTransform", () => {
       x: 0,
       y: 270,
     });
+  });
+});
+
+describe("coverTransform", () => {
+  it("scales the reference frame uniformly to cover the screen, centred", () => {
+    expect(coverTransform(1920, 1080, 0.25)).toEqual({
+      scale: 0.25,
+      x: 0,
+      y: 0,
+    });
+    // A 16:10 screen: the frame is cropped left and right, not letterboxed.
+    expect(coverTransform(1280, 800, 1)).toEqual({
+      scale: 800 / 1080,
+      x: (1280 - (1920 * 800) / 1080) / 2,
+      y: 0,
+    });
+  });
+});
+
+const blobs: BackgroundEntry = {
+  type: "background",
+  kind: "blobs",
+  base: "--color-cream",
+  blobs: [
+    { x: 300, y: 200, radius: 500, colour: "cherry", alpha: 0.7 },
+    { x: 1500, y: 800, radius: 520, colour: "--color-slate", alpha: 0.7 },
+    { x: 900, y: 600, radius: 480, colour: "cherry", alpha: 0.7 },
+  ],
+};
+
+describe("the background painter", () => {
+  const small = referenceTransform(480, 270, 1);
+
+  it("fills the whole canvas with the base, then each blob as a soft radial gradient at its alpha", () => {
+    const { ctx, calls } = recordingContext(480, 270);
+    createPainter(ctx, colour, "background").paint([blobs], small);
+    expect(calls.slice(0, 4)).toEqual([
+      ["setTransform", 1, 0, 0, 1, 0, 0],
+      ["set", "globalAlpha", 1],
+      ["set", "fillStyle", "value(--color-cream)"],
+      ["fillRect", 0, 0, 480, 270],
+    ]);
+    // Each blob: a unit gradient moved and scaled onto it.
+    const placed = calls.filter(([op]) => op === "setTransform").slice(1);
+    expect(placed).toEqual([
+      ["setTransform", 0.25 * 500, 0, 0, 0.25 * 500, 0.25 * 300, 0.25 * 200],
+      ["setTransform", 0.25 * 520, 0, 0, 0.25 * 520, 0.25 * 1500, 0.25 * 800],
+      ["setTransform", 0.25 * 480, 0, 0, 0.25 * 480, 0.25 * 900, 0.25 * 600],
+    ]);
+    expect(calls.filter(([op]) => op === "fillRect").slice(1)).toEqual([
+      ["fillRect", -1, -1, 2, 2],
+      ["fillRect", -1, -1, 2, 2],
+      ["fillRect", -1, -1, 2, 2],
+    ]);
+    expect(calls).toContainEqual(["set", "globalAlpha", 0.7]);
+  });
+
+  it("makes one gradient per colour, fading to a clear stop of the same colour", () => {
+    const { ctx, radials } = recordingContext(480, 270);
+    const painter = createPainter(ctx, colour, "background");
+    painter.paint([blobs], small);
+    painter.paint(
+      [{ ...blobs, blobs: blobs.blobs.map((b) => ({ ...b, x: b.x + 1 })) }],
+      small,
+    );
+    expect(radials).toHaveLength(2);
+    expect(radials[0]?.args).toEqual([0, 0, 0, 0, 0, 1]);
+    expect(radials[0]?.stops[0]).toEqual([0, "value(cherry)"]);
+    expect(radials[0]?.stops.at(-1)).toEqual([
+      1,
+      "color-mix(in srgb, value(cherry) 1%, transparent)",
+    ]);
+  });
+
+  it("repaints only when the background changed: still blobs or a paused Song cost nothing", () => {
+    const { ctx, calls } = recordingContext(480, 270);
+    const painter = createPainter(ctx, colour, "background");
+    painter.paint([blobs], small);
+    const first = calls.length;
+    painter.paint(
+      [{ ...blobs, blobs: blobs.blobs.map((b) => ({ ...b })) }],
+      small,
+    );
+    expect(calls).toHaveLength(first);
+    const moved = blobs.blobs.map((b, i) =>
+      i === 1 ? { ...b, y: b.y + 0.5 } : b,
+    );
+    painter.paint([{ ...blobs, blobs: moved }], small);
+    expect(calls.length).toBeGreaterThan(first);
+    const again = calls.length;
+    painter.paint(
+      [{ ...blobs, blobs: moved }],
+      referenceTransform(960, 540, 1),
+    );
+    expect(calls.length).toBeGreaterThan(again);
+  });
+
+  it("clears its canvas once for a video or an image, which the DOM shows", () => {
+    const { ctx, calls } = recordingContext(480, 270);
+    const painter = createPainter(ctx, colour, "background");
+    painter.paint([blobs], small);
+    calls.length = 0;
+    painter.paint([{ type: "background", kind: "video" }, lane, pill], small);
+    expect(calls).toEqual([
+      ["setTransform", 1, 0, 0, 1, 0, 0],
+      ["clearRect", 0, 0, 480, 270],
+    ]);
+    calls.length = 0;
+    painter.paint([{ type: "background", kind: "video" }], small);
+    painter.paint([], small);
+    expect(calls).toEqual([]);
+  });
+
+  it("draws nothing but the background", () => {
+    const { ctx, calls } = recordingContext(480, 270);
+    createPainter(ctx, colour, "background").paint(
+      [lane, pill, playhead, dot, { type: "laneEnd", lane: 0 }],
+      small,
+    );
+    expect(calls).toEqual([
+      ["setTransform", 1, 0, 0, 1, 0, 0],
+      ["clearRect", 0, 0, 480, 270],
+    ]);
   });
 });
 
@@ -542,6 +692,197 @@ describe("the painter", () => {
     ]);
   });
 
+  const titleCard: TitleCardEntry = {
+    type: "titleCard",
+    x: 80,
+    y: 52,
+    height: 104,
+    maxWidth: 760,
+    paddingRight: 36,
+    fill: "--color-white",
+    alpha: 0.94,
+    ledge: "--color-lane-ledge",
+    ledgeDepth: 6,
+    cover: {
+      x: 92,
+      y: 64,
+      size: 80,
+      radius: 18,
+      url: "/cover.jpg",
+      tile: "navy",
+      rim: "--color-white",
+      rimWidth: 4,
+      letter: null,
+    },
+    title: {
+      text: "Made-up Song",
+      x: 192,
+      y: 102,
+      size: 34,
+      weight: 700,
+      colour: "--color-ink",
+    },
+    artist: {
+      text: "Nobody",
+      x: 192,
+      y: 136,
+      size: 26,
+      weight: 500,
+      colour: "--color-ink-2",
+    },
+  };
+
+  it("sizes the title card's pill to its longer text, over its ledge, with the cover's tile inside a white rim", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint([titleCard], view);
+    // 192 - 80 + 120 (12 characters) + 36.
+    const width = 268;
+    expect(calls).toContainEqual(["roundRect", 80, 58, width, 104, 52]);
+    expect(calls).toContainEqual(["roundRect", 80, 52, width, 104, 52]);
+    expect(calls).toContainEqual(["set", "globalAlpha", 0.94]);
+    expect(calls).toContainEqual(["roundRect", 92, 64, 80, 80, 18]);
+    expect(calls).toContainEqual(["set", "fillStyle", "value(navy)"]);
+    expect(calls).toContainEqual(["roundRect", 96, 68, 72, 72, 14]);
+    // Without a loaded image, the tile is all there is.
+    expect(calls.some(([op]) => op === "drawImage")).toBe(false);
+    expect(calls).toContainEqual([
+      "set",
+      "font",
+      "700 34px value(--font-sans)",
+    ]);
+    expect(calls).toContainEqual(["fillText", "Made-up Song", 192, 102, 120]);
+    expect(calls).toContainEqual(["fillText", "Nobody", 192, 136, 120]);
+  });
+
+  it("caps the title card at its widest and squeezes the text into it", () => {
+    const { ctx, calls } = recordingContext();
+    const long = { ...titleCard.title, text: "A".repeat(100) };
+    createPainter(ctx, colour).paint([{ ...titleCard, title: long }], view);
+    expect(calls).toContainEqual(["roundRect", 80, 52, 760, 104, 52]);
+    expect(calls).toContainEqual(["fillText", long.text, 192, 102, 612]);
+  });
+
+  it("draws the loaded cover over its tile, cropped square from the middle and clipped to the tile", () => {
+    const { ctx, calls } = recordingContext();
+    const image = { naturalWidth: 400, naturalHeight: 300 } as HTMLImageElement;
+    const images = vi.fn((url: string) =>
+      url === "/cover.jpg" ? image : null,
+    );
+    createPainter(ctx, colour, "lanes", images).paint([titleCard], view);
+    expect(images).toHaveBeenCalledWith("/cover.jpg");
+    const tile = calls.findIndex((c) => c[0] === "roundRect" && c[1] === 96);
+    const drawn = calls.findIndex(([op]) => op === "drawImage");
+    expect(drawn).toBeGreaterThan(tile);
+    expect(calls.slice(tile, drawn)).toContainEqual(["clip"]);
+    expect(calls[drawn]).toEqual([
+      "drawImage",
+      image,
+      50,
+      0,
+      300,
+      300,
+      96,
+      68,
+      72,
+      72,
+    ]);
+  });
+
+  it("draws a generated cover's letter over the image, centred, over its shadow", () => {
+    const { ctx, calls } = recordingContext();
+    const image = { naturalWidth: 100, naturalHeight: 100 } as HTMLImageElement;
+    const letter = {
+      text: "M",
+      x: 132,
+      y: 104,
+      size: 29,
+      weight: 700,
+      colour: "--color-white",
+      shadow: "--color-ink",
+      shadowAlpha: 0.25,
+      shadowDy: 2,
+    } as const;
+    createPainter(ctx, colour, "lanes", () => image).paint(
+      [{ ...titleCard, cover: { ...titleCard.cover, letter } }],
+      view,
+    );
+    const drawn = calls.findIndex(([op]) => op === "drawImage");
+    const shadow = calls.findIndex(
+      (c) => c[0] === "fillText" && c[1] === "M" && c[3] === 106,
+    );
+    const face = calls.findIndex(
+      (c) => c[0] === "fillText" && c[1] === "M" && c[3] === 104,
+    );
+    expect(shadow).toBeGreaterThan(drawn);
+    expect(face).toBeGreaterThan(shadow);
+    expect(calls[shadow]).toEqual(["fillText", "M", 132, 106]);
+    const before = calls.slice(drawn, face);
+    expect(before).toContainEqual(["set", "textAlign", "center"]);
+    expect(before).toContainEqual(["set", "textBaseline", "middle"]);
+    expect(before).toContainEqual([
+      "set",
+      "font",
+      "700 29px value(--font-sans)",
+    ]);
+    expect(before).toContainEqual(["set", "fillStyle", "value(--color-ink)"]);
+    expect(before).toContainEqual(["set", "globalAlpha", 0.25]);
+    expect(calls.slice(shadow, face)).toContainEqual([
+      "set",
+      "fillStyle",
+      "value(--color-white)",
+    ]);
+  });
+
+  it("draws the pause hint as an ink pill around its text", () => {
+    const { ctx, calls } = recordingContext();
+    const hint: PauseHintEntry = {
+      type: "pauseHint",
+      x: 80,
+      y: 176,
+      height: 48,
+      padding: 22,
+      fill: "--color-ink",
+      text: {
+        text: "Space: pause",
+        x: 102,
+        y: 208,
+        size: 24,
+        weight: 600,
+        colour: "--color-white",
+      },
+    };
+    createPainter(ctx, colour).paint([hint], view);
+    expect(calls).toContainEqual(["set", "fillStyle", "value(--color-ink)"]);
+    expect(calls).toContainEqual(["roundRect", 80, 176, 164, 48, 24]);
+    expect(calls.at(-1)).toEqual(["fillText", "Space: pause", 102, 208]);
+  });
+
+  it("outlines the time left in ink under its white text, right-aligned and centred", () => {
+    const { ctx, calls } = recordingContext();
+    const label: TimeLeftEntry = {
+      type: "timeLeft",
+      text: {
+        text: "2:41",
+        x: 1840,
+        y: 25,
+        size: 28,
+        weight: 700,
+        colour: "--color-white",
+      },
+      outline: "--color-ink",
+      outlineWidth: 6,
+    };
+    createPainter(ctx, colour).paint([label], view);
+    expect(calls).toContainEqual(["set", "textAlign", "right"]);
+    expect(calls).toContainEqual(["set", "textBaseline", "middle"]);
+    const stroke = calls.findIndex(([op]) => op === "strokeText");
+    const fill = calls.findIndex(([op]) => op === "fillText");
+    expect(calls[stroke]).toEqual(["strokeText", "2:41", 1840, 25]);
+    expect(calls[fill]).toEqual(["fillText", "2:41", 1840, 25]);
+    expect(stroke).toBeLessThan(fill);
+    expect(calls).toContainEqual(["set", "lineWidth", 6]);
+  });
+
   it("reads each colour from the token reader once per frame", () => {
     const { ctx } = recordingContext();
     const reader = vi.fn((ref: TokenRef) => `value(${ref})`);
@@ -559,6 +900,12 @@ describe("the painter", () => {
   it("leaves particles to the effects canvas", () => {
     const { ctx, calls } = recordingContext();
     createPainter(ctx, colour).paint([dot], view);
+    expect(calls).toHaveLength(3);
+  });
+
+  it("leaves the background to the background canvas", () => {
+    const { ctx, calls } = recordingContext();
+    createPainter(ctx, colour).paint([blobs], view);
     expect(calls).toHaveLength(3);
   });
 

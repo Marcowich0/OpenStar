@@ -90,9 +90,12 @@ test("on localhost the card warns instead, and Hide is remembered across a reloa
 }) => {
   // `just e2e` serves on 127.0.0.1 with no public address: a localhost Stage.
   const code = await newParty(stage);
-  await expect(stage.getByText("Phones can't sing yet")).toBeVisible();
+  // The song browser's card, not the People overlay's: for the 250 ms after
+  // Escape its ghost (#260) still shows the same words, aria-hidden.
+  const card = stage.getByRole("complementary");
+  await expect(card.getByText("Phones can't sing yet")).toBeVisible();
   await expect(
-    stage.getByText(
+    card.getByText(
       "Phones and other computers can't reach localhost. Set OPENSTAR_PUBLIC_URL to the server's HTTPS address.",
     ),
   ).toBeVisible();

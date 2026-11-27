@@ -12,6 +12,10 @@ describe("parseSingTestSearch", () => {
     });
   });
 
+  it("takes the no-video case", () => {
+    expect(parseSingTestSearch("?case=noVideo&t=6").case).toBe("noVideo");
+  });
+
   it("takes a Lyric size", () => {
     expect(parseSingTestSearch("?case=four&lyricSize=xl")).toMatchObject({
       case: "four",

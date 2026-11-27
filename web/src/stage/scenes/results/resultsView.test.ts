@@ -70,3 +70,22 @@ describe("the results screen's bars", () => {
     ]);
   });
 });
+
+describe("the results screen's sounds (ticket 262)", () => {
+  it("lands when the last bar has grown, and rings the high score with the first sticker", () => {
+    const view = resultsView([
+      playerResult({ memberId: 1, total: 6000 }),
+      playerResult({ memberId: 2, total: 5000, newHighScore: true }),
+      playerResult({ memberId: 3, total: 4000, newHighScore: true }),
+    ]);
+    // The third bar starts 300 ms in and grows for 1.1 s.
+    expect(view.landMs).toBe(1400);
+    // The second bar's sticker: 150 + 1100 + 900 ms.
+    expect(view.highScoreMs).toBe(2150);
+  });
+
+  it("has no high score without a sticker, and nothing to land without bars", () => {
+    expect(resultsView([playerResult({ total: 6000 })]).highScoreMs).toBe(null);
+    expect(resultsView([])).toMatchObject({ landMs: null, highScoreMs: null });
+  });
+});
