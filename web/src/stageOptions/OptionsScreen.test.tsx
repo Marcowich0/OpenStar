@@ -74,6 +74,7 @@ describe("Setup › Options", () => {
     openAdvanced("sound");
     for (const [group, ids] of [
       ["options-players", ["startingDifficulty"]],
+      ["options-look", ["theme"]],
       [
         "options-singScreen",
         ["lineRatings", "effects", "songVideo", "skipIntros"],

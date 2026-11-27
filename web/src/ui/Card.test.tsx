@@ -12,7 +12,7 @@ describe("Card", () => {
     render(<Card radius={radius}>Paused</Card>);
     const card = screen.getByText("Paused");
     expect(card.classList).toContain(radiusClass);
-    expect(card.classList).toContain("bg-white");
+    expect(card.classList).toContain("bg-surface");
     expect(card.classList).toContain("shadow-ledge-lg");
   });
 

@@ -36,6 +36,24 @@ pub const PREVIEW_VOLUME_STEP_PERCENT: u8 = 10;
 pub const PREVIEW_VOLUME_DEFAULT_PERCENT: u8 = 100;
 /// A Song plays its Intro; Skip intro is offered instead.
 pub const SKIP_INTROS_DEFAULT: bool = false;
+/// Every screen looks as v1 did.
+pub const THEME_DEFAULT: Theme = Theme::BubblePop;
+
+/// How every screen looks: the Stage, each Phone and Admin follow the Stage's
+/// choice. The frontend maps each theme to its token values
+/// (`web/src/theme/themes.ts`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum Theme {
+    /// Cream and candy colours: v1's look.
+    #[default]
+    BubblePop,
+    /// Deep navy for a dark room, with the same candy colours.
+    BubblePopNight,
+    /// Solid surfaces and strong edges for a washed-out TV.
+    HighContrast,
+}
 
 fn starting_difficulty_default() -> Difficulty {
     STARTING_DIFFICULTY_DEFAULT
@@ -57,6 +75,9 @@ fn preview_volume_default() -> u8 {
 }
 fn skip_intros_default() -> bool {
     SKIP_INTROS_DEFAULT
+}
+fn theme_default() -> Theme {
+    THEME_DEFAULT
 }
 
 /// The Stage options: the body of `GET /api/stage-options` and of
@@ -94,6 +115,10 @@ pub struct StageOptions {
     /// starts there too.
     #[serde(default = "skip_intros_default")]
     pub skip_intros: bool,
+    /// How every screen looks; Phones follow the Stage's theme. Its range is
+    /// its three values: any other is refused.
+    #[serde(default = "theme_default")]
+    pub theme: Theme,
 }
 
 impl Default for StageOptions {
@@ -106,6 +131,7 @@ impl Default for StageOptions {
             song_video: SONG_VIDEO_DEFAULT,
             preview_volume_percent: PREVIEW_VOLUME_DEFAULT_PERCENT,
             skip_intros: SKIP_INTROS_DEFAULT,
+            theme: THEME_DEFAULT,
         }
     }
 }
@@ -137,6 +163,30 @@ mod tests {
                 effects: false,
                 ..StageOptions::default()
             }
+        );
+    }
+
+    #[test]
+    fn a_v1_row_reads_with_the_new_options_at_their_defaults() {
+        let v1 = r#"{"startingDifficulty":"hard","resumeCountdownSeconds":3,"lineRatings":true,"effects":true,"songVideo":true,"previewVolumePercent":100}"#;
+        let read: StageOptions = serde_json::from_str(v1).unwrap();
+        assert_eq!(read.theme, Theme::BubblePop);
+        assert_eq!(read.starting_difficulty, Difficulty::Hard);
+    }
+
+    #[test]
+    fn a_theme_is_one_of_three_and_nothing_else_reads() {
+        for (json, theme) in [
+            ("bubblePop", Theme::BubblePop),
+            ("bubblePopNight", Theme::BubblePopNight),
+            ("highContrast", Theme::HighContrast),
+        ] {
+            let read: StageOptions =
+                serde_json::from_value(serde_json::json!({ "theme": json })).unwrap();
+            assert_eq!(read.theme, theme);
+        }
+        assert!(
+            serde_json::from_value::<StageOptions>(serde_json::json!({ "theme": "pink" })).is_err()
         );
     }
 
@@ -181,6 +231,7 @@ mod tests {
                 "songVideo": true,
                 "previewVolumePercent": 100,
                 "skipIntros": false,
+                "theme": "bubblePop",
             })
         );
     }

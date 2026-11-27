@@ -5,7 +5,7 @@
 //! and a new Profile start.
 
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
-use openstar_protocol::stage_options::StageOptions;
+use openstar_protocol::stage_options::{StageOptions, Theme};
 use openstar_protocol::{
     ChangeTopic, ClientMessage, Identity, JoinAs, NewGuest, PhoneId, ServerMessage, UserMessage,
 };
@@ -35,6 +35,7 @@ fn changed_options() -> StageOptions {
         song_video: false,
         preview_volume_percent: 40,
         skip_intros: true,
+        theme: Theme::BubblePopNight,
     }
 }
 
@@ -93,6 +94,14 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
             UserMessage::InvalidMessage
         );
     }
+    assert_eq!(read(&app).await, StageOptions::default());
+}
+
+#[tokio::test]
+async fn an_unknown_theme_is_refused_and_nothing_changes() {
+    let app = TestApp::start().await;
+    let response = put(&app, &serde_json::json!({ "theme": "pink" })).await;
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(read(&app).await, StageOptions::default());
 }
 

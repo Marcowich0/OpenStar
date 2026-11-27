@@ -30,10 +30,35 @@ const groupIds = () =>
   );
 
 describe("the Options list", () => {
-  it("shows Players, Sing screen and Sound in order, and no Look while it has no option", () => {
+  it("shows Players, Look, Sing screen and Sound in order", () => {
     setup();
-    expect(groupIds()).toEqual(["players", "singScreen", "sound"]);
-    expect(screen.queryByRole("heading", { name: "Look" })).toBeNull();
+    expect(groupIds()).toEqual(["players", "look", "singScreen", "sound"]);
+    expect(group("look").getByRole("heading", { name: "Look" })).toBeTruthy();
+  });
+
+  it("offers the three themes under Look › Theme, Bubble Pop by default", () => {
+    const { onChange } = setup();
+    const choices = group("look").getByRole("group", { name: "Theme" });
+    expect(
+      within(choices)
+        .getAllByRole("button")
+        .map((button) => [
+          button.textContent,
+          button.getAttribute("aria-pressed"),
+        ]),
+    ).toEqual([
+      ["Bubble Pop", "true"],
+      ["Bubble Pop Night", "false"],
+      ["High contrast", "false"],
+    ]);
+    expect(row("theme").getByText("Default: Bubble Pop")).toBeTruthy();
+
+    fireEvent.click(
+      within(choices).getByRole("button", { name: "Bubble Pop Night" }),
+    );
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({
+      theme: "bubblePopNight",
+    });
   });
 
   it("folds Countdown after a pause under Sound's Advanced, closed, with no dot at the default", () => {
@@ -79,17 +104,12 @@ describe("the Options list", () => {
     expect(onChange).toHaveBeenLastCalledWith({ effects: true });
   });
 
-  it("shows Look once it has an option", () => {
-    const look = OPTION_GROUPS.find((g) => g.id === "look");
-    const singScreen = OPTION_GROUPS.find((g) => g.id === "singScreen");
-    if (!look || !singScreen) throw new Error("no group");
+  it("leaves out a group with no option", () => {
     setup(
       defaultStageOptions(),
-      OPTION_GROUPS.map((g) =>
-        g === look ? { ...look, rows: singScreen.rows.slice(0, 1) } : g,
-      ),
+      OPTION_GROUPS.map((g) => (g.id === "look" ? { ...g, rows: [] } : g)),
     );
-    expect(groupIds()).toEqual(["players", "look", "singScreen", "sound"]);
-    expect(group("look").getByRole("heading", { name: "Look" })).toBeTruthy();
+    expect(groupIds()).toEqual(["players", "singScreen", "sound"]);
+    expect(screen.queryByRole("heading", { name: "Look" })).toBeNull();
   });
 });

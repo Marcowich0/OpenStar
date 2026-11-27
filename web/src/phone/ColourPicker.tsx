@@ -53,7 +53,7 @@ export function ColourPicker({
               className={[
                 "flex cursor-pointer flex-col items-center gap-1 rounded-card-sm p-2 text-base font-semibold outline-none",
                 "data-focus-visible:outline-6 data-focus-visible:outline-yellow",
-                "data-selected:bg-white data-selected:shadow-ledge-sm",
+                "data-selected:bg-surface data-selected:shadow-ledge-sm",
                 "data-disabled:cursor-not-allowed data-disabled:opacity-45",
               ].join(" ")}
             >

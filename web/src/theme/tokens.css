@@ -4,11 +4,25 @@
  * (`bg-ink`, `rounded-card`, `shadow-ledge`, `ease-spring`) and, because the
  * block is `static`, is also emitted as a CSS custom property on `:root` even
  * when no utility uses it. The canvas reads the same properties through
- * `readToken` in `tokens.ts`, so a theme is a swap of these variables.
+ * `readToken` in `tokens.ts`, so a theme is a swap of these variables: the
+ * other themes are maps in `themes.ts` (`applyTheme` writes them on the root),
+ * and their `bubblePop` map equals this block (a test keeps the two in step).
  *
  * This file is the only stylesheet that may hold a colour literal. Party
  * colours are named `--color-party-<palette key>`, in palette order; the token
  * names are listed again in `TOKEN_NAMES` (a test keeps the two in step).
+ *
+ * Most interface colours are named after their Bubble Pop colour, but a theme
+ * keeps each one's role (spec #243):
+ * - `cream`, `cream-2`: the page background. `surface`: cards, rows, fields
+ *   and white pills on it.
+ * - `ink`, `ink-2`, `mute`: text, icons, outlines and focus rings on the
+ *   background and surfaces (light in a dark theme).
+ * - `ink-fill`: a dark fill under white text (dark cards, ink buttons,
+ *   scrims). `white`: white in every theme, for text and marks on a colour
+ *   or ink fill, and the sing screen's Note pills.
+ * - `on-bright`: dark in every theme, for text and marks on a bright fill
+ *   (yellow, green, golden, white), such as a QR code's modules.
  */
 
 @theme static {
@@ -34,6 +48,9 @@
   --color-party-tangerine: #ff7a1a;
 
   /* Interface colours. */
+  --color-surface: #ffffff;
+  --color-ink-fill: #2b2d42;
+  --color-on-bright: #2b2d42;
   --color-white: #ffffff;
   --color-cream: #fff6e9;
   --color-cream-2: #ffe7cc;

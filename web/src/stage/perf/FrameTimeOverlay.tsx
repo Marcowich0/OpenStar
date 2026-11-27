@@ -80,7 +80,7 @@ export function FrameTimeOverlay({
       ref={root}
       data-perf-overlay
       data-over-budget="false"
-      className="group pointer-events-none absolute top-6 right-6 z-50 rounded-card bg-ink/80 px-6 py-4 font-mono text-2xl text-white data-[over-budget=true]:text-red"
+      className="group pointer-events-none absolute top-6 right-6 z-50 rounded-card bg-ink-fill/80 px-6 py-4 font-mono text-2xl text-white data-[over-budget=true]:text-red"
     >
       <p className="group-data-[measured]:hidden">
         {t("stage.perf.measuring")}

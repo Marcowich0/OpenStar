@@ -61,7 +61,7 @@ export function SkipIntro({
         <Icon name="fast-forward" className="size-8" />
         {t("stage.sing.skipIntro")}
       </Button>
-      <p className="rounded-full bg-ink/70 px-5 py-1.5 text-2xl font-semibold text-white tabular-nums">
+      <p className="rounded-full bg-ink-fill/70 px-5 py-1.5 text-2xl font-semibold text-white tabular-nums">
         {t("skipIntro.singingIn", { time })}
       </p>
     </div>

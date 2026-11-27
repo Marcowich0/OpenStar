@@ -263,7 +263,7 @@ function Tile({
 }) {
   return (
     <li
-      className={`flex flex-col items-center bg-white text-center ${style.tile}`}
+      className={`flex flex-col items-center bg-surface text-center ${style.tile}`}
     >
       <span
         className={`leading-none font-bold tabular-nums ${style.tileNumber}`}
@@ -377,7 +377,7 @@ function SongRow({
   sub?: string;
 }) {
   return (
-    <li className={`flex items-center bg-white ${style.row}`}>
+    <li className={`flex items-center bg-surface ${style.row}`}>
       <Cover
         src={song.cover}
         tileColour={song.tileColour}

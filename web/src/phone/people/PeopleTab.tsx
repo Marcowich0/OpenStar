@@ -28,7 +28,7 @@ const selectJoinCode = (state: LiveState) =>
 /** A small round tag on a row: "me", "guest", "singing". */
 function Tag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full bg-ink px-2.5 text-sm font-semibold text-white">
+    <span className="rounded-full bg-ink-fill px-2.5 text-sm font-semibold text-white">
       {children}
     </span>
   );
@@ -83,7 +83,7 @@ function PersonRow({
   return (
     <li
       aria-labelledby={nameId}
-      className="flex min-h-18 items-center gap-3 rounded-card-sm bg-white px-3 py-2 shadow-ledge-sm"
+      className="flex min-h-18 items-center gap-3 rounded-card-sm bg-surface px-3 py-2 shadow-ledge-sm"
     >
       {identity.kind === "profile" ? (
         <button
@@ -100,7 +100,7 @@ function PersonRow({
         who
       )}
       {row.remove === "singing" ? (
-        <span className="rounded-full bg-yellow px-3 py-1 font-semibold">
+        <span className="rounded-full bg-yellow px-3 py-1 font-semibold text-on-bright">
           {t("people.singing")}
         </span>
       ) : null}

@@ -119,7 +119,7 @@ const BAR_STYLE: CSSProperties = {
   left: "50%",
   bottom: "34px",
   translate: "-50% 0",
-  background: "color-mix(in srgb, var(--color-white) 86%, transparent)",
+  background: "color-mix(in srgb, var(--color-surface) 86%, transparent)",
   backdropFilter: "blur(14px)",
   WebkitBackdropFilter: "blur(14px)",
   borderRadius: "52px",

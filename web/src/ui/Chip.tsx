@@ -7,9 +7,9 @@ import type { ReactNode } from "react";
 export type ChipTone = "plain" | "duet" | "best" | "warn" | "off";
 
 const TONE_CLASSES: Record<ChipTone, string> = {
-  plain: "bg-white text-ink shadow-ledge-sm",
+  plain: "bg-surface text-ink shadow-ledge-sm",
   duet: "bg-purple text-white shadow-ledge-sm",
-  best: "bg-yellow text-ink shadow-ledge-yellow",
+  best: "bg-yellow text-on-bright shadow-ledge-yellow",
   warn: "bg-warn-bg text-warn-fg",
   off: "bg-passed text-ink-2",
 };
@@ -40,7 +40,7 @@ export interface PillProps {
 export function Pill({ children, popIn = false, className = "" }: PillProps) {
   return (
     <span
-      className={`inline-flex items-center gap-3 rounded-full bg-ink px-7 py-2.5 font-sans text-3xl font-medium whitespace-nowrap text-white shadow-ledge-ink ${popIn ? "animate-pop-in" : ""} ${className}`}
+      className={`inline-flex items-center gap-3 rounded-full bg-ink-fill px-7 py-2.5 font-sans text-3xl font-medium whitespace-nowrap text-white shadow-ledge-ink ${popIn ? "animate-pop-in" : ""} ${className}`}
     >
       {children}
     </span>

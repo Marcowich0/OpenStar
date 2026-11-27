@@ -124,7 +124,7 @@ function Pattern({
 }
 
 const STEP_BUTTON =
-  "flex size-28 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white shadow-ledge-ink outline-none focus-visible:outline-6 focus-visible:outline-yellow";
+  "flex size-28 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink-fill text-white shadow-ledge-ink outline-none focus-visible:outline-6 focus-visible:outline-yellow";
 
 export interface AvSyncPanelProps {
   ms: number;

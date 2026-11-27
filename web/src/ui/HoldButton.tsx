@@ -30,9 +30,12 @@ const HINT_MS = 2000;
 export type HoldButtonFill = "white" | "red" | "ink";
 
 const FILL_CLASSES: Record<HoldButtonFill, { button: string; fill: string }> = {
-  white: { button: "bg-white text-ink shadow-ledge", fill: "bg-ink/15" },
+  white: { button: "bg-surface text-ink shadow-ledge", fill: "bg-ink/15" },
   red: { button: "bg-red text-white shadow-ledge-red", fill: "bg-white/35" },
-  ink: { button: "bg-ink text-white shadow-ledge-ink", fill: "bg-white/35" },
+  ink: {
+    button: "bg-ink-fill text-white shadow-ledge-ink",
+    fill: "bg-white/35",
+  },
 };
 
 const SIZE_CLASSES = {

@@ -35,6 +35,7 @@ export const STAGE_OPTIONS = {
     songVideo: true,
     previewVolumePercent: 100,
     skipIntros: false,
+    theme: "bubblePop",
   } satisfies StageOptions,
   resumeCountdownMaxSeconds: 5,
   previewVolumeStepPercent: 10,

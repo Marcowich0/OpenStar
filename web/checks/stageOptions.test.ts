@@ -23,19 +23,24 @@ describe("the Stage options", () => {
     };
     const number = (name: string) => Number(constant(name, "u8"));
     const bool = (name: string) => constant(name, "bool") === "true";
-    const difficulty = constant(
-      "STARTING_DIFFICULTY_DEFAULT",
-      "Difficulty",
-    ).replace("Difficulty::", "");
+    // An enum default, `Type::PascalCase`, as serde sends it: camelCase.
+    const enumConst = (name: string, type: string) => {
+      const variant = constant(name, type).replace(`${type}::`, "");
+      return variant.charAt(0).toLowerCase() + variant.slice(1);
+    };
     expect(STAGE_OPTIONS).toEqual({
       defaults: {
-        startingDifficulty: difficulty.toLowerCase(),
+        startingDifficulty: enumConst(
+          "STARTING_DIFFICULTY_DEFAULT",
+          "Difficulty",
+        ),
         resumeCountdownSeconds: number("RESUME_COUNTDOWN_DEFAULT_SECONDS"),
         lineRatings: bool("LINE_RATINGS_DEFAULT"),
         effects: bool("EFFECTS_DEFAULT"),
         songVideo: bool("SONG_VIDEO_DEFAULT"),
         previewVolumePercent: number("PREVIEW_VOLUME_DEFAULT_PERCENT"),
         skipIntros: bool("SKIP_INTROS_DEFAULT"),
+        theme: enumConst("THEME_DEFAULT", "Theme"),
       },
       resumeCountdownMaxSeconds: number("RESUME_COUNTDOWN_MAX_SECONDS"),
       previewVolumeStepPercent: number("PREVIEW_VOLUME_STEP_PERCENT"),

@@ -93,7 +93,7 @@ function MovedTv() {
         width="108"
         height="66"
         rx="16"
-        className="fill-white stroke-ink"
+        className="fill-surface stroke-ink"
         strokeWidth="6"
       />
       <path

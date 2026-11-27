@@ -17,7 +17,7 @@ function Step({ number, children }: { number: number; children: ReactNode }) {
     <li className="flex gap-5">
       <span
         aria-hidden="true"
-        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-2xl font-bold text-cream"
+        className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-ink-fill text-2xl font-bold text-white"
       >
         {number}
       </span>
@@ -44,7 +44,7 @@ export function AddMicBridge() {
       <h3 id="mics-add-bridge" className="text-3xl font-bold">
         {t("mics.addBridge")}
       </h3>
-      <div className="flex flex-col gap-6 rounded-card bg-white px-8 py-6">
+      <div className="flex flex-col gap-6 rounded-card bg-surface px-8 py-6">
         <p className="text-2xl text-ink-2">{t("bridge.intro")}</p>
         <ol className="flex flex-col gap-6">
           <Step number={1}>

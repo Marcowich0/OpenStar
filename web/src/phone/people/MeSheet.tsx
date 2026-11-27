@@ -45,7 +45,7 @@ export interface MeActions {
 }
 
 const OPTION =
-  "flex min-h-16 w-full cursor-pointer items-center rounded-card-sm bg-white px-5 text-left text-xl font-semibold shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow";
+  "flex min-h-16 w-full cursor-pointer items-center rounded-card-sm bg-surface px-5 text-left text-xl font-semibold shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow";
 
 /**
  * The avatar at the top right of the Remote, and the Me sheet it opens
@@ -137,7 +137,7 @@ export function MeButton({
             <div className="grid grid-cols-3 gap-2">
               {DIFFICULTIES.map((d) => (
                 <RadioField key={d} value={d}>
-                  <RadioButton className="flex min-h-14 cursor-pointer items-center justify-center rounded-card-sm bg-white text-xl font-semibold shadow-ledge-sm outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-selected:bg-ink data-selected:text-white">
+                  <RadioButton className="flex min-h-14 cursor-pointer items-center justify-center rounded-card-sm bg-surface text-xl font-semibold shadow-ledge-sm outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-selected:bg-ink-fill data-selected:text-white">
                     {difficultyName(d)}
                   </RadioButton>
                 </RadioField>

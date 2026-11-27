@@ -133,7 +133,7 @@ export function Remote({
         )}
         <TabList
           aria-label={t("remote.tabs")}
-          className="flex bg-white px-1.5 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom,0px))] shadow-[0_-4px_0_var(--color-ledge)]"
+          className="flex bg-surface px-1.5 pt-1.5 pb-[calc(0.375rem+env(safe-area-inset-bottom,0px))] shadow-[0_-4px_0_var(--color-ledge)]"
         >
           {REMOTE_TABS.map((id) => {
             const { label, icon } = TABS[id];

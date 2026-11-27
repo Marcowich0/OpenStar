@@ -31,13 +31,13 @@ export function PauseMenu({
       role="dialog"
       aria-modal
       aria-labelledby={titleId}
-      className="absolute inset-0 bg-ink/55"
+      className="absolute inset-0 bg-ink-fill/55"
     >
       <ReferenceBox>
         <div className="flex h-full items-center justify-center">
           <div
             data-testid="pause-menu"
-            className="flex w-[620px] flex-col gap-6 rounded-card bg-white px-14 pt-12 pb-14 text-ink shadow-ledge-lg"
+            className="flex w-[620px] flex-col gap-6 rounded-card bg-surface px-14 pt-12 pb-14 text-ink shadow-ledge-lg"
           >
             <h2 id={titleId} className="text-center text-6xl font-bold">
               {t("stage.pause.title")}

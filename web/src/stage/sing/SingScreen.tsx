@@ -166,7 +166,7 @@ export function SingScreen({
     <div
       ref={rootRef}
       data-sing-screen
-      className="fixed inset-0 overflow-hidden bg-ink font-sans"
+      className="fixed inset-0 overflow-hidden bg-ink-fill font-sans"
     >
       <div data-layer="backdrop" className="absolute inset-0">
         {backdrop}
@@ -251,7 +251,7 @@ export const LanePanels = memo(function LanePanels({
     <div
       key={i}
       data-lane-panel
-      className="absolute overflow-hidden bg-white/66 backdrop-blur-lg backdrop-saturate-130"
+      className="absolute overflow-hidden bg-surface/66 backdrop-blur-lg backdrop-saturate-130"
       style={{
         left: `${String(lane.x)}px`,
         top: `${String(lane.y)}px`,
@@ -398,7 +398,7 @@ function MicLostPill({
       ref={lost.pill(index)}
       data-lane-lost
       hidden
-      className="absolute flex -translate-1/2 items-center gap-3.5 rounded-full bg-ink py-2.5 pr-7 pl-3.5 text-[28px] font-semibold whitespace-nowrap text-white shadow-ledge-mic-lost"
+      className="absolute flex -translate-1/2 items-center gap-3.5 rounded-full bg-ink-fill py-2.5 pr-7 pl-3.5 text-[28px] font-semibold whitespace-nowrap text-white shadow-ledge-mic-lost"
       style={{
         left: `${String(rect.x + rect.width / 2 + 150)}px`,
         top: `${String(rect.y + rect.height / 2)}px`,

@@ -171,7 +171,7 @@ export function WhosSinging({
                   {profile.name}
                 </span>
                 {here ? (
-                  <span className="rounded-full bg-ink px-2.5 text-sm text-white">
+                  <span className="rounded-full bg-ink-fill px-2.5 text-sm text-white">
                     {t("join.here")}
                   </span>
                 ) : null}

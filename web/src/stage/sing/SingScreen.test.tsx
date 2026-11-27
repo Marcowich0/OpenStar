@@ -180,7 +180,7 @@ describe("SingScreen", () => {
       />,
     );
     const panel = container.querySelector<HTMLElement>("[data-lane-panel]");
-    expect(panel?.className).toMatch(/\bbg-white\/66\b/);
+    expect(panel?.className).toMatch(/\bbg-surface\/66\b/);
     expect(panel?.className).toMatch(/\bbackdrop-blur-lg\b/);
     expect(panel?.className).toMatch(/\bbackdrop-saturate-130\b/);
     expect(panel?.style.borderRadius).toBe("40px");
@@ -548,7 +548,7 @@ describe("a lane whose Mic is lost", () => {
       .getByText("Mia's mic lost")
       .closest<HTMLElement>("[data-lane-lost]");
     expect(pill).toBeVisible();
-    expect(pill).toHaveClass("bg-ink", "text-white", "rounded-full");
+    expect(pill).toHaveClass("bg-ink-fill", "text-white", "rounded-full");
     // Centred 150 px right of the lane's middle, on its vertical centre.
     const rect = laneLayout(2)[0];
     if (!rect || !pill) throw new Error("no lane");

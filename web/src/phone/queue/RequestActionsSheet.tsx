@@ -208,7 +208,7 @@ function Option({
     <button
       type="button"
       onClick={onPress}
-      className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card-sm bg-white px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+      className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card-sm bg-surface px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
     >
       <span aria-hidden="true" className="text-ink-2">
         {icon}

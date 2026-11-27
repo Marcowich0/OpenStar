@@ -131,7 +131,7 @@ function QueueRow({
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={onOpen}
-        className={`flex w-full cursor-pointer items-center gap-6 rounded-card-sm bg-white p-4 text-left shadow-ledge-sm ${head ? "ring-6 ring-green" : ""}`}
+        className={`flex w-full cursor-pointer items-center gap-6 rounded-card-sm bg-surface p-4 text-left shadow-ledge-sm ${head ? "ring-6 ring-green" : ""}`}
       >
         <span className="w-12 shrink-0 text-center text-4xl font-bold text-mute tabular-nums">
           {t("queue.place", { place: place + 1 })}
@@ -163,7 +163,7 @@ function QueueRow({
             {players.map(({ member, look }) => (
               <span
                 key={member.memberId}
-                className="-ml-3 rounded-full ring-4 ring-white first:ml-0"
+                className="-ml-3 rounded-full ring-4 ring-surface first:ml-0"
               >
                 <Avatar
                   name={look.name}
@@ -279,7 +279,7 @@ function RequestPickList({
                 <span className="grow">{look?.name}</span>
                 <span
                   aria-hidden="true"
-                  className={`inline-flex size-10 items-center justify-center rounded-full ring-4 ring-ink ${on ? "bg-green" : "bg-white"}`}
+                  className={`inline-flex size-10 items-center justify-center rounded-full ring-4 ring-ink ${on ? "bg-green" : "bg-surface"}`}
                 >
                   {on && <Icon name="check" className="size-7 text-white" />}
                 </span>

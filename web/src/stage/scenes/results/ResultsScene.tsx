@@ -140,7 +140,7 @@ function Bar({ bar, duet }: { bar: BarView; duet: boolean }) {
         value={player.total}
         className="mb-1.5 text-[64px] leading-none font-bold"
       />
-      <span className="mb-3 rounded-full bg-ink px-[18px] py-1.5 text-2xl font-bold whitespace-nowrap text-white">
+      <span className="mb-3 rounded-full bg-ink-fill px-[18px] py-1.5 text-2xl font-bold whitespace-nowrap text-white">
         {rankTitle(player.rankTitleBand)}
       </span>
       <Avatar
@@ -181,13 +181,13 @@ function Bar({ bar, duet }: { bar: BarView; duet: boolean }) {
         </div>
 
         {bar.hatched && (
-          <span className="absolute bottom-[max(40%,100px)] left-1/2 z-[3] -translate-x-1/2 -rotate-12 rounded-[14px] border-4 border-warn-fg bg-white px-3.5 py-1.5 text-2xl font-bold whitespace-nowrap text-warn-fg">
+          <span className="absolute bottom-[max(40%,100px)] left-1/2 z-[3] -translate-x-1/2 -rotate-12 rounded-[14px] border-4 border-warn-fg bg-surface px-3.5 py-1.5 text-2xl font-bold whitespace-nowrap text-warn-fg">
             {t("stage.results.unfinished")}
           </span>
         )}
         {bar.sticker && (
           <span
-            className="results-sticker absolute -top-[70px] -right-[60px] z-[3] flex size-[120px] rotate-12 animate-pop-in items-center justify-center rounded-full bg-yellow p-3 text-center text-xl leading-[1.05] font-bold shadow-ledge-yellow"
+            className="results-sticker absolute -top-[70px] -right-[60px] z-[3] flex size-[120px] rotate-12 animate-pop-in items-center justify-center rounded-full bg-yellow p-3 text-center text-on-bright text-xl leading-[1.05] font-bold shadow-ledge-yellow"
             style={{ animationDelay: `${String(bar.stickerDelayMs)}ms` }}
           >
             {t("stage.results.newHighScore")}

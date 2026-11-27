@@ -111,7 +111,7 @@ const SEVERITY_BADGE: Record<
     label: "admin.libraryProblems.rejection",
   },
   warning: {
-    className: "bg-yellow text-ink",
+    className: "bg-yellow text-on-bright",
     label: "admin.libraryProblems.warning",
   },
   hidden: {

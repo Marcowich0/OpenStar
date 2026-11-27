@@ -54,7 +54,7 @@ export function SongTags({
         </span>
       )}
       {best !== null && (
-        <span className={`${TAG} bg-yellow text-ink`}>
+        <span className={`${TAG} bg-yellow text-on-bright`}>
           {t("songs.best", { total: best })}
         </span>
       )}
