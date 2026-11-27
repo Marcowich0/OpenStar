@@ -88,3 +88,14 @@ export function previewGain(percent: number): number {
   const p = Math.min(Math.max(percent, 0), 100) / 100;
   return p * p;
 }
+
+/**
+ * Whether the Stage options turn Effects off: the one reader of that
+ * setting, for the motion mode, the sing screen's effects and background,
+ * the results bars (through the motion mode) and the UI sounds. Today
+ * `effects` is a switch; #268 makes it `"off" | "calm" | "full"` (a stored
+ * `false` reads as `"off"`), and this becomes `options.effects === "off"`.
+ */
+export function effectsOff(options: Pick<StageOptions, "effects">): boolean {
+  return !options.effects;
+}

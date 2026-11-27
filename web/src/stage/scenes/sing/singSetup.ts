@@ -19,16 +19,19 @@ import {
   stageMicSettings,
 } from "../../../mics/stageMicSettings";
 import { OPENSTAR_VOLUME } from "../../../playback/gain";
+import { playbackPlan } from "../../../playback/playbackPlan";
 import { memberLook } from "../../../phone/memberLook";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
 import type { PitchMic } from "../../../pitch/pitchRouter";
 import { pitchBufferCapacity } from "../../../pitch/pitchCapacity";
 import {
+  effectsOff,
   stageOptions,
   type StageOptions,
 } from "../../../stageOptions/stageOptions";
 import type { PaletteKey } from "../../../theme/tokens";
-import { prefersReducedMotion, singBackground } from "../../sing/background";
+import { prefersReducedMotion } from "../../../theme/motion";
+import { singBackground } from "../../sing/background";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
 import {
@@ -38,6 +41,7 @@ import {
   type SingState,
 } from "../../sing/frame";
 import { laneLayout } from "../../sing/laneLayout";
+import { singSongOf } from "../../sing/titleCard";
 import {
   pauseHintInput,
   stageFirstSongMemory,
@@ -189,6 +193,8 @@ export function singSetup(input: SingSetupInput): SingSetup {
     requestId !== null && isFirstSong(party.partyId, requestId)
       ? pauseHintInput()
       : null;
+  const singSong = singSongOf(detail);
+  const plan = playbackPlan(detail);
   const background = singBackground(
     detail.media,
     display,
@@ -202,18 +208,15 @@ export function singSetup(input: SingSetupInput): SingSetup {
     state: (buffers) => ({
       grid: song.headers,
       voices,
-      lengthSeconds: detail.lengthSeconds,
-      song: {
-        title: song.headers.title,
-        artist: song.headers.artist,
-        cover: detail.media.cover,
-        tileColour: detail.media.tileColour,
-      },
+      // Where playback starts and stops (`#START`, `#END`).
+      lengthSeconds: plan.endSeconds ?? detail.lengthSeconds,
+      startSeconds: plan.startSeconds,
+      song: singSong,
       pauseHint,
       background,
-      ...(display.effects
-        ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
-        : {}),
+      ...(effectsOff(display)
+        ? {}
+        : { effects: new ParticlePool(EFFECTS_CAPACITY) }),
       ...(display.lineRatings ? { ratings: new LineRatings() } : {}),
       lanes: players.map((player, index): SingLane => {
         const readings = buffers[index];

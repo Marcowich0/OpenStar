@@ -4,33 +4,70 @@
  * top of the screen stays clear video: these three are all that sits there.
  *
  * - The title card: a white pill with the cover, title and artist in the
- *   top-left clear area, under the progress bar, from the Song's start to
- *   4 s; then it slides out to the left.
+ *   top-left clear area, under the progress bar, for the first 4 s of play
+ *   (from `#START`, again after a Restart); then it slides out to the left.
  * - The pause hint: "Space: pause" under the title card, for the same time,
  *   on the first Song since the Party started only (the Stage sets
  *   `SingState.pauseHint`).
  * - The time left: `m:ss` at the right end of the progress bar, counting
- *   down to the Song's end, for the whole Song.
+ *   down to the Song's end (`#END`, where playback stops), for the whole
+ *   Song.
  *
  * Like the rest of `frame()`, every entry is a pure function of Song time,
  * in the 1920 × 1080 reference frame, with colours as token names.
  */
 
+import type { SongDetail } from "../../generated/SongDetail";
 import { t } from "../../i18n/t";
+import {
+  coverSongOf,
+  generatedCover,
+  generatedCoverDataUrl,
+  type CoverSong,
+} from "../../ui/generatedCover";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { DrawList } from "./frame";
 
-/** What the title card shows of the Song. */
-export interface SingSong {
-  title: string;
+/**
+ * What the title card shows of the Song: its cover's Song (#259, whose
+ * `tileColour` fills the cover until the image loads), its artist and the
+ * cover image.
+ */
+export interface SingSong extends CoverSong {
   artist: string;
-  /** The cover image's URL; `null`: the Song's tile colour instead. */
+  /**
+   * The cover image's URL: the Song's cover, else its generated cover drawn
+   * without its letter; `null`: the tile colour only.
+   */
   cover: string | null;
-  /** The generated tile's colour, shown without a cover or until it loads. */
-  tileColour: PaletteKey;
+  /**
+   * The generated cover's letter, which the painter draws over `cover` in
+   * the theme's font (an SVG drawn as an image cannot use Fredoka);
+   * `null` over the Song's own cover.
+   */
+  letter: string | null;
 }
 
-/** Which input the pause hint names (#275 tracks the last one used). */
+/**
+ * The title card's Song from the full Song, built once at Start: the
+ * generated cover's image (it resolves the theme's colours now) stands in
+ * for a missing cover.
+ */
+export function singSongOf(detail: SongDetail): SingSong {
+  const song = coverSongOf(detail);
+  const own = detail.media.cover;
+  return {
+    ...song,
+    artist: detail.song.headers.artist,
+    cover: own ?? generatedCoverDataUrl(song, { letter: false }),
+    letter: own === null ? generatedCover(song).letter : null,
+  };
+}
+
+/**
+ * Which input the pause hint names: the key, or the pad's button (#275
+ * tracks the last one used; `pauseHintInput` reads it).
+ */
 export type PauseHint = "keyboard" | "gamepad";
 
 /** A line of text: `x`, `y` is where the painter anchors it. */
@@ -56,6 +93,19 @@ export interface CoverStyle {
   tile: PaletteKey;
   rim: TokenName;
   rimWidth: number;
+  /** The generated cover's letter over the image; `null`: none. */
+  letter: CoverLetterStyle | null;
+}
+
+/**
+ * A generated cover's letter, centred on `x`, `y`, over a shadow of
+ * `shadow` at `shadowAlpha`, `shadowDy` px lower: what the cover's SVG
+ * draws, in the theme's font.
+ */
+export interface CoverLetterStyle extends TextStyle {
+  shadow: TokenName;
+  shadowAlpha: number;
+  shadowDy: number;
 }
 
 /**
@@ -100,7 +150,7 @@ export interface TimeLeftEntry {
   outlineWidth: number;
 }
 
-/** The card shows this long from the Song's start, then slides out. */
+/** The card shows this long from where play starts, then slides out. */
 export const TITLE_CARD_SECONDS = 4;
 /** How long the slide-out takes. */
 const SLIDE_SECONDS = 0.4;
@@ -116,6 +166,9 @@ const CARD = {
   paddingRight: 36,
   ledgeDepth: 6,
 };
+/** The cover's white rim, and the image's side inside it. */
+const COVER_RIM = 4;
+const COVER_IMAGE = CARD.cover - 2 * COVER_RIM;
 const HINT = { gap: 14, height: 48, padding: 22, size: 24 };
 /** Titles and artists longer than this are cut short with an ellipsis. */
 const MAX_CHARACTERS = 40;
@@ -136,10 +189,13 @@ function cut(text: string): string {
     : text;
 }
 
-/** How far the card has slid out, 0 to 1 (eased in); `null`: it is gone. */
-function slide(songTime: number): number | null {
-  if (songTime <= TITLE_CARD_SECONDS) return 0;
-  const p = (songTime - TITLE_CARD_SECONDS) / SLIDE_SECONDS;
+/**
+ * How far the card has slid out `played` seconds after play started, 0 to 1
+ * (eased in); `null`: it is gone.
+ */
+function slide(played: number): number | null {
+  if (played <= TITLE_CARD_SECONDS) return 0;
+  const p = (played - TITLE_CARD_SECONDS) / SLIDE_SECONDS;
   return p >= 1 ? null : p * p * p;
 }
 
@@ -150,7 +206,11 @@ function slide(songTime: number): number | null {
  */
 export function topBand(
   list: DrawList,
-  state: { song?: SingSong | null; pauseHint?: PauseHint | null },
+  state: {
+    song?: SingSong | null;
+    pauseHint?: PauseHint | null;
+    startSeconds?: number;
+  },
   songTime: number,
   length: number,
 ) {
@@ -175,7 +235,8 @@ export function topBand(
   }
 
   const song = state.song;
-  const out = slide(songTime);
+  // From where play starts, so a Song with a #START shows it too.
+  const out = slide(songTime - (state.startSeconds ?? 0));
   if (!song || out === null) return;
   const x = LEFT - out * (CARD.maxWidth + LEFT);
   const textX = x + CARD.inset + CARD.cover + CARD.gap;
@@ -198,7 +259,23 @@ export function topBand(
       url: song.cover,
       tile: song.tileColour,
       rim: "--color-white",
-      rimWidth: 4,
+      rimWidth: COVER_RIM,
+      letter:
+        song.letter === null
+          ? null
+          : {
+              text: song.letter,
+              x: x + CARD.inset + CARD.cover / 2,
+              y: CARD.y + CARD.inset + CARD.cover / 2,
+              // As the cover's SVG draws it: 40 % of the image's side, its
+              // shadow 2.5 % lower.
+              size: Math.round(0.4 * COVER_IMAGE),
+              weight: 700,
+              colour: "--color-white",
+              shadow: "--color-ink",
+              shadowAlpha: 0.25,
+              shadowDy: Math.round(0.025 * COVER_IMAGE),
+            },
     },
     title: {
       text: cut(song.title),
