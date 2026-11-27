@@ -104,7 +104,9 @@ test("on localhost the card warns instead, and Hide is remembered across a reloa
   await stage.getByRole("button", { name: "Hide" }).click();
   const chip = stage.getByRole("button", { name: `Join · ${code}` });
   await expect(chip).toBeVisible();
-  await expect(chip.getByLabel("Phones can't sing yet")).toBeVisible();
+  await expect(chip).toHaveAccessibleName(
+    `Join · ${code} · Phones can't sing yet`,
+  );
   await expect(stage.getByText("Pick a song from your phone")).toHaveCount(0);
 
   await stage.reload();

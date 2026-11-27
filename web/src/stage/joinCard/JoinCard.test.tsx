@@ -109,7 +109,7 @@ describe("the join card", () => {
     const chip = screen.getByRole("button", { name: "Join · 4821" });
     expect(screen.getByTestId("party-join-code")).toHaveTextContent("4821");
     expect(items.get(JOIN_CARD_HIDDEN_KEY)).toBe("true");
-    expect(screen.queryByLabelText("Phones can't sing yet")).toBeNull();
+    expect(chip).not.toHaveTextContent("Phones can't sing yet");
 
     // A reload (a fresh card on the same storage) stays hidden.
     view.unmount();
@@ -125,13 +125,13 @@ describe("the join card", () => {
   it.each([
     ["plain http", PLAIN],
     ["localhost", LOCAL],
-  ])("puts a warning mark on the hidden chip for %s", (_, join) => {
+  ])("says on the hidden chip that Phones can't sing, for %s", (_, join) => {
     const { storage } = memoryStorage({ [JOIN_CARD_HIDDEN_KEY]: "true" });
     render(<JoinCard joinCode="4821" join={join} storage={storage} />);
-    const chip = screen.getByRole("button", { name: /^Join · 4821/ });
-    expect(chip).toContainElement(
-      screen.getByLabelText("Phones can't sing yet"),
-    );
+    const chip = screen.getByRole("button", {
+      name: "Join · 4821 · Phones can't sing yet",
+    });
+    expect(chip).toHaveTextContent("Join · 4821 · Phones can't sing yet");
   });
 
   it("still works when the browser's storage throws", () => {

@@ -2,8 +2,8 @@
 // `<join address>/?join=<code>`, the Join code as four boxes, the address to
 // type and "Pick a song from your phone". When Phones can't reach a working
 // join address (plain http, or `localhost`) a warning stands in place of the
-// QR code. The song browser's card can hide to a small "Join · 4821" chip;
-// the choice lives in this browser's own storage, not in Party state. The
+// QR code. The song browser's card can hide to a small "Join · 4821" chip
+// (`JoinChip.tsx`); the choice lives in this browser's own storage, not in Party state. The
 // song browser holds that choice itself (`useJoinCardHidden`), because it
 // keeps a lane clear for the card only while the card shows. The People
 // overlay shows the card with `hideable={false}`.
@@ -14,6 +14,7 @@ import { Button as AriaButton } from "react-aria-components";
 import { t } from "../../i18n/t";
 import type { JoinAddress } from "../../joinAddress";
 import { Icon } from "../../ui/Icon";
+import { JoinChip } from "./JoinChip";
 import { QrCode } from "./QrCode";
 
 /** The `localStorage` key of the song browser's Hide choice. */
@@ -92,31 +93,14 @@ export function JoinCard({
 
   if (hidden) {
     return (
-      <div className={className}>
-        <AriaButton
-          aria-label={t("stage.joinCard.chip", { code: joinCode })}
-          onPress={() => {
-            hide(false);
-          }}
-          className="flex items-center gap-3 rounded-full bg-white px-7 py-3 text-[34px] font-semibold text-ink shadow-ledge outline-none"
-        >
-          <span data-testid="party-join-code" className="sr-only">
-            {joinCode}
-          </span>
-          <span aria-hidden="true">
-            {t("stage.joinCard.chip", { code: joinCode })}
-          </span>
-          {join.warning !== "none" && (
-            <span
-              role="img"
-              aria-label={t("stage.joinCard.cantSing")}
-              className="flex size-10 items-center justify-center rounded-full bg-red text-white shadow-ledge-red"
-            >
-              <Icon name="lock" className="size-6" />
-            </span>
-          )}
-        </AriaButton>
-      </div>
+      <JoinChip
+        joinCode={joinCode}
+        warning={join.warning}
+        onPress={() => {
+          hide(false);
+        }}
+        className={className}
+      />
     );
   }
 
