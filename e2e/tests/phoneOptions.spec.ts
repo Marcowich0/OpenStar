@@ -43,13 +43,19 @@ test("a Phone changes an option and the Stage shows it and toasts who did", asyn
   await phone.getByRole("button", { name: "Options" }).click();
   const sheet = phone.getByRole("dialog", { name: "Options" });
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByRole("heading", { level: 3 })).toHaveText([
-    "Players",
-    "Sing screen",
-    "Sound",
-  ]);
+  // The same groups as the Stage's own Options.
+  const groups = await onStage
+    .getByRole("heading", { level: 3 })
+    .allTextContents();
+  expect(groups.length).toBeGreaterThan(0);
+  await expect(sheet.getByRole("heading", { level: 3 })).toHaveText(groups);
 
-  // It covers the screen, and nothing in it is wider than the screen.
+  // It covers the screen, and nothing in it is wider than the screen, the
+  // rows behind the Advanced folds included.
+  for (const fold of await sheet
+    .getByRole("button", { name: /^Advanced/ })
+    .all())
+    await fold.click();
   const box = await sheet.boundingBox();
   expect(box?.height).toBeGreaterThanOrEqual(SMALL_PHONE.height - 60);
   expect(

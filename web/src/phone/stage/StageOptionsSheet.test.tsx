@@ -48,7 +48,9 @@ describe("the Stage options on a Phone", () => {
       );
     });
     expect(
-      sheet.getByRole("button", { name: /^Advanced/ }),
+      within(sheet.getByTestId("options-sound")).getByRole("button", {
+        name: /^Advanced/,
+      }),
     ).toBeInTheDocument();
   });
 
