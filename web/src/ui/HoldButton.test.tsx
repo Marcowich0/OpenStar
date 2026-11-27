@@ -40,6 +40,20 @@ describe("HoldButton", () => {
     expect(classes).not.toContain("bg-red");
   });
 
+  it("takes its description from a line beside it, such as what it clears", () => {
+    render(
+      <>
+        <p id="what">Clears the Queue</p>
+        <HoldButton onHold={vi.fn()} aria-describedby="what">
+          New party
+        </HoldButton>
+      </>,
+    );
+    expect(
+      screen.getByRole("button", { name: "New party" }),
+    ).toHaveAccessibleDescription("Clears the Queue");
+  });
+
   it("fires its action once after a 700 ms hold", () => {
     const { onHold, button } = setup();
     act(() => {

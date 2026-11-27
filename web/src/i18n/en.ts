@@ -585,8 +585,9 @@ export const en = {
     "Ⓐ adds or takes off a singer, up to {seats, number}",
   "stage.songs.added": "Added {song}",
   "stage.people.count": "{count, number} of 12 colours taken",
-  "stage.people.colours": "Party colours",
-  "stage.people.free": "{colour} is free",
+  "stage.people.members": "Party members",
+  "stage.people.nobody": "Nobody has joined yet",
+  "stage.people.freeColours": "Free colours",
   "stage.people.profile": "Profile",
   "stage.people.guest": "Guest",
   "stage.people.phone": "Phone",
@@ -595,6 +596,8 @@ export const en = {
   "stage.people.holdToRemove": "hold to remove",
   "stage.people.remove": "Hold to remove {name}",
   "stage.newParty": "New party",
+  "stage.newPartyClears":
+    "Clears the Queue and the people, and makes a new Join code",
 
   // The Stage's scenes (#120 placeholders; #124, #164, #182 fill them).
   "stage.logo": "OpenStar",
@@ -639,6 +642,7 @@ export const en = {
   "stage.lineUp.addProfile": "+ Profile",
   "stage.lineUp.namePlaceholder": "Type a name",
   "stage.lineUp.ok": "OK",
+  "stage.lineUp.cancel": "Cancel",
   "stage.sing.loading": "Getting the Song ready",
   "stage.sing.failed": "The Song could not be loaded",
   "stage.sing.notPlaying": "This Song is not playing here",

@@ -1039,7 +1039,12 @@ describe("+ Guest and + Profile", () => {
   const openForm = (entry: "+ Guest" | "+ Profile", whoButton = "Who: Mia") => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const result = setup(party(), [bo, profile(9, "Ann", 500)]);
-    click(screen.getByRole("button", { name: whoButton }));
+    // Focused first, as Enter on it would: the list gives the focus back to it.
+    const opener = screen.getByRole("button", { name: whoButton });
+    act(() => {
+      opener.focus();
+    });
+    click(opener);
     click(screen.getByRole("menuitem", { name: entry }));
     return result;
   };
@@ -1103,6 +1108,59 @@ describe("+ Guest and + Profile", () => {
     openForm("+ Profile");
     expect(within(pictures()).getAllByRole("radio")).toHaveLength(24);
     expect(checked(pictures())).toEqual(["Picture 1"]);
+  });
+
+  it("draws the pictures 72 px in the frame (48 px at 1280×800), in the chosen colour", () => {
+    openForm("+ Guest");
+    const drawn = () =>
+      within(pictures())
+        .getAllByRole("radio")
+        .map((radio) => radio.querySelector<HTMLElement>("[role=img]"));
+    const fills = () =>
+      drawn().map((img) => img?.querySelector("circle")?.style.fill);
+    for (const img of drawn()) expect(img?.style.width).toBe("72px");
+    expect(new Set(fills())).toEqual(new Set(["var(--color-party-cherry)"]));
+    press("ArrowDown");
+    press("ArrowRight");
+    expect(new Set(fills())).toEqual(new Set(["var(--color-party-navy)"]));
+    click(within(colours()).getByRole("radio", { name: "Teal" }));
+    expect(new Set(fills())).toEqual(new Set(["var(--color-party-teal)"]));
+  });
+
+  it("Cancel closes the form without adding anyone, back on 'Add a singer'", () => {
+    const { edits } = openForm("+ Guest", "Add a singer");
+    type("Noor");
+    click(within(list()).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(edits()).toEqual([]);
+    expect(screen.getByRole("button", { name: /Add a singer/ })).toHaveFocus();
+  });
+
+  it("Esc closes the form without adding anyone, back on 'Add a singer'", () => {
+    const { edits } = openForm("+ Profile", "Add a singer");
+    type("Noor");
+    press("Escape");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(edits()).toEqual([]);
+    expect(screen.getByRole("button", { name: /Add a singer/ })).toHaveFocus();
+  });
+
+  it("reaches Cancel from OK with ←, and back with →", () => {
+    openForm("+ Guest");
+    press("ArrowDown");
+    press("ArrowDown");
+    press("ArrowDown");
+    expect(ok()).toHaveFocus();
+    press("ArrowLeft");
+    expect(
+      within(list()).getByRole("button", { name: "Cancel" }),
+    ).toHaveFocus();
+    press("ArrowUp");
+    expect(pictures()).toHaveFocus();
+    press("ArrowDown");
+    press("ArrowLeft");
+    press("ArrowRight");
+    expect(ok()).toHaveFocus();
   });
 
   it("steps each row with ← and →, and leaves it with ↑ and ↓", () => {

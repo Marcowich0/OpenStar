@@ -112,6 +112,7 @@ export function WhoPickList({
           members={party.members}
           profiles={profiles ?? []}
           onSeat={onSeat}
+          onCancel={onClose}
         />
       </StagePickList>
     );
