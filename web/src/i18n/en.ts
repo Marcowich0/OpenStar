@@ -1212,6 +1212,7 @@ export const en = {
     ", and .: nudge the Song by 10 ms (Shift 100 ms), or the selection by 1 beat (Shift 4) · [ and ]: tempo around the playhead · Esc: clear the selection",
   // The fold under the views that holds the three lines above (#257).
   "timing.keys.title": "Keys and gestures",
+  "timing.keys.shortcut": "?",
   // Checking by ear (#220): playback, speeds, clicks, hum, loop, A/V sync.
   "timing.play.section": "Playback",
   "timing.play.play": "Play",

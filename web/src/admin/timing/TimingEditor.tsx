@@ -137,6 +137,7 @@ import {
 } from "./TimingPanel";
 import { PlaybackPanel } from "./PlaybackPanel";
 import { isFormField } from "../../ui/formField";
+import { Icon } from "../../ui/Icon";
 
 export interface TimingEditorProps {
   song: SongId;
@@ -1019,12 +1020,13 @@ function KeysAndGestures({
           slot="trigger"
           className="flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
         >
-          <span aria-hidden className="tabular-nums">
-            {isOpen ? "▾" : "▸"}
-          </span>
+          <Icon
+            name="chevron"
+            className={`size-5 transition-transform ${isOpen ? "rotate-90" : ""}`}
+          />
           {t("timing.keys.title")}
           <kbd aria-hidden className="font-mono text-sm text-ink-2">
-            ?
+            {t("timing.keys.shortcut")}
           </kbd>
         </AriaButton>
       </Heading>
