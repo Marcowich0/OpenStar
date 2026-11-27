@@ -108,10 +108,16 @@ export interface SingState {
   /** One per Player, in Player order. */
   lanes: readonly SingLane[];
   /**
-   * The Song's length in seconds (`#END`, else the audio's), for the
-   * progress bar; without one, the end of the last Note.
+   * The Song's length in seconds (`#END`, where playback stops, else the
+   * audio's), for the progress bar and the time left; without one, the end
+   * of the last Note.
    */
   lengthSeconds?: number | null;
+  /**
+   * The Song time play starts at (`#START`; 0 without one): the title card
+   * and the pause hint show for the first seconds from here.
+   */
+  startSeconds?: number;
   /**
    * The effects' particle pool (#134). Game code bursts into it; the render
    * loop advances it by each frame's real delta, and `frame()` only reads it.

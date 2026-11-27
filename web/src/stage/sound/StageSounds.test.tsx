@@ -43,19 +43,20 @@ const party: PartySnapshot = {
   localMics: [],
 };
 
-function setUp(children: React.ReactNode = null) {
+/**
+ * The provider on a live store that is open and has the Party; `before`
+ * gets messages to the store before the provider mounts.
+ */
+function setUp(
+  children: React.ReactNode = null,
+  before?: (send: (message: ServerMessage) => void) => void,
+) {
   let handlers: Pick<LiveClientOptions, "onMessage" | "onConnection"> | null =
     null;
   const store = createLiveStore((given) => {
     handlers = given;
     return { send: () => true, close: () => {} };
   });
-  const recorded = recordedSounds();
-  render(
-    <StageSoundsProvider store={store} sounds={recorded.sounds}>
-      {children}
-    </StageSoundsProvider>,
-  );
   const send = (message: ServerMessage) => {
     act(() => {
       handlers?.onMessage(message);
@@ -65,8 +66,27 @@ function setUp(children: React.ReactNode = null) {
     handlers?.onConnection("open");
   });
   send({ type: "liveState", stageId: "main", party, isStage: true });
+  before?.(send);
+  const recorded = recordedSounds();
+  render(
+    <StageSoundsProvider store={store} sounds={recorded.sounds}>
+      {children}
+    </StageSoundsProvider>,
+  );
   return { ...recorded, send };
 }
+
+const moved = (title: string): ServerMessage => ({
+  type: "partyChanged",
+  party,
+  change: {
+    actor: { kind: "member", memberId: 1 },
+    event: {
+      code: "requestMovedUp",
+      params: { requestId: 1, songId: 1, title },
+    },
+  },
+});
 
 describe("UI sounds on the Stage", () => {
   it("counts a key or a press as the user gesture audio waits for", () => {
@@ -191,20 +211,18 @@ describe("UI sounds on the Stage", () => {
 
   it("chimes for each new toast", () => {
     const { played, send } = setUp();
-    const moved = (title: string): ServerMessage => ({
-      type: "partyChanged",
-      party,
-      change: {
-        actor: { kind: "member", memberId: 1 },
-        event: {
-          code: "requestMovedUp",
-          params: { requestId: 1, songId: 1, title },
-        },
-      },
-    });
     send(moved("Africa"));
     send(moved("Toxic"));
     expect(played).toEqual(["toast", "toast"]);
+  });
+
+  it("does not chime for the toasts already showing when it mounts", () => {
+    const { played, send } = setUp(null, (early) => {
+      early(moved("Africa"));
+    });
+    expect(played).toEqual([]);
+    send(moved("Toxic"));
+    expect(played).toEqual(["toast"]);
   });
 
   it("ducks while a Song plays and not after", () => {

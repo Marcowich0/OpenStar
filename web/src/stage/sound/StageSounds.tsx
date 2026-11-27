@@ -11,7 +11,7 @@
 //   button and veil), or an Esc the Stage acted on (it dismissed a layer).
 // - `refuse`: a click on a greyed (`aria-disabled`) button, or the server
 //   refusing one of the Stage's actions.
-// - `toast`: each new toast.
+// - `toast`: each new toast (not those already showing when it mounts).
 // - Shared controls that sound themselves (`ui/Button`, `ui/HoldButton`,
 //   marked `data-ui-cue`) ask through `UiCueContext` instead: `select`,
 //   `refuse` (a greyed one shaking), `holdTick` and `holdDone`.
@@ -37,22 +37,13 @@ import { FOCUSABLE } from "../frame/focusables";
 import { pickScene } from "../frame/scenes";
 import { stageAudio } from "../playback/stageAudio";
 import {
-  UI_SOUND_NAMES,
   createUiSounds,
+  silentSounds,
   type UiSoundName,
   type UiSounds,
 } from "./uiSounds";
 
-/** What plays nothing: outside the provider (tests of single screens). */
-const SILENT: UiSounds = {
-  ...(Object.fromEntries(UI_SOUND_NAMES.map((name) => [name, () => {}])) as {
-    [Name in UiSoundName]: () => void;
-  }),
-  gesture: () => {},
-  setDucked: () => {},
-};
-
-const StageSoundsContext = createContext<UiSounds>(SILENT);
+const StageSoundsContext = createContext<UiSounds>(silentSounds());
 
 /** The Stage's named UI sounds, for a screen's own events. */
 export function useStageSounds(): UiSounds {
@@ -105,11 +96,12 @@ export function StageSoundsProvider({
     if (rejection !== null) sounds.refuse();
   }, [sounds, rejection]);
 
-  // Toast ids only grow, so a higher one is a new toast.
+  // Toast ids only grow, so a higher one is a new toast. The toasts
+  // already showing when the provider mounts are not new.
   const toasts = useLive(selectToasts, store);
-  const newestToast = useRef(-Infinity);
+  const newestToast = useRef(newestToastId(toasts));
   useEffect(() => {
-    const newest = Math.max(...toasts.map((toast) => toast.id));
+    const newest = newestToastId(toasts);
     if (newest > newestToast.current) {
       newestToast.current = newest;
       sounds.toast();
@@ -128,6 +120,10 @@ export function StageSoundsProvider({
       <UiCueContext value={cue}>{children}</UiCueContext>
     </StageSoundsContext>
   );
+}
+
+function newestToastId(toasts: LiveState["toasts"]): number {
+  return Math.max(-Infinity, ...toasts.map((toast) => toast.id));
 }
 
 function useGestureAndDomSounds(sounds: UiSounds) {

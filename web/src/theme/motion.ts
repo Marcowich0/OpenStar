@@ -8,21 +8,10 @@
 
 import { useLayoutEffect, useSyncExternalStore } from "react";
 
-import type { StageOptions } from "../stageOptions/stageOptions";
-
 export type Motion = "spring" | "fade";
 
 /** The system's reduced-motion setting. */
 export const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-
-/**
- * Whether the Stage options turn Effects off: the one reader for that
- * setting's effect on motion. #268 makes `effects` `"off" | "calm" | "full"`;
- * then this is `options.effects === "off"` (calm keeps the motion).
- */
-export function effectsOff(options: StageOptions): boolean {
-  return !options.effects;
-}
 
 function media(): MediaQueryList | null {
   return typeof window.matchMedia === "function"
@@ -38,13 +27,19 @@ function subscribe(onChange: () => void): () => void {
   };
 }
 
-function prefersReducedMotion(): boolean {
+/**
+ * Whether the system asks for reduced motion now: the one reader of
+ * {@link REDUCED_MOTION_QUERY}, for `MotionMode` and the sing screen's
+ * background.
+ */
+export function prefersReducedMotion(): boolean {
   return media()?.matches ?? false;
 }
 
 /**
  * Keeps `data-motion` on the document element while mounted: "fade" when
- * the system asks for reduced motion or `effectsOff`, else "spring". The
+ * the system asks for reduced motion or `effectsOff` (the Stage options'
+ * `effectsOff`), else "spring". The
  * Stage and the Phone each mount one. Renders nothing.
  */
 export function MotionMode({ effectsOff }: { effectsOff: boolean }) {

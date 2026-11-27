@@ -7,6 +7,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { asAudioContext } from "../../playback/fakeAudioContext";
 import {
+  defaultStageOptions,
+  stageOptions,
+} from "../../stageOptions/stageOptions";
+import {
   fakeSynthContext,
   reaches,
   startedSources,
@@ -17,7 +21,9 @@ import {
   GAME_SOUNDS,
   MENU_SOUNDS,
   UI_SOUNDS_LEVEL,
+  UI_SOUND_NAMES,
   createUiSounds,
+  silentSounds,
   type UiSoundName,
 } from "./uiSounds";
 
@@ -194,6 +200,28 @@ describe("the game sounds (ticket 262)", () => {
     expect(startedSources(context).length).toBeGreaterThan(0);
   });
 
+  it("by default reads Effects from the Stage options, for each sound", () => {
+    const context = fakeSynthContext();
+    const output = context.createGain();
+    output.connect(context.destination);
+    const sounds = createUiSounds({
+      context: () => asAudioContext(context),
+      output: () => output as unknown as AudioNode,
+      level: () => 60,
+    });
+    sounds.gesture();
+    try {
+      stageOptions().set({ ...defaultStageOptions(), effects: false });
+      sounds.linePerfect();
+      expect(startedSources(context)).toEqual([]);
+      stageOptions().set(null);
+      sounds.linePerfect();
+      expect(startedSources(context).length).toBeGreaterThan(0);
+    } finally {
+      stageOptions().set(null);
+    }
+  });
+
   it("reads Effects anew for each sound", () => {
     let off = true;
     const { context, sounds } = setUp(
@@ -205,5 +233,18 @@ describe("the game sounds (ticket 262)", () => {
     off = false;
     sounds.linePerfect();
     expect(startedSources(context).length).toBeGreaterThan(0);
+  });
+});
+
+describe("silentSounds", () => {
+  it("has every named sound, and plays nothing", () => {
+    const sounds = silentSounds();
+    for (const name of UI_SOUND_NAMES) {
+      expect(() => {
+        sounds[name]();
+      }).not.toThrow();
+    }
+    sounds.gesture();
+    sounds.setDucked(true);
   });
 });
