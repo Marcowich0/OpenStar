@@ -34,7 +34,7 @@ export function usePlayerNames(
   return NAMES.format(names);
 }
 
-/** Pause, Resume, Restart, Skip or End the playing Song of `requestId`. */
+/** Pause, Resume, Restart, Skip, End or Skip intro the playing Song of `requestId`. */
 export function controlSong(
   store: LiveStore,
   requestId: RequestId,

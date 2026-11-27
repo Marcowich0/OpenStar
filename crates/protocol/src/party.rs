@@ -239,8 +239,8 @@ pub struct PlayingSong {
 
 /// Where the head's Song stood when the Stage last reported it, as every
 /// Remote is told ([`crate::ServerMessage::SongProgress`]). The Stage
-/// reports only on events (start, pause, resume, Restart and end), never
-/// continuously; a Remote extrapolates progress from the latest report.
+/// reports only on events (start, pause, resume, Restart, Skip intro and
+/// end), never continuously; a Remote extrapolates progress from the latest report.
 /// Phones' mics are never told Song time.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -256,6 +256,11 @@ pub struct SongProgress {
     /// Where the Song stops (`#END`, else the audio's end), seconds, or
     /// `null` when the Stage does not know it.
     pub length_seconds: Option<f64>,
+    /// Where Skip intro lands: a few seconds before the first Note the
+    /// Line-up sings, seconds. `null` when the Song has no Intro worth
+    /// skipping (or the Stage skipped it at Start). Skip intro is offered
+    /// while the position is before it.
+    pub intro_end_seconds: Option<f64>,
     /// How long ago the server received the report, ms: 0 when it is passed
     /// on at once, more for a Remote that connects mid-Song.
     pub age_ms: u32,
@@ -325,6 +330,12 @@ pub enum SongControl {
     /// Held. Stops the Song with no results: its Request leaves the Queue
     /// at once and the next Line-up comes up.
     Skip,
+    /// A plain tap. Jumps over the Intro, to a few seconds before the first
+    /// Note (`SongProgress::intro_end_seconds`); nothing is sung there, so
+    /// the Score is untouched. Refused with
+    /// [`crate::UserMessage::NoIntroToSkip`] unless the Song is playing
+    /// (not paused) before the end of its Intro.
+    SkipIntro,
 }
 
 /// Which Voice of a Song a seat sings: `p1`, or `p2` in a duet.
@@ -708,6 +719,8 @@ pub enum PartyEvent {
     SongResumed(RequestChange),
     /// The Song was started over.
     SongRestarted(RequestChange),
+    /// Skip intro: the Song jumped to just before its first Note.
+    IntroSkipped(RequestChange),
     /// Someone pressed End; the results follow once the Stage shows them.
     SongEnded(RequestChange),
     /// The Song was skipped: its Request left the Queue with no results.

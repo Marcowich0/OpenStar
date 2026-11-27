@@ -4,18 +4,21 @@
 // pause menu and the 3-2-1 countdown over the frozen frame (#217), and sends
 // Space or Esc as Pause, and the menu's choices, through the server like any
 // Remote. The menu shows whenever the Song is paused, whoever paused it; on
-// the menu Esc resumes. The results are #175/#182's. Each Player's running
-// Score goes straight into their lane header (#165).
+// the menu Esc resumes. While the Song plays its Intro, the Skip intro pill
+// shows, and Enter skips it too. The results are #175/#182's. Each Player's
+// running Score goes straight into their lane header (#165).
 
 import { useCallback, useEffect, useRef } from "react";
 
 import { t } from "../../../i18n/t";
 import type { LiveState } from "../../../live/liveState";
 import { useLive } from "../../../live/useLive";
+import { offersSkipIntro } from "../../../playback/introSkip";
 import { Button } from "../../../ui/Button";
 import { useStageFrame, useStageKeys } from "../../frame/stageFrameContext";
 import { ResumeCountdown } from "../../playback/ResumeCountdown";
 import { PauseMenu, type PauseMenuControl } from "./PauseMenu";
+import { SkipIntro } from "./SkipIntro";
 import { SingBackdrop } from "../../sing/SingBackdrop";
 import { SingScreen } from "../../sing/SingScreen";
 import { useStageAvOffset } from "../../output/useStageAvOffset";
@@ -26,6 +29,9 @@ import { writeLaneScore } from "./laneScore";
 import { useStageSong, useStageSongView } from "./useStageSong";
 
 const selectPlaying = (live: LiveState) => live.stage?.party?.playing ?? null;
+
+/** Within this long, a second Skip intro press is the same press. */
+const SKIP_ONCE_MS = 1000;
 
 export function SingScene() {
   const { store } = useStageFrame();
@@ -45,7 +51,27 @@ export function SingScene() {
     });
     return true;
   };
-  useStageKeys({ " ": toggle, Escape: toggle });
+  // Skip intro, from the pill or Enter, while it is offered. A press that
+  // reaches both (Enter on the focused pill) is sent once.
+  const skipSentAt = useRef(Number.NEGATIVE_INFINITY);
+  const skipIntro = () => {
+    if (!playing || playing.paused || view.kind !== "singing") return false;
+    if (view.controls.phase !== "playing" || view.ended !== null) return false;
+    if (view.playFailed) return false;
+    if (!offersSkipIntro(view.introEndSeconds, view.clock.songTime())) {
+      return false;
+    }
+    const now = performance.now();
+    if (now - skipSentAt.current < SKIP_ONCE_MS) return true;
+    skipSentAt.current = now;
+    store.send({
+      type: "controlSong",
+      requestId: playing.requestId,
+      control: "skipIntro",
+    });
+    return true;
+  };
+  useStageKeys({ " ": toggle, Escape: toggle, Enter: skipIntro });
 
   const control = (choice: PauseMenuControl) => {
     if (!playing) return;
@@ -57,7 +83,16 @@ export function SingScene() {
   };
 
   if (view.kind !== "singing") return <SingMessage view={view} />;
-  return <Singing view={view} song={song} onControl={control} />;
+  return (
+    <Singing
+      view={view}
+      song={song}
+      onControl={control}
+      onSkipIntro={() => {
+        skipIntro();
+      }}
+    />
+  );
 }
 
 function SingMessage({
@@ -85,10 +120,12 @@ function Singing({
   view,
   song,
   onControl,
+  onSkipIntro,
 }: {
   view: Extract<StageSongView, { kind: "singing" }>;
   song: StageSong;
   onControl: (control: PauseMenuControl) => void;
+  onSkipIntro: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null);
   // This Stage browser's A/V offset at its current output: the lanes, Notes,
@@ -150,6 +187,16 @@ function Singing({
             <track kind="captions" />
           </audio>
         )}
+        <SkipIntro
+          introEndSeconds={view.introEndSeconds}
+          clock={view.clock}
+          playing={
+            view.controls.phase === "playing" &&
+            view.ended === null &&
+            !view.playFailed
+          }
+          onSkip={onSkipIntro}
+        />
         <ResumeCountdown state={view.controls} />
         {view.controls.phase === "paused" && view.ended === null && (
           <PauseMenu onControl={onControl} />

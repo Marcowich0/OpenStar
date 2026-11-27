@@ -129,9 +129,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // seat follows the not-guarded Profile create.
         | ClientMessage::EditLineUp { .. }
         | ClientMessage::SetMyDifficulty { .. }
-        // Start, pause, Restart, End and Skip are for everyone in the room;
-        // Next or Done from anyone (results come from the Stage over
-        // `POST /api/rounds`).
+        // Start, pause, Restart, End, Skip and Skip intro are for everyone in
+        // the room; Next or Done from anyone (results come from the Stage
+        // over `POST /api/rounds`).
         | ClientMessage::ControlSong { .. }
         | ClientMessage::CloseResults
         // The Stage's position report only tells Remotes how far the Song

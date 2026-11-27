@@ -33,7 +33,7 @@ The role of a Phone when it browses the Library, changes the Queue or controls t
 _Avoid_: Controller, companion
 
 **Stage options**:
-The choices kept for the Stage that change how a Party plays and looks (the starting Difficulty, the countdown after a pause, Line ratings, effects, the Song video, the preview volume), set in the Stage's Setup › Options with no Admin PIN. Each has a default that is how the Stage behaves without it.
+The choices kept for the Stage that change how a Party plays and looks (the starting Difficulty, the countdown after a pause, skipping long Intros, Line ratings, effects, the Song video, the preview volume), set in the Stage's Setup › Options with no Admin PIN. Each has a default that is how the Stage behaves without it.
 _Avoid_: Settings, preferences, config
 
 **Admin PIN**:
@@ -145,6 +145,10 @@ _Avoid_: Free note, unscored note
 **Song time**:
 How far a Song's audio has played, in seconds from its start. Notes, lyrics and every Pitch reading are placed against it.
 _Avoid_: Playback position, media time, timestamp
+
+**Intro**:
+The start of a Song before the first Note its Line-up sings, when it lasts at least 10 seconds from `#START`. Skip intro jumps over it to 3 seconds before that Note; nothing is sung there, so the Score is untouched.
+_Avoid_: Lead-in, prelude, skip (Skip ends the whole Song)
 
 **Queue**:
 The ordered list of Requests waiting to be sung on the Stage.

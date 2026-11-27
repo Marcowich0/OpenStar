@@ -236,6 +236,7 @@ const REFUSAL_CODES = {
   lineUpNotReady: true,
   noStage: true,
   noSongPlaying: true,
+  noIntroToSkip: true,
   requestPlaying: true,
   difficultyLocked: true,
   noResults: true,

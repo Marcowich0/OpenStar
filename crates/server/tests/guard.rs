@@ -459,6 +459,7 @@ fn every_client_message() -> Vec<ClientMessage> {
             position_seconds: 0.0,
             rate: 1.0,
             length_seconds: None,
+            intro_end_seconds: None,
         },
         ClientMessage::ReportLineScore {
             request_id: openstar_protocol::RequestId(1),

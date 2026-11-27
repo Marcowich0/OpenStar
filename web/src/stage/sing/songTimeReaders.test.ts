@@ -32,6 +32,9 @@ describe("who reads the Song's position", () => {
     // The Timing editor (#220) draws at it minus the A/V offset, starts and
     // loops its playback from it, and schedules its clicks and hums ahead
     // of it (never with the offset: they share the Song's output path).
+    // Skip intro reads it at a press (the sing scene, and the Stage's Song
+    // before it seeks), and the pill every 250 ms for its countdown: never
+    // per frame, never for readings or scoring.
     expect(filesMatching(/\.songTime\s*\(/)).toEqual([
       "src/admin/timing/TimingEditor.tsx",
       "src/editorAudio/editorPlayback.ts",
@@ -39,6 +42,9 @@ describe("who reads the Song's position", () => {
       "src/playback/mediaPlayback.ts",
       "src/scoring/liveScoring.ts",
       "src/stage/playback/PlaybackCheck.tsx",
+      "src/stage/scenes/sing/SingScene.tsx",
+      "src/stage/scenes/sing/SkipIntro.tsx",
+      "src/stage/scenes/sing/stageSong.ts",
       "src/stage/sing/renderLoop.ts",
     ]);
   });

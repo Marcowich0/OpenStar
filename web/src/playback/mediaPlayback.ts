@@ -9,8 +9,8 @@
  * Everything else reads the position through the clock's `songTime()`.
  *
  * The adapter is also the only code that moves the element: once to `#START`
- * when the Song starts, and again on Restart (#158), the sing screen's only
- * seek. Pause, resume and stalls never seek, so the media and the clock carry
+ * when the Song starts, and again on Restart (#158) and Skip intro, the sing
+ * screen's only seeks. Pause, resume and stalls never seek, so the media and the clock carry
  * on from where they stopped.
  *
  * With separate audio and video files (#212) the audio is the clock and the
@@ -27,8 +27,8 @@
  * speed with them).
  *
  * It also reports where the Song stands (`onReport`, #159), only on events:
- * when the Song really starts, pauses, really resumes, lands a Restart's
- * seek and ends. Never per frame, and not on a stall or its recovery: the
+ * when the Song really starts, pauses, really resumes, lands a Restart's or
+ * a Skip intro's seek and ends. Never per frame, and not on a stall or its recovery: the
  * Remotes extrapolate between reports.
  */
 
@@ -141,9 +141,10 @@ export interface MediaPlayback {
    */
   restart(): Promise<void>;
   /**
-   * The Timing editor's seek (#220): moves the element and the clock to
-   * `seconds`, like Restart, but plays only if it was playing. Song time
-   * holds there until the element's seek lands.
+   * The Timing editor's seek (#220) and Skip intro: moves the element and
+   * the clock to `seconds`, like Restart, but plays only if it was playing.
+   * Song time holds there until the element's seek lands; playing, it is
+   * then reported.
    */
   seek(seconds: number): void;
   /**
@@ -406,6 +407,8 @@ export function createMediaPlayback(
     seek(seconds) {
       if (finished || !running) return;
       seekTo(seconds);
+      // Playing on, it is reported once it really plays there.
+      reportWhenPlaying = !element.paused;
     },
     setRate(rate) {
       element.preservesPitch = true;

@@ -13,6 +13,13 @@
  *   server (`reportLineScore`), which passes it to that seat's Phone (#167).
  * - **Pause, Resume, Restart** go to the Song controls (#158: freeze, 3-2-1,
  *   seek to `#START` with the buffers cleared and the scoring reset).
+ * - **Skip intro** seeks to a few seconds before the first Note the Line-up
+ *   sings (`playback/introSkip.ts`), while the Song plays (not paused or
+ *   counting down) before there. Nothing is sung in the Intro, so the
+ *   scoring carries on as it is. With the Stage option "Skip long intros"
+ *   the Song starts there instead of at `#START` (Restart too), and has no
+ *   Intro left to skip. Every position report says where Skip intro lands,
+ *   so the Remotes offer it while it applies.
  * - **End** stops the Song. A Song that plays out or is ended reports its
  *   round once (#175): `POST /api/rounds` with each seat's Score, sent again
  *   while the answer is lost (the server stores one outcome per Request
@@ -66,6 +73,7 @@ import {
   type SongControlsOptions,
   type SongControlsState,
 } from "../../playback/songControls";
+import { introEnd } from "../../../playback/introSkip";
 import { ApiFailure } from "../../../api/api";
 import { stageOptions } from "../../../stageOptions/stageOptions";
 import { roundOutcome } from "./roundOutcome";
@@ -102,6 +110,11 @@ export type StageSongView =
       playFailed: boolean;
       /** Set once the Song played out or was ended. */
       ended: SongEnding | null;
+      /**
+       * Where Skip intro lands, seconds (`playback/introSkip.ts`); `null`
+       * without an Intro to skip, or when the Song started past it.
+       */
+      introEndSeconds: number | null;
       /**
        * The video shows over the background: always for a video in the audio
        * file; a separate video file (#212) once its position reached 0.
@@ -143,13 +156,13 @@ export interface StageSongOptions {
     plan: PlaybackPlan;
     clock: SongClock;
     onEnded: (how: SongEnding) => void;
-    /** Where the Song stands, on start, pause, resume, Restart and end only (#159). */
+    /** Where the Song stands, on start, pause, resume, Restart, Skip intro and end only (#159). */
     onReport: (report: PositionReport) => void;
     /** The following video shows (it reached position 0), or not any more. */
     onVideoShown: (shown: boolean) => void;
   }) => Pick<
     MediaPlayback,
-    "start" | "pause" | "resume" | "restart" | "end" | "dispose"
+    "start" | "pause" | "resume" | "restart" | "seek" | "end" | "dispose"
   >;
   /** Resumes the Stage's AudioContext before playing. */
   resumeAudio: () => Promise<void>;
@@ -166,6 +179,11 @@ export interface StageSongOptions {
    * (`SongControlsOptions.countdownFrom`; the Stage options' by default).
    */
   countdownFrom?: () => number;
+  /**
+   * Whether a Song starts past its Intro, read at each Start (the Stage
+   * options' `skipIntros` by default).
+   */
+  skipIntros?: () => boolean;
   /** The Stage clock in ms (`performance.now`), for the Song clock and lost Mics. */
   stageNow?: () => number;
   /** The animation frame loop that ticks the scoring (`requestAnimationFrame`). */
@@ -213,6 +231,8 @@ interface Session {
   clock: SongClock | null;
   playback: ReturnType<StageSongOptions["createPlayback"]> | null;
   controls: SongControls | null;
+  /** Where Skip intro lands (`null`: no Intro left to skip). */
+  introEnd: number | null;
   /** The Party paused the Song before it could play. */
   pendingPause: boolean;
   startedAtMs: number;
@@ -311,6 +331,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
           positionSeconds,
           rate,
           lengthSeconds: plan.endSeconds ?? detail.lengthSeconds,
+          introEndSeconds: s.introEnd,
         });
       },
       onVideoShown: (videoShown) => {
@@ -474,6 +495,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
       clock: null,
       playback: null,
       controls: null,
+      introEnd: null,
       pendingPause: party?.playing?.paused ?? false,
       startedAtMs: now(),
       stopped: false,
@@ -498,7 +520,20 @@ export function createStageSong(options: StageSongOptions): StageSong {
         ...(volume === null ? {} : { volume }),
         ...(options.micIdFor ? { micIdFor: options.micIdFor } : {}),
       });
-      const plan = playbackPlan(detail);
+      // The Intro, before the first Note the Line-up sings. The Stage option
+      // starts the Song (and a Restart) past it, leaving nothing to skip.
+      const fromStart = playbackPlan(detail);
+      const intro = introEnd({
+        song: detail.song,
+        voices: setup.players.map((player) => player.voice),
+        startSeconds: fromStart.startSeconds,
+        endSeconds: fromStart.endSeconds,
+      });
+      const skipIntros =
+        options.skipIntros ?? (() => stageOptions().current().skipIntros);
+      const skipped = intro !== null && skipIntros();
+      const plan = skipped ? { ...fromStart, startSeconds: intro } : fromStart;
+      s.introEnd = skipped ? null : intro;
       const clock = createSongClock({ media: plan.clock, now: stageNow });
       // Each Player's scoring inputs, taken once for the whole Song.
       const scoring = createLiveScoring({
@@ -581,6 +616,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
         controls: { phase: "playing" },
         playFailed: false,
         ended: null,
+        introEndSeconds: s.introEnd,
         videoShown: plan.element === "video",
       });
       begin(s);
@@ -628,6 +664,9 @@ export function createStageSong(options: StageSongOptions): StageSong {
         if (s.playback) s.playback.end();
         else finish(s, "ended");
         return;
+      case "skipIntro":
+        skipIntro(s);
+        return;
       case "pause":
       case "resume":
       case "restart":
@@ -640,6 +679,16 @@ export function createStageSong(options: StageSongOptions): StageSong {
         }
         return;
     }
+  }
+
+  /** Skip intro: on to where it lands, while the Song plays before there. */
+  function skipIntro(s: Session) {
+    if (s.stopped || s.ended !== null || s.introEnd === null) return;
+    if (!s.playback || !s.clock || s.controls?.state.phase !== "playing") {
+      return;
+    }
+    if (s.clock.songTime() >= s.introEnd) return;
+    s.playback.seek(s.introEnd);
   }
 
   /** A dropped Stage, or a Party that no longer plays this Song, stops it. */

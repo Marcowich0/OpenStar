@@ -1159,7 +1159,7 @@ impl LiveState {
                 request_id,
                 control,
             }) => {
-                let controlled = self.control_song(id, request_id, control).await;
+                let controlled = self.control_song(id, request_id, control, now_ms).await;
                 // A Song that starts ends Check A/V sync and Calibrate mics.
                 if control == SongControl::Start && controlled.is_ok() {
                     self.song_started(now_ms);
@@ -1173,6 +1173,7 @@ impl LiveState {
                 position_seconds,
                 rate,
                 length_seconds,
+                intro_end_seconds,
             }) => {
                 let reported = self.report_song_position(
                     id,
@@ -1182,6 +1183,7 @@ impl LiveState {
                         position_seconds,
                         rate,
                         length_seconds,
+                        intro_end_seconds,
                         age_ms: 0,
                     },
                 );
@@ -2442,14 +2444,16 @@ impl LiveState {
         Ok(())
     }
 
-    /// Start, Pause, Resume, Restart, End or Skip for Request `request_id`'s
-    /// Song, from connection `id` (a Remote command). Everyone hears the
-    /// change, then the Stage is told to act on it.
+    /// Start, Pause, Resume, Restart, End, Skip or Skip intro for Request
+    /// `request_id`'s Song, from connection `id` (a Remote command) at
+    /// `now_ms`. Everyone hears the change, then the Stage is told to act on
+    /// it.
     async fn control_song(
         &mut self,
         id: ConnectionId,
         request_id: RequestId,
         control: SongControl,
+        now_ms: i64,
     ) -> Result<(), UserMessage> {
         let actor = self.remote_actor(id)?;
         let mut party = self.party()?;
@@ -2484,6 +2488,12 @@ impl LiveState {
             SongControl::Restart => {
                 paused(&mut party, false);
                 PartyEvent::SongRestarted(change)
+            }
+            SongControl::SkipIntro => {
+                if playing.paused || !self.in_intro(now_ms) {
+                    return Err(UserMessage::NoIntroToSkip);
+                }
+                PartyEvent::IntroSkipped(change)
             }
             SongControl::End => PartyEvent::SongEnded(change),
             SongControl::Skip => {
@@ -2803,6 +2813,7 @@ impl LiveState {
         if !valid(progress.position_seconds)
             || !valid(progress.rate)
             || !progress.length_seconds.is_none_or(valid)
+            || !progress.intro_end_seconds.is_none_or(valid)
         {
             return Err(UserMessage::InvalidMessage);
         }
@@ -2906,6 +2917,20 @@ impl LiveState {
             age_ms: u32::try_from(age).unwrap_or(u32::MAX),
             ..progress.clone()
         })
+    }
+
+    /// Whether the playing Song is in its Intro at `now_ms`, as the Stage's
+    /// latest report has it: running, and before where Skip intro lands.
+    fn in_intro(&self, now_ms: i64) -> bool {
+        let Some(progress) = self.current_progress(now_ms) else {
+            return false;
+        };
+        let Some(intro_end) = progress.intro_end_seconds else {
+            return false;
+        };
+        let elapsed_seconds = f64::from(progress.age_ms) / 1000.0;
+        progress.rate > 0.0
+            && progress.position_seconds + elapsed_seconds * progress.rate < intro_end
     }
 
     /// Tells the active Stage to act on the head's Song.

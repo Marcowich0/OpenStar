@@ -332,6 +332,22 @@ export function OptionsScreen() {
           />
         </OptionRow>
         <OptionRow
+          id="skipIntros"
+          name={t("options.skipIntros")}
+          help={t("options.skipIntros.help")}
+          isDefault={is("skipIntros")}
+          defaultText={onOffText(defaults.skipIntros)}
+          onReset={reset("skipIntros")}
+        >
+          <SwitchControl
+            name={t("options.skipIntros")}
+            on={options.skipIntros}
+            onSwitch={(skipIntros) => {
+              change({ skipIntros });
+            }}
+          />
+        </OptionRow>
+        <OptionRow
           id="previewVolumePercent"
           name={t("options.previewVolume")}
           help={t("options.previewVolume.help")}

@@ -85,6 +85,7 @@ export const userMessageText = byCode<UserMessage>({
   lineUpNotReady: () => t("userMessage.lineUpNotReady"),
   noStage: () => t("userMessage.noStage"),
   noSongPlaying: () => t("userMessage.noSongPlaying"),
+  noIntroToSkip: () => t("userMessage.noIntroToSkip"),
   requestPlaying: () => t("userMessage.requestPlaying"),
   difficultyLocked: () => t("userMessage.difficultyLocked"),
   noResults: () => t("userMessage.noResults"),
@@ -198,6 +199,8 @@ export const partyEventText = byCode<PartyEvent>({
     t("partyEvent.songResumed", { song: params.title }),
   songRestarted: ({ params }) =>
     t("partyEvent.songRestarted", { song: params.title }),
+  introSkipped: ({ params }) =>
+    t("partyEvent.introSkipped", { song: params.title }),
   songEnded: ({ params }) => t("partyEvent.songEnded", { song: params.title }),
   songSkipped: ({ params }) =>
     t("partyEvent.songSkipped", { song: params.title }),

@@ -375,33 +375,39 @@ pub enum ClientMessage {
     /// Difficulty). Refused with [`UserMessage::NotInParty`] for anyone but
     /// a joined Phone.
     SetMyDifficulty { difficulty: profile::Difficulty },
-    /// Start, Pause, Resume, Restart, End or Skip for the head's Song,
-    /// `request_id` (a Remote command). Accepted ones are passed to the
-    /// Stage. Start is refused with [`UserMessage::LineUpNotWaiting`] when
-    /// that Request's Line-up is not waiting, [`UserMessage::LineUpNotReady`]
-    /// when it cannot start, and [`UserMessage::NoStage`] with no Stage
-    /// open; the others with [`UserMessage::NoSongPlaying`] when that
-    /// Request's Song is not playing. Pause on a paused Song and Resume on a
-    /// running one change nothing.
+    /// Start, Pause, Resume, Restart, End, Skip or Skip intro for the head's
+    /// Song, `request_id` (a Remote command). Accepted ones are passed to
+    /// the Stage. Start is refused with [`UserMessage::LineUpNotWaiting`]
+    /// when that Request's Line-up is not waiting,
+    /// [`UserMessage::LineUpNotReady`] when it cannot start, and
+    /// [`UserMessage::NoStage`] with no Stage open; the others with
+    /// [`UserMessage::NoSongPlaying`] when that Request's Song is not
+    /// playing. Skip intro is also refused with
+    /// [`UserMessage::NoIntroToSkip`] while the Song is paused, or when the
+    /// Stage's latest report puts it past its Intro (or it has none). Pause
+    /// on a paused Song and Resume on a running one change nothing.
     ControlSong {
         request_id: RequestId,
         control: SongControl,
     },
     /// The active Stage reports where the playing Song stands, only on
     /// events: when it starts, pauses, resumes (once it really plays after
-    /// the countdown), restarts (Restart, the only seek) and ends. `rate` is
-    /// 1 while it plays and 0 while it is paused or after its end. The
+    /// the countdown), restarts (Restart), lands a Skip intro (the only
+    /// seeks) and ends. `rate` is 1 while it plays and 0 while it is paused
+    /// or after its end; `intro_end_seconds` is where Skip intro lands, or
+    /// `null` without an Intro to skip. The
     /// server keeps the latest report and passes it to every connection as
     /// [`ServerMessage::SongProgress`]. Refused with
     /// [`UserMessage::NotTheStage`] from anyone but the active Stage, with
     /// [`UserMessage::NoSongPlaying`] when Request `request_id` is not
     /// playing, and with [`UserMessage::InvalidMessage`] for a position,
-    /// rate or length that is negative or not finite.
+    /// rate, length or Intro end that is negative or not finite.
     ReportSongPosition {
         request_id: RequestId,
         position_seconds: f64,
         rate: f64,
         length_seconds: Option<f64>,
+        intro_end_seconds: Option<f64>,
     },
     /// The active Stage reports, at the end of a Line, the running total of
     /// seat `seat` (its index in the Line-up fixed at Start) of the playing
@@ -817,6 +823,8 @@ pub enum UserMessage {
     NoStage,
     /// That Request's Song is not playing.
     NoSongPlaying,
+    /// Skip intro, but the Song is paused, past its Intro, or has none.
+    NoIntroToSkip,
     /// The Request's Song is playing, so it cannot be removed: Skip or End
     /// does that.
     RequestPlaying,
