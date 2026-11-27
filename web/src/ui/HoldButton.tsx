@@ -62,6 +62,8 @@ export interface HoldButtonProps {
   size?: keyof typeof SIZE_CLASSES;
   /** Names the button when its content is only an icon (the ×). */
   "aria-label"?: string;
+  /** The id of a line that says what the hold does ("Clears the Queue…"). */
+  "aria-describedby"?: string;
   /** Layout utilities for the wrapper (position, width). */
   className?: string;
   /** Greyed and shaking when pressed; `onHold` is never called. */
@@ -74,6 +76,7 @@ export function HoldButton({
   fill = "white",
   size = "medium",
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedBy,
   className = "",
   isDisabled = false,
 }: HoldButtonProps) {
@@ -184,6 +187,7 @@ export function HoldButton({
       <button
         type="button"
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         aria-disabled={isDisabled || undefined}
         data-holding={holding || undefined}
         data-shaking={shaking || undefined}
