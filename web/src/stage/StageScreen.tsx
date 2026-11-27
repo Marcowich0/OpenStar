@@ -10,6 +10,7 @@ import { StageMicReports } from "./micDebug/StageMicReports";
 import { StageOutputProvider } from "./output/StageOutput";
 import { StagePerfProvider } from "./perf/stagePerf";
 import { useStageSong } from "./scenes/sing/useStageSong";
+import { StageSoundsProvider } from "./sound/StageSounds";
 import { StageTrustGate } from "./trust/StageTrustGate";
 
 /**
@@ -17,7 +18,8 @@ import { StageTrustGate } from "./trust/StageTrustGate";
  * browser's own Local mics captured, its Stage output watched and that
  * output's Mic settings and the Stage options loaded while it is the Stage. A browser that is not a remembered Stage browser is asked
  * for the Admin PIN first. `?perf` (and `?perf&lanes=8`) is the sing screen's
- * performance check (#227).
+ * performance check (#227). The frame plays the UI sounds
+ * (`sound/StageSounds.tsx`).
  */
 export function StageScreen() {
   const store = liveStore();
@@ -36,7 +38,9 @@ export function StageScreen() {
           <StageMicReports store={store} />
           <StageOptionsLoader />
           <LocalMicsProvider store={store}>
-            <StageFrame store={store} />
+            <StageSoundsProvider store={store}>
+              <StageFrame store={store} />
+            </StageSoundsProvider>
           </LocalMicsProvider>
         </StageOutputProvider>
       </StageTrustGate>

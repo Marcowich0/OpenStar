@@ -2,10 +2,13 @@
 // darker colour. React Aria does the behaviour; a disabled button stays
 // focusable and pressable on purpose, so that a press can shake it (±12 px,
 // about 0.3 s) instead of doing nothing (v1 spec #55: "a press on a disabled
-// control shakes it").
+// control shakes it"). On the Stage a press sounds `select` and a shake
+// `refuse` (`uiCue.ts`); on a Phone nothing sounds.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button as AriaButton } from "react-aria-components";
+
+import { CUES_ITSELF, useUiCue } from "./uiCue";
 
 export type ButtonFill = "white" | "green" | "red" | "ink";
 
@@ -49,6 +52,7 @@ export function Button({
   className = "",
 }: ButtonProps) {
   const [shaking, setShaking] = useState(false);
+  const cue = useUiCue();
   const ref = useRef<HTMLButtonElement>(null);
   // React Aria's Button does not forward animation events.
   useEffect(() => {
@@ -79,8 +83,10 @@ export function Button({
     <AriaButton
       aria-disabled={isDisabled}
       data-shaking={shaking || undefined}
+      {...CUES_ITSELF}
       ref={ref}
       onPress={() => {
+        cue?.(isDisabled ? "refuse" : "select");
         if (isDisabled) setShaking(true);
         else onPress?.();
       }}
