@@ -9,6 +9,14 @@
 // To add an option: its field (`stageOptions.ts`), its texts (`en.ts`), then
 // one `switchRow`, `choiceRow` or `stepperRow` line in `rows` or `advanced`
 // of its group in `OPTION_GROUPS`. A group with no rows is not shown.
+//
+// One row is not a Stage option: the OpenStar volume under Sound (#270). It
+// is live state the server keeps per Stage output and moves in steps of 5,
+// bound to the same value as a Phone's Volume control (`OpenStarVolume`,
+// passed in by the caller), so it is never a copy. Its − and + ask for one
+// step, as the Phone's do; its default is 80, where an output with no kept
+// volume starts, and its Reset asks the server to set 80 (`setVolume`).
+// Without a binding (no live connection) the row is left out.
 
 import {
   createContext,
@@ -21,6 +29,8 @@ import {
 import type { Difficulty } from "../generated/Difficulty";
 import type { LyricSize } from "../generated/LyricSize";
 import type { Effects } from "../generated/Effects";
+import type { OpenStarVolume } from "../live/useOpenStarVolume";
+import { OPENSTAR_VOLUME } from "../playback/gain";
 import { THEME_NAMES } from "../theme/themes";
 import { t, type ArgsOf, type MessageKey } from "../i18n/t";
 import type { en } from "../i18n/en";
@@ -50,10 +60,19 @@ export interface OptionRowDef {
   control: (options: StageOptions, onChange: OnChange) => ReactNode;
 }
 
+/** The OpenStar volume's row: live state, not a Stage option. */
+export interface VolumeRowDef {
+  key: "openStarVolume";
+  name: PlainKey;
+  help: PlainKey;
+}
+
+export type RowDef = OptionRowDef | VolumeRowDef;
+
 export interface OptionGroupDef {
   id: "players" | "look" | "singScreen" | "sound";
   title: PlainKey;
-  rows: readonly OptionRowDef[];
+  rows: readonly RowDef[];
   /** Behind the Advanced fold, closed by default. */
   advanced: readonly OptionRowDef[];
 }
@@ -233,6 +252,21 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
     id: "sound",
     title: "options.group.sound",
     rows: [
+      {
+        key: "openStarVolume",
+        name: "options.openStarVolume",
+        help: "options.openStarVolume.help",
+      },
+      stepperRow(
+        "uiSoundsPercent",
+        "options.uiSounds",
+        "options.uiSounds.help",
+        { min: 0, max: 100, step: STAGE_OPTIONS.uiSoundsStepPercent },
+        (percent) =>
+          percent === 0
+            ? t("options.off")
+            : t("options.uiSounds.value", { percent }),
+      ),
       stepperRow(
         "previewVolumePercent",
         "options.previewVolume",
@@ -272,6 +306,11 @@ export interface OptionsListProps {
   options: StageOptions;
   /** Called with the changed fields; the caller saves them. */
   onChange: OnChange;
+  /**
+   * The OpenStar volume to show under Sound (`useOpenStarVolume`), or none
+   * to leave its row out.
+   */
+  openStarVolume?: OpenStarVolume | undefined;
   /** The Phone's smaller list, for one hand on a 390 px wide screen. */
   compact?: boolean;
   /** Tests only: the groups to show. */
@@ -282,6 +321,7 @@ export interface OptionsListProps {
 export function OptionsList({
   options,
   onChange,
+  openStarVolume,
   compact = false,
   groups = OPTION_GROUPS,
 }: OptionsListProps) {
@@ -295,6 +335,7 @@ export function OptionsList({
             group={group}
             options={options}
             onChange={onChange}
+            openStarVolume={openStarVolume}
           />
         ))}
     </Compact.Provider>
@@ -309,23 +350,31 @@ function OptionGroup({
   group,
   options,
   onChange,
+  openStarVolume,
 }: {
   group: OptionGroupDef;
   options: StageOptions;
   onChange: OnChange;
+  openStarVolume: OpenStarVolume | undefined;
 }) {
   const compact = useContext(Compact);
   const heading = `options-${group.id}`;
-  const rows = (defs: readonly OptionRowDef[]) => (
+  const rows = (defs: readonly RowDef[]) => (
     <ul className={`flex flex-col ${compact ? "gap-3" : "gap-4"}`}>
-      {defs.map((row) => (
-        <OptionRow
-          key={row.key}
-          row={row}
-          options={options}
-          onChange={onChange}
-        />
-      ))}
+      {defs.map((row) =>
+        row.key === "openStarVolume" ? (
+          openStarVolume && (
+            <VolumeRow key={row.key} row={row} volume={openStarVolume} />
+          )
+        ) : (
+          <OptionRow
+            key={row.key}
+            row={row}
+            options={options}
+            onChange={onChange}
+          />
+        ),
+      )}
     </ul>
   );
   return (
@@ -408,16 +457,91 @@ function OptionRow({
   options: StageOptions;
   onChange: OnChange;
 }) {
-  const compact = useContext(Compact);
+  return (
+    <RowShell
+      id={row.key}
+      name={t(row.name)}
+      help={t(row.help)}
+      defaultText={row.defaultText()}
+      atDefault={isDefault(options, row)}
+      onReset={() => {
+        onChange({ [row.key]: defaults[row.key] });
+      }}
+      control={row.control(options, onChange)}
+    />
+  );
+}
+
+/**
+ * The OpenStar volume: the server's value, − and + one step each, and Reset
+ * to 80. All greyed until a Stage has told its volume.
+ */
+function VolumeRow({
+  row,
+  volume: { volume, step, set },
+}: {
+  row: VolumeRowDef;
+  volume: OpenStarVolume;
+}) {
   const name = t(row.name);
-  const atDefault = isDefault(options, row);
+  return (
+    <RowShell
+      id={row.key}
+      name={name}
+      help={t(row.help)}
+      defaultText={String(OPENSTAR_VOLUME.default)}
+      atDefault={volume === null || volume === OPENSTAR_VOLUME.default}
+      onReset={() => {
+        set(OPENSTAR_VOLUME.default);
+      }}
+      control={
+        <StepperControl
+          name={name}
+          value={volume ?? OPENSTAR_VOLUME.default}
+          min={OPENSTAR_VOLUME.min}
+          max={OPENSTAR_VOLUME.max}
+          step={OPENSTAR_VOLUME.step}
+          text={
+            volume === null
+              ? t("options.openStarVolume.unknown")
+              : String(volume)
+          }
+          disabled={volume === null}
+          onSet={(next) => {
+            if (volume !== null) step(next > volume ? "up" : "down");
+          }}
+        />
+      }
+    />
+  );
+}
+
+/** A row's layout: name and explanation, its control, and Reset. */
+function RowShell({
+  id,
+  name,
+  help,
+  defaultText,
+  atDefault,
+  onReset,
+  control,
+}: {
+  id: string;
+  name: string;
+  help: string;
+  defaultText: string;
+  atDefault: boolean;
+  onReset: () => void;
+  control: ReactNode;
+}) {
+  const compact = useContext(Compact);
   const reset = (
     <button
       type="button"
       aria-label={t("options.resetLabel", { name })}
       {...(atDefault ? { "aria-disabled": true } : {})}
       onClick={() => {
-        if (!atDefault) onChange({ [row.key]: defaults[row.key] });
+        if (!atDefault) onReset();
       }}
       className={`${pill(compact)} bg-cream text-ink shadow-ledge-sm ${compact ? "ml-auto" : ""} ${atDefault ? "cursor-not-allowed opacity-45" : ""}`}
     >
@@ -432,10 +556,10 @@ function OptionRow({
         {name}
       </h4>
       <p className={`mt-1 ${compact ? "text-base" : "text-xl"} text-ink-2`}>
-        {t(row.help)}
+        {help}
       </p>
       <p className={`mt-1 ${compact ? "text-base" : "text-xl"} text-mute`}>
-        {t("options.default", { value: row.defaultText() })}
+        {t("options.default", { value: defaultText })}
       </p>
     </div>
   );
@@ -443,11 +567,11 @@ function OptionRow({
     return (
       <li
         className="flex flex-col gap-3 rounded-card bg-surface px-4 py-4"
-        data-option={row.key}
+        data-option={id}
       >
         {texts}
         <div className="flex flex-wrap items-center gap-2">
-          {row.control(options, onChange)}
+          {control}
           {reset}
         </div>
       </li>
@@ -456,12 +580,10 @@ function OptionRow({
   return (
     <li
       className="flex items-center gap-8 rounded-card bg-surface px-8 py-5"
-      data-option={row.key}
+      data-option={id}
     >
       {texts}
-      <div className="flex shrink-0 items-center gap-4">
-        {row.control(options, onChange)}
-      </div>
+      <div className="flex shrink-0 items-center gap-4">{control}</div>
       {reset}
     </li>
   );
@@ -536,6 +658,7 @@ const STEP_BASE =
 /**
  * A number within `min`..`max`, moved by `step` with − and +. A value off the
  * steps (a default such as 66 %) moves to the nearest step that way.
+ * `disabled` greys both.
  */
 function StepperControl({
   name,
@@ -544,6 +667,7 @@ function StepperControl({
   max,
   step,
   text,
+  disabled = false,
   onSet,
 }: {
   name: string;
@@ -552,6 +676,7 @@ function StepperControl({
   max: number;
   step: number;
   text: string;
+  disabled?: boolean;
   onSet: (value: number) => void;
 }) {
   const compact = useContext(Compact);
@@ -563,18 +688,20 @@ function StepperControl({
         ? Math.floor(value / step) * step + step
         : Math.ceil(value / step) * step - step;
     const next = Math.min(max, Math.max(min, onStep));
-    if (next !== value) onSet(next);
+    if (!disabled && next !== value) onSet(next);
   };
+  const atMin = disabled || value <= min;
+  const atMax = disabled || value >= max;
   return (
     <div className={`flex items-center ${compact ? "gap-2" : "gap-4"}`}>
       <button
         type="button"
         aria-label={t("options.down", { name })}
-        {...(value <= min ? { "aria-disabled": true } : {})}
+        {...(atMin ? { "aria-disabled": true } : {})}
         onClick={() => {
           move(-step);
         }}
-        className={`${stepClass} ${value <= min ? "opacity-45" : ""}`}
+        className={`${stepClass} ${atMin ? "opacity-45" : ""}`}
       >
         <Icon name="minus" className={iconClass} />
       </button>
@@ -588,11 +715,11 @@ function StepperControl({
       <button
         type="button"
         aria-label={t("options.up", { name })}
-        {...(value >= max ? { "aria-disabled": true } : {})}
+        {...(atMax ? { "aria-disabled": true } : {})}
         onClick={() => {
           move(step);
         }}
-        className={`${stepClass} ${value >= max ? "opacity-45" : ""}`}
+        className={`${stepClass} ${atMax ? "opacity-45" : ""}`}
       >
         <Icon name="plus" className={iconClass} />
       </button>

@@ -216,6 +216,13 @@ pub enum ClientMessage {
     /// joined, and [`UserMessage::NoStage`] while no Stage has reported its
     /// output.
     StepVolume { step: volume::VolumeStep },
+    /// Sets the OpenStar volume to `volume` (0 to 100, on the 5-step grid),
+    /// from the Stage or any Remote, with no Admin PIN: Options › Sound's
+    /// Reset sets it to [`volume::VOLUME_DEFAULT`]. Kept and told like a
+    /// [`ClientMessage::StepVolume`] (`stepped` is true, so the Stage shows
+    /// its pill). Refused with [`UserMessage::InvalidMessage`] for a value off
+    /// the grid or over 100, and as a step is otherwise.
+    SetVolume { volume: u8 },
     /// Starts Check A/V sync on the Stage, from the Stage (its Setup pill) or
     /// any joined Remote, with no Admin PIN. Every connection is told
     /// [`ServerMessage::AvSync`]. Refused with [`UserMessage::NotInParty`]
@@ -593,7 +600,8 @@ pub enum ServerMessage {
     /// a new connection after its [`ServerMessage::LiveState`] while a Stage
     /// has reported its output. `stepped` is true when a
     /// [`ClientMessage::StepVolume`] changed it (the Stage shows its volume
-    /// pill then), false when the output changed or a browser connected.
+    /// pill then), as is a [`ClientMessage::SetVolume`]; false when the
+    /// output changed or a browser connected.
     Volume {
         volume: u8,
         stepped: bool,

@@ -476,6 +476,14 @@ export const en = {
   "options.songVideo": "Song video",
   "options.songVideo.help":
     "Show the Song's video behind the lanes. Off shows its background or cover instead.",
+  "options.openStarVolume": "OpenStar volume",
+  "options.openStarVolume.help":
+    "How loud the Stage plays everything: Songs, previews and sounds. The same as Volume on a Phone's Stage tab, kept for each Stage output.",
+  "options.openStarVolume.unknown": "–",
+  "options.uiSounds": "UI sounds",
+  "options.uiSounds.help":
+    "How loud the Stage's menu and game sounds play. Off plays none.",
+  "options.uiSounds.value": "{percent, number} %",
   "options.previewVolume": "Preview volume",
   "options.previewVolume.help":
     "How loud the song browser plays a preview, compared with the Song itself.",

@@ -415,6 +415,7 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::StepVolume {
             step: openstar_protocol::volume::VolumeStep::Up,
         },
+        ClientMessage::SetVolume { volume: 80 },
         ClientMessage::StartAvSync,
         ClientMessage::StepAvSync {
             step: openstar_protocol::av_offset::AvSyncStep::Up,
@@ -1048,11 +1049,17 @@ const V1_ACTIONS: &[Action] = {
         Action {
             name: "Setting the OpenStar volume, from the Stage or a Remote",
             needs: Nothing,
-            via: &[Ws("stepVolume"), Ws("reportStageOutput")],
-            proofs: &[(
-                "stage_outputs.rs",
-                "a_joined_remote_steps_the_volume_with_no_pin_and_every_browser_hears_it",
-            )],
+            via: &[Ws("stepVolume"), Ws("setVolume"), Ws("reportStageOutput")],
+            proofs: &[
+                (
+                    "stage_outputs.rs",
+                    "a_joined_remote_steps_the_volume_with_no_pin_and_every_browser_hears_it",
+                ),
+                (
+                    "stage_outputs.rs",
+                    "the_stage_or_a_joined_remote_sets_the_volume_and_it_is_kept",
+                ),
+            ],
         },
         Action {
             name: "Reading and setting the Stage options (Setup › Options, and a Phone's Stage tab)",

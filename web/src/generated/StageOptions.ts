@@ -63,4 +63,9 @@ laneFrostingPercent: number,
  * How every screen looks; Phones follow the Stage's theme. Its range is
  * its three values: any other is refused.
  */
-theme: Theme, };
+theme: Theme, 
+/**
+ * How loud the Stage's UI and game sounds play, 0 to 100 % in 10 %
+ * steps, on the OpenStar volume's curve; 0 is off.
+ */
+uiSoundsPercent: number, };

@@ -3,12 +3,14 @@
 // same groups, folds, defaults and Resets. A change applies at once: it goes
 // over the WebSocket as this Phone (`setStageOptions`), so the Stage toasts
 // who changed what ("Sam changed Effects") and every browser refetches the
-// options on the change notice. No Admin PIN.
+// options on the change notice. No Admin PIN. Its OpenStar volume row is
+// the same value as the Stage tab's Volume control (`useOpenStarVolume`).
 
 import { useCallback, useState } from "react";
 
 import { t } from "../../i18n/t";
 import type { LiveStore } from "../../live/liveStore";
+import { useOpenStarVolume } from "../../live/useOpenStarVolume";
 import { OptionsList } from "../../stageOptions/OptionsList";
 import type { StageOptions } from "../../stageOptions/stageOptions";
 import {
@@ -67,6 +69,7 @@ function StageOptionsBody({
     [store],
   );
   const { options, saveFailed, change } = useStageOptions(save);
+  const openStarVolume = useOpenStarVolume(store);
   return (
     <div className="flex flex-col gap-5" data-testid="phone-stage-options">
       {/* Full height, so nothing outside it to tap, and a Phone has no Esc. */}
@@ -85,7 +88,12 @@ function StageOptionsBody({
           {t("options.saveFailed")}
         </p>
       )}
-      <OptionsList options={options} onChange={change} compact />
+      <OptionsList
+        options={options}
+        onChange={change}
+        openStarVolume={openStarVolume}
+        compact
+      />
     </div>
   );
 }

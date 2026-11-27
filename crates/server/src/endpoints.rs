@@ -89,6 +89,7 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // The OpenStar volume is everyone's, from the Stage or any Remote.
         | ClientMessage::ReportStageOutput { .. }
         | ClientMessage::StepVolume { .. }
+        | ClientMessage::SetVolume { .. }
         // Check A/V sync is harmless and reversible and touches no Library
         // file: anyone in the Party starts, steps and ends it.
         | ClientMessage::StartAvSync

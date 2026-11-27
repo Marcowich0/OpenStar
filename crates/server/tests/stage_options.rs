@@ -41,6 +41,7 @@ fn changed_options() -> StageOptions {
         show_next_line: false,
         lane_frosting_percent: 40,
         theme: Theme::BubblePopNight,
+        ui_sounds_percent: 0,
     }
 }
 
@@ -113,6 +114,7 @@ async fn a_set_kept_when_effects_was_a_switch_reads_on_as_full_and_keeps_the_res
                 lane_frosting_percent: defaults.lane_frosting_percent,
                 // Kept before themes existed: the default theme.
                 theme: Theme::BubblePop,
+                ui_sounds_percent: defaults.ui_sounds_percent,
                 ..changed_options()
             }
         );
@@ -129,6 +131,8 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
         serde_json::json!({ "laneFrostingPercent": 35 }),
         serde_json::json!({ "laneFrostingPercent": 65 }),
         serde_json::json!({ "laneFrostingPercent": 95 }),
+        serde_json::json!({ "uiSoundsPercent": 55 }),
+        serde_json::json!({ "uiSoundsPercent": 110 }),
     ] {
         let response = put(&app, &refused).await;
         assert_eq!(

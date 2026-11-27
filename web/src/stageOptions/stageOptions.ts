@@ -6,7 +6,8 @@
  *
  * The Stage's holder, `stageOptions()`, has them where code outside React
  * reads them without waiting: a Song's Start (effects, Line ratings, skipping
- * its Intro), each resume (the countdown) and each preview (its volume).
+ * its Intro), each resume (the countdown), each preview (its volume) and each
+ * UI sound (its level).
  * Until they load it holds the defaults, which are the behaviour before the
  * options existed. `StageOptionsLoader` fills it.
  *
@@ -40,11 +41,14 @@ export const STAGE_OPTIONS = {
     showNextLine: true,
     laneFrostingPercent: 66,
     theme: "bubblePop",
+    uiSoundsPercent: 60,
   } satisfies StageOptions,
   resumeCountdownMaxSeconds: 5,
   previewVolumeStepPercent: 10,
   /** 40 to 90 % in 10s; the default, 66, is off the steps. */
   laneFrosting: { min: 40, max: 90, step: 10 },
+  /** The UI and game sounds, 0 (off) to 100 % in 10s. */
+  uiSoundsStepPercent: 10,
 } as const;
 
 /** The defaults, as a fresh `StageOptions`. */

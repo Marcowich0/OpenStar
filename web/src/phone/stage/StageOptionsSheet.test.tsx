@@ -103,4 +103,50 @@ describe("the Stage options on a Phone", () => {
       await screen.findByRole("button", { name: "Options" }),
     ).toBeInTheDocument();
   });
+
+  it("shows the OpenStar volume under Sound as the same value as the Stage tab's Volume, both ways", async () => {
+    const { sent, server } = renderTab();
+    server({ type: "volume", volume: 80, stepped: false });
+    const tabVolume = () =>
+      within(screen.getByRole("group", { name: "Volume", hidden: true }));
+    let sheet = await openOptions();
+    const row = () => {
+      const found = sheet
+        .getByTestId("options-sound")
+        .querySelector<HTMLElement>('[data-option="openStarVolume"]');
+      if (!found) throw new Error("no OpenStar volume row");
+      return within(found);
+    };
+    expect(row().getByText("80")).toBeInTheDocument();
+    expect(
+      row().getByRole("button", {
+        name: "Reset OpenStar volume to its default",
+      }),
+    ).toHaveAttribute("aria-disabled", "true");
+
+    // A step in the sheet asks the server; its answer shows in both.
+    fireEvent.click(row().getByRole("button", { name: "OpenStar volume up" }));
+    expect(sent.at(-1)).toEqual({ type: "stepVolume", step: "up" });
+    server({ type: "volume", volume: 85, stepped: true });
+    expect(row().getByText("85")).toBeInTheDocument();
+    expect(tabVolume().getByText("85")).toBeInTheDocument();
+    fireEvent.click(
+      row().getByRole("button", {
+        name: "Reset OpenStar volume to its default",
+      }),
+    );
+    expect(sent.at(-1)).toEqual({ type: "setVolume", volume: 80 });
+
+    // A step from the Stage tab's control, or anyone else, shows in the
+    // sheet.
+    fireEvent.click(sheet.getByRole("button", { name: "Back" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Options" })).toBeNull();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Volume down" }));
+    expect(sent.at(-1)).toEqual({ type: "stepVolume", step: "down" });
+    server({ type: "volume", volume: 75, stepped: true });
+    sheet = await openOptions();
+    expect(row().getByText("75")).toBeInTheDocument();
+  });
 });

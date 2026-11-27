@@ -16,6 +16,12 @@ pub const VOLUME_STEP: u8 = 5;
 /// Where a Stage output with no stored volume starts.
 pub const VOLUME_DEFAULT: u8 = 80;
 
+/// Whether `volume` is one the OpenStar volume takes: 0 to 100 on the
+/// 5-step grid ([`crate::ClientMessage::SetVolume`]).
+pub fn is_valid_volume(volume: u8) -> bool {
+    volume <= VOLUME_MAX && volume.is_multiple_of(VOLUME_STEP)
+}
+
 /// One step of the OpenStar volume, up or down.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -52,6 +58,16 @@ mod tests {
         assert_eq!(VolumeStep::Up.apply(95), 100);
         assert_eq!(VolumeStep::Down.apply(0), 0);
         assert_eq!(VolumeStep::Down.apply(5), 0);
+    }
+
+    #[test]
+    fn a_volume_is_valid_on_the_grid_from_0_to_100() {
+        for volume in [0, 5, 80, 100] {
+            assert!(is_valid_volume(volume), "{volume}");
+        }
+        for volume in [1, 82, 105, 255] {
+            assert!(!is_valid_volume(volume), "{volume}");
+        }
     }
 
     #[test]

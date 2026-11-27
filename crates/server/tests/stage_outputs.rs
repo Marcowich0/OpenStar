@@ -1,7 +1,8 @@
 //! The OpenStar volume kept per (Stage browser, Stage output), over the real
 //! app: the Stage reports its output, the Stage and any Remote step the
-//! volume with no Admin PIN, every browser hears the value, and what is kept
-//! survives a restart.
+//! volume with no Admin PIN, or set it to a value (Options › Sound's
+//! Reset), every browser hears the value, and what is kept survives a
+//! restart.
 
 use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
 use openstar_protocol::volume::VolumeStep;
@@ -70,6 +71,10 @@ async fn report(stage: &mut WsClient, browser: &str, output: &str) {
 
 async fn step(socket: &mut WsClient, step: VolumeStep) {
     socket.send(&ClientMessage::StepVolume { step }).await;
+}
+
+async fn set(socket: &mut WsClient, volume: u8) {
+    socket.send(&ClientMessage::SetVolume { volume }).await;
 }
 
 /// A Phone joined to the Party as a Guest, past its own status.
@@ -218,4 +223,76 @@ async fn the_output_is_forgotten_when_the_stage_closes() {
         }
     }
     panic!("the Stage's output outlived the Stage");
+}
+
+#[tokio::test]
+async fn the_stage_or_a_joined_remote_sets_the_volume_and_it_is_kept() {
+    let mut app = TestApp::start().await;
+    let (mut stage, code) = open_stage(&app).await;
+    report(&mut stage, "stage-1", "Speakers").await;
+    assert_eq!(recv(&mut stage).await, volume(80, false));
+    step(&mut stage, VolumeStep::Up).await;
+    assert_eq!(recv(&mut stage).await, volume(85, true));
+
+    // Reset from a Phone's Options: every browser hears it, and the Stage
+    // shows its volume pill as for a step.
+    let mut phone = joined_phone(&app, &code).await;
+    set(&mut phone, 80).await;
+    assert_eq!(recv(&mut phone).await, volume(80, true));
+    assert_eq!(recv(&mut stage).await, volume(80, true));
+
+    set(&mut stage, 35).await;
+    assert_eq!(recv(&mut stage).await, volume(35, true));
+    assert_eq!(recv(&mut phone).await, volume(35, true));
+
+    drop((stage, phone));
+    app.restart().await;
+    let (mut stage, _) = open_stage(&app).await;
+    report(&mut stage, "stage-1", "Speakers").await;
+    assert_eq!(recv(&mut stage).await, volume(35, false));
+}
+
+#[tokio::test]
+async fn a_volume_off_the_steps_or_over_100_is_refused_and_nothing_changes() {
+    let app = TestApp::start().await;
+    let (mut stage, _) = open_stage(&app).await;
+
+    // No output reported yet: nothing to set.
+    set(&mut stage, 50).await;
+    assert_eq!(
+        recv(&mut stage).await,
+        ServerMessage::Rejected {
+            reason: UserMessage::NoStage
+        }
+    );
+
+    report(&mut stage, "stage-1", "Speakers").await;
+    assert_eq!(recv(&mut stage).await, volume(80, false));
+    for refused in [82, 105, 255] {
+        set(&mut stage, refused).await;
+        assert_eq!(
+            recv(&mut stage).await,
+            ServerMessage::Rejected {
+                reason: UserMessage::InvalidMessage
+            },
+            "{refused}"
+        );
+    }
+    step(&mut stage, VolumeStep::Up).await;
+    assert_eq!(recv(&mut stage).await, volume(85, true));
+
+    // A Phone that has not joined is not a Remote.
+    let mut other = app.connect_ws().await;
+    assert!(matches!(
+        recv(&mut other).await,
+        ServerMessage::LiveState { .. }
+    ));
+    assert_eq!(recv(&mut other).await, volume(85, false));
+    set(&mut other, 80).await;
+    assert_eq!(
+        recv(&mut other).await,
+        ServerMessage::Rejected {
+            reason: UserMessage::NotInParty
+        }
+    );
 }

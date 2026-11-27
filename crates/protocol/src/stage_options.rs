@@ -53,6 +53,11 @@ pub const LANE_FROSTING_STEP_PERCENT: u8 = 10;
 /// #55's frosting, off the 10 % steps: it is kept as the default.
 pub const LANE_FROSTING_DEFAULT_PERCENT: u8 = 66;
 
+/// One step of the UI sounds level, in percent.
+pub const UI_SOUNDS_STEP_PERCENT: u8 = 10;
+/// The Stage's UI and game sounds play at 60 %, under the Song.
+pub const UI_SOUNDS_DEFAULT_PERCENT: u8 = 60;
+
 /// How large the lyric bar's text is. `xl` is 1.5 × `m`; the bar grows
 /// upward, and the lanes move up rather than be covered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
@@ -118,6 +123,9 @@ fn lane_frosting_default() -> u8 {
 fn theme_default() -> Theme {
     THEME_DEFAULT
 }
+fn ui_sounds_default() -> u8 {
+    UI_SOUNDS_DEFAULT_PERCENT
+}
 
 /// The Stage options: the body of `GET /api/stage-options` and of
 /// `PUT /api/stage-options`, both ways. A field left out reads as its
@@ -169,6 +177,10 @@ pub struct StageOptions {
     /// its three values: any other is refused.
     #[serde(default = "theme_default")]
     pub theme: Theme,
+    /// How loud the Stage's UI and game sounds play, 0 to 100 % in 10 %
+    /// steps, on the OpenStar volume's curve; 0 is off.
+    #[serde(default = "ui_sounds_default")]
+    pub ui_sounds_percent: u8,
 }
 
 /// How much the sing screen celebrates. Sent as `"off"`, `"calm"` or
@@ -229,6 +241,7 @@ impl Default for StageOptions {
             show_next_line: SHOW_NEXT_LINE_DEFAULT,
             lane_frosting_percent: LANE_FROSTING_DEFAULT_PERCENT,
             theme: THEME_DEFAULT,
+            ui_sounds_percent: UI_SOUNDS_DEFAULT_PERCENT,
         }
     }
 }
@@ -247,6 +260,10 @@ impl StageOptions {
                     && self
                         .lane_frosting_percent
                         .is_multiple_of(LANE_FROSTING_STEP_PERCENT)))
+            && self.ui_sounds_percent <= 100
+            && self
+                .ui_sounds_percent
+                .is_multiple_of(UI_SOUNDS_STEP_PERCENT)
     }
 }
 
@@ -278,6 +295,7 @@ mod tests {
         assert!(read.show_next_line);
         assert_eq!(read.lane_frosting_percent, 66);
         assert_eq!(read.theme, Theme::BubblePop);
+        assert_eq!(read.ui_sounds_percent, 60);
     }
 
     #[test]
@@ -292,6 +310,25 @@ mod tests {
         for percent in [0, 30, 35, 45, 65, 67, 95, 100] {
             let options = StageOptions {
                 lane_frosting_percent: percent,
+                ..StageOptions::default()
+            };
+            assert!(!options.is_valid(), "{percent}");
+        }
+    }
+
+    #[test]
+    fn the_ui_sounds_level_is_0_to_100_in_tens_and_60_by_default() {
+        assert_eq!(StageOptions::default().ui_sounds_percent, 60);
+        for percent in [0, 10, 50, 60, 100] {
+            let options = StageOptions {
+                ui_sounds_percent: percent,
+                ..StageOptions::default()
+            };
+            assert!(options.is_valid(), "{percent}");
+        }
+        for percent in [5, 55, 65, 110, 255] {
+            let options = StageOptions {
+                ui_sounds_percent: percent,
                 ..StageOptions::default()
             };
             assert!(!options.is_valid(), "{percent}");
@@ -406,6 +443,7 @@ mod tests {
                 "showNextLine": true,
                 "laneFrostingPercent": 66,
                 "theme": "bubblePop",
+                "uiSoundsPercent": 60,
             })
         );
     }

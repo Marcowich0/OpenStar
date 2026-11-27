@@ -44,6 +44,7 @@ describe("the Stage options", () => {
         showNextLine: bool("SHOW_NEXT_LINE_DEFAULT"),
         laneFrostingPercent: number("LANE_FROSTING_DEFAULT_PERCENT"),
         theme: variant("THEME_DEFAULT", "Theme"),
+        uiSoundsPercent: number("UI_SOUNDS_DEFAULT_PERCENT"),
       },
       resumeCountdownMaxSeconds: number("RESUME_COUNTDOWN_MAX_SECONDS"),
       previewVolumeStepPercent: number("PREVIEW_VOLUME_STEP_PERCENT"),
@@ -52,6 +53,7 @@ describe("the Stage options", () => {
         max: number("LANE_FROSTING_MAX_PERCENT"),
         step: number("LANE_FROSTING_STEP_PERCENT"),
       },
+      uiSoundsStepPercent: number("UI_SOUNDS_STEP_PERCENT"),
     });
   });
 });

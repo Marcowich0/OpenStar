@@ -1,16 +1,31 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { VolumeStep } from "../generated/VolumeStep";
+import type { OpenStarVolume } from "../live/useOpenStarVolume";
 import { OPTION_GROUPS, OptionsList } from "./OptionsList";
 import { defaultStageOptions, type StageOptions } from "./stageOptions";
 
 function setup(
   options: StageOptions = defaultStageOptions(),
   groups = OPTION_GROUPS,
+  /** The OpenStar volume, or `"none"` to bind none. */
+  volume: number | null | "none" = 80,
 ) {
   const onChange = vi.fn<(change: Partial<StageOptions>) => void>();
-  render(<OptionsList options={options} onChange={onChange} groups={groups} />);
-  return { onChange };
+  const step = vi.fn<(step: VolumeStep) => void>();
+  const set = vi.fn<(volume: number) => void>();
+  const openStarVolume: OpenStarVolume | undefined =
+    volume === "none" ? undefined : { volume, step, set };
+  render(
+    <OptionsList
+      options={options}
+      onChange={onChange}
+      groups={groups}
+      openStarVolume={openStarVolume}
+    />,
+  );
+  return { onChange, step, set };
 }
 
 const group = (id: string) => within(screen.getByTestId(`options-${id}`));
@@ -143,5 +158,104 @@ describe("the Options list", () => {
     expect(resetOf("effects").getAttribute("aria-disabled")).toBeNull();
     fireEvent.click(resetOf("effects"));
     expect(onChange).toHaveBeenCalledExactlyOnceWith({ effects: "full" });
+  });
+
+  it("shows the OpenStar volume, UI sounds and Preview volume under Sound, in that order", () => {
+    setup();
+    const ids = [
+      ...screen
+        .getByTestId("options-sound")
+        .querySelectorAll<HTMLElement>("[data-option]"),
+    ].map((found) => found.dataset.option);
+    expect(ids).toEqual([
+      "openStarVolume",
+      "uiSoundsPercent",
+      "previewVolumePercent",
+    ]);
+  });
+
+  it("steps UI sounds by 10 from its default, 60 %, down to Off", () => {
+    const { onChange } = setup();
+    expect(row("uiSoundsPercent").getByText("60 %")).toBeTruthy();
+    expect(row("uiSoundsPercent").getByText("Default: 60 %")).toBeTruthy();
+    expect(resetOf("uiSoundsPercent").getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    fireEvent.click(
+      row("uiSoundsPercent").getByRole("button", { name: "UI sounds down" }),
+    );
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ uiSoundsPercent: 50 });
+  });
+
+  it("shows UI sounds at 0 as Off, and Reset puts 60 % back", () => {
+    const { onChange } = setup({
+      ...defaultStageOptions(),
+      uiSoundsPercent: 0,
+    });
+    expect(row("uiSoundsPercent").getByText("Off")).toBeTruthy();
+    expect(
+      row("uiSoundsPercent")
+        .getByRole("button", { name: "UI sounds down" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+    fireEvent.click(resetOf("uiSoundsPercent"));
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ uiSoundsPercent: 60 });
+  });
+
+  it("shows the OpenStar volume as it is now and steps it by one step, not as an option", () => {
+    const { onChange, step } = setup(defaultStageOptions(), OPTION_GROUPS, 85);
+    expect(row("openStarVolume").getByText("85")).toBeTruthy();
+    expect(row("openStarVolume").getByText("Default: 80")).toBeTruthy();
+    fireEvent.click(
+      row("openStarVolume").getByRole("button", {
+        name: "OpenStar volume up",
+      }),
+    );
+    fireEvent.click(
+      row("openStarVolume").getByRole("button", {
+        name: "OpenStar volume down",
+      }),
+    );
+    expect(step.mock.calls).toEqual([["up"], ["down"]]);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("resets the OpenStar volume to 80, and greys Reset at 80", () => {
+    const { set } = setup(defaultStageOptions(), OPTION_GROUPS, 35);
+    fireEvent.click(resetOf("openStarVolume"));
+    expect(set).toHaveBeenCalledExactlyOnceWith(80);
+  });
+
+  it("greys Reset when the OpenStar volume is at its default", () => {
+    const { set } = setup();
+    expect(resetOf("openStarVolume").getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    fireEvent.click(resetOf("openStarVolume"));
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("greys the OpenStar volume until a Stage has told it", () => {
+    const { step, set } = setup(defaultStageOptions(), OPTION_GROUPS, null);
+    expect(row("openStarVolume").getByText("–")).toBeTruthy();
+    for (const name of [
+      "OpenStar volume up",
+      "OpenStar volume down",
+      /^Reset/,
+    ]) {
+      const button = row("openStarVolume").getByRole("button", { name });
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      fireEvent.click(button);
+    }
+    expect(step).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it("leaves the OpenStar volume out when there is none to bind to", () => {
+    setup(defaultStageOptions(), OPTION_GROUPS, "none");
+    expect(document.querySelector('[data-option="openStarVolume"]')).toBeNull();
+    expect(
+      document.querySelector('[data-option="uiSoundsPercent"]'),
+    ).not.toBeNull();
   });
 });

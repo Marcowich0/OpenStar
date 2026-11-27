@@ -2,26 +2,24 @@
 // state, a Song included: − and + around the value, 0 to 100 in steps of 5,
 // with no Admin PIN. Each press asks the server for one step of the Stage's
 // one volume (the same value the Stage's own +/− keys set); the value shown
-// is always the server's, so every Remote shows the same.
+// is always the server's, so every Remote shows the same, as does the Sound
+// group's row in Options (`useOpenStarVolume`).
 
 import type { VolumeStep } from "../../generated/VolumeStep";
 import { t } from "../../i18n/t";
-import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
-import { useLive } from "../../live/useLive";
+import { useOpenStarVolume } from "../../live/useOpenStarVolume";
 import { OPENSTAR_VOLUME } from "../../playback/gain";
 import { Icon } from "../../ui/Icon";
-
-const selectVolume = (state: LiveState) => state.volume;
 
 const STEP_BUTTON =
   "flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink-fill text-white shadow-ledge-ink outline-none focus-visible:outline-4 focus-visible:outline-yellow disabled:cursor-not-allowed disabled:opacity-45";
 
 export function VolumeControl({ store }: { store: LiveStore }) {
   // `null` until a Stage has reported its output: nothing to step yet.
-  const volume = useLive(selectVolume, store);
+  const { volume, step: stepVolume } = useOpenStarVolume(store);
   const step = (direction: VolumeStep) => () => {
-    store.send({ type: "stepVolume", step: direction });
+    stepVolume(direction);
   };
 
   return (

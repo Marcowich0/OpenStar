@@ -38,7 +38,7 @@ use openstar_protocol::library::SongId;
 use openstar_protocol::mics::{LocalMic, LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
 use openstar_protocol::stage_options::StageOptions;
-use openstar_protocol::volume::VolumeStep;
+use openstar_protocol::volume::is_valid_volume;
 use openstar_protocol::{
     Actor, BridgeLocalMic, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode,
     JoinedPhone, LineUp, LineUpEdit, MemberEdit, MicId, PartyEvent, PartyMember, PartyMemberId,
@@ -1005,7 +1005,21 @@ impl LiveState {
                 self.refuse_on_error(id, result);
             }
             Ok(ClientMessage::StepVolume { step }) => {
-                let result = self.step_volume(id, step).await;
+                let result = self
+                    .change_volume(id, |volume| Ok(step.apply(volume)))
+                    .await;
+                self.refuse_on_error(id, result);
+            }
+            Ok(ClientMessage::SetVolume { volume }) => {
+                let result = self
+                    .change_volume(id, |_| {
+                        if is_valid_volume(volume) {
+                            Ok(volume)
+                        } else {
+                            Err(UserMessage::InvalidMessage)
+                        }
+                    })
+                    .await;
                 self.refuse_on_error(id, result);
             }
             Ok(ClientMessage::StartAvSync) => {
@@ -1435,14 +1449,20 @@ impl LiveState {
         }
     }
 
-    /// One step of the OpenStar volume from the Stage or a joined Phone,
-    /// stored at the Stage's current output; every connection hears it.
-    async fn step_volume(&mut self, id: ConnectionId, step: VolumeStep) -> Result<(), UserMessage> {
+    /// The OpenStar volume from the Stage or a joined Phone, one step
+    /// (`StepVolume`) or set to a value (`SetVolume`): `next` gives the new
+    /// value from the current one. It is stored at the Stage's current
+    /// output; every connection hears it.
+    async fn change_volume(
+        &mut self,
+        id: ConnectionId,
+        next: impl FnOnce(u8) -> Result<u8, UserMessage>,
+    ) -> Result<(), UserMessage> {
         self.remote_actor(id)?;
         let Some((output, volume)) = self.stage().output.clone() else {
             return Err(UserMessage::NoStage);
         };
-        let volume = step.apply(volume);
+        let volume = next(volume)?;
         stage_outputs::set_volume(&self.db, &output, volume)
             .await
             .map_err(|error| server_error(&error, "storing the OpenStar volume"))?;

@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fakeLibraryServer, renderLive, settle } from "../admin/adminTestKit";
-import { OptionsScreen } from "./OptionsScreen";
+import { OptionsPanel } from "./OptionsScreen";
 import {
   createStageOptionsHolder,
   defaultStageOptions,
@@ -40,12 +40,12 @@ function optionsServer(stored: StageOptions = defaultStageOptions()) {
 async function setup(stored?: StageOptions) {
   const server = optionsServer(stored);
   const holder = createStageOptionsHolder();
-  const live = await renderLive(
+  const live = await renderLive((store) => (
     <>
       <StageOptionsLoader holder={holder} />
-      <OptionsScreen />
-    </>,
-  );
+      <OptionsPanel store={store} />
+    </>
+  ));
   return { ...server, holder, live };
 }
 
@@ -88,7 +88,15 @@ describe("Setup › Options", () => {
           "showNextLine",
         ],
       ],
-      ["options-sound", ["previewVolumePercent", "resumeCountdownSeconds"]],
+      [
+        "options-sound",
+        [
+          "openStarVolume",
+          "uiSoundsPercent",
+          "previewVolumePercent",
+          "resumeCountdownSeconds",
+        ],
+      ],
     ] as const) {
       const box = screen.getByTestId(group);
       for (const id of ids) {
@@ -227,6 +235,41 @@ describe("Setup › Options", () => {
         .getByRole("button", { name: /down$/ })
         .getAttribute("aria-disabled"),
     ).toBe("true");
+  });
+
+  it("binds the OpenStar volume to the server's value: a step or Reset asks the server, and its answer shows", async () => {
+    const s = await setup();
+    expect(row("openStarVolume").getByText("–")).toBeTruthy();
+    await s.live.receive({ type: "volume", volume: 85, stepped: false });
+    expect(row("openStarVolume").getByText("85")).toBeTruthy();
+    fireEvent.click(
+      row("openStarVolume").getByRole("button", { name: /down$/ }),
+    );
+    fireEvent.click(resetOf("openStarVolume"));
+    expect(s.live.sent().slice(-2)).toEqual([
+      { type: "stepVolume", step: "down" },
+      { type: "setVolume", volume: 80 },
+    ]);
+    // It is not a Stage option: nothing is PUT, and the row waits for the
+    // server.
+    await settle();
+    expect(s.puts).toEqual([]);
+    expect(row("openStarVolume").getByText("85")).toBeTruthy();
+    await s.live.receive({ type: "volume", volume: 80, stepped: true });
+    expect(resetOf("openStarVolume").getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+  });
+
+  it("puts a UI sounds change in the Stage's holder, which the sounds read", async () => {
+    const s = await setup();
+    fireEvent.click(
+      row("uiSoundsPercent").getByRole("button", { name: /up$/ }),
+    );
+    await settle();
+    expect(s.puts.at(-1)?.uiSoundsPercent).toBe(70);
+    await s.live.receive({ type: "changed", topics: ["stageOptions"] });
+    expect(s.holder.current().uiSoundsPercent).toBe(70);
   });
 
   it("keeps the Stage's holder filled, and refetches on a change notice", async () => {
