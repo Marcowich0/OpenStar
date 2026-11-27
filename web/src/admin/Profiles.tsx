@@ -169,7 +169,7 @@ function AdminProfileRow({
           aria-label={t("admin.profiles.showStatsFor", { name: profile.name })}
           aria-expanded={panel === "stats"}
           aria-controls={panel === "stats" ? panelId : undefined}
-          className={`min-h-12 min-w-12 shrink-0 cursor-pointer rounded-full px-4 text-xl font-semibold shadow-ledge outline-none focus-visible:outline-6 focus-visible:outline-yellow ${panel === "stats" ? "bg-ink text-white" : "bg-white text-ink"}`}
+          className={`min-h-12 min-w-12 shrink-0 cursor-pointer rounded-full px-4 text-xl font-semibold shadow-ledge outline-none focus-visible:outline-6 focus-visible:outline-yellow ${panel === "stats" ? "bg-ink-fill text-white" : "bg-surface text-ink"}`}
           onClick={() => {
             setPanel(panel === "stats" ? null : "stats");
           }}
@@ -182,7 +182,7 @@ function AdminProfileRow({
           aria-expanded={panel === "edit"}
           aria-controls={panel === "edit" ? panelId : undefined}
           // The small HoldButton's size, in the white fill.
-          className="min-h-12 min-w-12 shrink-0 cursor-pointer rounded-full bg-white px-4 text-xl font-semibold text-ink shadow-ledge outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+          className="min-h-12 min-w-12 shrink-0 cursor-pointer rounded-full bg-surface px-4 text-xl font-semibold text-ink shadow-ledge outline-none focus-visible:outline-6 focus-visible:outline-yellow"
           onClick={() => {
             setPanel(panel === "edit" ? null : "edit");
           }}

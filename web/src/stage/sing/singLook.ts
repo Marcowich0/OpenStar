@@ -55,7 +55,7 @@ export const LYRIC_BAR = {
   /** From the bar's bottom edge to the bottom of the frame; the bar grows up from here. */
   bottomGap: 34,
   /** The bar's frosted background. */
-  fill: { colour: "--color-white", alpha: 0.86 },
+  fill: { colour: "--color-surface", alpha: 0.86 },
   blur: 14,
   radius: 52,
 } as const;
@@ -119,9 +119,9 @@ export function lanesBottom(look: SingLook, voices: number): number {
   return Math.min(LANES_BOTTOM, Math.floor(bar.top - LANES_ABOVE_BAR));
 }
 
-/** The lane panels' white frosting. */
+/** The lane panels' frosting, in the theme's surface colour (white in Bubble Pop). */
 export function laneFill(look: SingLook): SurfaceFill {
-  return { colour: "--color-white", alpha: look.laneFrostingPercent / 100 };
+  return { colour: "--color-surface", alpha: look.laneFrostingPercent / 100 };
 }
 
 /** What the sing screen's layout depends on. */

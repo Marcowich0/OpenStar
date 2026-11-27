@@ -227,7 +227,7 @@ function SheetBody({
               onClick={() => {
                 setPlayers((current) => toggle(current, member.memberId));
               }}
-              className={`flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card-sm bg-white px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow ${on ? "ring-3 ring-ink" : ""}`}
+              className={`flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-card-sm bg-surface px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow ${on ? "ring-3 ring-ink" : ""}`}
             >
               <span aria-hidden="true">
                 <Avatar

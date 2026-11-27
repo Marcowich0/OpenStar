@@ -38,6 +38,7 @@ export const STAGE_OPTIONS = {
     lyricSize: "m",
     showNextLine: true,
     laneFrostingPercent: 66,
+    theme: "bubblePop",
   } satisfies StageOptions,
   resumeCountdownMaxSeconds: 5,
   previewVolumeStepPercent: 10,

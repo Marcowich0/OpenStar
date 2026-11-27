@@ -71,7 +71,7 @@ const lane: LaneEntry = {
   notesX: 320,
   radius: 40,
   colour: "cherry",
-  fill: { colour: "--color-white", alpha: 0.66 },
+  fill: { colour: "--color-surface", alpha: 0.66 },
   lost: null,
   separator: {
     x: 318,

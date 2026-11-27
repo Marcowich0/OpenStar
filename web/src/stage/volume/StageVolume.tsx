@@ -59,7 +59,7 @@ export function StageVolume() {
     <ReferenceBox passThrough>
       <div
         data-testid="volume-pill"
-        className="absolute top-32 right-12 rounded-full bg-ink px-7 py-3 text-2xl font-semibold text-white"
+        className="absolute top-32 right-12 rounded-full bg-ink-fill px-7 py-3 text-2xl font-semibold text-white"
       >
         {t("stage.volume", { volume })}
       </div>

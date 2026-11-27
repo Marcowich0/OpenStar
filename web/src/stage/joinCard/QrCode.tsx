@@ -35,7 +35,8 @@ export function QrCode({ text, label, className = "" }: QrCodeProps) {
         height={size}
         style={{ fill: tokenVar("--color-white") }}
       />
-      <path d={path} style={{ fill: tokenVar("--color-ink") }} />
+      {/* Dark modules on white in every theme, so any camera reads it. */}
+      <path d={path} style={{ fill: tokenVar("--color-on-bright") }} />
     </svg>
   );
 }

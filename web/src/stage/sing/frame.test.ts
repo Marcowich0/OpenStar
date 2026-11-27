@@ -112,7 +112,7 @@ describe("frame", () => {
         notesX: 320,
         radius: 40,
         colour: "cherry",
-        fill: { colour: "--color-white", alpha: 0.66 },
+        fill: { colour: "--color-surface", alpha: 0.66 },
         lost: null,
         separator: {
           x: 318,
@@ -615,7 +615,7 @@ describe("the lyric bar and the lane frosting (Stage options)", () => {
         look: look({ laneFrostingPercent }),
       });
       for (const lane of lanes) {
-        expect(lane.fill).toEqual({ colour: "--color-white", alpha });
+        expect(lane.fill).toEqual({ colour: "--color-surface", alpha });
       }
     }
   });

@@ -357,7 +357,7 @@ function BlockedCard({
       <PhoneToasts store={store} />
       <section
         aria-labelledby="mic-blocked-title"
-        className="flex grow flex-col items-center gap-5 rounded-card bg-ink px-5 pt-10 pb-5 text-center shadow-ledge"
+        className="flex grow flex-col items-center gap-5 rounded-card bg-ink-fill px-5 pt-10 pb-5 text-center shadow-ledge"
       >
         <span className="grid size-24 place-items-center rounded-full bg-white/10">
           <Icon name="mic-off" className="size-12" />
@@ -427,12 +427,12 @@ function AfterTheSongScreen({
       </span>
       <p className="text-3xl font-bold">{rankTitle(result.rankTitleBand)}</p>
       {result.newHighScore && (
-        <p className="rounded-full bg-yellow px-5 py-2 text-xl font-bold text-ink shadow-ledge-sm">
+        <p className="rounded-full bg-yellow px-5 py-2 text-xl font-bold text-on-bright shadow-ledge-sm">
           {t("stageTab.newHighScore")}
         </p>
       )}
       {result.unfinished && (
-        <p className="rounded-full bg-ink/40 px-5 py-2 text-xl font-semibold">
+        <p className="rounded-full bg-ink-fill/40 px-5 py-2 text-xl font-semibold">
           {t("stageTab.endedEarly")}
         </p>
       )}
@@ -518,7 +518,7 @@ function DifficultyChip({
           <div className="grid grid-cols-3 gap-2">
             {DIFFICULTIES.map((d) => (
               <RadioField key={d} value={d}>
-                <RadioButton className="flex min-h-14 cursor-pointer items-center justify-center rounded-card-sm bg-white text-xl font-semibold shadow-ledge-sm outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-selected:bg-ink data-selected:text-white">
+                <RadioButton className="flex min-h-14 cursor-pointer items-center justify-center rounded-card-sm bg-surface text-xl font-semibold shadow-ledge-sm outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-selected:bg-ink-fill data-selected:text-white">
                   {difficultyName(d)}
                 </RadioButton>
               </RadioField>

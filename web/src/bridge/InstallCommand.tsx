@@ -25,7 +25,7 @@ export function InstallCommand({
       <code
         aria-label={t("bridge.install.command")}
         data-testid="bridge-install-command"
-        className={`block select-all overflow-x-auto rounded-card-sm bg-ink px-5 py-4 font-mono whitespace-nowrap text-cream ${text}`}
+        className={`block select-all overflow-x-auto rounded-card-sm bg-ink-fill px-5 py-4 font-mono whitespace-nowrap text-white ${text}`}
       >
         {installCommand(join.address)}
       </code>

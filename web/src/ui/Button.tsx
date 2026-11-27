@@ -10,10 +10,10 @@ import { Button as AriaButton } from "react-aria-components";
 export type ButtonFill = "white" | "green" | "red" | "ink";
 
 const FILL_CLASSES: Record<ButtonFill, string> = {
-  white: "bg-white text-ink shadow-ledge",
+  white: "bg-surface text-ink shadow-ledge",
   green: "bg-green text-white shadow-ledge-green",
   red: "bg-red text-white shadow-ledge-red",
-  ink: "bg-ink text-white shadow-ledge-ink",
+  ink: "bg-ink-fill text-white shadow-ledge-ink",
 };
 
 const SIZE_CLASSES = {

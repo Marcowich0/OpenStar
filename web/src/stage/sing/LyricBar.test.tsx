@@ -65,12 +65,12 @@ function mount(
 }
 
 describe("the lyric bar's look", () => {
-  it("is a frosted white bar centred 34 px above the bottom", () => {
+  it("is a frosted surface bar (white in Bubble Pop) centred 34 px above the bottom", () => {
     const { bar } = mount([SONG], [entry(0, 0)]);
     expect(bar?.style.bottom).toBe("34px");
     expect(bar?.style.left).toBe("50%");
     expect(bar?.style.background).toBe(
-      "color-mix(in srgb, var(--color-white) 86%, transparent)",
+      "color-mix(in srgb, var(--color-surface) 86%, transparent)",
     );
     expect(bar?.style.getPropertyValue("backdrop-filter")).toBe("blur(14px)");
     expect(bar?.style.borderRadius).toBe("52px");

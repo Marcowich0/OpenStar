@@ -15,6 +15,7 @@ import { useId, useState, type ReactNode } from "react";
 import type { Difficulty } from "../generated/Difficulty";
 import type { LyricSize } from "../generated/LyricSize";
 import type { Effects } from "../generated/Effects";
+import { THEME_NAMES } from "../theme/themes";
 import { t, type ArgsOf, type MessageKey } from "../i18n/t";
 import type { en } from "../i18n/en";
 import { Icon } from "../ui/Icon";
@@ -56,7 +57,7 @@ const defaults = STAGE_OPTIONS.defaults;
 const PILL =
   "inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full px-7 text-2xl font-bold transition";
 const ON = "bg-green text-white shadow-ledge-green";
-const OFF = "bg-white text-ink-2 shadow-ledge-sm";
+const OFF = "bg-surface text-ink-2 shadow-ledge-sm";
 
 const onOffText = (on: boolean) => (on ? t("options.on") : t("options.off"));
 
@@ -161,7 +162,15 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
   {
     id: "look",
     title: "options.group.look",
-    rows: [],
+    rows: [
+      choiceRow(
+        "theme",
+        "options.theme",
+        "options.theme.help",
+        THEME_NAMES,
+        (theme) => t(`options.theme.${theme}`),
+      ),
+    ],
     advanced: [
       stepperRow(
         "laneFrostingPercent",
@@ -329,7 +338,7 @@ function AdvancedFold({
         onClick={() => {
           setOpen(!open);
         }}
-        className={`${PILL} gap-3 self-start bg-white text-ink shadow-ledge-sm`}
+        className={`${PILL} gap-3 self-start bg-surface text-ink shadow-ledge-sm`}
       >
         <Icon
           name="chevron"
@@ -366,7 +375,7 @@ function OptionRow({
   const atDefault = isDefault(options, row);
   return (
     <li
-      className="flex items-center gap-8 rounded-card bg-white px-8 py-5"
+      className="flex items-center gap-8 rounded-card bg-surface px-8 py-5"
       data-option={row.key}
     >
       <div className="min-w-0 flex-1">
@@ -452,7 +461,7 @@ function SwitchControl({
 }
 
 const STEP =
-  "inline-flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white shadow-ledge-ink";
+  "inline-flex size-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink-fill text-white shadow-ledge-ink";
 
 /**
  * A number within `min`..`max`, moved by `step` with − and +. A value off the

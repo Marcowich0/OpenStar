@@ -75,7 +75,7 @@ export function StageOverlay({ id }: { id: OverlayId }) {
               type="button"
               aria-label={t("stage.overlay.close")}
               onClick={closeOverlay}
-              className="inline-flex size-16 cursor-pointer items-center justify-center rounded-full bg-white shadow-ledge-sm"
+              className="inline-flex size-16 cursor-pointer items-center justify-center rounded-full bg-surface shadow-ledge-sm"
             >
               <Icon name="close" className="size-8" />
             </button>

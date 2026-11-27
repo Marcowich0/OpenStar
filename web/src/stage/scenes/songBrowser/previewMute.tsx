@@ -81,7 +81,7 @@ export function PreviewMuteButton({
         muted ? "stage.browser.previewMuted" : "stage.browser.previewOn",
       )}
       onClick={onToggle}
-      className={`${SEARCH_ROW_CONTROL} ${muted ? "bg-ink text-white" : "bg-white text-ink"}`}
+      className={`${SEARCH_ROW_CONTROL} ${muted ? "bg-ink-fill text-white" : "bg-surface text-ink"}`}
     >
       <Icon name={muted ? "volume-off" : "volume"} className="size-9" />
       <KeyHint keyName="M" />

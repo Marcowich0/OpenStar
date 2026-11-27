@@ -182,7 +182,7 @@ describe("SingScreen", () => {
     );
     const panel = container.querySelector<HTMLElement>("[data-lane-panel]");
     expect(panel?.style.backgroundColor).toBe(
-      "color-mix(in oklab, var(--color-white) 66%, transparent)",
+      "color-mix(in oklab, var(--color-surface) 66%, transparent)",
     );
     expect(panel?.className).toMatch(/\bbackdrop-blur-lg\b/);
     expect(panel?.className).toMatch(/\bbackdrop-saturate-130\b/);
@@ -210,7 +210,7 @@ describe("SingScreen", () => {
       "[data-lane-panel]",
     )) {
       expect(panel.style.backgroundColor).toBe(
-        "color-mix(in oklab, var(--color-white) 40%, transparent)",
+        "color-mix(in oklab, var(--color-surface) 40%, transparent)",
       );
     }
   });
@@ -594,7 +594,7 @@ describe("a lane whose Mic is lost", () => {
       .getByText("Mia's mic lost")
       .closest<HTMLElement>("[data-lane-lost]");
     expect(pill).toBeVisible();
-    expect(pill).toHaveClass("bg-ink", "text-white", "rounded-full");
+    expect(pill).toHaveClass("bg-ink-fill", "text-white", "rounded-full");
     // Centred 150 px right of the lane's middle, on its vertical centre.
     const rect = laneLayout(2)[0];
     if (!rect || !pill) throw new Error("no lane");

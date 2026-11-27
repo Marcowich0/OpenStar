@@ -50,7 +50,7 @@ export function QueueTab({ store }: { store: LiveStore }) {
     <section className="flex flex-col gap-3 pt-2 pb-6">
       <h2 className="text-3xl font-bold">{t("queue.title")}</h2>
       {party === null || queue.length === 0 ? (
-        <div className="flex flex-col items-center gap-1 rounded-card-sm bg-white px-5 py-6 text-center shadow-ledge-sm">
+        <div className="flex flex-col items-center gap-1 rounded-card-sm bg-surface px-5 py-6 text-center shadow-ledge-sm">
           <p className="text-xl font-bold">{t("queue.empty")}</p>
           <p className="text-ink-2">{t("queue.emptyHint")}</p>
         </div>
@@ -137,7 +137,7 @@ function RequestCard({
       <button
         type="button"
         onClick={onOpen}
-        className={`flex w-full cursor-pointer items-center gap-3 rounded-card-sm bg-white p-3 text-left shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow ${head ? "ring-3 ring-yellow" : ""}`}
+        className={`flex w-full cursor-pointer items-center gap-3 rounded-card-sm bg-surface p-3 text-left shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow ${head ? "ring-3 ring-yellow" : ""}`}
       >
         <span className="w-7 shrink-0 text-center text-xl font-bold text-mute tabular-nums">
           {t("queue.place", { place: place + 1 })}
@@ -151,7 +151,7 @@ function RequestCard({
         <span className="flex min-w-0 grow flex-col gap-0.5">
           {head && (
             <span
-              className={`self-start rounded-full px-2 text-xs font-semibold ${head === "playing" ? "bg-red text-white" : "bg-yellow text-ink"}`}
+              className={`self-start rounded-full px-2 text-xs font-semibold ${head === "playing" ? "bg-red text-white" : "bg-yellow text-on-bright"}`}
             >
               {t(head === "playing" ? "queue.playingNow" : "queue.upNext")}
             </span>
@@ -166,7 +166,7 @@ function RequestCard({
             {players.slice(0, 3).map(({ member, look }) => (
               <span
                 key={member.memberId}
-                className="-ml-2 rounded-full ring-2 ring-white first:ml-0"
+                className="-ml-2 rounded-full ring-2 ring-surface first:ml-0"
               >
                 <Avatar
                   name={look.name}

@@ -66,6 +66,25 @@ pub enum LyricSize {
     Xl,
 }
 
+/// Every screen looks as v1 did.
+pub const THEME_DEFAULT: Theme = Theme::BubblePop;
+
+/// How every screen looks: the Stage, each Phone and Admin follow the Stage's
+/// choice. The frontend maps each theme to its token values
+/// (`web/src/theme/themes.ts`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum Theme {
+    /// Cream and candy colours: v1's look.
+    #[default]
+    BubblePop,
+    /// Deep navy for a dark room, with the same candy colours.
+    BubblePopNight,
+    /// Solid surfaces and strong edges for a washed-out TV.
+    HighContrast,
+}
+
 fn starting_difficulty_default() -> Difficulty {
     STARTING_DIFFICULTY_DEFAULT
 }
@@ -95,6 +114,9 @@ fn show_next_line_default() -> bool {
 }
 fn lane_frosting_default() -> u8 {
     LANE_FROSTING_DEFAULT_PERCENT
+}
+fn theme_default() -> Theme {
+    THEME_DEFAULT
 }
 
 /// The Stage options: the body of `GET /api/stage-options` and of
@@ -143,6 +165,10 @@ pub struct StageOptions {
     /// in 10 % steps.
     #[serde(default = "lane_frosting_default")]
     pub lane_frosting_percent: u8,
+    /// How every screen looks; Phones follow the Stage's theme. Its range is
+    /// its three values: any other is refused.
+    #[serde(default = "theme_default")]
+    pub theme: Theme,
 }
 
 /// How much the sing screen celebrates. Sent as `"off"`, `"calm"` or
@@ -202,6 +228,7 @@ impl Default for StageOptions {
             lyric_size: LYRIC_SIZE_DEFAULT,
             show_next_line: SHOW_NEXT_LINE_DEFAULT,
             lane_frosting_percent: LANE_FROSTING_DEFAULT_PERCENT,
+            theme: THEME_DEFAULT,
         }
     }
 }
@@ -250,6 +277,7 @@ mod tests {
         assert_eq!(read.lyric_size, LyricSize::M);
         assert!(read.show_next_line);
         assert_eq!(read.lane_frosting_percent, 66);
+        assert_eq!(read.theme, Theme::BubblePop);
     }
 
     #[test]
@@ -281,6 +309,22 @@ mod tests {
             assert_eq!(serde_json::to_value(size).unwrap(), text);
         }
         assert!(serde_json::from_str::<StageOptions>(r#"{"lyricSize":"xxl"}"#).is_err());
+    }
+
+    #[test]
+    fn a_theme_is_one_of_three_and_nothing_else_reads() {
+        for (json, theme) in [
+            ("bubblePop", Theme::BubblePop),
+            ("bubblePopNight", Theme::BubblePopNight),
+            ("highContrast", Theme::HighContrast),
+        ] {
+            let read: StageOptions =
+                serde_json::from_value(serde_json::json!({ "theme": json })).unwrap();
+            assert_eq!(read.theme, theme);
+        }
+        assert!(
+            serde_json::from_value::<StageOptions>(serde_json::json!({ "theme": "pink" })).is_err()
+        );
     }
 
     #[test]
@@ -361,6 +405,7 @@ mod tests {
                 "lyricSize": "m",
                 "showNextLine": true,
                 "laneFrostingPercent": 66,
+                "theme": "bubblePop",
             })
         );
     }

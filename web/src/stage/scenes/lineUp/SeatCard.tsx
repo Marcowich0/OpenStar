@@ -90,7 +90,7 @@ function SeatMeter({
       data-stage-focus={adjustable || undefined}
       data-seat-meter={adjustable ? seatIndex : undefined}
       onBlur={onBlur}
-      className={`relative block w-full rounded-full bg-white ${adjustable ? "h-5 cursor-pointer" : "h-3"}`}
+      className={`relative block w-full rounded-full bg-surface ${adjustable ? "h-5 cursor-pointer" : "h-3"}`}
     >
       <span ref={fill} className="block h-full w-0 rounded-full bg-green" />
       <span
@@ -128,7 +128,7 @@ function WarningBubble({ warning }: { warning: SeatWarning }) {
         <button
           type="button"
           onClick={warning.onCalibrate}
-          className="relative -mr-2.5 cursor-pointer rounded-full bg-white px-5 py-1.5 text-xl font-bold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+          className="relative -mr-2.5 cursor-pointer rounded-full bg-surface px-5 py-1.5 text-xl font-bold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
         >
           {t("stage.overlay.calibrateMics")}
         </button>
@@ -199,7 +199,7 @@ export function SeatCard({
     <div
       role="group"
       aria-label={name}
-      className="relative flex w-[350px] animate-pop-in flex-col items-center gap-3.5 rounded-card-lg border-t-[18px] bg-white px-[26px] pt-[30px] pb-[26px] shadow-ledge-lg"
+      className="relative flex w-[350px] animate-pop-in flex-col items-center gap-3.5 rounded-card-lg border-t-[18px] bg-surface px-[26px] pt-[30px] pb-[26px] shadow-ledge-lg"
       style={{
         borderTopColor: tokenVar(colour),
         animationDelay: `${String(order * POP_STAGGER_MS)}ms`,
@@ -211,7 +211,7 @@ export function SeatCard({
         onClick={() => {
           onEdit((index) => ({ kind: "removeSeat", seat: index }));
         }}
-        className="absolute -top-[30px] -right-3.5 flex size-[58px] cursor-pointer items-center justify-center rounded-full bg-white text-ink-2 shadow-[0_4px_0_var(--color-ledge)]"
+        className="absolute -top-[30px] -right-3.5 flex size-[58px] cursor-pointer items-center justify-center rounded-full bg-surface text-ink-2 shadow-[0_4px_0_var(--color-ledge)]"
       >
         <Icon name="close" className="size-7" />
       </button>
@@ -325,12 +325,12 @@ export function AddPlayerCard({
         type="button"
         aria-haspopup="menu"
         onClick={onPress}
-        className="flex min-h-[520px] w-[350px] animate-pop-in cursor-pointer flex-col items-center justify-center gap-3.5 rounded-card-lg border-[6px] border-dashed border-ink/20 bg-white/45 text-[34px] font-semibold text-ink-2"
+        className="flex min-h-[520px] w-[350px] animate-pop-in cursor-pointer flex-col items-center justify-center gap-3.5 rounded-card-lg border-[6px] border-dashed border-ink/20 bg-surface/45 text-[34px] font-semibold text-ink-2"
         style={{ animationDelay: `${String(order * POP_STAGGER_MS)}ms` }}
       >
         <span
           aria-hidden="true"
-          className="relative flex size-[120px] items-center justify-center rounded-full bg-white shadow-ledge-sm"
+          className="relative flex size-[120px] items-center justify-center rounded-full bg-surface shadow-ledge-sm"
         >
           <span className="absolute h-3 w-14 rounded-full bg-ink" />
           <span className="absolute h-14 w-3 rounded-full bg-ink" />

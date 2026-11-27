@@ -9,7 +9,7 @@ import { controlSong, usePlayerNames } from "./onStage/playing";
 import type { StatusStrip as Strip } from "./remoteFrame";
 
 const STRIP =
-  "mx-2.5 mb-2 flex items-center gap-2.5 rounded-[22px] bg-ink py-2 pr-2 pl-3 text-white";
+  "mx-2.5 mb-2 flex items-center gap-2.5 rounded-[22px] bg-ink-fill py-2 pr-2 pl-3 text-white";
 const FOCUS =
   "outline-none focus-visible:outline-4 focus-visible:outline-yellow";
 
@@ -68,7 +68,7 @@ export function StatusStrip({
               strip.paused ? "resume" : "pause",
             );
           }}
-          className={`flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-ink shadow-ledge ${FOCUS}`}
+          className={`flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-surface text-ink shadow-ledge ${FOCUS}`}
         >
           <Icon name={strip.paused ? "play" : "pause"} className="size-6" />
         </button>

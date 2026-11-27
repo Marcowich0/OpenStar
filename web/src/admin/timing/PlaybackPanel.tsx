@@ -22,11 +22,11 @@ import { t } from "../../i18n/t";
 const BUTTON =
   "rounded-full px-4 py-1.5 text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow disabled:opacity-40";
 const CHOICE =
-  "cursor-pointer rounded-full bg-white px-3 py-1 text-base font-semibold text-ink ring-2 ring-ledge outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-selected:bg-ink data-selected:text-white data-selected:ring-ink";
+  "cursor-pointer rounded-full bg-surface px-3 py-1 text-base font-semibold text-ink ring-2 ring-ledge outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-selected:bg-ink-fill data-selected:text-white data-selected:ring-ink";
 const CHECK =
   "group flex cursor-pointer items-center gap-2 text-lg outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow";
 const BOX =
-  "flex size-6 items-center justify-center rounded-md bg-white ring-2 ring-ink group-data-selected:bg-green";
+  "flex size-6 items-center justify-center rounded-md bg-surface ring-2 ring-ink group-data-selected:bg-green";
 
 export interface PlaybackPanelProps {
   /** The media element is there to play. */
@@ -63,7 +63,7 @@ export function PlaybackPanel({
         <AriaButton
           isDisabled={!ready}
           onPress={onTogglePlay}
-          className={`${BUTTON} min-w-24 bg-ink text-white`}
+          className={`${BUTTON} min-w-24 bg-ink-fill text-white`}
         >
           {state.playing ? t("timing.play.pause") : t("timing.play.play")}
         </AriaButton>
@@ -71,7 +71,7 @@ export function PlaybackPanel({
           isDisabled={!ready}
           isSelected={state.loop !== null}
           onChange={onLoop}
-          className={`${BUTTON} bg-white text-ink data-selected:bg-yellow`}
+          className={`${BUTTON} bg-surface text-ink data-selected:bg-yellow data-selected:text-on-bright`}
         >
           {t("timing.play.loop")}
         </ToggleButton>
@@ -111,7 +111,7 @@ export function PlaybackPanel({
       </div>
       <AriaButton
         onPress={onCheckAvSync}
-        className={`${BUTTON} self-start bg-white text-ink`}
+        className={`${BUTTON} self-start bg-surface text-ink`}
       >
         {t("timing.play.avSync")}
       </AriaButton>

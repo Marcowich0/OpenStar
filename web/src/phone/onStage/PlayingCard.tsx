@@ -54,7 +54,7 @@ export function PlayingCard({
   return (
     <section
       data-testid="playing-card"
-      className="flex flex-col gap-3 rounded-card bg-ink p-4.5 text-white shadow-ledge"
+      className="flex flex-col gap-3 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge"
     >
       <div className="flex items-center gap-3">
         <Cover

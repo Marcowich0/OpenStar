@@ -27,7 +27,7 @@ export function StagePickList({
       onDismiss={onClose}
       role="menu"
       aria-label={label}
-      className={`absolute z-30 flex min-w-96 animate-pop-in flex-col gap-3 rounded-card-sm bg-white p-3 text-ink ring-4 ring-ink ${className}`}
+      className={`absolute z-30 flex min-w-96 animate-pop-in flex-col gap-3 rounded-card-sm bg-surface p-3 text-ink ring-4 ring-ink ${className}`}
     >
       {children}
     </StageLayer>

@@ -2,6 +2,7 @@
 import type { Difficulty } from "./Difficulty";
 import type { Effects } from "./Effects";
 import type { LyricSize } from "./LyricSize";
+import type { Theme } from "./Theme";
 
 /**
  * The Stage options: the body of `GET /api/stage-options` and of
@@ -57,4 +58,9 @@ showNextLine: boolean,
  * How opaque the lane panels' white frosting is: 66 %, or 40 to 90 %
  * in 10 % steps.
  */
-laneFrostingPercent: number, };
+laneFrostingPercent: number, 
+/**
+ * How every screen looks; Phones follow the Stage's theme. Its range is
+ * its three values: any other is refused.
+ */
+theme: Theme, };

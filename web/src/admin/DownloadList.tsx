@@ -66,7 +66,7 @@ export function DownloadList({
   return (
     <ul
       aria-label={t("admin.downloads.jobs")}
-      className="flex flex-col gap-3 rounded-card-sm bg-white p-4 shadow-ledge-sm"
+      className="flex flex-col gap-3 rounded-card-sm bg-surface p-4 shadow-ledge-sm"
     >
       {downloads.map((job) => (
         <DownloadRow
@@ -228,7 +228,7 @@ function DownloadRow({
             onPress={() => {
               void cancel();
             }}
-            className="inline-flex min-h-12 shrink-0 cursor-pointer items-center rounded-full bg-white px-5 text-lg font-semibold text-ink shadow-ledge outline-none transition-transform duration-200 data-disabled:cursor-default data-disabled:opacity-50 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
+            className="inline-flex min-h-12 shrink-0 cursor-pointer items-center rounded-full bg-surface px-5 text-lg font-semibold text-ink shadow-ledge outline-none transition-transform duration-200 data-disabled:cursor-default data-disabled:opacity-50 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
           >
             {t("admin.downloads.job.cancel")}
           </AriaButton>
