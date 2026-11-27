@@ -35,4 +35,10 @@ songVideo: boolean,
  * How loud the song browser's preview plays, 0 to 100 % of the Song's
  * level, in 10 % steps.
  */
-previewVolumePercent: number, };
+previewVolumePercent: number, 
+/**
+ * Whether a Song with an Intro starts where Skip intro would land, a
+ * few seconds before its first Note, instead of at `#START`. Restart
+ * starts there too.
+ */
+skipIntros: boolean, };

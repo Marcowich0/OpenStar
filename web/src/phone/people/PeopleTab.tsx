@@ -9,6 +9,7 @@ import { t } from "../../i18n/t";
 import type { LiveState } from "../../live/liveState";
 import type { LiveStore } from "../../live/liveStore";
 import { useLive } from "../../live/useLive";
+import type { ShownProfile } from "../../profile/ProfilePage";
 import { Avatar } from "../../ui/Avatar";
 import { HoldButton } from "../../ui/HoldButton";
 import { Icon } from "../../ui/Icon";
@@ -16,6 +17,7 @@ import { phoneMember } from "../phonePage";
 import { LeaveParty } from "./LeaveParty";
 import { removeMember, type Refusal } from "./memberRequests";
 import { peopleRows, type PeopleRow } from "./people";
+import { ProfileSheet } from "./ProfileSheet";
 
 const NO_MEMBERS: readonly PartyMember[] = [];
 const selectMembers = (state: LiveState) =>
@@ -35,19 +37,20 @@ function Tag({ children }: { children: React.ReactNode }) {
 function PersonRow({
   row,
   onRemove,
+  onOpen,
 }: {
   row: PeopleRow;
   onRemove: () => void;
+  /** Opens the Profile page; never called for a Guest. */
+  onOpen: (shown: ShownProfile) => void;
 }) {
   const nameId = useId();
   const { member, look } = row;
   const name = look?.name ?? "";
   const status = t(member.onPhone ? "people.onPhone" : "people.localMicOnly");
-  return (
-    <li
-      aria-labelledby={nameId}
-      className="flex min-h-18 items-center gap-3 rounded-card-sm bg-white px-3 py-2 shadow-ledge-sm"
-    >
+  const identity = member.identity;
+  const who = (
+    <>
       {look ? (
         <Avatar
           name={look.name}
@@ -75,6 +78,27 @@ function PersonRow({
               })}
         </span>
       </span>
+    </>
+  );
+  return (
+    <li
+      aria-labelledby={nameId}
+      className="flex min-h-18 items-center gap-3 rounded-card-sm bg-white px-3 py-2 shadow-ledge-sm"
+    >
+      {identity.kind === "profile" ? (
+        <button
+          type="button"
+          aria-label={t("people.openProfile", { name })}
+          onClick={() => {
+            onOpen({ id: identity.profileId, name });
+          }}
+          className="-my-2 -ml-3 flex min-w-0 grow cursor-pointer items-center gap-3 self-stretch rounded-card-sm py-2 pl-3 text-left outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+        >
+          {who}
+        </button>
+      ) : (
+        who
+      )}
       {row.remove === "singing" ? (
         <span className="rounded-full bg-yellow px-3 py-1 font-semibold">
           {t("people.singing")}
@@ -97,7 +121,7 @@ function PersonRow({
  * The People tab (v1 spec #49, "People tab"): who is here, with their
  * colour, whether they are on a Phone and who's singing. Holding the × on a
  * row removes that member and frees their colour; Leave party is at the
- * bottom. New party and deleting a Profile are not on the Phone.
+ * bottom. Tapping a Profile opens its Profile page (spec #244). New party and deleting a Profile are not on the Phone.
  */
 export function PeopleTab({ store }: { store: LiveStore }) {
   const members = useLive(selectMembers, store);
@@ -105,6 +129,7 @@ export function PeopleTab({ store }: { store: LiveStore }) {
   const joinCode = useLive(selectJoinCode, store);
   const profiles = useQuery(profilesQuery);
   const [problem, setProblem] = useState<Refusal>(null);
+  const [shown, setShown] = useState<ShownProfile | null>(null);
   const rows = peopleRows(members, me?.memberId ?? null, profiles.data);
 
   return (
@@ -127,6 +152,7 @@ export function PeopleTab({ store }: { store: LiveStore }) {
               setProblem(null);
               void removeMember(store, row.member.memberId).then(setProblem);
             }}
+            onOpen={setShown}
           />
         ))}
       </ul>
@@ -139,6 +165,12 @@ export function PeopleTab({ store }: { store: LiveStore }) {
         </p>
       ) : null}
       {me ? <LeaveParty store={store} member={me} className="mt-3" /> : null}
+      <ProfileSheet
+        shown={shown}
+        onClose={() => {
+          setShown(null);
+        }}
+      />
     </section>
   );
 }

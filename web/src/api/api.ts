@@ -16,6 +16,7 @@ import type { NewProfile } from "../generated/NewProfile";
 import type { PitchTrackStart } from "../generated/PitchTrackStart";
 import type { Profile } from "../generated/Profile";
 import type { ProfileEdit } from "../generated/ProfileEdit";
+import type { ProfileStats } from "../generated/ProfileStats";
 import type { RoundOutcome } from "../generated/RoundOutcome";
 import type { ScanStatus } from "../generated/ScanStatus";
 import type { ServerInfo } from "../generated/ServerInfo";
@@ -79,6 +80,7 @@ export interface Endpoints {
   "POST /api/profiles": { body: NewProfile; response: Profile };
   "GET /api/profiles/{id}": { response: Profile };
   "PATCH /api/profiles/{id}": { body: ProfileEdit; response: Profile };
+  "GET /api/profiles/{id}/stats": { response: ProfileStats };
   /** Guarded: deletes the Profile and its Score records; `204`, no body. */
   "DELETE /api/profiles/{id}": { response: null };
   "GET /api/jobs": { response: JobList };
@@ -236,6 +238,7 @@ const REFUSAL_CODES = {
   lineUpNotReady: true,
   noStage: true,
   noSongPlaying: true,
+  noIntroToSkip: true,
   requestPlaying: true,
   difficultyLocked: true,
   noResults: true,

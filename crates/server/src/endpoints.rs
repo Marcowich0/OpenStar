@@ -29,8 +29,8 @@ use openstar_protocol::UserMessage;
 use tower_http::trace::TraceLayer;
 
 use crate::{
-    AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles,
-    scores, stage_options, stage_outputs, stage_trust, unlock, usdb,
+    AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings,
+    profile_stats, profiles, scores, stage_options, stage_outputs, stage_trust, unlock, usdb,
 };
 
 /// Whether an endpoint needs an Unlock.
@@ -129,9 +129,9 @@ pub fn ws_access(message: &ClientMessage) -> Access {
         // seat follows the not-guarded Profile create.
         | ClientMessage::EditLineUp { .. }
         | ClientMessage::SetMyDifficulty { .. }
-        // Start, pause, Restart, End and Skip are for everyone in the room;
-        // Next or Done from anyone (results come from the Stage over
-        // `POST /api/rounds`).
+        // Start, pause, Restart, End, Skip and Skip intro are for everyone in
+        // the room; Next or Done from anyone (results come from the Stage
+        // over `POST /api/rounds`).
         | ClientMessage::ControlSong { .. }
         | ClientMessage::CloseResults
         // The Stage's position report only tells Remotes how far the Song
@@ -227,6 +227,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/profiles/{id}",
             NotGuarded,
             profiles::edit_profile,
+        )
+        // A Profile's stats only read its Score records.
+        .add(
+            Method::GET,
+            "/api/profiles/{id}/stats",
+            NotGuarded,
+            profile_stats::profile_stats,
         )
         .add(
             Method::DELETE,

@@ -428,6 +428,26 @@ const MIGRATIONS: &[&str] = &[
         id      INTEGER PRIMARY KEY CHECK (id = 1),
         options TEXT NOT NULL
     ) STRICT;",
+    // 32: the Song's artist and title as the Library had them when the
+    // round was stored (#272), so Profile stats can name a Song that has
+    // left the Library. Rounds stored before this take both from one Library
+    // row of the same identity, if one is still there (a playable one first,
+    // then the preferred-copy rule as `library::index::RANKED` has it at
+    // this schema); NULL otherwise.
+    "ALTER TABLE rounds ADD COLUMN artist TEXT;
+    ALTER TABLE rounds ADD COLUMN title TEXT;
+    UPDATE rounds SET (artist, title) = (
+        SELECT f.artist, f.title FROM library_files f
+        WHERE f.identity = rounds.song_identity
+        ORDER BY f.playable DESC,
+            f.has_original DESC,
+            (COALESCE((SELECT native FROM media_probes p WHERE p.path = f.audio_path), 0)
+             AND (f.video_path IS NULL
+                  OR COALESCE((SELECT native FROM media_probes p WHERE p.path = f.video_path), 0)))
+                DESC,
+            f.mtime_ns DESC,
+            f.id
+        LIMIT 1);",
 ];
 
 /// The schema version this build migrates to.
@@ -747,5 +767,104 @@ mod tests {
             )
         );
         assert_eq!(row("b/song.txt"), (None, None, None, None, None));
+    }
+
+    #[test]
+    fn rounds_stored_before_their_names_take_them_from_the_library() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let adds_them = MIGRATIONS
+            .iter()
+            .position(|m| m.contains("ALTER TABLE rounds ADD COLUMN artist"))
+            .unwrap();
+        for sql in &MIGRATIONS[..adds_them] {
+            conn.execute_batch(sql).unwrap();
+        }
+        conn.execute_batch(
+            "INSERT INTO library_files (path, size, mtime_ns, parser_version, artist, title,
+                 duet, txt_problems, file_references, playable, identity)
+             VALUES ('a/song.txt', 1, 1, 1, 'Old Artist', 'Old Title', 0, '[]', '[]', 0, 'kept'),
+                    ('b/song.txt', 1, 1, 1, 'An Artist', 'A Title', 0, '[]', '[]', 1, 'kept');
+             INSERT INTO rounds (song_identity, party_id, mode, started_at_ms, ended)
+             VALUES ('kept', 'p', 'normal', 0, 'played'),
+                    ('gone', 'p', 'normal', 0, 'played');",
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", adds_them as i64)
+            .unwrap();
+        migrate(&mut conn).unwrap();
+
+        let names = |identity: &str| {
+            conn.query_row(
+                "SELECT artist, title FROM rounds WHERE song_identity = ?1",
+                [identity],
+                |r| {
+                    Ok((
+                        r.get::<_, Option<String>>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                    ))
+                },
+            )
+            .unwrap()
+        };
+        assert_eq!(
+            names("kept"),
+            (Some("An Artist".into()), Some("A Title".into())),
+            "a playable row first"
+        );
+        assert_eq!(names("gone"), (None, None));
+    }
+
+    #[test]
+    fn rounds_stored_before_their_names_take_both_from_the_preferred_copy() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let adds_them = MIGRATIONS
+            .iter()
+            .position(|m| m.contains("ALTER TABLE rounds ADD COLUMN artist"))
+            .unwrap();
+        for sql in &MIGRATIONS[..adds_them] {
+            conn.execute_batch(sql).unwrap();
+        }
+        // `edited`: the lowest id has no title; the edited copy (an Original
+        // beside it) is preferred, so both names come from it. `newer`: the
+        // copy with the newest `.txt` is preferred over the lower id.
+        conn.execute_batch(
+            "INSERT INTO library_files (id, path, size, mtime_ns, parser_version, artist, title,
+                 duet, txt_problems, file_references, playable, identity, has_original)
+             VALUES (1, 'a/song.txt', 1, 9, 1, 'Plain Artist', NULL, 0, '[]', '[]', 1, 'edited', 0),
+                    (2, 'b/song.txt', 1, 1, 1, 'Edited Artist', 'Edited Title', 0, '[]', '[]', 1, 'edited', 1),
+                    (3, 'c/song.txt', 1, 1, 1, 'Older Artist', 'Older Title', 0, '[]', '[]', 1, 'newer', 0),
+                    (4, 'd/song.txt', 1, 5, 1, 'Newer Artist', 'Newer Title', 0, '[]', '[]', 1, 'newer', 0);
+             INSERT INTO rounds (song_identity, party_id, mode, started_at_ms, ended)
+             VALUES ('edited', 'p', 'normal', 0, 'played'),
+                    ('newer', 'p', 'normal', 0, 'played');",
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", adds_them as i64)
+            .unwrap();
+        migrate(&mut conn).unwrap();
+
+        let names = |identity: &str| {
+            conn.query_row(
+                "SELECT artist, title FROM rounds WHERE song_identity = ?1",
+                [identity],
+                |r| {
+                    Ok((
+                        r.get::<_, Option<String>>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                    ))
+                },
+            )
+            .unwrap()
+        };
+        assert_eq!(
+            names("edited"),
+            (Some("Edited Artist".into()), Some("Edited Title".into())),
+            "one row for both names: the edited copy"
+        );
+        assert_eq!(
+            names("newer"),
+            (Some("Newer Artist".into()), Some("Newer Title".into())),
+            "the copy with the newest .txt"
+        );
     }
 }

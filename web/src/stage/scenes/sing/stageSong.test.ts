@@ -75,6 +75,9 @@ function fakePlayback(onEnded: (how: SongEnding) => void, log: string[]) {
       log.push("restart");
       return Promise.resolve();
     }),
+    seek: vi.fn((seconds: number) => {
+      log.push(`seek ${String(seconds)}`);
+    }),
     end: vi.fn(() => {
       log.push("end");
       onEnded("ended");
@@ -320,6 +323,7 @@ describe("the Stage plays the head's Request", () => {
         positionSeconds: 0,
         rate: 1,
         lengthSeconds: 30,
+        introEndSeconds: null,
       },
       {
         type: "reportSongPosition",
@@ -327,11 +331,28 @@ describe("the Stage plays the head's Request", () => {
         positionSeconds: 4.5,
         rate: 0,
         lengthSeconds: 30,
+        introEndSeconds: null,
       },
     ]);
     // Frames between reports send nothing: no position stream.
     t.frames(5_000);
     expect(reports()).toHaveLength(2);
+  });
+
+  it("reports where Skip intro lands, for a Song with an Intro", async () => {
+    // The first Note at 20 s: Skip intro lands 3 s before it.
+    const t = setup({
+      loadSong: () =>
+        Promise.resolve(testDetail({ headers: { gapSeconds: 20 } })),
+    });
+    await t.start();
+    const view = t.song.view();
+    expect(view.kind === "singing" && view.introEndSeconds).toBe(17);
+    t.report({ positionSeconds: 0, rate: 1 });
+    expect(t.sent.at(-1)).toMatchObject({
+      type: "reportSongPosition",
+      introEndSeconds: 17,
+    });
   });
 
   it("stops at #END when the Song has one: the length the Remotes are told", async () => {
@@ -903,5 +924,55 @@ describe("synthetic lanes on the sing screen (ticket 227)", () => {
       expect.objectContaining({ total: 0 }),
     ]);
     expect(view.state.lanes).toHaveLength(1);
+  });
+});
+
+describe("Skip intro", () => {
+  const withIntro = () =>
+    Promise.resolve(testDetail({ headers: { gapSeconds: 20 } }));
+
+  it("seeks to just before the first Note while the Song plays its Intro", async () => {
+    const t = setup({ loadSong: withIntro, skipIntros: () => false });
+    await t.start();
+    t.control("skipIntro");
+    expect(t.log).toEqual(["start", "seek 17"]);
+  });
+
+  it("does nothing while paused or counting down, or for a Song without an Intro", async () => {
+    const t = setup({ loadSong: withIntro, skipIntros: () => false });
+    await t.start();
+    t.control("pause");
+    t.control("skipIntro");
+    t.control("resume");
+    t.control("skipIntro");
+    expect(t.log).toEqual(["start", "pause"]);
+
+    const short = setup({ skipIntros: () => false });
+    await short.start();
+    const view = short.song.view();
+    expect(view.kind === "singing" && view.introEndSeconds).toBeNull();
+    short.control("skipIntro");
+    expect(short.log).toEqual(["start"]);
+  });
+
+  it("starts past the Intro with the Stage option on, leaving nothing to skip", async () => {
+    const t = setup({ loadSong: withIntro, skipIntros: () => true });
+    await t.start();
+    const view = t.song.view();
+    if (view.kind !== "singing") throw new Error("not singing");
+    // Where the Song starts, and where a Restart goes back to.
+    expect(view.plan.startSeconds).toBe(17);
+    expect(view.introEndSeconds).toBeNull();
+    t.report({ positionSeconds: 17, rate: 1 });
+    expect(t.sent.at(-1)).toMatchObject({ introEndSeconds: null });
+    t.control("skipIntro");
+    expect(t.log).toEqual(["start"]);
+  });
+
+  it("leaves a Song without an Intro as it is with the Stage option on", async () => {
+    const t = setup({ skipIntros: () => true });
+    await t.start();
+    const view = t.song.view();
+    expect(view.kind === "singing" && view.plan.startSeconds).toBe(0);
   });
 });

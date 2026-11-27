@@ -59,7 +59,7 @@ test("a Phone manages itself from the Me sheet and frees colours from the People
   const myRow = mine.getByRole("listitem", { name: keeper });
   const theirRow = mine.getByRole("listitem", { name: guest });
   await expect(myRow.getByText("me", { exact: true })).toBeVisible();
-  await expect(myRow.getByRole("button")).toHaveCount(0);
+  await expect(myRow.getByRole("button", { name: /^Remove/ })).toHaveCount(0);
   await expect(theirRow.getByText("On a Phone")).toBeVisible();
 
   // The Me sheet: who this is, the Admin link, and a new colour.

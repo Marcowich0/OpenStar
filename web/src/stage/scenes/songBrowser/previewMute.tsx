@@ -12,7 +12,8 @@ import { t } from "../../../i18n/t";
 import { Icon } from "../../../ui/Icon";
 import { isTextField } from "../../frame/focusables";
 import { useStageKeys } from "../../frame/stageFrameContext";
-import { KeyHint, SEARCH_ROW_CONTROL } from "../../search/StageSongSearch";
+import { KeyHint } from "../../input/KeyHint";
+import { SEARCH_ROW_CONTROL } from "../../search/StageSongSearch";
 
 /** The `localStorage` key of the song browser's Mute choice. */
 export const PREVIEW_MUTED_KEY = "openstar.previewMuted";

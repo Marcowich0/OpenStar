@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { STATS_ADA } from "../../profile/profileStatsFixture";
 import { HOLD_DURATION_MS } from "../../ui/hold";
 import {
   guestMember,
@@ -47,6 +48,37 @@ async function openPeople(snapshot = PARTY) {
 const row = (name: RegExp) => screen.getByRole("listitem", { name });
 
 describe("the People tab", () => {
+  it("opens a Profile's page when its row is tapped", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: string | URL) =>
+        new URL(input, "http://openstar.test").pathname ===
+        "/api/profiles/8/stats"
+          ? Promise.resolve(Response.json(STATS_ADA))
+          : profilesFetch(PROFILES)(input),
+      ),
+    );
+    await openPeople();
+    act(() => {
+      fireEvent.click(
+        within(row(/Lukas/)).getByRole("button", {
+          name: "Lukas's Profile page",
+        }),
+      );
+    });
+    const page = await screen.findByRole("dialog", {
+      name: "Lukas's Profile page",
+    });
+    expect(await within(page).findByText("Rounds")).toBeInTheDocument();
+  });
+
+  it("offers no Profile page for a Guest", async () => {
+    await openPeople();
+    expect(
+      within(row(/Kim/)).queryByRole("button", { name: /Profile page/ }),
+    ).toBeNull();
+  });
+
   it("heads the list with the count, the Join code and what removing does", async () => {
     await openPeople();
     expect(
@@ -83,8 +115,12 @@ describe("the People tab", () => {
 
   it("offers no × on this Phone's own row, and singing instead of one", async () => {
     await openPeople();
-    expect(within(row(/Bo/)).queryByRole("button")).toBeNull();
-    expect(within(row(/Ada/)).queryByRole("button")).toBeNull();
+    expect(
+      within(row(/Bo/)).queryByRole("button", { name: /^Remove/ }),
+    ).toBeNull();
+    expect(
+      within(row(/Ada/)).queryByRole("button", { name: /^Remove/ }),
+    ).toBeNull();
     expect(within(row(/Ada/)).getByText("singing")).toBeInTheDocument();
   });
 

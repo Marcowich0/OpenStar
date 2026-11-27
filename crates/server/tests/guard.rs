@@ -459,6 +459,7 @@ fn every_client_message() -> Vec<ClientMessage> {
             position_seconds: 0.0,
             rate: 1.0,
             length_seconds: None,
+            intro_end_seconds: None,
         },
         ClientMessage::ReportLineScore {
             request_id: openstar_protocol::RequestId(1),
@@ -887,6 +888,18 @@ const V1_ACTIONS: &[Action] = {
                     "profiles.rs",
                     "anyone_may_edit_any_profiles_name_avatar_and_colour",
                 ),
+            ],
+        },
+        Action {
+            name: "Looking at a Profile's stats",
+            needs: Nothing,
+            via: &[Http("GET", "/api/profiles/{id}/stats")],
+            proofs: &[
+                (
+                    "profile_stats.rs",
+                    "known_rounds_over_two_difficulties_give_the_expected_stats_without_guests",
+                ),
+                ("profile_stats.rs", "an_unknown_profile_has_no_stats"),
             ],
         },
         Action {

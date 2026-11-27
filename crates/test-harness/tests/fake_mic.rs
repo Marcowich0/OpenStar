@@ -1,12 +1,10 @@
 //! The fake microphone inputs `just e2e` and the Mic bridge tests feed in,
 //! checked against the fixture Library Song they are meant to sing.
 
-mod support;
-
+use crate::support::{decode, frequency, midi, peak, wav_channels};
 use openstar_protocol::song::NoteKind;
 use openstar_test_harness::fake_mic::{self, FakeMic};
 use openstar_test_harness::fixture_library::{self, STEADY_TONE, read_song};
-use support::{decode, frequency, midi, peak, wav_channels};
 
 fn written() -> (tempfile::TempDir, fake_mic::FakeMicFiles) {
     let dir = tempfile::tempdir().unwrap();

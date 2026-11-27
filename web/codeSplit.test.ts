@@ -73,6 +73,15 @@ describe("code split by route", () => {
     expect(modulesUnder(phone, "admin")).toEqual([]);
   });
 
+  it("loads the gamepad input with the Stage only (ticket 275)", () => {
+    const gamepad = path.join(src, "stage/input/gamepad.ts");
+    const entry = chunks.filter((c) => c.isEntry);
+    const phone = staticGraph([...entry, chunkOf("phone/PhoneScreen.tsx")]);
+    const stage = staticGraph([chunkOf("stage/StageScreen.tsx")]);
+    expect(phone.flatMap((c) => c.moduleIds)).not.toContain(gamepad);
+    expect(stage.flatMap((c) => c.moduleIds)).toContain(gamepad);
+  });
+
   it("loads the Stage and the Admin area in chunks of their own", () => {
     expect(
       modulesUnder(staticGraph([chunkOf("stage/StageScreen.tsx")]), "stage"),

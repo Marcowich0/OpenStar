@@ -5,10 +5,10 @@
  * `stageOptions` change notice when they change.
  *
  * The Stage's holder, `stageOptions()`, has them where code outside React
- * reads them without waiting: a Song's Start (effects, Line ratings), each
- * resume (the countdown) and each preview (its volume). Until they load it
- * holds the defaults, which are the behaviour before the options existed.
- * `StageOptionsLoader` fills it.
+ * reads them without waiting: a Song's Start (effects, Line ratings, skipping
+ * its Intro), each resume (the countdown) and each preview (its volume).
+ * Until they load it holds the defaults, which are the behaviour before the
+ * options existed. `StageOptionsLoader` fills it.
  *
  * To add an option: its field in `crates/protocol/src/stage_options.rs`, its
  * default and range in `STAGE_OPTIONS` below, and its row in
@@ -34,6 +34,7 @@ export const STAGE_OPTIONS = {
     effects: true,
     songVideo: true,
     previewVolumePercent: 100,
+    skipIntros: false,
   } satisfies StageOptions,
   resumeCountdownMaxSeconds: 5,
   previewVolumeStepPercent: 10,

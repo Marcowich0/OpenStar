@@ -25,9 +25,17 @@ export interface SheetProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   children: ReactNode;
+  /** Covers the whole screen (the Profile page), not just its content. */
+  fullScreen?: boolean;
 }
 
-export function Sheet({ label, isOpen, onOpenChange, children }: SheetProps) {
+export function Sheet({
+  label,
+  isOpen,
+  onOpenChange,
+  children,
+  fullScreen = false,
+}: SheetProps) {
   // True from each opening until the slide in has finished.
   const [entering, setEntering] = useState(isOpen);
   const [wasOpen, setWasOpen] = useState(isOpen);
@@ -53,7 +61,9 @@ export function Sheet({ label, isOpen, onOpenChange, children }: SheetProps) {
       isDismissable
       className="fixed inset-0 z-40 flex items-end bg-veil transition-opacity duration-250 data-entering:opacity-0 data-exiting:opacity-0"
     >
-      <Modal className="flex max-h-[88dvh] w-full flex-col rounded-t-card bg-cream text-ink shadow-[0_-6px_0_var(--color-ledge)] transition-transform duration-450 ease-spring data-entering:translate-y-full data-exiting:translate-y-full">
+      <Modal
+        className={`flex w-full flex-col ${fullScreen ? "h-dvh" : "max-h-[88dvh]"} rounded-t-card bg-cream text-ink shadow-[0_-6px_0_var(--color-ledge)] transition-transform duration-450 ease-spring data-entering:translate-y-full data-exiting:translate-y-full`}
+      >
         <AriaDialog
           aria-label={label}
           className="flex min-h-0 flex-col font-sans outline-none"

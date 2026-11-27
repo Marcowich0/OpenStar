@@ -1,14 +1,12 @@
 //! The fixture Library: its Songs get audio generated from their own Notes.
 
-mod support;
-
 use std::path::Path;
 
+use crate::support::{decode, frequency, midi};
 use openstar_protocol::song::{Note, ParsedSong};
 use openstar_test_harness::fixture_library::{
     self, DUET, REJECTED, SEPARATE_VIDEO, SINE_MELODY, STEADY_TONE, read_song,
 };
-use support::{decode, frequency, midi};
 
 const PLAYABLE: [&str; 4] = [STEADY_TONE, SINE_MELODY, DUET, SEPARATE_VIDEO];
 

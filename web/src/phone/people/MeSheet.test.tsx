@@ -1,7 +1,14 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PartySnapshot } from "../../generated/PartySnapshot";
+import { STATS_ADA } from "../../profile/profileStatsFixture";
 import {
   guestMember,
   memoryStorage,
@@ -48,7 +55,46 @@ async function openMe(snapshot: PartySnapshot = PARTY, memberId = 1) {
   return { ...phone, sheet: screen.getByRole("dialog", { name: "Me" }) };
 }
 
+/** The server, with Bo's stats as well. */
+function withStats(input: string | URL) {
+  const path = new URL(input, "http://openstar.test").pathname;
+  if (path === "/api/profiles/7/stats")
+    return Promise.resolve(Response.json(STATS_ADA));
+  return profilesFetch(PROFILES)(input);
+}
+
 describe("the Me sheet", () => {
+  it("opens My stats: this Profile's page, full screen", async () => {
+    vi.stubGlobal("fetch", vi.fn(withStats));
+    const { sheet } = await openMe();
+    act(() => {
+      fireEvent.click(within(sheet).getByRole("button", { name: "My stats" }));
+    });
+    const page = await screen.findByRole("dialog", {
+      name: "Bo's Profile page",
+    });
+    expect(await within(page).findByText("Songs sung")).toBeInTheDocument();
+    expect(within(page).getByRole("heading", { name: "Bo" })).toBeVisible();
+    act(() => {
+      fireEvent.click(within(page).getByRole("button", { name: "Back" }));
+    });
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Bo's Profile page" }),
+      ).toBeNull();
+    });
+  });
+
+  it("offers no My stats to a Guest", async () => {
+    const { sheet } = await openMe(
+      partyOf([bo, guestMember(3, "Kim", "lime")]),
+      3,
+    );
+    expect(
+      within(sheet).queryByRole("button", { name: "My stats" }),
+    ).toBeNull();
+  });
+
   it("opens from the avatar and shows who this Phone is", async () => {
     const { sheet } = await openMe();
     expect(within(sheet).getByRole("img", { name: "Bo" })).toBeInTheDocument();

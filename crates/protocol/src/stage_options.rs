@@ -34,6 +34,8 @@ pub const SONG_VIDEO_DEFAULT: bool = true;
 pub const PREVIEW_VOLUME_STEP_PERCENT: u8 = 10;
 /// The song browser's preview plays as loud as the Song.
 pub const PREVIEW_VOLUME_DEFAULT_PERCENT: u8 = 100;
+/// A Song plays its Intro; Skip intro is offered instead.
+pub const SKIP_INTROS_DEFAULT: bool = false;
 
 fn starting_difficulty_default() -> Difficulty {
     STARTING_DIFFICULTY_DEFAULT
@@ -52,6 +54,9 @@ fn song_video_default() -> bool {
 }
 fn preview_volume_default() -> u8 {
     PREVIEW_VOLUME_DEFAULT_PERCENT
+}
+fn skip_intros_default() -> bool {
+    SKIP_INTROS_DEFAULT
 }
 
 /// The Stage options: the body of `GET /api/stage-options` and of
@@ -84,6 +89,11 @@ pub struct StageOptions {
     /// level, in 10 % steps.
     #[serde(default = "preview_volume_default")]
     pub preview_volume_percent: u8,
+    /// Whether a Song with an Intro starts where Skip intro would land, a
+    /// few seconds before its first Note, instead of at `#START`. Restart
+    /// starts there too.
+    #[serde(default = "skip_intros_default")]
+    pub skip_intros: bool,
 }
 
 impl Default for StageOptions {
@@ -95,6 +105,7 @@ impl Default for StageOptions {
             effects: EFFECTS_DEFAULT,
             song_video: SONG_VIDEO_DEFAULT,
             preview_volume_percent: PREVIEW_VOLUME_DEFAULT_PERCENT,
+            skip_intros: SKIP_INTROS_DEFAULT,
         }
     }
 }
@@ -169,6 +180,7 @@ mod tests {
                 "effects": true,
                 "songVideo": true,
                 "previewVolumePercent": 100,
+                "skipIntros": false,
             })
         );
     }

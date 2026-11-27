@@ -171,6 +171,7 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
       ),
       switchRow("effects", "options.effects", "options.effects.help"),
       switchRow("songVideo", "options.songVideo", "options.songVideo.help"),
+      switchRow("skipIntros", "options.skipIntros", "options.skipIntros.help"),
     ],
     advanced: [],
   },

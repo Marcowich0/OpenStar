@@ -74,7 +74,10 @@ describe("Setup › Options", () => {
     openAdvanced("sound");
     for (const [group, ids] of [
       ["options-players", ["startingDifficulty"]],
-      ["options-singScreen", ["lineRatings", "effects", "songVideo"]],
+      [
+        "options-singScreen",
+        ["lineRatings", "effects", "songVideo", "skipIntros"],
+      ],
       ["options-sound", ["previewVolumePercent", "resumeCountdownSeconds"]],
     ] as const) {
       const box = screen.getByTestId(group);
