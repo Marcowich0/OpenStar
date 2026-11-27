@@ -631,6 +631,8 @@ export const en = {
   "stage.lineUp.micLevel": "{name}'s mic level",
   "stage.lineUp.remove": "Take {name} off this Song",
   "stage.lineUp.addSinger": "Add a singer",
+  "stage.lineUp.fix.pickMic": "Pick a mic",
+  "stage.lineUp.fix.pickVoice": "Pick a voice",
   "stage.lineUp.addGuest": "+ Guest",
   "stage.lineUp.addProfile": "+ Profile",
   "stage.lineUp.namePlaceholder": "Type a name",

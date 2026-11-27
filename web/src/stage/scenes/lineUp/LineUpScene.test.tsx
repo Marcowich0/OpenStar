@@ -818,6 +818,100 @@ describe("warnings and Start", () => {
     expect(screen.queryByRole("menu", { name: "Who sings" })).toBeNull();
   });
 
+  it("gives 'has no mic' a Pick a mic button that opens that seat's Mic list", () => {
+    setup(invalid);
+    const jonas = within(seats()[1] as HTMLElement);
+    click(jonas.getByRole("button", { name: "Pick a mic" }));
+    expect(screen.getByRole("menu", { name: "Mic for Jonas" })).toBeVisible();
+  });
+
+  it("gives every other Mic problem the same Pick a mic button", () => {
+    setup(
+      party({
+        lineUp: lineUp({
+          warnings: [{ code: "micBlocked", params: { memberId: 1 } }],
+        }),
+      }),
+    );
+    const bo = within(seats()[0] as HTMLElement);
+    click(bo.getByRole("button", { name: "Pick a mic" }));
+    expect(screen.getByRole("menu", { name: "Mic for Bo" })).toBeVisible();
+  });
+
+  it("gives a missing Voice a Pick a voice button that takes the focus to the last seat's Voice", () => {
+    setup(invalid);
+    click(screen.getByRole("button", { name: "Pick a voice" }));
+    expect(
+      within(seats()[1] as HTMLElement).getByRole("button", { name: /Voice/ }),
+    ).toHaveFocus();
+  });
+
+  it("gives a lone duet singer's missing Voice an Add a singer button that opens its Who list", () => {
+    setup(
+      party({
+        lineUp: lineUp({
+          duet: true,
+          canStart: false,
+          seats: [seat(1, "ph-bo")],
+          warnings: [{ code: "duetNeedsVoice", params: { voice: "p2" } }],
+        }),
+      }),
+    );
+    const fix = screen
+      .getAllByRole("button", { name: "Add a singer" })
+      .find((button) => button.dataset.lineUpFix !== undefined);
+    click(fix as HTMLElement);
+    expect(screen.getByRole("menu", { name: "Who sings" })).toBeVisible();
+  });
+
+  it("moves the focus to the first warning's fix when the greyed Start is clicked", () => {
+    setup(invalid);
+    click(startButton());
+    expect(startButton()).toHaveAttribute("data-shaking", "true");
+    expect(
+      within(seats()[1] as HTMLElement).getByRole("button", {
+        name: "Pick a mic",
+      }),
+    ).toHaveFocus();
+  });
+
+  it("prefers the first fix of a warning that blocks Start", () => {
+    setup(
+      party({
+        lineUp: lineUp({
+          canStart: false,
+          seats: [seat(1, "ph-bo"), seat(3, null)],
+          warnings: [
+            { code: "notCalibrated", params: { memberId: 1 } },
+            { code: "noMic", params: { memberId: 3 } },
+          ],
+        }),
+      }),
+    );
+    click(startButton());
+    expect(
+      within(seats()[1] as HTMLElement).getByRole("button", {
+        name: "Pick a mic",
+      }),
+    ).toHaveFocus();
+  });
+
+  it("moves the focus to the first warning's fix on Enter on the greyed Start", () => {
+    setup(invalid);
+    act(() => {
+      startButton().focus();
+    });
+    press("Enter");
+    act(() => {
+      fireEvent.keyUp(startButton(), { key: "Enter" });
+    });
+    expect(
+      within(seats()[1] as HTMLElement).getByRole("button", {
+        name: "Pick a mic",
+      }),
+    ).toHaveFocus();
+  });
+
   it("does not start on Space while a pick list is open", () => {
     const { sent } = setup();
     click(screen.getByRole("button", { name: "Who: Bo" }));
