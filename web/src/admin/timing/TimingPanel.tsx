@@ -158,7 +158,6 @@ export function EditList({ entries }: { entries: readonly EditListEntry[] }) {
       {entries.length === 0 ? (
         <p className="text-ink-2">{t("timing.panel.noEdits")}</p>
       ) : null}
-      <p className="text-sm text-ink-2">{t("timing.panel.keys")}</p>
     </div>
   );
 }
@@ -178,28 +177,31 @@ export function EditButtons({
   onBackToTheFile: () => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      <AriaButton
-        className={SMALL_BUTTON}
-        isDisabled={!canUndo}
-        onPress={onUndo}
-      >
-        {t("timing.panel.undo")}
-      </AriaButton>
-      <AriaButton
-        className={SMALL_BUTTON}
-        isDisabled={!canRedo}
-        onPress={onRedo}
-      >
-        {t("timing.panel.redo")}
-      </AriaButton>
-      <AriaButton
-        className={SMALL_BUTTON}
-        isDisabled={!canUndo && !canRedo}
-        onPress={onBackToTheFile}
-      >
-        {t("timing.panel.backToTheFile")}
-      </AriaButton>
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap gap-2">
+        <AriaButton
+          className={SMALL_BUTTON}
+          isDisabled={!canUndo}
+          onPress={onUndo}
+        >
+          {t("timing.panel.undo")}
+        </AriaButton>
+        <AriaButton
+          className={SMALL_BUTTON}
+          isDisabled={!canRedo}
+          onPress={onRedo}
+        >
+          {t("timing.panel.redo")}
+        </AriaButton>
+        <AriaButton
+          className={SMALL_BUTTON}
+          isDisabled={!canUndo && !canRedo}
+          onPress={onBackToTheFile}
+        >
+          {t("timing.panel.backToTheFile")}
+        </AriaButton>
+      </div>
+      <p className="text-sm text-ink-2">{t("timing.panel.keys")}</p>
     </div>
   );
 }
