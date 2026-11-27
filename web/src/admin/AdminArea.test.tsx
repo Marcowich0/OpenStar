@@ -6,7 +6,7 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "../api/queryClient";
@@ -111,6 +111,29 @@ describe("the Admin area", () => {
         ),
       ).toBe(true);
     expect(pad()).toBeNull();
+  });
+
+  it.each([
+    "/admin",
+    "/admin/downloads",
+    "/admin/songs",
+    "/admin/library-problems",
+    "/admin/profiles",
+  ])("links from %s back to the Stage and to the Phone", async (url) => {
+    fakeServer();
+    await renderAdmin(url);
+
+    const ways = screen.getByRole("navigation", {
+      name: "Leave the Admin area",
+    });
+    expect(within(ways).getByRole("link", { name: "Stage" })).toHaveAttribute(
+      "href",
+      "/stage",
+    );
+    expect(within(ways).getByRole("link", { name: "Phone" })).toHaveAttribute(
+      "href",
+      "/",
+    );
   });
 
   it.each([

@@ -34,12 +34,17 @@ const HINT_MS = 2000;
 /** How many `holdTick` sounds a full hold makes, evenly from the press. */
 const HOLD_TICKS = 4;
 
-export type HoldButtonFill = "white" | "red" | "ink";
+export type HoldButtonFill = "white" | "red" | "ink" | "outline-red";
 
 const FILL_CLASSES: Record<HoldButtonFill, { button: string; fill: string }> = {
   white: { button: "bg-white text-ink shadow-ledge", fill: "bg-ink/15" },
   red: { button: "bg-red text-white shadow-ledge-red", fill: "bg-white/35" },
   ink: { button: "bg-ink text-white shadow-ledge-ink", fill: "bg-white/35" },
+  /** Red on white with a red ring: a careful action that should not shout. */
+  "outline-red": {
+    button: "bg-white text-red ring-2 ring-red ring-inset shadow-ledge-sm",
+    fill: "bg-red/20",
+  },
 };
 
 const SIZE_CLASSES = {
