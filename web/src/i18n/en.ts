@@ -337,7 +337,7 @@ export const en = {
   "profilePage.bestScores": "Best Scores",
   "profilePage.mostSung": "Most sung",
   "profilePage.noHighScores": "No High scores held yet",
-  "profilePage.total": "{total, number}",
+  "profilePage.number": "{value, number}",
   "profilePage.difficultyVoice": "{difficulty} · Voice {voice, number}",
   "profilePage.artistAndDate": "{artist} · {date}",
   "profilePage.more": {
@@ -640,6 +640,9 @@ export const en = {
   "stage.pause.hint": "Restart, Skip and End: hold Enter or press and hold",
   "stage.pause.hint.pad": "Restart, Skip and End: hold Ⓐ",
   // The pad button glyphs a key hint shows after gamepad input (#275).
+  "pad.a": "Ⓐ",
+  "pad.b": "Ⓑ",
+  "pad.y": "Ⓨ",
   "pad.start": "Start",
   "stage.perf.measuring": "Measuring frame times",
   "stage.perf.current": "Frame {ms} ms",

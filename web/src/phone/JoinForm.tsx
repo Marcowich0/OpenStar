@@ -6,10 +6,10 @@ import { t } from "../i18n/t";
 import type { LiveStore } from "../live/liveStore";
 import { Button } from "../ui/Button";
 import { TopBar } from "./Logo";
-import { LookForm, type JoinFormKind } from "./LookForm";
+import { LookForm, type JoinFormKind } from "../profile/LookForm";
 import type { MemberLook } from "./memberLook";
 
-export type { JoinFormKind } from "./LookForm";
+export type { JoinFormKind } from "../profile/LookForm";
 
 export type JoinFormProps = {
   store: LiveStore;

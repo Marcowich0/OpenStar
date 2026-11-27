@@ -1,27 +1,18 @@
 // The key that works a Stage control, shown on it as a key cap (not words).
 // While the gamepad was used last (`inputDevice.ts`) it shows the pad button
-// that sends the key instead (`gamepad.ts`): Ⓐ for Enter, Ⓑ for Esc, Start
-// for Space, Ⓨ for `/`. A key no pad button sends (`M`) hides meanwhile.
+// that sends the key instead (`padButtons.ts`): Ⓐ for Enter, Ⓑ for Esc,
+// Start for Space, Ⓨ for `/`. A key no pad button sends (`M`) hides meanwhile.
 
 import type { ReactNode } from "react";
 
 import { t } from "../../i18n/t";
 import { usePadHints } from "./inputDevice";
+import { PAD_BUTTONS } from "./padButtons";
 
-/** The pad glyph for each key hint a pad button can send. */
+/** The glyph of the pad button that sends the key `keyName` names, if any. */
 function padGlyph(keyName: string): string | null {
-  switch (keyName) {
-    case "Enter":
-      return "Ⓐ";
-    case "Esc":
-      return "Ⓑ";
-    case "Space":
-      return t("pad.start");
-    case "/":
-      return "Ⓨ";
-    default:
-      return null;
-  }
+  const button = PAD_BUTTONS.find(({ hint }) => hint === keyName);
+  return button ? t(button.glyph) : null;
 }
 
 export function KeyHint({ keyName }: { keyName: string }) {

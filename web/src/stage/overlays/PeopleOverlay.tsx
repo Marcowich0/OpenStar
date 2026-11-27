@@ -22,7 +22,7 @@ import type { LiveState } from "../../live/liveState";
 import { useLive } from "../../live/useLive";
 import { removeMember, type Refusal } from "../../phone/people/memberRequests";
 import { peopleRows, type PeopleRow } from "../../phone/people/people";
-import { ProfilePage } from "../../profile/ProfilePage";
+import { ProfilePage, type ShownProfile } from "../../profile/ProfilePage";
 import { PALETTE_KEYS, tokenVar, type PaletteKey } from "../../theme/tokens";
 import { Avatar } from "../../ui/Avatar";
 import { HoldButton } from "../../ui/HoldButton";
@@ -39,9 +39,7 @@ export function PeopleOverlay() {
   const members = useLive(selectMembers, store);
   const profiles = useQuery(profilesQuery).data;
   const [problem, setProblem] = useState<Refusal>(null);
-  const [shown, setShown] = useState<{ id: ProfileId; name: string } | null>(
-    null,
-  );
+  const [shown, setShown] = useState<ShownProfile | null>(null);
   // The Stage is no Party member, so no row is "me".
   const rows = peopleRows(members, null, profiles);
   const byColour = new Map(rows.map((row) => [row.member.colour, row]));

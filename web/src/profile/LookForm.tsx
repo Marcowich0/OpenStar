@@ -23,19 +23,19 @@ import { t } from "../i18n/t";
 import type { LiveState } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
 import { useLive } from "../live/useLive";
-import { PALETTE_KEYS, type PaletteKey } from "../theme/tokens";
-import { Avatar } from "../ui/Avatar";
-import { Button } from "../ui/Button";
-import { Card } from "../ui/Card";
-import { ColourPicker } from "./ColourPicker";
+import { ColourPicker } from "../phone/ColourPicker";
 import {
   NAME_MAX_LENGTH,
   colourChoices,
   formNameCheck,
   randomAvatar,
   type ColourChoice,
-} from "./joinForm";
-import type { MemberLook } from "./memberLook";
+} from "../phone/joinForm";
+import type { MemberLook } from "../phone/memberLook";
+import { PALETTE_KEYS, type PaletteKey } from "../theme/tokens";
+import { Avatar } from "../ui/Avatar";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
 
 const NO_MEMBERS: readonly PartyMember[] = [];
 const selectMembers = (state: LiveState) =>

@@ -246,6 +246,8 @@ export function StageFrame({
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
+      // The browser's own Back never leaves the Stage, wherever the focus is.
+      if (isBrowserBack(event.key)) event.preventDefault();
       // A dialog above the frame, portalled outside it (the Downloads
       // overlay's video picker, the Admin PIN pad), takes its own keys.
       const focused = document.activeElement;
@@ -258,7 +260,6 @@ export function StageFrame({
       }
       // A TV remote's Back and Play/Pause act as Esc and Space.
       const key = stageKey(event.key, isTextField(focused));
-      if (isBrowserBack(event.key)) event.preventDefault();
       if (runBindings(event, key)) {
         event.preventDefault();
         return;
