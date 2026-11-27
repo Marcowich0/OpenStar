@@ -88,6 +88,17 @@ for (const { name, label, t, shot } of CASES) {
       1,
     );
     await page.evaluate(() => document.fonts.ready);
+    // The lyric bar's Lines come in with a CSS animation (`animate-line-in`);
+    // a shot taken while one plays catches it half-way. Wait for every finite
+    // animation on the page to end (the looping ones never do).
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+          .map((a) => a.finished),
+      ),
+    );
     await expect(page).toHaveScreenshot(`${shot}.png`);
 
     await context.close();
