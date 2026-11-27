@@ -36,7 +36,7 @@ export function Dialog({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       isDismissable={isDismissable}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-veil p-6 transition-opacity duration-(--motion-spring) ease-spring data-entering:opacity-0 data-exiting:opacity-0 data-exiting:duration-(--motion-exit)"
+      className="fixed inset-0 z-dialog flex items-center justify-center bg-veil p-6 transition-opacity duration-(--motion-spring) ease-spring data-entering:opacity-0 data-exiting:opacity-0 data-exiting:duration-(--motion-exit)"
     >
       <Modal className="w-full max-w-lg rounded-card bg-cream text-ink shadow-ledge-lg transition-transform duration-(--motion-spring) ease-spring data-entering:scale-(--motion-overlay-scale) data-exiting:scale-(--motion-overlay-scale) data-exiting:duration-(--motion-exit) data-exiting:ease-exit">
         <AriaDialog className="flex flex-col gap-6 p-8 font-sans outline-none">

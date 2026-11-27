@@ -10,6 +10,8 @@ import {
   profileMember,
 } from "../../phone/people/testPhone";
 import { STATS_ADA } from "../../profile/profileStatsFixture";
+import { t } from "../../i18n/t";
+import { PALETTE_KEYS } from "../../theme/tokens";
 import { HOLD_DURATION_MS } from "../../ui/hold";
 import { click, renderOverlays, press } from "./testOverlay";
 
@@ -43,21 +45,35 @@ function openPeople(snapshot = party()) {
   return view;
 }
 
-const dialog = () => screen.getByRole("dialog", { name: "Tonight's Party" });
-const spots = () =>
-  within(
-    within(dialog()).getByRole("list", { name: "Party colours" }),
-  ).getAllByRole("listitem");
-const spotAt = (place: number) => {
-  const found = spots()[place];
-  if (!found) throw new Error(`no spot ${String(place)}`);
+// The title comes from the catalogue, so a rename of it needs no test change.
+const dialog = () =>
+  screen.getByRole("dialog", { name: t("stage.overlay.people") });
+const membersList = () =>
+  within(dialog()).getByRole("list", { name: "Party members" });
+const cards = () => within(membersList()).getAllByRole("listitem");
+const card = (name: string) => {
+  const found = cards().find((c) => within(c).queryByText(name));
+  if (!found) throw new Error(`no card for ${name}`);
   return found;
 };
-const spot = (name: string) => {
-  const found = spots().find((s) => within(s).queryByText(name));
-  if (!found) throw new Error(`no spot for ${name}`);
-  return found;
-};
+const freeList = () =>
+  within(dialog()).getByRole("list", { name: "Free colours" });
+const freeSwatches = () => within(freeList()).getAllByRole("listitem");
+
+/** Twelve Guests, one in each Party colour. */
+const fullParty = () =>
+  partyOf(
+    PALETTE_KEYS.map((colour, i) =>
+      guestMember(i + 1, `Guest ${String(i + 1)}`, colour),
+    ),
+  );
+
+/** `first` comes before `second` in the document. */
+function expectBefore(first: Element, second: Element) {
+  expect(
+    first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+}
 
 function hold(button: HTMLElement) {
   act(() => {
@@ -75,40 +91,30 @@ function hold(button: HTMLElement) {
 }
 
 describe("People overlay", () => {
-  it("is headed Tonight's Party with how many of the 12 colours are taken", () => {
+  it("says how many of the 12 colours are taken under its title", () => {
     openPeople();
     expect(within(dialog()).getByText("3 of 12 colours taken")).toBeVisible();
   });
 
-  it("lays out the twelve Party colours in palette order", () => {
+  it("lists the Party members first, as cards in the order they joined, then the free colours", () => {
     openPeople();
-    expect(spots().map((s) => s.dataset.colour)).toEqual([
-      "cherry",
+    expect(cards().map((c) => c.dataset.colour)).toEqual([
       "sky",
-      "navy",
-      "cocoa",
-      "teal",
-      "lime",
-      "berry",
-      "mint",
-      "bubblegum",
-      "forest",
-      "grape",
       "tangerine",
+      "cherry",
     ]);
-    expect(
-      within(dialog()).getByRole("list", { name: "Party colours" }),
-    ).toHaveClass("grid-cols-6");
+    expectBefore(membersList(), freeList());
+    expectBefore(freeList(), within(dialog()).getByTestId("party-join-code"));
   });
 
-  it("shows who holds a taken colour: avatar, name, Profile or Guest, Phone or Local mic", () => {
+  it("shows each member's avatar, name, Profile or Guest, and Phone or Local mic", () => {
     openPeople();
-    const lea_ = spotAt(11);
+    const lea_ = card("Lea");
     expect(within(lea_).getByRole("img", { name: "Lea" })).toBeVisible();
     expect(within(lea_).getByText("Profile")).toBeVisible();
     expect(within(lea_).getByText("Phone")).toBeVisible();
-    const bo_ = spotAt(1);
-    expect(within(bo_).getByText("Bo")).toBeVisible();
+    expect(lea_).toHaveAccessibleName("Lea");
+    const bo_ = card("Bo");
     expect(within(bo_).getByText("Guest")).toBeVisible();
     expect(within(bo_).getByText("Local mic")).toBeVisible();
     expect(
@@ -116,29 +122,61 @@ describe("People overlay", () => {
     ).toBeVisible();
   });
 
-  it("labels a free colour with its display name", () => {
+  it("tags a Party member in the Line-up as singing, with no remove control", () => {
     openPeople();
-    const navy = spotAt(2);
-    expect(navy).toHaveAccessibleName("Navy is free");
-    expect(within(navy).getByText("Navy is free")).toBeVisible();
-    expect(within(navy).queryByRole("button")).toBeNull();
-    expect(navy.querySelector("[data-free-ring]")).toHaveAttribute(
+    const kim_ = card("Kim");
+    expect(within(kim_).getByText("singing")).toBeVisible();
+    expect(within(kim_).queryByRole("button")).toBeNull();
+  });
+
+  it("shows the free colours as a compact row of named swatches, in palette order", () => {
+    openPeople();
+    expect(freeSwatches().map((s) => s.textContent)).toEqual([
+      "Navy",
+      "Cocoa",
+      "Teal",
+      "Lime",
+      "Berry",
+      "Mint",
+      "Bubblegum",
+      "Forest",
+      "Grape",
+    ]);
+    const navy = freeSwatches()[0];
+    expect(navy?.querySelector("[data-swatch]")).toHaveAttribute(
       "style",
       expect.stringContaining("--color-party-navy"),
     );
+    expect(within(freeList()).queryByRole("button")).toBeNull();
   });
 
-  it("tags a Party member in the Line-up as singing, with no remove control", () => {
-    openPeople();
-    const kim_ = spot("Kim");
-    expect(within(kim_).getByText("singing")).toBeVisible();
-    expect(within(kim_).queryByRole("button")).toBeNull();
+  it("with nobody in the Party, says so above the join card and offers all twelve colours", () => {
+    openPeople(party({ members: [] }));
+    expect(within(dialog()).getByText("0 of 12 colours taken")).toBeVisible();
+    const empty = within(dialog()).getByText("Nobody has joined yet");
+    expect(empty).toBeVisible();
+    expectBefore(empty, within(dialog()).getByTestId("party-join-code"));
+    expect(
+      within(dialog()).queryByRole("list", { name: "Party members" }),
+    ).toBeNull();
+    expect(freeSwatches()).toHaveLength(12);
+  });
+
+  it("with all twelve colours taken, shows twelve cards and no free colours", () => {
+    openPeople(fullParty());
+    expect(within(dialog()).getByText("12 of 12 colours taken")).toBeVisible();
+    expect(cards()).toHaveLength(12);
+    expect(cards().map((c) => c.dataset.colour)).toEqual([...PALETTE_KEYS]);
+    expect(
+      within(dialog()).queryByRole("list", { name: "Free colours" }),
+    ).toBeNull();
+    expect(within(dialog()).queryByText("Nobody has joined yet")).toBeNull();
   });
 
   it("removes a Party member after a hold, not on a click", () => {
     vi.useFakeTimers();
     const { sent } = openPeople();
-    const remove = within(spot("Bo")).getByRole("button", {
+    const remove = within(card("Bo")).getByRole("button", {
       name: "Hold to remove Bo",
     });
     act(() => {
@@ -152,27 +190,49 @@ describe("People overlay", () => {
   it("shows why a removal was refused", async () => {
     vi.useFakeTimers();
     const { reject } = openPeople();
-    hold(within(spot("Bo")).getByRole("button", { name: "Hold to remove Bo" }));
+    hold(within(card("Bo")).getByRole("button", { name: "Hold to remove Bo" }));
     reject({ code: "memberSinging" });
     await act(async () => {});
     expect(within(dialog()).getByRole("alert")).toBeVisible();
   });
 
-  it("frees the colour in the grid once the member has left", () => {
+  it("frees the colour once the member has left", () => {
     const { changeParty } = openPeople();
     changeParty(party({ members: [lea, kim] }));
-    expect(spotAt(1)).toHaveAccessibleName("Sky is free");
+    expect(cards()).toHaveLength(2);
+    expect(within(freeList()).getByText("Sky")).toBeVisible();
     expect(within(dialog()).getByText("2 of 12 colours taken")).toBeVisible();
   });
 
-  it("starts a New party after a hold; the grid and the join card show the new Party", () => {
+  it("styles New party as destructive and says what it clears", () => {
+    openPeople();
+    const button = within(dialog()).getByRole("button", { name: "New party" });
+    expect(button).toHaveClass("text-red", "ring-red");
+    expect(button).not.toHaveClass("bg-red");
+    expect(button).toHaveAccessibleDescription(
+      "Clears the Queue and the people, and makes a new Join code",
+    );
+    expect(
+      within(dialog()).getByText(
+        "Clears the Queue and the people, and makes a new Join code",
+      ),
+    ).toBeVisible();
+  });
+
+  it("starts a New party after a hold, not on a click; the cards and the join card show the new Party", () => {
     vi.useFakeTimers();
     const { sent, changeParty } = openPeople();
-    hold(within(dialog()).getByRole("button", { name: "New party" }));
+    const button = within(dialog()).getByRole("button", { name: "New party" });
+    act(() => {
+      fireEvent.click(button);
+    });
+    expect(sent).not.toContainEqual({ type: "newParty" });
+    hold(button);
     expect(sent).toContainEqual({ type: "newParty" });
     changeParty(party({ partyId: "p2", joinCode: "0427", members: [] }));
     expect(within(dialog()).getByText("0 of 12 colours taken")).toBeVisible();
-    expect(spots().every((s) => s.dataset.free === "true")).toBe(true);
+    expect(within(dialog()).getByText("Nobody has joined yet")).toBeVisible();
+    expect(freeSwatches()).toHaveLength(12);
     expect(within(dialog()).getByTestId("party-join-code")).toHaveTextContent(
       "0427",
     );
@@ -190,10 +250,10 @@ describe("People overlay", () => {
     ).toBeVisible();
   });
 
-  it("opens a Profile's page from its spot, and Esc goes back to the overlay", () => {
+  it("opens a Profile's page from its card, and Esc goes back to the overlay", () => {
     const { queries } = openPeople();
     queries.setQueryData(profileStatsQuery(7).queryKey, STATS_ADA);
-    const open = within(spot("Lea")).getByRole("button", {
+    const open = within(card("Lea")).getByRole("button", {
       name: "Open Lea's Profile page",
     });
     act(() => {
@@ -219,7 +279,7 @@ describe("People overlay", () => {
   it("offers no Profile page for a Guest", () => {
     openPeople();
     expect(
-      within(spot("Bo")).queryByRole("button", { name: /Profile page/ }),
+      within(card("Bo")).queryByRole("button", { name: /Profile page/ }),
     ).toBeNull();
   });
 

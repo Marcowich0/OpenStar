@@ -34,7 +34,7 @@ const HINT_MS = 2000;
 /** How many `holdTick` sounds a full hold makes, evenly from the press. */
 const HOLD_TICKS = 4;
 
-export type HoldButtonFill = "white" | "red" | "ink";
+export type HoldButtonFill = "white" | "red" | "ink" | "outline-red";
 
 const FILL_CLASSES: Record<HoldButtonFill, { button: string; fill: string }> = {
   white: { button: "bg-surface text-ink shadow-ledge", fill: "bg-ink/15" },
@@ -42,6 +42,11 @@ const FILL_CLASSES: Record<HoldButtonFill, { button: string; fill: string }> = {
   ink: {
     button: "bg-ink-fill text-white shadow-ledge-ink",
     fill: "bg-white/35",
+  },
+  /** Red on white with a red ring: a careful action that should not shout. */
+  "outline-red": {
+    button: "bg-surface text-red ring-2 ring-red ring-inset shadow-ledge-sm",
+    fill: "bg-red/20",
   },
 };
 
@@ -60,6 +65,8 @@ export interface HoldButtonProps {
   size?: keyof typeof SIZE_CLASSES;
   /** Names the button when its content is only an icon (the ×). */
   "aria-label"?: string;
+  /** The id of a line that says what the hold does ("Clears the Queue…"). */
+  "aria-describedby"?: string;
   /** Layout utilities for the wrapper (position, width). */
   className?: string;
   /** Greyed and shaking when pressed; `onHold` is never called. */
@@ -72,6 +79,7 @@ export function HoldButton({
   fill = "white",
   size = "medium",
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedBy,
   className = "",
   isDisabled = false,
 }: HoldButtonProps) {
@@ -182,6 +190,7 @@ export function HoldButton({
       <button
         type="button"
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         aria-disabled={isDisabled || undefined}
         data-holding={holding || undefined}
         data-shaking={shaking || undefined}

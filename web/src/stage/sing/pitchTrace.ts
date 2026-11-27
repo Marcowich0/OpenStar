@@ -226,6 +226,35 @@ const MISS_NARROW = {
 /** Lanes under this height get the narrow line and the small ball. */
 const NARROW_LANE = 130;
 
+/**
+ * A pitch line run's entry in lane `lane` (of height `laneHeight`, for the
+ * narrow-lane sizes), drawing `points`: the sing screen's line, and the pause
+ * menu legend's samples (#258). `inkEdge` is the theme's ink edge, as a share
+ * of Bubble Pop's (`TraceLane.inkEdge`).
+ */
+export function pitchLineEntry(
+  lane: number,
+  colour: PaletteKey,
+  laneHeight: number,
+  points: TracePoint[],
+  inkEdge = 1,
+): PitchLineEntry {
+  const narrow = laneHeight < NARROW_LANE;
+  const width = narrow ? 9 : 12;
+  return {
+    type: "pitchLine",
+    lane,
+    points,
+    hit: {
+      colour,
+      width,
+      edge: EDGE,
+      edgeWidth: width + EDGE_EXTRA * inkEdge,
+    },
+    miss: narrow ? MISS_NARROW : MISS_WIDE,
+  };
+}
+
 // Module scratch: the lane being traced. Set before each `forEachFrom`, so the
 // one visitor below needs no closure.
 let grid: BeatGrid = { gapSeconds: 0, beatsPerMinute: 1 };
@@ -290,20 +319,7 @@ function addPoint(songTime: number, beat: number, guessed: boolean) {
   };
   if (!run) {
     run = [];
-    const narrow = g.height < NARROW_LANE;
-    const width = narrow ? 9 : 12;
-    out.push({
-      type: "pitchLine",
-      lane: g.lane,
-      points: run,
-      hit: {
-        colour: g.colour,
-        width,
-        edge: EDGE,
-        edgeWidth: width + EDGE_EXTRA * g.inkEdge,
-      },
-      miss: narrow ? MISS_NARROW : MISS_WIDE,
-    } satisfies PitchLineEntry);
+    out.push(pitchLineEntry(g.lane, g.colour, g.height, run, g.inkEdge));
   }
   run.push(point);
 }

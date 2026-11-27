@@ -1,9 +1,9 @@
 // The join card (v1 spec #55, "Song browser and join card"): the QR code for
 // `<join address>/?join=<code>`, the Join code as four boxes, the address to
 // type and "Pick a song from your phone". When Phones can't reach a working
-// join address (plain http, or `localhost`) a warning stands in place of the
-// QR code. The song browser's card can hide to a small "Join · 4821" chip;
-// the choice lives in this browser's own storage, not in Party state. The
+// join address (plain http, or `localhost`) a notice stands in place of the
+// QR code: one friendly line, and what to set up folded "For the owner". The song browser's card can hide to a small "Join · 4821" chip
+// (`JoinChip.tsx`); the choice lives in this browser's own storage, not in Party state. The
 // song browser holds that choice itself (`useJoinCardHidden`), because it
 // keeps a lane clear for the card only while the card shows. The People
 // overlay shows the card with `hideable={false}`.
@@ -14,6 +14,8 @@ import { Button as AriaButton } from "react-aria-components";
 import { t } from "../../i18n/t";
 import type { JoinAddress } from "../../joinAddress";
 import { Icon } from "../../ui/Icon";
+import { OwnerFold } from "../../ui/OwnerFold";
+import { JoinChip } from "./JoinChip";
 import { QrCode } from "./QrCode";
 
 /** The `localStorage` key of the song browser's Hide choice. */
@@ -92,31 +94,14 @@ export function JoinCard({
 
   if (hidden) {
     return (
-      <div className={className}>
-        <AriaButton
-          aria-label={t("stage.joinCard.chip", { code: joinCode })}
-          onPress={() => {
-            hide(false);
-          }}
-          className="flex items-center gap-3 rounded-full bg-surface px-7 py-3 text-[34px] font-semibold text-ink shadow-ledge outline-none"
-        >
-          <span data-testid="party-join-code" className="sr-only">
-            {joinCode}
-          </span>
-          <span aria-hidden="true">
-            {t("stage.joinCard.chip", { code: joinCode })}
-          </span>
-          {join.warning !== "none" && (
-            <span
-              role="img"
-              aria-label={t("stage.joinCard.cantSing")}
-              className="flex size-10 items-center justify-center rounded-full bg-red text-white shadow-ledge-red"
-            >
-              <Icon name="lock" className="size-6" />
-            </span>
-          )}
-        </AriaButton>
-      </div>
+      <JoinChip
+        joinCode={joinCode}
+        warning={join.warning}
+        onPress={() => {
+          hide(false);
+        }}
+        className={className}
+      />
     );
   }
 
@@ -177,7 +162,11 @@ function CodeBoxes({ joinCode }: { joinCode: string }) {
   );
 }
 
-/** In place of the QR code: a white card, dashed red border, lock, why and how. */
+/**
+ * In place of the QR code: a calm cream notice with a lock, one friendly line
+ * for the guests (at least 24 px, readable from 3 m), and the owner's detail
+ * (what to set up) folded under "For the owner".
+ */
 function JoinWarning({
   warning,
   short,
@@ -188,15 +177,20 @@ function JoinWarning({
 }) {
   return (
     <div
-      className={`flex ${short ? "min-h-[200px]" : "min-h-[266px]"} w-[310px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-surface p-5 text-center leading-tight font-semibold text-warn-fg`}
+      data-join-warning=""
+      className={`flex ${short ? "min-h-[200px]" : "min-h-[266px]"} w-[310px] flex-col items-center justify-center gap-3 rounded-[28px] bg-cream p-5 text-center leading-tight text-ink shadow-[inset_0_0_0_3px_var(--color-passed)]`}
     >
-      <Icon name="lock" className="size-14" />
-      <p className="text-[24px]">{t("stage.joinCard.cantSing")}</p>
-      <p className="text-[17px] font-medium text-ink-2">
-        {warning === "localhost"
-          ? t("stage.joinCard.localhost")
-          : t("stage.joinCard.notHttps")}
+      <Icon name="lock" className="size-12 text-ink-2" />
+      <p className="text-[26px] font-semibold">
+        {t("stage.joinCard.needsSecureAddress")}
       </p>
+      <OwnerFold align="center" className="text-[20px]">
+        <p className="text-[18px] font-medium text-ink-2">
+          {warning === "localhost"
+            ? t("stage.joinCard.localhost")
+            : t("stage.joinCard.notHttps")}
+        </p>
+      </OwnerFold>
     </div>
   );
 }

@@ -2,10 +2,11 @@
 // the frozen sing screen and a white card headed "Paused". Resume (green, the
 // default focus) runs the 3-2-1 countdown; Restart, Skip and End need a hold.
 // Esc on the menu resumes: the menu is a Stage layer, and Esc dismisses the
-// top layer. The sing scene shows it whenever the Song is paused, whoever
+// top layer. "How to read the screen" opens the sing screen's legend (#258)
+// above the menu. The sing scene shows it whenever the Song is paused, whoever
 // paused it, and sends each choice through the server like any Remote.
 
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { t } from "../../../i18n/t";
 import { Button } from "../../../ui/Button";
@@ -14,6 +15,7 @@ import { Icon } from "../../../ui/Icon";
 import { ReferenceBox } from "../../frame/ReferenceBox";
 import { StageLayer } from "../../frame/stageFrameContext";
 import { ByInput } from "../../input/KeyHint";
+import { ScreenLegend } from "./ScreenLegend";
 
 export type PauseMenuControl = "resume" | "restart" | "skip" | "end";
 
@@ -23,6 +25,9 @@ export function PauseMenu({
   onControl: (control: PauseMenuControl) => void;
 }) {
   const titleId = useId();
+  // The "How to read the screen" card, a layer above the menu: Esc there
+  // closes only the card, and nothing is sent, so the Song stays paused.
+  const [legend, setLegend] = useState(false);
   return (
     <StageLayer
       onDismiss={() => {
@@ -82,6 +87,15 @@ export function PauseMenu({
               <Icon name="stop" />
               {t("stage.pause.end")}
             </HoldButton>
+            <Button
+              className="w-full"
+              onPress={() => {
+                setLegend(true);
+              }}
+            >
+              <Icon name="music" />
+              {t("stage.pause.legend")}
+            </Button>
             <p className="text-center text-xl text-ink-2">
               <ByInput
                 keys={t("stage.pause.hint")}
@@ -91,6 +105,13 @@ export function PauseMenu({
           </div>
         </div>
       </ReferenceBox>
+      {legend && (
+        <ScreenLegend
+          onClose={() => {
+            setLegend(false);
+          }}
+        />
+      )}
     </StageLayer>
   );
 }

@@ -53,11 +53,27 @@ export type CaptureStatus =
   /** The page may not read the microphone yet: device ids are hidden. */
   | "needsPermission"
   | "ready"
-  /** No `mediaDevices` (not a secure context) or the browser refused. */
+  /** The page cannot read its microphones: `unavailableCause` says why. */
   | "unavailable";
+
+/** Why the capture is `unavailable`, each with its own fix on the Mics screen. */
+export type UnavailableCause =
+  /** Not a secure context (plain http:// other than localhost): no `mediaDevices`. */
+  | "insecureContext"
+  /** A secure context without `mediaDevices`: the browser does not support it. */
+  | "noMediaDevices"
+  /** The browser, or the person, refused the microphone permission. */
+  | "permissionDenied"
+  /** There is no input device to ask for. */
+  | "noDevice";
 
 export interface CaptureSnapshot {
   status: CaptureStatus;
+  /**
+   * Why `status` is `unavailable`; missing for any other status, and for a
+   * refusal of no known kind.
+   */
+  unavailableCause?: UnavailableCause | undefined;
   devices: readonly BrowserDevice[];
   /** Open devices and the number of channels each opened with (1 or 2). */
   open: ReadonlyMap<string, number>;
@@ -156,14 +172,36 @@ function browserMediaDevices(): Devices | undefined {
   return "mediaDevices" in navigator ? navigator.mediaDevices : undefined;
 }
 
+/** The cause of a failed listing, from the `DOMException` the browser threw. */
+function refusalCause(error: unknown): UnavailableCause | undefined {
+  // A `DOMException` is not an `Error` in every environment.
+  const name =
+    typeof error === "object" && error !== null && "name" in error
+      ? error.name
+      : undefined;
+  switch (name) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "permissionDenied";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return "noDevice";
+    default:
+      return undefined;
+  }
+}
+
 export function createLocalMicCapture({
   mediaDevices = browserMediaDevices(),
+  secureContext = globalThis.isSecureContext,
   createContext = () => new AudioContext(),
   createPitchNode = createWorkletPitchNode,
   captureClock = loadCaptureClock,
   now = () => performance.now(),
 }: {
   mediaDevices?: Devices | undefined;
+  /** Whether the page is a secure context: tells apart why `mediaDevices` is missing. */
+  secureContext?: boolean;
   createContext?: () => AudioContext;
   createPitchNode?: CreatePitchNode;
   captureClock?: () => Promise<CaptureClock>;
@@ -172,6 +210,11 @@ export function createLocalMicCapture({
 } = {}): LocalMicCapture {
   let snapshot: CaptureSnapshot = {
     status: mediaDevices ? "idle" : "unavailable",
+    unavailableCause: mediaDevices
+      ? undefined
+      : secureContext
+        ? "noMediaDevices"
+        : "insecureContext",
     devices: [],
     open: new Map(),
   };
@@ -223,9 +266,13 @@ export function createLocalMicCapture({
         devices = browserInputDevices(await mediaDevices.enumerateDevices());
       }
       const hidden = devices.length === 0 && !askPermission;
-      update({ status: hidden ? "needsPermission" : "ready", devices });
-    } catch {
-      update({ status: "unavailable" });
+      update({
+        status: hidden ? "needsPermission" : "ready",
+        unavailableCause: undefined,
+        devices,
+      });
+    } catch (error) {
+      update({ status: "unavailable", unavailableCause: refusalCause(error) });
     }
   }
 

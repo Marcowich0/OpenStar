@@ -4,7 +4,7 @@
 // <name> off this Song". Every choice is one `editLineUp`; the sheet shows
 // what the server's next Party state says.
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import type { Difficulty } from "../../generated/Difficulty";
 import type { LineUpEdit } from "../../generated/LineUpEdit";
@@ -27,6 +27,9 @@ import { useLineUp } from "./useLineUp";
 const DIFFICULTIES = Object.keys(DIFFICULTY_NAME_KEYS) as Difficulty[];
 const VOICES: SeatVoice[] = ["p1", "p2"];
 
+/** A field the sheet opens at, for a Line-up warning's fix. */
+export type SeatSheetField = "mic" | "voice";
+
 export interface SeatSheetProps {
   store: LiveStore;
   myPhoneId: PhoneId;
@@ -35,6 +38,11 @@ export interface SeatSheetProps {
   /** Someone else now sits in the seat: the sheet follows the seat. */
   onSeated: (memberId: PartyMemberId) => void;
   onClose: () => void;
+  /**
+   * Opens at this field: the focus goes to its first choice that would
+   * change the seat (a warning's fix).
+   */
+  field?: SeatSheetField | null;
 }
 
 export function SeatSheet({
@@ -43,6 +51,7 @@ export function SeatSheet({
   seated,
   onSeated,
   onClose,
+  field = null,
 }: SeatSheetProps) {
   const data = useLineUp(store);
   const { lineUp, nameOf } = data;
@@ -106,6 +115,7 @@ export function SeatSheet({
           send={send}
           onSeated={onSeated}
           onClose={onClose}
+          field={field}
         />
       )}
     </Sheet>
@@ -121,6 +131,7 @@ function SeatBody({
   send,
   onSeated,
   onClose,
+  field,
 }: {
   data: ReturnType<typeof useLineUp>;
   myPhoneId: PhoneId;
@@ -130,9 +141,27 @@ function SeatBody({
   send: (edit: LineUpEdit, then?: () => void) => void;
   onSeated: (memberId: PartyMemberId) => void;
   onClose: () => void;
+  field: SeatSheetField | null;
 }) {
   const { party, lineUp, song, localMics, members, memberOf, lookOf, nameOf } =
     data;
+  const micsRef = useRef<HTMLDivElement>(null);
+  const voicesRef = useRef<HTMLDivElement>(null);
+  // Opened at a field: focus its first choice that changes the seat (an
+  // enabled one that is not the seat's now), else its first enabled one.
+  useEffect(() => {
+    const box =
+      field === "mic"
+        ? micsRef.current
+        : field === "voice"
+          ? voicesRef.current
+          : null;
+    (
+      box?.querySelector<HTMLElement>(
+        'button:enabled:not([aria-pressed="true"])',
+      ) ?? box?.querySelector<HTMLElement>("button:enabled")
+    )?.focus();
+  }, [field, index]);
   if (!party || !lineUp) return null;
   const look = lookOf(seat.memberId);
   const name = nameOf(seat.memberId);
@@ -209,7 +238,7 @@ function SeatBody({
       </Group>
 
       <Group label={t("stageTab.mic")}>
-        <div className="flex flex-col gap-2.5">
+        <div ref={micsRef} className="flex flex-col gap-2.5">
           {mics.map((option) => (
             <button
               key={
@@ -238,19 +267,21 @@ function SeatBody({
 
       {lineUp.duet && (
         <Group label={t("stageTab.voice")}>
-          <Segments>
-            {VOICES.map((voice) => (
-              <Segment
-                key={voice}
-                on={seat.voice === voice}
-                onPress={() => {
-                  send({ kind: "setVoice", seat: index, voice });
-                }}
-              >
-                {t("stageTab.voiceNumber", { voice: voiceNumber(voice) })}
-              </Segment>
-            ))}
-          </Segments>
+          <div ref={voicesRef} className="contents">
+            <Segments>
+              {VOICES.map((voice) => (
+                <Segment
+                  key={voice}
+                  on={seat.voice === voice}
+                  onPress={() => {
+                    send({ kind: "setVoice", seat: index, voice });
+                  }}
+                >
+                  {t("stageTab.voiceNumber", { voice: voiceNumber(voice) })}
+                </Segment>
+              ))}
+            </Segments>
+          </div>
         </Group>
       )}
 

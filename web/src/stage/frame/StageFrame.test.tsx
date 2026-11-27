@@ -211,7 +211,7 @@ describe("StageFrame overlays", () => {
     key("q");
     expect(overlay()).toHaveAccessibleName("Queue");
     key("P");
-    expect(overlay()).toHaveAccessibleName("Tonight's Party");
+    expect(overlay()).toHaveAccessibleName("People");
     expect(screen.getByText("2 of 12 colours taken")).toBeInTheDocument();
     key("p");
     expect(overlay()).toBeNull();
@@ -251,7 +251,7 @@ describe("StageFrame overlays", () => {
     act(() => {
       fireEvent.click(pills.getByRole("button", { name: "People 2" }));
     });
-    expect(overlay()).toHaveAccessibleName("Tonight's Party");
+    expect(overlay()).toHaveAccessibleName("People");
   });
 
   it("holds a Setup menu of Mics, Calibrate mics, Check A/V sync, Downloads and Options", () => {
@@ -280,6 +280,22 @@ describe("StageFrame overlays", () => {
     // The server holds the run: the overlay opens once it says so.
     expect(sent.at(-1)).toEqual({ type: "openCalibration" });
     expect(overlay()).toBeNull();
+  });
+
+  it("offers Add songs where the song browser isn't showing, and S opens Songs", () => {
+    const { changeParty } = setup();
+    const pills = within(screen.getByTestId("pill-row"));
+    // The song browser is the song list already: no pill duplicates it.
+    expect(pills.queryByRole("button", { name: "Add songs" })).toBeNull();
+    changeParty(party({ queue: [request(1)], head: 1 }));
+    act(() => {
+      fireEvent.click(pills.getByRole("button", { name: "Add songs" }));
+    });
+    expect(overlay()).toHaveAccessibleName("Songs");
+    key("s");
+    expect(overlay()).toBeNull();
+    key("s");
+    expect(overlay()).toHaveAccessibleName("Songs");
   });
 
   it("shows Setup on the song browser and the Line-up only", () => {
@@ -381,15 +397,14 @@ describe("StageFrame focus", () => {
   it("moves the one focus with the arrows to the nearest control that way", () => {
     setup();
     const browse = placeAt("Or browse songs here", 800, 800);
-    const songs = placeAt("Songs", 1200, 50);
-    const queue = placeAt("Queue 0", 1350, 50);
-    placeAt("People 0", 1500, 50);
-    placeAt("Setup", 1650, 50);
+    const queue = placeAt("Queue 0", 1200, 50);
+    const people = placeAt("People 0", 1350, 50);
+    placeAt("Setup", 1500, 50);
     expect(document.activeElement).toBe(browse);
     key("ArrowUp");
-    expect(document.activeElement).toBe(songs);
-    key("ArrowRight");
     expect(document.activeElement).toBe(queue);
+    key("ArrowRight");
+    expect(document.activeElement).toBe(people);
     key("ArrowDown");
     expect(document.activeElement).toBe(browse);
     key("ArrowDown");

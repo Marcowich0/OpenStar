@@ -44,6 +44,7 @@ import type { UsdbSort } from "../generated/UsdbSort";
 import type { UsdbState } from "../generated/UsdbState";
 import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
+import { OwnerFold } from "../ui/OwnerFold";
 import { Cover } from "../ui/Cover";
 import { Icon } from "../ui/Icon";
 import type { LiveStore } from "../live/liveStore";
@@ -59,11 +60,17 @@ function searchQuery(search: string, sort: UsdbSort): UsdbSearchQuery {
 export function Downloads({
   store,
   showTitle = true,
+  foldOwnerDetail = false,
 }: {
   /** The live store the list follows; the browser's own by default. */
   store?: LiveStore | undefined;
   /** Shows the section's heading; the Stage's overlay has its own. */
   showTitle?: boolean;
+  /**
+   * On the Stage: a USDB setup problem shows one friendly line, its variable
+   * names folded "For the owner". The Admin area shows them in full.
+   */
+  foldOwnerDetail?: boolean;
 } = {}) {
   const status = useQuery(usdbStatusQuery).data?.state;
   const mirror = useQuery(usdbMirrorQuery).data;
@@ -74,7 +81,13 @@ export function Downloads({
       title={t("admin.downloads")}
       showTitle={showTitle}
       writesLibrary
-      notices={<UsdbNotices status={status} mirror={mirror} />}
+      notices={
+        <UsdbNotices
+          status={status}
+          mirror={mirror}
+          foldOwnerDetail={foldOwnerDetail}
+        />
+      }
     >
       <div className="flex flex-col gap-4">
         <DownloadList store={store} />
@@ -108,12 +121,39 @@ interface UsdbProps {
   mirror: UsdbMirrorStatus | undefined;
 }
 
+const NOTICE =
+  "rounded-card-sm bg-warn-bg px-5 py-3 text-lg font-semibold text-warn-fg";
+
 function Notice({ children }: { children: string }) {
+  return <p className={NOTICE}>{children}</p>;
+}
+
+/** A setup problem on the Stage: one friendly line, the detail folded. */
+function FoldedNotice({ line, detail }: { line: string; detail: string }) {
   return (
-    <p className="rounded-card-sm bg-warn-bg px-5 py-3 text-lg font-semibold text-warn-fg">
-      {children}
-    </p>
+    <div className={`flex flex-col gap-2 ${NOTICE}`}>
+      <p>{line}</p>
+      <OwnerFold className="text-base">
+        <p className="text-lg font-medium">{detail}</p>
+      </OwnerFold>
+    </div>
   );
+}
+
+/** The Stage's friendly line for the login states whose text is for the owner. */
+function stageLine(status: UsdbState | undefined): string | null {
+  switch (status) {
+    case "credentialsMissing":
+      return t("admin.downloads.stage.notSetUp");
+    case "loginFailed":
+      return t("admin.downloads.stage.loginFailed");
+    case undefined:
+    case "loggedIn":
+    case "checking":
+    case "unreachable":
+    case "gaveUp":
+      return null;
+  }
 }
 
 function loginNotice(status: UsdbState | undefined): string | null {
@@ -134,12 +174,21 @@ function loginNotice(status: UsdbState | undefined): string | null {
   }
 }
 
-function UsdbNotices({ status, mirror }: UsdbProps) {
+function UsdbNotices({
+  status,
+  mirror,
+  foldOwnerDetail,
+}: UsdbProps & { foldOwnerDetail: boolean }) {
   const login = loginNotice(status);
+  const line = foldOwnerDetail ? stageLine(status) : null;
   const filling = mirror?.state.type === "filling" ? mirror.state : null;
   return (
     <>
-      {login === null ? null : <Notice>{login}</Notice>}
+      {login === null ? null : line === null ? (
+        <Notice>{login}</Notice>
+      ) : (
+        <FoldedNotice line={line} detail={login} />
+      )}
       {filling === null || mirror === undefined ? null : (
         <p
           role="status"

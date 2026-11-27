@@ -10,6 +10,10 @@
 //   same pad serves the Unlock (#185) and becoming the Stage (#186), which
 //   passes its own `check`.
 //
+// Only the veil fades in and out; the pad itself is opaque from its first
+// frame and only grows, so whatever is behind it (the Stage's heading) never
+// reads through it (#246).
+//
 // It lives outside `admin/` and `stage/` because both use it. Only one number
 // pad may be on screen at a time: it listens for keys on the whole page.
 
@@ -58,7 +62,7 @@ export function AdminPinDialog({
       isOpen={isOpen}
       onOpenChange={onOpenChange}
       isDismissable
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-veil p-4 transition-opacity duration-300 ease-spring data-entering:opacity-0 data-exiting:opacity-0"
+      className="fixed inset-0 z-dialog flex items-center justify-center overflow-y-auto bg-veil p-4 transition-colors duration-300 ease-spring data-entering:bg-transparent data-exiting:bg-transparent"
     >
       <Modal className="w-full max-w-md rounded-card bg-cream text-ink shadow-ledge-lg transition-transform duration-350 ease-spring data-entering:scale-90 data-exiting:scale-90">
         <AriaDialog

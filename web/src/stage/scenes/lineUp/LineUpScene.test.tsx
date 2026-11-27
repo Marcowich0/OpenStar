@@ -818,6 +818,100 @@ describe("warnings and Start", () => {
     expect(screen.queryByRole("menu", { name: "Who sings" })).toBeNull();
   });
 
+  it("gives 'has no mic' a Pick a mic button that opens that seat's Mic list", () => {
+    setup(invalid);
+    const jonas = within(seats()[1] as HTMLElement);
+    click(jonas.getByRole("button", { name: "Pick a mic" }));
+    expect(screen.getByRole("menu", { name: "Mic for Jonas" })).toBeVisible();
+  });
+
+  it("gives every other Mic problem the same Pick a mic button", () => {
+    setup(
+      party({
+        lineUp: lineUp({
+          warnings: [{ code: "micBlocked", params: { memberId: 1 } }],
+        }),
+      }),
+    );
+    const bo = within(seats()[0] as HTMLElement);
+    click(bo.getByRole("button", { name: "Pick a mic" }));
+    expect(screen.getByRole("menu", { name: "Mic for Bo" })).toBeVisible();
+  });
+
+  it("gives a missing Voice a Pick a voice button that takes the focus to the last seat's Voice", () => {
+    setup(invalid);
+    click(screen.getByRole("button", { name: "Pick a voice" }));
+    expect(
+      within(seats()[1] as HTMLElement).getByRole("button", { name: /Voice/ }),
+    ).toHaveFocus();
+  });
+
+  it("gives a lone duet singer's missing Voice an Add a singer button that opens its Who list", () => {
+    setup(
+      party({
+        lineUp: lineUp({
+          duet: true,
+          canStart: false,
+          seats: [seat(1, "ph-bo")],
+          warnings: [{ code: "duetNeedsVoice", params: { voice: "p2" } }],
+        }),
+      }),
+    );
+    const fix = screen
+      .getAllByRole("button", { name: "Add a singer" })
+      .find((button) => button.dataset.lineUpFix !== undefined);
+    click(fix as HTMLElement);
+    expect(screen.getByRole("menu", { name: "Who sings" })).toBeVisible();
+  });
+
+  it("moves the focus to the first warning's fix when the greyed Start is clicked", () => {
+    setup(invalid);
+    click(startButton());
+    expect(startButton()).toHaveAttribute("data-shaking", "true");
+    expect(
+      within(seats()[1] as HTMLElement).getByRole("button", {
+        name: "Pick a mic",
+      }),
+    ).toHaveFocus();
+  });
+
+  it("prefers the first fix of a warning that blocks Start", () => {
+    setup(
+      party({
+        lineUp: lineUp({
+          canStart: false,
+          seats: [seat(1, "ph-bo"), seat(3, null)],
+          warnings: [
+            { code: "notCalibrated", params: { memberId: 1 } },
+            { code: "noMic", params: { memberId: 3 } },
+          ],
+        }),
+      }),
+    );
+    click(startButton());
+    expect(
+      within(seats()[1] as HTMLElement).getByRole("button", {
+        name: "Pick a mic",
+      }),
+    ).toHaveFocus();
+  });
+
+  it("moves the focus to the first warning's fix on Enter on the greyed Start", () => {
+    setup(invalid);
+    act(() => {
+      startButton().focus();
+    });
+    press("Enter");
+    act(() => {
+      fireEvent.keyUp(startButton(), { key: "Enter" });
+    });
+    expect(
+      within(seats()[1] as HTMLElement).getByRole("button", {
+        name: "Pick a mic",
+      }),
+    ).toHaveFocus();
+  });
+
   it("does not start on Space while a pick list is open", () => {
     const { sent } = setup();
     click(screen.getByRole("button", { name: "Who: Bo" }));
@@ -945,7 +1039,12 @@ describe("+ Guest and + Profile", () => {
   const openForm = (entry: "+ Guest" | "+ Profile", whoButton = "Who: Mia") => {
     vi.spyOn(Math, "random").mockReturnValue(0);
     const result = setup(party(), [bo, profile(9, "Ann", 500)]);
-    click(screen.getByRole("button", { name: whoButton }));
+    // Focused first, as Enter on it would: the list gives the focus back to it.
+    const opener = screen.getByRole("button", { name: whoButton });
+    act(() => {
+      opener.focus();
+    });
+    click(opener);
     click(screen.getByRole("menuitem", { name: entry }));
     return result;
   };
@@ -1009,6 +1108,64 @@ describe("+ Guest and + Profile", () => {
     openForm("+ Profile");
     expect(within(pictures()).getAllByRole("radio")).toHaveLength(24);
     expect(checked(pictures())).toEqual(["Picture 1"]);
+  });
+
+  it("draws the pictures 72 px in the frame (48 px at 1280×800), in the chosen colour", () => {
+    openForm("+ Guest");
+    const drawn = () =>
+      within(pictures())
+        .getAllByRole("radio")
+        .map((radio) => radio.querySelector<HTMLElement>("[role=img]"));
+    const fills = () =>
+      drawn().map((img) => img?.querySelector("circle")?.style.fill);
+    for (const img of drawn()) expect(img?.style.width).toBe("72px");
+    expect(new Set(fills())).toEqual(new Set(["var(--color-party-cherry)"]));
+    press("ArrowDown");
+    press("ArrowRight");
+    expect(new Set(fills())).toEqual(new Set(["var(--color-party-navy)"]));
+    click(within(colours()).getByRole("radio", { name: "Teal" }));
+    expect(new Set(fills())).toEqual(new Set(["var(--color-party-teal)"]));
+  });
+
+  it("Cancel closes the form without adding anyone, back on 'Add a singer'", () => {
+    const { edits } = openForm("+ Guest", "Add a singer");
+    type("Noor");
+    click(within(list()).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(edits()).toEqual([]);
+    expect(screen.getByRole("button", { name: /Add a singer/ })).toHaveFocus();
+  });
+
+  it("Esc closes the form without adding anyone, back on 'Add a singer'", () => {
+    const { edits } = openForm("+ Profile", "Add a singer");
+    type("Noor");
+    press("Escape");
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(edits()).toEqual([]);
+    expect(screen.getByRole("button", { name: /Add a singer/ })).toHaveFocus();
+  });
+
+  it("reaches Cancel from OK with ←, and back with →", () => {
+    openForm("+ Guest");
+    press("ArrowDown");
+    press("ArrowDown");
+    press("ArrowDown");
+    expect(ok()).toHaveFocus();
+    press("ArrowLeft");
+    expect(
+      within(list()).getByRole("button", { name: "Cancel" }),
+    ).toHaveFocus();
+    // ↓ on the bottom row keeps the focus on Cancel; it never jumps to OK.
+    press("ArrowDown");
+    expect(
+      within(list()).getByRole("button", { name: "Cancel" }),
+    ).toHaveFocus();
+    press("ArrowUp");
+    expect(pictures()).toHaveFocus();
+    press("ArrowDown");
+    press("ArrowLeft");
+    press("ArrowRight");
+    expect(ok()).toHaveFocus();
   });
 
   it("steps each row with ← and →, and leaves it with ↑ and ↓", () => {

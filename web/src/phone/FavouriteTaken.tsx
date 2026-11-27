@@ -16,6 +16,7 @@ import { Button } from "../ui/Button";
 import { ColourPicker } from "./ColourPicker";
 import { colourChoices } from "./joinForm";
 import { editMemberColour } from "./joinRequests";
+import { BackButton } from "./BackButton";
 import { TopBar } from "./Logo";
 import { memberLook } from "./memberLook";
 
@@ -69,14 +70,11 @@ export function FavouriteTaken({ member, store, onDone }: FavouriteTakenProps) {
     return (
       <main className="flex min-h-dvh flex-col">
         <TopBar>
-          <Button
-            className="min-h-12 px-5 text-xl"
+          <BackButton
             onPress={() => {
               setPicking(false);
             }}
-          >
-            {t("join.back")}
-          </Button>
+          />
         </TopBar>
         <div className="flex flex-col gap-5 px-5 pb-8">
           <h1 className="text-4xl leading-tight font-bold">

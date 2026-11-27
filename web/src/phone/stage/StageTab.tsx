@@ -10,8 +10,9 @@
 // and this Phone's own meter and Mic threshold are on its mic takeover
 // (`../takeover/MicCheck.tsx`).
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import type { PartyMember } from "../../generated/PartyMember";
 import type { PartyMemberId } from "../../generated/PartyMemberId";
 import type { PhoneId } from "../../generated/PhoneId";
 import type { Seat } from "../../generated/Seat";
@@ -19,6 +20,7 @@ import { difficultyName, voiceNumber } from "../../i18n/seatNames";
 import { rankTitle } from "../../i18n/rankTitles";
 import { lineUpWarningText } from "../../i18n/serverText";
 import { t } from "../../i18n/t";
+import { blocksStart, lineUpFix, type LineUpFix } from "../../live/lineUpFixes";
 import type { LiveStore } from "../../live/liveStore";
 import { SEATS } from "../../live/seats";
 import { Avatar } from "../../ui/Avatar";
@@ -41,7 +43,7 @@ import { EmptyQueueCard, ResultsCard } from "../onStage/ResultsCard";
 import { VolumeControl } from "../onStage/VolumeControl";
 import { stageCard } from "../remoteFrame";
 import { editLineUp, startSong } from "./lineUpCommands";
-import { SeatSheet, Tag } from "./SeatSheet";
+import { SeatSheet, Tag, type SeatSheetField } from "./SeatSheet";
 import { StageOptionsButton } from "./StageOptionsSheet";
 import { myResult } from "./myResult";
 import { micName } from "./seatMics";
@@ -59,6 +61,9 @@ export function StageTab({
     data;
   // The sheet follows the member in the seat, so a move keeps it on the seat.
   const [open, setOpen] = useState<PartyMemberId | null>(null);
+  // The field the sheet opens at, for a warning's fix.
+  const [field, setField] = useState<SeatSheetField | null>(null);
+  const lineUpRef = useRef<HTMLElement>(null);
   const [adding, setAdding] = useState(false);
   const [starting, setStarting] = useState(false);
 
@@ -75,8 +80,61 @@ export function StageTab({
       who: { kind: "member", memberId },
     }).then((result) => {
       setAdding(false);
-      if (result.ok) setOpen(memberId);
+      if (result.ok) openSheet(memberId);
     });
+  }
+
+  function openSheet(
+    memberId: PartyMemberId,
+    at: SeatSheetField | null = null,
+  ) {
+    setField(at);
+    setOpen(memberId);
+  }
+
+  function runFix(fix: LineUpFix) {
+    if (!lineUp) return;
+    switch (fix.kind) {
+      case "pickMic":
+      case "pickVoice": {
+        const seat = lineUp.seats[fix.seat];
+        if (seat)
+          openSheet(seat.memberId, fix.kind === "pickMic" ? "mic" : "voice");
+        return;
+      }
+      case "addSinger":
+        addSinger();
+        return;
+      case "calibrate": {
+        const mic = lineUp.seats[fix.seat]?.mic;
+        if (mic) store.send({ type: "openCalibrationFor", mic });
+        return;
+      }
+    }
+  }
+
+  function fixLabel(fix: LineUpFix): string {
+    switch (fix.kind) {
+      case "pickMic":
+        return t("stageTab.pickMic");
+      case "pickVoice":
+        return t("stageTab.pickVoice");
+      case "addSinger":
+        return t("stageTab.addSinger");
+      case "calibrate":
+        return t("stage.overlay.calibrateMics");
+    }
+  }
+
+  // A press on the greyed Start shakes it and takes the focus to the
+  // first warning's fix, preferring one whose warning blocks Start.
+  function toFirstFix() {
+    if (!lineUp || lineUp.canStart) return;
+    const section = lineUpRef.current;
+    (
+      section?.querySelector<HTMLElement>('[data-line-up-fix="blocks"]') ??
+      section?.querySelector<HTMLElement>("[data-line-up-fix]")
+    )?.focus();
   }
 
   function start() {
@@ -149,7 +207,10 @@ export function StageTab({
       )}
       {state?.kind === "empty" && <EmptyQueueCard />}
       {lineUp && (
-        <section className="flex flex-col gap-2 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge">
+        <section
+          ref={lineUpRef}
+          className="flex flex-col gap-2 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge"
+        >
           <div className="mb-2 flex items-center gap-3">
             <Cover
               src={song?.media.cover ?? null}
@@ -191,7 +252,7 @@ export function StageTab({
                 <button
                   type="button"
                   onClick={() => {
-                    setOpen(seat.memberId);
+                    openSheet(seat.memberId);
                   }}
                   className="flex min-h-15 w-full cursor-pointer items-center gap-2.5 rounded-[20px] p-2.5 text-left outline-none focus-visible:outline-4 focus-visible:outline-yellow"
                 >
@@ -225,6 +286,7 @@ export function StageTab({
                     </p>
                     <button
                       type="button"
+                      data-line-up-fix="other"
                       onClick={() => {
                         store.send({ type: "openCalibrationFor", mic });
                       }}
@@ -251,14 +313,28 @@ export function StageTab({
           )}
 
           {listed.length > 0 && (
-            <ul className="flex flex-col gap-1 py-1 font-semibold text-yellow">
+            <ul className="flex flex-col gap-1.5 py-1 font-semibold text-yellow">
               {listed.map((warning) => {
                 const text = lineUpWarningText(
                   warning,
                   nameOf,
                   party?.localMics,
                 );
-                return <li key={text}>{text}</li>;
+                const fix = phoneFix(lineUpFix(warning, lineUp), free);
+                return (
+                  <li key={text} className="flex items-center gap-2.5">
+                    <span className="grow">{text}</span>
+                    {fix && (
+                      <FixButton
+                        label={fixLabel(fix)}
+                        blocks={blocksStart(warning)}
+                        onPress={() => {
+                          runFix(fix);
+                        }}
+                      />
+                    )}
+                  </li>
+                );
               })}
             </ul>
           )}
@@ -269,6 +345,7 @@ export function StageTab({
             breathing={lineUp.canStart}
             isDisabled={!lineUp.canStart || starting}
             onPress={start}
+            onDisabledPress={toFirstFix}
           >
             {t("stageTab.start")}
           </Button>
@@ -286,7 +363,46 @@ export function StageTab({
         onClose={() => {
           setOpen(null);
         }}
+        field={field}
       />
     </div>
   );
+}
+
+/**
+ * A warning's fix as a white pill. `data-line-up-fix` marks it for a press
+ * on the greyed Start, which moves the focus to the first one (the first
+ * of a warning that blocks Start, when there is one).
+ */
+function FixButton({
+  label,
+  blocks,
+  onPress,
+}: {
+  label: string;
+  blocks: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-line-up-fix={blocks ? "blocks" : "other"}
+      onClick={onPress}
+      className="min-h-11 shrink-0 cursor-pointer rounded-full bg-surface px-4 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+    >
+      {label}
+    </button>
+  );
+}
+
+/**
+ * A warning's fix as the Phone offers it: "Add a singer" seats the first
+ * Party member not seated yet, so with none free it would do nothing and
+ * is left out (the Stage's opens its Who list, which can add a Guest).
+ */
+function phoneFix(
+  fix: LineUpFix | null,
+  free: PartyMember | undefined,
+): LineUpFix | null {
+  return fix?.kind === "addSinger" && free === undefined ? null : fix;
 }

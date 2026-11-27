@@ -1,6 +1,7 @@
 // The way between the head's waiting Line-up and the song browser, so the
 // Stage's keyboard and mouse always reach the song browser while a Queue
-// waits. On the Line-up, a Browse songs pill in the top left; on the song
+// waits. On the Line-up, a ◀ Song browser pill in the top left (inside the
+// chrome's left lane, `chromeLanes.ts`); on the song
 // browser over a waiting Line-up, an Up next banner in the bottom left that
 // names the head's Song and goes back to its Line-up. `H` does either, in
 // the scene layer only and never while typing. The frame holds the choice
@@ -36,7 +37,12 @@ export function BrowseToggle() {
   if (browsing !== null) return <UpNextBanner head={browsing} />;
   if (scene !== "lineUp") return null;
   return (
-    <button type="button" className={PILL} onClick={browseSongs}>
+    <button
+      type="button"
+      data-testid="browse-songs"
+      className={PILL}
+      onClick={browseSongs}
+    >
       {t("stage.browse.songs")}
     </button>
   );

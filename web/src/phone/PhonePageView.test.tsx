@@ -659,6 +659,77 @@ describe("the New Profile and Guest form", () => {
     expect(storage.items.get("openstar.profileId")).toBe("9");
   });
 
+  it.each(["New Profile", "I'm a Guest"])(
+    "%s: the preview at the top shows the picture in the colour, with the name",
+    async (button) => {
+      await toWhosSinging(partyOf([guestMember(4, "Lukas", "cherry")]));
+      fireEvent.click(screen.getByRole("button", { name: button }));
+      const preview = screen.getByTestId("avatar-preview");
+      const disc = () => preview.querySelector("circle")?.style.fill;
+      const icon = () =>
+        [...preview.querySelectorAll("use")].map((use) =>
+          use.getAttribute("href"),
+        );
+
+      // Nothing typed yet: the first free colour, and a prompt for the name.
+      expect(preview).toHaveTextContent("Your name");
+      expect(disc()).toBe("var(--color-party-sky)");
+
+      typeName(" Mia ");
+      expect(preview).toHaveTextContent("Mia");
+      expect(preview).not.toHaveTextContent("Your name");
+
+      fireEvent.click(screen.getByRole("radio", { name: "Teal" }));
+      expect(disc()).toBe("var(--color-party-teal)");
+
+      fireEvent.click(screen.getByRole("radio", { name: "Picture 3" }));
+      expect(icon().some((href) => href?.endsWith("moon.svg#glyph"))).toBe(
+        true,
+      );
+    },
+  );
+
+  it("keeps Join in a bar stuck to the bottom, above the on-screen keyboard", async () => {
+    // The browser's visual viewport: the part of the page the keyboard
+    // leaves visible.
+    const viewport = Object.assign(new EventTarget(), {
+      height: window.innerHeight,
+      offsetTop: 0,
+    });
+    vi.stubGlobal("visualViewport", viewport);
+    await toWhosSinging(partyOf([]));
+    fireEvent.click(screen.getByRole("button", { name: "I'm a Guest" }));
+    typeName("Mia");
+    const bar = screen.getByTestId("join-bar");
+
+    expect(
+      within(bar).getByRole("button", { name: "Join as Mia" }),
+    ).toBeInTheDocument();
+    expect(bar).toHaveClass("sticky");
+    expect(bar.style.bottom).toBe("0px");
+
+    // The keyboard opens over the bottom 300 px; the bar rises above it.
+    act(() => {
+      viewport.height = window.innerHeight - 300;
+      viewport.dispatchEvent(new Event("resize"));
+    });
+    expect(bar.style.bottom).toBe("300px");
+
+    // Scrolled while it is open, the visible part moves down the page.
+    act(() => {
+      viewport.offsetTop = 120;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    expect(bar.style.bottom).toBe("180px");
+
+    act(() => {
+      viewport.height = window.innerHeight;
+      viewport.offsetTop = 0;
+      viewport.dispatchEvent(new Event("resize"));
+    });
+    expect(bar.style.bottom).toBe("0px");
+  });
+
   it("Back returns to Who's singing?", async () => {
     await toWhosSinging(partyOf([]));
     fireEvent.click(screen.getByRole("button", { name: "New Profile" }));

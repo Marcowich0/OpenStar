@@ -14,7 +14,7 @@ export type SceneId =
   "songBrowser" | "lineUp" | "sing" | "results" | "stageMoved";
 
 export interface SceneRules {
-  /** The pill row (Songs · Queue · People) in the top right. */
+  /** The pill row (Add songs · Queue · People) in the top right. */
   pillRow: boolean;
   /** The Setup pill in the pill row. */
   setup: boolean;
@@ -50,7 +50,7 @@ export function pickScene(stage: StageState | null): SceneId {
 /**
  * The scene the Stage shows, with its own "browsing" choice on top of the
  * server's: `browsing` is the head whose Line-up the Stage set aside for the
- * song browser (the Line-up's Browse songs, or `H`). It holds only while
+ * song browser (the Line-up's ◀ Song browser, or `H`). It holds only while
  * the server's scene is still that same head's Line-up. A Song that starts,
  * its results, Stage moved here, an empty Queue or a different head (a
  * Request removed, skipped or played next) all end it, so a Stage left on

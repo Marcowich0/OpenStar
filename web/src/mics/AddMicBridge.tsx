@@ -1,7 +1,8 @@
-// Add a Mic bridge on the Mics screen: a short guide, always shown, to set up
-// a bridge on the computer the interface is wired to. Run the one-line
-// install there (or download the binary and start it by hand, as on the
-// `/bridge` page), then approve the bridge here under New bridges.
+// Add a Mic bridge on the Mics screen: one line for whoever is at the TV, and
+// a short guide, folded "For the owner" (spec #241), to set up a bridge on the
+// computer the interface is wired to. Run the one-line install there (or
+// download the binary and start it by hand, as on the `/bridge` page), then
+// approve the bridge here under New bridges.
 
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -10,6 +11,7 @@ import { serverInfoQuery } from "../api/queries";
 import { InstallCommand } from "../bridge/InstallCommand";
 import { t } from "../i18n/t";
 import { joinAddress } from "../joinAddress";
+import { OwnerFold } from "../ui/OwnerFold";
 
 /** One numbered step of the guide. */
 function Step({ number, children }: { number: number; children: ReactNode }) {
@@ -45,35 +47,42 @@ export function AddMicBridge() {
         {t("mics.addBridge")}
       </h3>
       <div className="flex flex-col gap-6 rounded-card bg-surface px-8 py-6">
-        <p className="text-2xl text-ink-2">{t("bridge.intro")}</p>
-        <ol className="flex flex-col gap-6">
-          <Step number={1}>
-            <p>{t("bridge.install.run")}</p>
-            {join !== null && (
-              <>
-                <InstallCommand join={join} />
-                <div className="flex flex-col gap-2 text-ink-2">
-                  <p className="font-semibold text-ink">
-                    {t("bridge.download.title")}
-                  </p>
-                  <p>
-                    <a
-                      href="/bridge/openstar-mic-bridge"
-                      download
-                      className="font-semibold text-ink underline"
-                    >
-                      {t("bridge.download.binary")}
-                    </a>
-                  </p>
-                  <p>{t("bridge.download.run", { address: join.address })}</p>
-                </div>
-              </>
-            )}
-          </Step>
-          <Step number={2}>
-            <p>{t("bridge.install.approve")}</p>
-          </Step>
-        </ol>
+        <p className="text-2xl">{t("mics.addBridge.line")}</p>
+        <OwnerFold className="text-2xl">
+          <div className="flex flex-col gap-6 pt-2">
+            <p className="text-2xl text-ink-2">{t("bridge.intro")}</p>
+            <ol className="flex flex-col gap-6">
+              <Step number={1}>
+                <p>{t("bridge.install.run")}</p>
+                {join !== null && (
+                  <>
+                    <InstallCommand join={join} />
+                    <div className="flex flex-col gap-2 text-ink-2">
+                      <p className="font-semibold text-ink">
+                        {t("bridge.download.title")}
+                      </p>
+                      <p>
+                        <a
+                          href="/bridge/openstar-mic-bridge"
+                          download
+                          className="font-semibold text-ink underline"
+                        >
+                          {t("bridge.download.binary")}
+                        </a>
+                      </p>
+                      <p>
+                        {t("bridge.download.run", { address: join.address })}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </Step>
+              <Step number={2}>
+                <p>{t("bridge.install.approve")}</p>
+              </Step>
+            </ol>
+          </div>
+        </OwnerFold>
       </div>
     </section>
   );
