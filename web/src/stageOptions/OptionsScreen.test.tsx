@@ -170,7 +170,7 @@ describe("Setup › Options", () => {
   it("steps a number within its range", async () => {
     const s = await setup({
       ...defaultStageOptions(),
-      resumeCountdownSeconds: STAGE_OPTIONS.resumeCountdownMaxSeconds,
+      resumeCountdownSeconds: STAGE_OPTIONS.resumeCountdown.max,
     });
     openAdvanced("sound");
     const countdown = row("resumeCountdownSeconds");

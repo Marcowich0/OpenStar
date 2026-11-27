@@ -145,13 +145,107 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
             UserMessage::InvalidMessage
         );
     }
-    // A value Effects does not have does not read at all.
-    let response = put(&app, &serde_json::json!({ "effects": "loud" })).await;
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    // Nor does a Lyric size it does not have.
-    let response = put(&app, &serde_json::json!({ "lyricSize": "xxl" })).await;
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(read(&app).await, StageOptions::default());
+}
+
+#[tokio::test]
+async fn values_that_do_not_read_are_refused_like_values_out_of_range() {
+    let app = TestApp::start().await;
+    for refused in [
+        serde_json::json!({ "effects": "loud" }),
+        serde_json::json!({ "effects": 1 }),
+        serde_json::json!({ "lyricSize": "xxl" }),
+        serde_json::json!({ "theme": "pink" }),
+        serde_json::json!({ "startingDifficulty": "impossible" }),
+        serde_json::json!({ "showNextLine": "yes" }),
+        serde_json::json!({ "skipIntros": 1 }),
+        serde_json::json!({ "laneFrostingPercent": 300 }),
+        serde_json::json!({ "uiSoundsPercent": -10 }),
+        serde_json::json!({ "previewVolumePercent": 1000 }),
+        serde_json::json!({ "resumeCountdownSeconds": 2.5 }),
+        serde_json::json!(["not", "an", "object"]),
+    ] {
+        let response = put(&app, &refused).await;
+        assert_eq!(
+            response.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{refused}"
+        );
+        assert_eq!(
+            response.json::<UserMessage>().await.unwrap(),
+            UserMessage::InvalidMessage,
+            "{refused}"
+        );
+    }
+    assert_eq!(read(&app).await, StageOptions::default());
+}
+
+#[tokio::test]
+async fn each_option_is_kept_on_its_own() {
+    let app = TestApp::start().await;
+    let defaults = StageOptions::default();
+    for (body, expected) in [
+        (
+            serde_json::json!({ "lyricSize": "s" }),
+            StageOptions {
+                lyric_size: LyricSize::S,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "lyricSize": "xl" }),
+            StageOptions {
+                lyric_size: LyricSize::Xl,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "showNextLine": false }),
+            StageOptions {
+                show_next_line: false,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "laneFrostingPercent": 90 }),
+            StageOptions {
+                lane_frosting_percent: 90,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "theme": "highContrast" }),
+            StageOptions {
+                theme: Theme::HighContrast,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "uiSoundsPercent": 100 }),
+            StageOptions {
+                ui_sounds_percent: 100,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "effects": "calm" }),
+            StageOptions {
+                effects: Effects::Calm,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "skipIntros": true }),
+            StageOptions {
+                skip_intros: true,
+                ..defaults.clone()
+            },
+        ),
+    ] {
+        let response = put(&app, &body).await;
+        assert_eq!(response.status(), StatusCode::OK, "{body}");
+        assert_eq!(read(&app).await, expected, "{body}");
+    }
 }
 
 #[tokio::test]
@@ -173,14 +267,6 @@ async fn a_v1_set_reads_with_the_new_options_at_their_defaults() {
             ..StageOptions::default()
         }
     );
-}
-
-#[tokio::test]
-async fn an_unknown_theme_is_refused_and_nothing_changes() {
-    let app = TestApp::start().await;
-    let response = put(&app, &serde_json::json!({ "theme": "pink" })).await;
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
-    assert_eq!(read(&app).await, StageOptions::default());
 }
 
 #[tokio::test]

@@ -46,14 +46,27 @@ describe("the Stage options", () => {
         theme: variant("THEME_DEFAULT", "Theme"),
         uiSoundsPercent: number("UI_SOUNDS_DEFAULT_PERCENT"),
       },
-      resumeCountdownMaxSeconds: number("RESUME_COUNTDOWN_MAX_SECONDS"),
-      previewVolumeStepPercent: number("PREVIEW_VOLUME_STEP_PERCENT"),
+      // Seconds and percentages start at 0; the percentages end at 100.
+      resumeCountdown: {
+        min: 0,
+        max: number("RESUME_COUNTDOWN_MAX_SECONDS"),
+        step: 1,
+      },
+      previewVolume: {
+        min: 0,
+        max: 100,
+        step: number("PREVIEW_VOLUME_STEP_PERCENT"),
+      },
       laneFrosting: {
         min: number("LANE_FROSTING_MIN_PERCENT"),
         max: number("LANE_FROSTING_MAX_PERCENT"),
         step: number("LANE_FROSTING_STEP_PERCENT"),
       },
-      uiSoundsStepPercent: number("UI_SOUNDS_STEP_PERCENT"),
+      uiSounds: {
+        min: 0,
+        max: 100,
+        step: number("UI_SOUNDS_STEP_PERCENT"),
+      },
     });
   });
 });

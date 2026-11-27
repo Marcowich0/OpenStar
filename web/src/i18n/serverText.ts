@@ -15,7 +15,7 @@ import type { TxtRejection } from "../generated/TxtRejection";
 import type { TxtWarning } from "../generated/TxtWarning";
 import type { UserMessage } from "../generated/UserMessage";
 import { localMicName } from "../mics/localMics";
-import { changedOptionName } from "../stageOptions/OptionsList";
+import { changedOptionName } from "../stageOptions/optionNames";
 import { colourName } from "./colourNames";
 import { difficultyName, voiceNumber } from "./seatNames";
 import { t } from "./t";

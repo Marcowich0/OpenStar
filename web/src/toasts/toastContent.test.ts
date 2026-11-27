@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { StageOptionKey } from "../generated/StageOptionKey";
 import type { PartyEvent } from "../generated/PartyEvent";
 import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { Profile } from "../generated/Profile";
@@ -129,19 +130,28 @@ describe("a toast's content", () => {
   });
 
   it("says who changed which Stage option, by the option's name", () => {
-    const changed = (options: string[]) =>
+    const changed = (options: StageOptionKey[]) =>
       byMember(2, { code: "stageOptionsChanged", params: { options } });
     expect(text(changed(["effects"]))).toBe("Mia changed Effects");
     expect(text(changed(["previewVolumePercent"]))).toBe(
       "Mia changed Preview volume",
     );
-    // More than one, or one this build has no row for: the Options.
+    expect(text(changed(["lyricSize"]))).toBe("Mia changed Lyric size");
+    expect(text(changed(["theme"]))).toBe("Mia changed Theme");
+    // More than one: the Options.
     expect(text(changed(["effects", "songVideo"]))).toBe(
       "Mia changed the Options",
     );
-    expect(text(changed(["lyricSizeFromTheFuture"]))).toBe(
-      "Mia changed the Options",
-    );
+    expect(
+      toastContent(changed(["effects", "songVideo"]), party, profiles, 2)
+        .parts.map((part) => part.text)
+        .join(""),
+    ).toBe("You changed the Options");
+    expect(
+      toastContent(changed(["effects", "songVideo"]), null, profiles)
+        .parts.map((part) => part.text)
+        .join(""),
+    ).toBe("The Options changed");
     expect(toastContent(changed(["effects"]), party, profiles).actor).toEqual({
       name: "Mia",
       avatar: { kind: "builtIn", key: "heart" },

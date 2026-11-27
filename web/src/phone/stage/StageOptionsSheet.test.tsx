@@ -64,9 +64,10 @@ describe("the Stage options on a Phone", () => {
       );
     });
     fireEvent.click(sheet.getByRole("switch", { name: "Line ratings" }));
+    // Only what changed, so another device's change in between is kept.
     expect(sent).toContainEqual({
       type: "setStageOptions",
-      options: { ...kept, lineRatings: false },
+      options: { lineRatings: false },
     });
     // Shown before the server's change notice.
     await waitFor(() => {
@@ -79,7 +80,73 @@ describe("the Stage options on a Phone", () => {
     );
     expect(sent).toContainEqual({
       type: "setStageOptions",
-      options: { ...kept, lineRatings: false, songVideo: true },
+      options: { songVideo: true },
+    });
+  });
+
+  it("says a refused change was not saved and shows the kept options again", async () => {
+    let fetches = 0;
+    stubFetchWith((url) => {
+      if (url.pathname !== "/api/stage-options") return undefined;
+      fetches += 1;
+      return Response.json(kept);
+    });
+    const { sent, server } = renderTab();
+    const sheet = await openOptions();
+    const lineRatings = () =>
+      sheet.getByRole("switch", { name: "Line ratings" });
+    await waitFor(() => {
+      expect(sheet.getByRole("switch", { name: "Song video" })).toHaveAttribute(
+        "aria-checked",
+        "false",
+      );
+    });
+    const fetchesBefore = fetches;
+    fireEvent.click(lineRatings());
+    await waitFor(() => {
+      expect(lineRatings()).toHaveAttribute("aria-checked", "false");
+    });
+    // The command, then a ping: the server answers in order, so a refusal
+    // before the pong is this change's.
+    const ping = sent.at(-1);
+    expect(ping).toMatchObject({ type: "ping" });
+    expect(sent.at(-2)).toMatchObject({ type: "setStageOptions" });
+    server(
+      { type: "rejected", reason: { code: "invalidMessage" } },
+      {
+        type: "pong",
+        nonce: ping?.type === "ping" ? ping.nonce : -1,
+      },
+    );
+    expect(await sheet.findByRole("alert")).toHaveTextContent(
+      "Couldn't save the options. Try again.",
+    );
+    await waitFor(() => {
+      expect(fetches).toBeGreaterThan(fetchesBefore);
+    });
+    await waitFor(() => {
+      expect(lineRatings()).toHaveAttribute("aria-checked", "true");
+    });
+  });
+
+  it("clears the alert once a change is answered without a refusal", async () => {
+    const { sent, server } = renderTab();
+    const sheet = await openOptions();
+    const pong = () => {
+      const ping = sent.at(-1);
+      server({
+        type: "pong",
+        nonce: ping?.type === "ping" ? ping.nonce : -1,
+      });
+    };
+    fireEvent.click(sheet.getByRole("switch", { name: "Line ratings" }));
+    server({ type: "rejected", reason: { code: "invalidMessage" } });
+    pong();
+    expect(await sheet.findByRole("alert")).toBeInTheDocument();
+    fireEvent.click(sheet.getByRole("switch", { name: "Song video" }));
+    pong();
+    await waitFor(() => {
+      expect(sheet.queryByRole("alert")).toBeNull();
     });
   });
 

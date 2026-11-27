@@ -43,12 +43,14 @@ export const STAGE_OPTIONS = {
     theme: "bubblePop",
     uiSoundsPercent: 60,
   } satisfies StageOptions,
-  resumeCountdownMaxSeconds: 5,
-  previewVolumeStepPercent: 10,
+  /** 0 (plays on at once) to 5 seconds. */
+  resumeCountdown: { min: 0, max: 5, step: 1 },
+  /** 0 to 100 % of the Song's level in 10s. */
+  previewVolume: { min: 0, max: 100, step: 10 },
   /** 40 to 90 % in 10s; the default, 66, is off the steps. */
   laneFrosting: { min: 40, max: 90, step: 10 },
   /** The UI and game sounds, 0 (off) to 100 % in 10s. */
-  uiSoundsStepPercent: 10,
+  uiSounds: { min: 0, max: 100, step: 10 },
 } as const;
 
 /** The defaults, as a fresh `StageOptions`. */

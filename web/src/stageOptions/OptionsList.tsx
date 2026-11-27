@@ -6,9 +6,9 @@
 // Phone render the same list. Every control is a button, so the Stage's
 // arrow keys reach them all.
 //
-// To add an option: its field (`stageOptions.ts`), its texts (`en.ts`), then
-// one `switchRow`, `choiceRow` or `stepperRow` line in `rows` or `advanced`
-// of its group in `OPTION_GROUPS`. A group with no rows is not shown.
+// To add an option: its field (`stageOptions.ts`), its texts (`en.ts`), its
+// name (`optionNames.ts`), then one `switchRow`, `choiceRow` or `stepperRow`
+// line in `rows` or `advanced` of its group in `OPTION_GROUPS`.
 //
 // One row is not a Stage option: the OpenStar volume under Sound (#270). It
 // is live state the server keeps per Stage output and moves in steps of 5,
@@ -32,9 +32,9 @@ import type { Effects } from "../generated/Effects";
 import type { OpenStarVolume } from "../live/useOpenStarVolume";
 import { OPENSTAR_VOLUME } from "../playback/gain";
 import { THEME_NAMES } from "../theme/themes";
-import { t, type ArgsOf, type MessageKey } from "../i18n/t";
-import type { en } from "../i18n/en";
+import { t } from "../i18n/t";
 import { Icon } from "../ui/Icon";
+import { OPTION_NAMES, type PlainKey } from "./optionNames";
 import { STAGE_OPTIONS, type StageOptions } from "./stageOptions";
 
 type OptionKey = keyof StageOptions;
@@ -44,11 +44,6 @@ type OnChange = (change: Partial<StageOptions>) => void;
 type KeysOf<V> = {
   [K in OptionKey]: StageOptions[K] extends V ? K : never;
 }[OptionKey];
-
-/** A catalogue key that takes no parameters (a row's name or help). */
-type PlainKey = {
-  [K in MessageKey]: ArgsOf<(typeof en)[K]> extends [] ? K : never;
-}[MessageKey];
 
 /** One option's row, ready to render against the current options. */
 export interface OptionRowDef {
@@ -95,11 +90,8 @@ const OFF = "bg-surface text-ink-2 shadow-ledge-sm";
 const onOffText = (on: boolean) => (on ? t("options.on") : t("options.off"));
 
 /** An on-or-off option. */
-function switchRow(
-  key: KeysOf<boolean>,
-  name: PlainKey,
-  help: PlainKey,
-): OptionRowDef {
+function switchRow(key: KeysOf<boolean>, help: PlainKey): OptionRowDef {
+  const name: PlainKey = OPTION_NAMES[key];
   return {
     key,
     name,
@@ -120,11 +112,11 @@ function switchRow(
 /** An option of a few values, each its own pill. */
 function choiceRow<K extends KeysOf<string>>(
   key: K,
-  name: PlainKey,
   help: PlainKey,
   values: readonly StageOptions[K][],
   text: (value: StageOptions[K]) => string,
 ): OptionRowDef {
+  const name: PlainKey = OPTION_NAMES[key];
   return {
     key,
     name,
@@ -148,11 +140,11 @@ function choiceRow<K extends KeysOf<string>>(
 /** A number within `min`..`max`, moved by `step`. */
 function stepperRow(
   key: KeysOf<number>,
-  name: PlainKey,
   help: PlainKey,
   range: { min: number; max: number; step: number },
   text: (value: number) => string,
 ): OptionRowDef {
+  const name: PlainKey = OPTION_NAMES[key];
   return {
     key,
     name,
@@ -184,7 +176,6 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
     rows: [
       choiceRow(
         "startingDifficulty",
-        "options.startingDifficulty",
         "options.startingDifficulty.help",
         DIFFICULTIES,
         (value) => t(`difficulty.${value}`),
@@ -196,18 +187,13 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
     id: "look",
     title: "options.group.look",
     rows: [
-      choiceRow(
-        "theme",
-        "options.theme",
-        "options.theme.help",
-        THEME_NAMES,
-        (theme) => t(`options.theme.${theme}`),
+      choiceRow("theme", "options.theme.help", THEME_NAMES, (theme) =>
+        t(`options.theme.${theme}`),
       ),
     ],
     advanced: [
       stepperRow(
         "laneFrostingPercent",
-        "options.laneFrosting",
         "options.laneFrosting.help",
         STAGE_OPTIONS.laneFrosting,
         (percent) => t("options.laneFrosting.value", { percent }),
@@ -218,35 +204,17 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
     id: "singScreen",
     title: "options.group.singScreen",
     rows: [
-      choiceRow(
-        "lyricSize",
-        "options.lyricSize",
-        "options.lyricSize.help",
-        LYRIC_SIZES,
-        (size) => t(`options.lyricSize.${size}`),
+      switchRow("lineRatings", "options.lineRatings.help"),
+      choiceRow("effects", "options.effects.help", EFFECTS_VALUES, (value) =>
+        t(`options.effects.${value}`),
       ),
-      switchRow(
-        "lineRatings",
-        "options.lineRatings",
-        "options.lineRatings.help",
-      ),
-      choiceRow(
-        "effects",
-        "options.effects",
-        "options.effects.help",
-        EFFECTS_VALUES,
-        (value) => t(`options.effects.${value}`),
-      ),
-      switchRow("songVideo", "options.songVideo", "options.songVideo.help"),
-      switchRow("skipIntros", "options.skipIntros", "options.skipIntros.help"),
-    ],
-    advanced: [
-      switchRow(
-        "showNextLine",
-        "options.showNextLine",
-        "options.showNextLine.help",
+      switchRow("songVideo", "options.songVideo.help"),
+      switchRow("skipIntros", "options.skipIntros.help"),
+      choiceRow("lyricSize", "options.lyricSize.help", LYRIC_SIZES, (size) =>
+        t(`options.lyricSize.${size}`),
       ),
     ],
+    advanced: [switchRow("showNextLine", "options.showNextLine.help")],
   },
   {
     id: "sound",
@@ -259,9 +227,8 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
       },
       stepperRow(
         "uiSoundsPercent",
-        "options.uiSounds",
         "options.uiSounds.help",
-        { min: 0, max: 100, step: STAGE_OPTIONS.uiSoundsStepPercent },
+        STAGE_OPTIONS.uiSounds,
         (percent) =>
           percent === 0
             ? t("options.off")
@@ -269,38 +236,21 @@ export const OPTION_GROUPS: readonly OptionGroupDef[] = [
       ),
       stepperRow(
         "previewVolumePercent",
-        "options.previewVolume",
         "options.previewVolume.help",
-        { min: 0, max: 100, step: STAGE_OPTIONS.previewVolumeStepPercent },
+        STAGE_OPTIONS.previewVolume,
         (percent) => t("options.previewVolume.value", { percent }),
       ),
     ],
     advanced: [
       stepperRow(
         "resumeCountdownSeconds",
-        "options.resumeCountdown",
         "options.resumeCountdown.help",
-        { min: 0, max: STAGE_OPTIONS.resumeCountdownMaxSeconds, step: 1 },
+        STAGE_OPTIONS.resumeCountdown,
         (count) => t("options.resumeCountdown.value", { count }),
       ),
     ],
   },
 ];
-
-/**
- * The shown name of the one option a change names (`stageOptionsChanged`:
- * field names, as sent), or `null` for several, or for one with no row in
- * this build: the toast then says "the Options".
- */
-export function changedOptionName(options: readonly string[]): string | null {
-  const [only] = options;
-  if (options.length !== 1 || only === undefined) return null;
-  const row = OPTION_GROUPS.flatMap((group) => [
-    ...group.rows,
-    ...group.advanced,
-  ]).find((def) => def.key === only);
-  return row ? t(row.name) : null;
-}
 
 export interface OptionsListProps {
   options: StageOptions;
@@ -313,8 +263,6 @@ export interface OptionsListProps {
   openStarVolume?: OpenStarVolume | undefined;
   /** The Phone's smaller list, for one hand on a 390 px wide screen. */
   compact?: boolean;
-  /** Tests only: the groups to show. */
-  groups?: readonly OptionGroupDef[];
 }
 
 /** The Stage options in their groups. */
@@ -323,21 +271,18 @@ export function OptionsList({
   onChange,
   openStarVolume,
   compact = false,
-  groups = OPTION_GROUPS,
 }: OptionsListProps) {
   return (
     <Compact.Provider value={compact}>
-      {groups
-        .filter((group) => group.rows.length + group.advanced.length > 0)
-        .map((group) => (
-          <OptionGroup
-            key={group.id}
-            group={group}
-            options={options}
-            onChange={onChange}
-            openStarVolume={openStarVolume}
-          />
-        ))}
+      {OPTION_GROUPS.map((group) => (
+        <OptionGroup
+          key={group.id}
+          group={group}
+          options={options}
+          onChange={onChange}
+          openStarVolume={openStarVolume}
+        />
+      ))}
     </Compact.Provider>
   );
 }

@@ -2,11 +2,14 @@
 //! WebSocket with no Admin PIN, they are kept like a `PUT`, every browser
 //! gets the change notice, and the Party change names the Phone's member and
 //! the options it changed, so the Stage toasts "Bo changed Effects". A
-//! connection not in the Party and values out of range are refused, and
-//! nothing changes.
+//! Phone sends only the options it changed, so two devices changing
+//! different options keep both. A connection not in the Party and values
+//! out of range are refused, and nothing changes.
 
 use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
-use openstar_protocol::stage_options::{Effects, StageOptions};
+use openstar_protocol::stage_options::{
+    Effects, LyricSize, StageOptionKey, StageOptions, StageOptionsChange, Theme,
+};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, JoinAs, JoinCode, NewGuest, PartyEvent,
     PhoneId, ServerMessage, UserMessage,
@@ -89,13 +92,12 @@ async fn a_phone_sets_them_and_the_stage_hears_who_changed_what() {
         }
     };
 
-    let options = StageOptions {
-        effects: Effects::Off,
-        ..StageOptions::default()
-    };
     phone
         .send(&ClientMessage::SetStageOptions {
-            options: options.clone(),
+            options: StageOptionsChange {
+                effects: Some(Effects::Off),
+                ..StageOptionsChange::default()
+            },
         })
         .await;
 
@@ -112,11 +114,17 @@ async fn a_phone_sets_them_and_the_stage_hears_who_changed_what() {
         ChangeEvent {
             actor: Actor::Member { member_id },
             event: PartyEvent::StageOptionsChanged {
-                options: vec!["effects".into()],
+                options: vec![StageOptionKey::Effects],
             },
         }
     );
-    assert_eq!(read(&app).await, options);
+    assert_eq!(
+        read(&app).await,
+        StageOptions {
+            effects: Effects::Off,
+            ..StageOptions::default()
+        }
+    );
 }
 
 #[tokio::test]
@@ -126,10 +134,13 @@ async fn the_change_names_every_option_that_changed() {
     let mut phone = joined_phone(&app, &code).await;
     phone
         .send(&ClientMessage::SetStageOptions {
-            options: StageOptions {
-                line_ratings: false,
-                preview_volume_percent: 50,
-                ..StageOptions::default()
+            options: StageOptionsChange {
+                line_ratings: Some(false),
+                // Named but unchanged: not in the change.
+                effects: Some(Effects::Full),
+                preview_volume_percent: Some(50),
+                theme: Some(Theme::HighContrast),
+                ..StageOptionsChange::default()
             },
         })
         .await;
@@ -137,7 +148,52 @@ async fn the_change_names_every_option_that_changed() {
     else {
         unreachable!()
     };
-    assert_eq!(options, vec!["lineRatings", "previewVolumePercent"]);
+    assert_eq!(
+        options,
+        vec![
+            StageOptionKey::LineRatings,
+            StageOptionKey::PreviewVolumePercent,
+            StageOptionKey::Theme,
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_change_keeps_the_options_it_does_not_name() {
+    let app = TestApp::start().await;
+    let (mut stage, code) = open_stage(&app).await;
+    let mut phone = joined_phone(&app, &code).await;
+    // Another device changes the Lyric size while this Phone's sheet is open
+    // on the old set.
+    let response = app
+        .http()
+        .put(app.url("/api/stage-options"))
+        .json(&serde_json::json!({ "lyricSize": "xl" }))
+        .send()
+        .await
+        .unwrap();
+    assert!(response.status().is_success());
+    phone
+        .send(&ClientMessage::SetStageOptions {
+            options: StageOptionsChange {
+                show_next_line: Some(false),
+                ..StageOptionsChange::default()
+            },
+        })
+        .await;
+    let PartyEvent::StageOptionsChanged { options } = next_options_change(&mut stage).await.event
+    else {
+        unreachable!()
+    };
+    assert_eq!(options, vec![StageOptionKey::ShowNextLine]);
+    assert_eq!(
+        read(&app).await,
+        StageOptions {
+            lyric_size: LyricSize::Xl,
+            show_next_line: false,
+            ..StageOptions::default()
+        }
+    );
 }
 
 #[tokio::test]
@@ -147,7 +203,10 @@ async fn the_same_options_again_change_nothing_and_toast_nothing() {
     let mut phone = joined_phone(&app, &code).await;
     phone
         .send(&ClientMessage::SetStageOptions {
-            options: StageOptions::default(),
+            options: StageOptionsChange {
+                effects: Some(Effects::Full),
+                ..StageOptionsChange::default()
+            },
         })
         .await;
     phone.send(&ClientMessage::Ping { nonce: 9 }).await;
@@ -173,9 +232,9 @@ async fn a_connection_not_in_the_party_is_refused() {
     let mut stranger = app.connect_ws().await;
     stranger
         .send(&ClientMessage::SetStageOptions {
-            options: StageOptions {
-                effects: Effects::Off,
-                ..StageOptions::default()
+            options: StageOptionsChange {
+                effects: Some(Effects::Off),
+                ..StageOptionsChange::default()
             },
         })
         .await;
@@ -188,14 +247,47 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
     let app = TestApp::start().await;
     let (_stage, code) = open_stage(&app).await;
     let mut phone = joined_phone(&app, &code).await;
-    phone
-        .send(&ClientMessage::SetStageOptions {
-            options: StageOptions {
-                preview_volume_percent: 45,
-                ..StageOptions::default()
-            },
-        })
-        .await;
-    assert_eq!(next_refusal(&mut phone).await, UserMessage::InvalidMessage);
+    for refused in [
+        StageOptionsChange {
+            preview_volume_percent: Some(45),
+            ..StageOptionsChange::default()
+        },
+        StageOptionsChange {
+            lane_frosting_percent: Some(35),
+            ..StageOptionsChange::default()
+        },
+        // One value out of range refuses the whole change.
+        StageOptionsChange {
+            show_next_line: Some(false),
+            ui_sounds_percent: Some(55),
+            ..StageOptionsChange::default()
+        },
+    ] {
+        phone
+            .send(&ClientMessage::SetStageOptions { options: refused })
+            .await;
+        assert_eq!(next_refusal(&mut phone).await, UserMessage::InvalidMessage);
+    }
+    assert_eq!(read(&app).await, StageOptions::default());
+}
+
+#[tokio::test]
+async fn values_that_do_not_read_are_refused_and_nothing_changes() {
+    let app = TestApp::start().await;
+    let (_stage, code) = open_stage(&app).await;
+    let mut phone = joined_phone(&app, &code).await;
+    for refused in [
+        r#"{"type":"setStageOptions","options":{"theme":"pink"}}"#,
+        r#"{"type":"setStageOptions","options":{"lyricSize":"xxl"}}"#,
+        r#"{"type":"setStageOptions","options":{"showNextLine":"no"}}"#,
+        r#"{"type":"setStageOptions","options":{"laneFrostingPercent":300}}"#,
+    ] {
+        phone.send_text(refused).await;
+        assert_eq!(
+            next_refusal(&mut phone).await,
+            UserMessage::InvalidMessage,
+            "{refused}"
+        );
+    }
     assert_eq!(read(&app).await, StageOptions::default());
 }

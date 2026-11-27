@@ -3,12 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { VolumeStep } from "../generated/VolumeStep";
 import type { OpenStarVolume } from "../live/useOpenStarVolume";
-import { OPTION_GROUPS, OptionsList } from "./OptionsList";
+import { OptionsList } from "./OptionsList";
 import { defaultStageOptions, type StageOptions } from "./stageOptions";
 
 function setup(
   options: StageOptions = defaultStageOptions(),
-  groups = OPTION_GROUPS,
   /** The OpenStar volume, or `"none"` to bind none. */
   volume: number | null | "none" = 80,
 ) {
@@ -21,7 +20,6 @@ function setup(
     <OptionsList
       options={options}
       onChange={onChange}
-      groups={groups}
       openStarVolume={openStarVolume}
     />,
   );
@@ -51,15 +49,23 @@ describe("the Options list", () => {
     expect(group("look").getByRole("heading", { name: "Look" })).toBeTruthy();
   });
 
-  it("shows no group that has no option", () => {
-    setup(
-      defaultStageOptions(),
-      OPTION_GROUPS.map((g) =>
-        g.id === "look" ? { ...g, rows: [], advanced: [] } : g,
-      ),
-    );
-    expect(groupIds()).toEqual(["players", "singScreen", "sound"]);
-    expect(screen.queryByRole("heading", { name: "Look" })).toBeNull();
+  it("shows Line ratings, Effects, Song video, Skip long intros and Lyric size under Sing screen, and the next Line under Advanced", () => {
+    setup();
+    const rowIds = () =>
+      [
+        ...screen
+          .getByTestId("options-singScreen")
+          .querySelectorAll<HTMLElement>("[data-option]"),
+      ].map((row) => row.dataset.option);
+    expect(rowIds()).toEqual([
+      "lineRatings",
+      "effects",
+      "songVideo",
+      "skipIntros",
+      "lyricSize",
+    ]);
+    fireEvent.click(advanced("singScreen"));
+    expect(rowIds().at(-1)).toBe("showNextLine");
   });
 
   it("offers the three themes under Look › Theme, Bubble Pop by default", () => {
@@ -203,7 +209,7 @@ describe("the Options list", () => {
   });
 
   it("shows the OpenStar volume as it is now and steps it by one step, not as an option", () => {
-    const { onChange, step } = setup(defaultStageOptions(), OPTION_GROUPS, 85);
+    const { onChange, step } = setup(defaultStageOptions(), 85);
     expect(row("openStarVolume").getByText("85")).toBeTruthy();
     expect(row("openStarVolume").getByText("Default: 80")).toBeTruthy();
     fireEvent.click(
@@ -221,7 +227,7 @@ describe("the Options list", () => {
   });
 
   it("resets the OpenStar volume to 80, and greys Reset at 80", () => {
-    const { set } = setup(defaultStageOptions(), OPTION_GROUPS, 35);
+    const { set } = setup(defaultStageOptions(), 35);
     fireEvent.click(resetOf("openStarVolume"));
     expect(set).toHaveBeenCalledExactlyOnceWith(80);
   });
@@ -236,7 +242,7 @@ describe("the Options list", () => {
   });
 
   it("greys the OpenStar volume until a Stage has told it", () => {
-    const { step, set } = setup(defaultStageOptions(), OPTION_GROUPS, null);
+    const { step, set } = setup(defaultStageOptions(), null);
     expect(row("openStarVolume").getByText("–")).toBeTruthy();
     for (const name of [
       "OpenStar volume up",
@@ -252,7 +258,7 @@ describe("the Options list", () => {
   });
 
   it("leaves the OpenStar volume out when there is none to bind to", () => {
-    setup(defaultStageOptions(), OPTION_GROUPS, "none");
+    setup(defaultStageOptions(), "none");
     expect(document.querySelector('[data-option="openStarVolume"]')).toBeNull();
     expect(
       document.querySelector('[data-option="uiSoundsPercent"]'),

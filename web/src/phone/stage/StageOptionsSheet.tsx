@@ -1,18 +1,20 @@
 // The Stage options on a Phone (#271): Options on the Stage tab opens the
 // Stage's own list (`OptionsList`, compact) as a full-height sheet, with the
-// same groups, folds, defaults and Resets. A change applies at once: it goes
-// over the WebSocket as this Phone (`setStageOptions`), so the Stage toasts
-// who changed what ("Sam changed Effects") and every browser refetches the
-// options on the change notice. No Admin PIN. Its OpenStar volume row is
-// the same value as the Stage tab's Volume control (`useOpenStarVolume`).
+// same groups, folds, defaults and Resets. A change applies at once: only
+// the changed fields go over the WebSocket as this Phone
+// (`setStageOptions`), so the Stage toasts who changed what ("Sam changed
+// Effects"), another device's change to other options is kept, and every
+// browser refetches the options on the change notice. A refused change says
+// so and shows the kept options again. No Admin PIN. Its OpenStar volume row
+// is the same value as the Stage tab's Volume control (`useOpenStarVolume`).
 
 import { useCallback, useState } from "react";
 
+import type { ClientMessage } from "../../generated/ClientMessage";
 import { t } from "../../i18n/t";
 import type { LiveStore } from "../../live/liveStore";
 import { useOpenStarVolume } from "../../live/useOpenStarVolume";
 import { OptionsList } from "../../stageOptions/OptionsList";
-import type { StageOptions } from "../../stageOptions/stageOptions";
 import {
   useStageOptions,
   type SaveStageOptions,
@@ -20,6 +22,30 @@ import {
 import { Button } from "../../ui/Button";
 import { Icon } from "../../ui/Icon";
 import { Sheet } from "../../ui/Sheet";
+import { request } from "../joinRequests";
+
+let nextNonce = 1;
+
+/**
+ * Sends `message`, then a ping. The server answers a connection's messages
+ * in order, so a refusal before the pong is `message`'s ("refused"), and the
+ * pong alone means it was done. "unanswered": not sent, or the socket closed
+ * first.
+ */
+function sendAnswered(
+  store: LiveStore,
+  message: ClientMessage,
+): Promise<"done" | "refused" | "unanswered"> {
+  if (!store.send(message)) return Promise.resolve("unanswered");
+  const nonce = nextNonce++;
+  return request(
+    store,
+    { type: "ping", nonce },
+    (state) => (state.lastPong === nonce ? "done" : undefined),
+    () => "refused",
+    "unanswered",
+  );
+}
 
 /** Options, under Check A/V sync, and its sheet. */
 export function StageOptionsButton({ store }: { store: LiveStore }) {
@@ -62,10 +88,14 @@ function StageOptionsBody({
   // The server answers with a change notice, not the options: what is kept
   // comes with the refetch it starts.
   const save: SaveStageOptions = useCallback(
-    (options: StageOptions) =>
-      store.send({ type: "setStageOptions", options })
-        ? Promise.resolve(options)
-        : Promise.reject(new Error("not connected")),
+    async (options, change) => {
+      const answer = await sendAnswered(store, {
+        type: "setStageOptions",
+        options: change,
+      });
+      if (answer !== "done") throw new Error(`not saved: ${answer}`);
+      return options;
+    },
     [store],
   );
   const { options, saveFailed, change } = useStageOptions(save);

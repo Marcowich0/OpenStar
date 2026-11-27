@@ -9,9 +9,16 @@
 //! ranges in `web/src/stageOptions/stageOptions.ts` (`STAGE_OPTIONS`;
 //! `web/checks/stageOptions.test.ts` keeps them equal).
 //!
+//! A Phone changes them over the WebSocket with a [`StageOptionsChange`]:
+//! only the options it changed, merged onto the kept set, so two devices
+//! changing different options keep both. The Party change it makes names
+//! the changed ones as [`StageOptionKey`]s.
+//!
 //! To add an option: a field here with `#[serde(default = ...)]` (so a set
 //! stored before it existed still reads), its default constant, its check in
-//! [`StageOptions::is_valid`], and its row in the frontend's Options screen.
+//! [`StageOptions::is_valid`], its field in [`StageOptionsChange`] and its
+//! [`StageOptionKey`] (the compiler asks for both in
+//! [`StageOptions::apply`]), and its row in the frontend's Options screen.
 
 use std::fmt;
 
@@ -246,7 +253,177 @@ impl Default for StageOptions {
     }
 }
 
+/// Some of the Stage options: the body of a Phone's `setStageOptions`. A
+/// field left out keeps its kept value; each one sent is checked like the
+/// whole set's.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct StageOptionsChange {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub starting_difficulty: Option<Difficulty>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub resume_countdown_seconds: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub line_ratings: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub effects: Option<Effects>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub song_video: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub preview_volume_percent: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub skip_intros: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub lyric_size: Option<LyricSize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub show_next_line: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub lane_frosting_percent: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub theme: Option<Theme>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub ui_sounds_percent: Option<u8>,
+}
+
+/// One Stage option, by its field's name as sent (`"lyricSize"`): what a
+/// [`crate::party::PartyEvent::StageOptionsChanged`] names, so the frontend
+/// switches over them.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum StageOptionKey {
+    StartingDifficulty,
+    ResumeCountdownSeconds,
+    LineRatings,
+    Effects,
+    SongVideo,
+    PreviewVolumePercent,
+    SkipIntros,
+    LyricSize,
+    ShowNextLine,
+    LaneFrostingPercent,
+    Theme,
+    UiSoundsPercent,
+}
+
+/// `new` when it is sent and differs from `was` (noting `key` in `changed`),
+/// else `was`.
+fn pick<T: PartialEq>(
+    changed: &mut Vec<StageOptionKey>,
+    key: StageOptionKey,
+    was: T,
+    new: Option<T>,
+) -> T {
+    match new {
+        Some(new) if new != was => {
+            changed.push(key);
+            new
+        }
+        _ => was,
+    }
+}
+
 impl StageOptions {
+    /// `change` merged onto these options, and the options it changed, in
+    /// the order of the fields. A field it names at its current value is not
+    /// a change. Checks nothing: see [`StageOptions::is_valid`].
+    pub fn apply(self, change: StageOptionsChange) -> (StageOptions, Vec<StageOptionKey>) {
+        // Both taken apart in full, so a new option cannot be left out.
+        let StageOptionsChange {
+            starting_difficulty,
+            resume_countdown_seconds,
+            line_ratings,
+            effects,
+            song_video,
+            preview_volume_percent,
+            skip_intros,
+            lyric_size,
+            show_next_line,
+            lane_frosting_percent,
+            theme,
+            ui_sounds_percent,
+        } = change;
+        let StageOptions {
+            starting_difficulty: was_starting_difficulty,
+            resume_countdown_seconds: was_resume_countdown_seconds,
+            line_ratings: was_line_ratings,
+            effects: was_effects,
+            song_video: was_song_video,
+            preview_volume_percent: was_preview_volume_percent,
+            skip_intros: was_skip_intros,
+            lyric_size: was_lyric_size,
+            show_next_line: was_show_next_line,
+            lane_frosting_percent: was_lane_frosting_percent,
+            theme: was_theme,
+            ui_sounds_percent: was_ui_sounds_percent,
+        } = self;
+        let mut changed = Vec::new();
+        let c = &mut changed;
+        let after = StageOptions {
+            starting_difficulty: pick(
+                c,
+                StageOptionKey::StartingDifficulty,
+                was_starting_difficulty,
+                starting_difficulty,
+            ),
+            resume_countdown_seconds: pick(
+                c,
+                StageOptionKey::ResumeCountdownSeconds,
+                was_resume_countdown_seconds,
+                resume_countdown_seconds,
+            ),
+            line_ratings: pick(
+                c,
+                StageOptionKey::LineRatings,
+                was_line_ratings,
+                line_ratings,
+            ),
+            effects: pick(c, StageOptionKey::Effects, was_effects, effects),
+            song_video: pick(c, StageOptionKey::SongVideo, was_song_video, song_video),
+            preview_volume_percent: pick(
+                c,
+                StageOptionKey::PreviewVolumePercent,
+                was_preview_volume_percent,
+                preview_volume_percent,
+            ),
+            skip_intros: pick(c, StageOptionKey::SkipIntros, was_skip_intros, skip_intros),
+            lyric_size: pick(c, StageOptionKey::LyricSize, was_lyric_size, lyric_size),
+            show_next_line: pick(
+                c,
+                StageOptionKey::ShowNextLine,
+                was_show_next_line,
+                show_next_line,
+            ),
+            lane_frosting_percent: pick(
+                c,
+                StageOptionKey::LaneFrostingPercent,
+                was_lane_frosting_percent,
+                lane_frosting_percent,
+            ),
+            theme: pick(c, StageOptionKey::Theme, was_theme, theme),
+            ui_sounds_percent: pick(
+                c,
+                StageOptionKey::UiSoundsPercent,
+                was_ui_sounds_percent,
+                ui_sounds_percent,
+            ),
+        };
+        (after, changed)
+    }
+
     /// Whether every value is within its range (and on its step).
     pub fn is_valid(&self) -> bool {
         self.resume_countdown_seconds <= RESUME_COUNTDOWN_MAX_SECONDS
@@ -424,6 +601,89 @@ mod tests {
             }
             .is_valid()
         );
+    }
+
+    #[test]
+    fn a_change_keeps_what_it_leaves_out_and_names_only_what_differs() {
+        let kept = StageOptions {
+            lyric_size: LyricSize::Xl,
+            ..StageOptions::default()
+        };
+        let (after, changed) = kept.apply(StageOptionsChange {
+            show_next_line: Some(false),
+            // Sent at its kept value: not a change.
+            effects: Some(Effects::Full),
+            theme: Some(Theme::HighContrast),
+            ..StageOptionsChange::default()
+        });
+        assert_eq!(
+            after,
+            StageOptions {
+                lyric_size: LyricSize::Xl,
+                show_next_line: false,
+                theme: Theme::HighContrast,
+                ..StageOptions::default()
+            }
+        );
+        assert_eq!(
+            changed,
+            vec![StageOptionKey::ShowNextLine, StageOptionKey::Theme]
+        );
+        let (after, changed) = after.clone().apply(StageOptionsChange::default());
+        assert_eq!(after.lyric_size, LyricSize::Xl);
+        assert!(changed.is_empty());
+    }
+
+    #[test]
+    fn every_option_has_its_change_field_and_its_key_named_as_sent() {
+        let changed = StageOptions {
+            starting_difficulty: Difficulty::Hard,
+            resume_countdown_seconds: 0,
+            line_ratings: false,
+            effects: Effects::Off,
+            song_video: false,
+            preview_volume_percent: 0,
+            skip_intros: true,
+            lyric_size: LyricSize::S,
+            show_next_line: false,
+            lane_frosting_percent: 90,
+            theme: Theme::BubblePopNight,
+            ui_sounds_percent: 0,
+        };
+        // The whole set read as a change: every field reads.
+        let change: StageOptionsChange =
+            serde_json::from_value(serde_json::to_value(&changed).unwrap()).unwrap();
+        let (after, keys) = StageOptions::default().apply(change);
+        assert_eq!(after, changed);
+        let serde_json::Value::Object(fields) = serde_json::to_value(&changed).unwrap() else {
+            unreachable!()
+        };
+        let mut names: Vec<String> = keys
+            .iter()
+            .map(|key| {
+                serde_json::to_value(key)
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect();
+        // The map reads in alphabetical order.
+        names.sort();
+        assert_eq!(names, fields.keys().cloned().collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn a_change_sends_only_what_it_names() {
+        let change = StageOptionsChange {
+            lyric_size: Some(LyricSize::L),
+            ..StageOptionsChange::default()
+        };
+        assert_eq!(
+            serde_json::to_value(&change).unwrap(),
+            serde_json::json!({ "lyricSize": "l" })
+        );
+        assert!(serde_json::from_str::<StageOptionsChange>(r#"{"theme":"pink"}"#).is_err());
     }
 
     #[test]

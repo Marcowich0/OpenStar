@@ -23,17 +23,24 @@ export interface UseStageOptions {
   /** The last save was refused or got no answer (cleared by the next one). */
   saveFailed: boolean;
   /**
-   * Changes the fields in `change` and saves the whole set at once; the
-   * screen shows the change before the server answers.
+   * Changes the fields in `change` and saves them at once; the screen shows
+   * the change before the server answers. A refused save shows the kept
+   * options again.
    */
   change: (change: Partial<StageOptions>) => void;
 }
 
 /**
- * Saves the whole set and answers with what is kept: `PUT` by default, or a
- * Phone's WebSocket command, which names who changed them (#271).
+ * Saves a change and answers with what is kept, or fails when it was not
+ * saved. It is given the whole set after the change (`options`) and the
+ * fields that changed (`change`): `PUT` stores the whole set, a Phone's
+ * WebSocket command sends only the change, which names who changed them
+ * (#271) and keeps another device's change to other options.
  */
-export type SaveStageOptions = (options: StageOptions) => Promise<StageOptions>;
+export type SaveStageOptions = (
+  options: StageOptions,
+  change: Partial<StageOptions>,
+) => Promise<StageOptions>;
 
 export function useStageOptions(
   save: SaveStageOptions = saveStageOptions,
@@ -50,7 +57,7 @@ export function useStageOptions(
       const next = { ...before, ...fields };
       client.setQueryData(stageOptionsKey, next);
       setSaveFailed(false);
-      save(next).then(
+      save(next, fields).then(
         (kept) => {
           if (client.getQueryData(stageOptionsKey) === next) {
             client.setQueryData(stageOptionsKey, kept);

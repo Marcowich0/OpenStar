@@ -406,7 +406,7 @@ fn every_client_message() -> Vec<ClientMessage> {
         },
         ClientMessage::ReportMicBlocked { blocked: true },
         ClientMessage::SetStageOptions {
-            options: openstar_protocol::stage_options::StageOptions::default(),
+            options: openstar_protocol::stage_options::StageOptionsChange::default(),
         },
         ClientMessage::ReportStageOutput {
             stage_browser: String::new(),

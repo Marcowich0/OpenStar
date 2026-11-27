@@ -13,7 +13,7 @@ import { colourName } from "../i18n/colourNames";
 import { difficultyName, voiceNumber } from "../i18n/seatNames";
 import { tParts, type TextPart } from "../i18n/t";
 import type { Toast } from "../live/toasts";
-import { changedOptionName } from "../stageOptions/OptionsList";
+import { changedOptionName } from "../stageOptions/optionNames";
 import type { PaletteKey } from "../theme/tokens";
 
 /** The Party member a toast is about: drawn as its avatar at the left. */
@@ -70,10 +70,31 @@ function queueChange(
   withoutActor: (song: string) => TextPart[],
   byYou: (song: string) => TextPart[],
 ): ToastContent {
-  if (mine) return { actor, parts: byYou(params.title) };
+  const song = params.title;
+  return byWho(
+    actor,
+    mine,
+    (name) => withActor(name, song),
+    () => withoutActor(song),
+    () => byYou(song),
+  );
+}
+
+/**
+ * A change by `actor`: "Bo changed …", "You changed …" for this Phone's own,
+ * or without the actor while unknown.
+ */
+function byWho(
+  actor: ToastActor | null,
+  mine: boolean,
+  withActor: (actor: string) => TextPart[],
+  withoutActor: () => TextPart[],
+  byYou: () => TextPart[],
+): ToastContent {
+  if (mine) return { actor, parts: byYou() };
   return actor
-    ? { actor, parts: withActor(actor.name, params.title) }
-    : { actor: null, parts: withoutActor(params.title) };
+    ? { actor, parts: withActor(actor.name) }
+    : { actor: null, parts: withoutActor() };
 }
 
 /**
@@ -409,30 +430,22 @@ export function toastContent(
     case "stageOptionsChanged": {
       // One option by its name ("Sam changed Effects"), more as the Options.
       const option = changedOptionName(event.params.options);
-      if (option === null) {
-        if (mine)
-          return { actor, parts: tParts("toast.youStageOptionsChanged") };
-        return actor
-          ? {
-              actor,
-              parts: tParts("toast.stageOptionsChanged", { actor: actor.name }),
-            }
-          : { actor, parts: tParts("partyEvent.stageOptionsChanged") };
-      }
-      if (mine)
-        return {
-          actor,
-          parts: tParts("toast.youStageOptionChanged", { option }),
-        };
-      return actor
-        ? {
+      return option === null
+        ? byWho(
             actor,
-            parts: tParts("toast.stageOptionChanged", {
-              actor: actor.name,
-              option,
-            }),
-          }
-        : { actor, parts: tParts("partyEvent.stageOptionChanged", { option }) };
+            mine,
+            (name) => tParts("toast.stageOptionsChanged", { actor: name }),
+            () => tParts("partyEvent.stageOptionsChanged"),
+            () => tParts("toast.youStageOptionsChanged"),
+          )
+        : byWho(
+            actor,
+            mine,
+            (name) =>
+              tParts("toast.stageOptionChanged", { actor: name, option }),
+            () => tParts("partyEvent.stageOptionChanged", { option }),
+            () => tParts("toast.youStageOptionChanged", { option }),
+          );
     }
   }
 }

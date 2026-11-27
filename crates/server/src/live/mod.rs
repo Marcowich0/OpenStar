@@ -37,7 +37,7 @@ use openstar_protocol::bridge::{BridgeId, bridge_local_mic_id};
 use openstar_protocol::library::SongId;
 use openstar_protocol::mics::{LocalMic, LocalMicSource, MicKey, PartyLocalMic};
 use openstar_protocol::profile::{Difficulty, NewProfile, Profile, ProfileEdit, ProfileId};
-use openstar_protocol::stage_options::StageOptions;
+use openstar_protocol::stage_options::StageOptionsChange;
 use openstar_protocol::volume::is_valid_volume;
 use openstar_protocol::{
     Actor, BridgeLocalMic, ChangeEvent, ChangeTopic, ClientMessage, Identity, JoinAs, JoinCode,
@@ -1476,22 +1476,20 @@ impl LiveState {
         Ok(())
     }
 
-    /// The Stage options from the Stage or a joined Phone (#271), kept like
-    /// a `PUT /api/stage-options`. When any changed, every browser gets the
+    /// Some Stage options from the Stage or a joined Phone (#271), merged
+    /// onto the kept set. When any changed, every browser gets the
     /// change notice and a Party change naming who changed which, which the
     /// Stage toasts for a Phone's change.
     async fn set_stage_options(
         &mut self,
         id: ConnectionId,
-        options: StageOptions,
+        change: StageOptionsChange,
     ) -> Result<(), UserMessage> {
         let actor = self.remote_actor(id)?;
-        if !options.is_valid() {
-            return Err(UserMessage::InvalidMessage);
-        }
-        let changed = stage_options::replace(&self.db, options)
+        let changed = stage_options::update(&self.db, change)
             .await
-            .map_err(|error| server_error(&error, "storing the Stage options"))?;
+            .map_err(|error| server_error(&error, "storing the Stage options"))?
+            .ok_or(UserMessage::InvalidMessage)?;
         if changed.is_empty() {
             return Ok(());
         }
