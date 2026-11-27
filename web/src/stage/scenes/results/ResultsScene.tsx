@@ -3,9 +3,9 @@
 // ranked by total, with the total, the Rank title and the avatar above it and
 // where the points came from under it; a sticker for a new High score, a
 // hatched bar and an "unfinished" stamp for a Player who did not finish; and
-// "Next: <Song>" (or Done) leading on. No Join code here. It sounds the
-// bars rising (`resultsRise`), their landing (`fanfare`) and the first
-// sticker (`highScore`), #262.
+// "Next: <Song>" (or Done) leading on, and the Join chip in the bottom-left
+// corner (#250). It sounds the bars rising (`resultsRise`), their landing
+// (`fanfare`) and the first sticker (`highScore`), #262.
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ import { Avatar } from "../../../ui/Avatar";
 import { Button } from "../../../ui/Button";
 import { Score } from "../../../ui/Score";
 import { useStageFrame } from "../../frame/stageFrameContext";
+import { StageJoinChip } from "../../joinCard/StageJoinCard";
 import { useStageSounds } from "../../sound/StageSounds";
 import { resultsView, type BarView } from "./resultsView";
 import "./results.css";
@@ -41,16 +42,19 @@ export function ResultsScene() {
   // The sung Request has left the Queue: its first Request is the next one.
   const next = party.queue[0];
   return (
-    <ResultsBody
-      results={results}
-      song={songOf(results.songId) ?? null}
-      next={next ? (songOf(next.songId)?.title ?? "") : null}
-      onNext={() => {
-        if (closing) return;
-        setClosing(true);
-        store.send({ type: "closeResults" });
-      }}
-    />
+    <>
+      <ResultsBody
+        results={results}
+        song={songOf(results.songId) ?? null}
+        next={next ? (songOf(next.songId)?.title ?? "") : null}
+        onNext={() => {
+          if (closing) return;
+          setClosing(true);
+          store.send({ type: "closeResults" });
+        }}
+      />
+      <StageJoinChip />
+    </>
   );
 }
 
