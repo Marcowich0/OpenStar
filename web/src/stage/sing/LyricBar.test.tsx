@@ -74,7 +74,7 @@ describe("the lyric bar's look", () => {
     const { bar } = mount([SONG], [entry(0, 0)]);
     expect(bar?.style.bottom).toBe("34px");
     expect(bar?.style.left).toBe("50%");
-    expect(bar?.style.background).toBe(
+    expect(bar?.style.backgroundColor).toBe(
       "color-mix(in srgb, var(--color-surface) 86%, transparent)",
     );
     expect(bar?.style.getPropertyValue("backdrop-filter")).toBe("blur(14px)");
@@ -88,7 +88,7 @@ describe("the lyric bar's look", () => {
     act(() => {
       applyTheme("highContrast");
     });
-    expect(bar?.style.background).toBe(
+    expect(bar?.style.backgroundColor).toBe(
       "color-mix(in srgb, var(--color-surface) 100%, transparent)",
     );
     expect(bar?.style.getPropertyValue("backdrop-filter")).toBe("none");

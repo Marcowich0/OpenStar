@@ -240,5 +240,5 @@ export function syntheticSing(
       ? { background: { kind: "blobs", still: false } as const }
       : {}),
   };
-  return { ...state, effects: burst(state, PALETTE_KEYS[0]) };
+  return { ...state, particles: burst(state, PALETTE_KEYS[0]) };
 }

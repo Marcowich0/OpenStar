@@ -33,7 +33,7 @@ The role of a Phone when it browses the Library, changes the Queue or controls t
 _Avoid_: Controller, companion
 
 **Stage options**:
-The choices kept for the Stage that change how a Party plays and looks (the starting Difficulty, the countdown after a pause, skipping long Intros, Line ratings, effects, the Song video, the preview volume), set in the Stage's Setup › Options with no Admin PIN. Each has a default that is how the Stage behaves without it.
+The choices kept for the Stage that change how a Party plays, looks and sounds, in the groups Players (the starting Difficulty), Look (the theme every screen follows, the lane frosting), Sing screen (Line ratings, Effects, the Song video, skipping long Intros, the lyric size, showing the next Line) and Sound (the UI sounds level, the preview volume, the countdown after a pause). They are set in the Stage's Setup › Options, or from a Phone's Stage tab, which opens the same list and names who changed what, with no Admin PIN. Each has a default that is how the Stage behaves without it. The OpenStar volume shows in the Sound group but is not a Stage option: it is kept per Stage output.
 _Avoid_: Settings, preferences, config
 
 **Admin PIN**:

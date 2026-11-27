@@ -14,7 +14,7 @@ import { QueryObserver, type QueryClient } from "@tanstack/react-query";
 
 import type { Theme } from "../generated/Theme";
 import { stageOptionsQuery } from "../stageOptions/stageOptions";
-import { applyTheme, isTheme } from "./themes";
+import { applyTheme, DEFAULT_THEME, isTheme } from "./themes";
 
 const KEY = "openstar.theme";
 
@@ -32,9 +32,9 @@ function browserStorage(): ThemeStorage | null {
 function remembered(storage: ThemeStorage | null): Theme {
   try {
     const value = storage?.getItem(KEY);
-    return isTheme(value) ? value : "bubblePop";
+    return isTheme(value) ? value : DEFAULT_THEME;
   } catch {
-    return "bubblePop";
+    return DEFAULT_THEME;
   }
 }
 

@@ -8,10 +8,13 @@
  * Sizes are in the 1920 × 1080 reference frame; `m` is #55's.
  */
 
+import type { CSSProperties } from "react";
+
 import type { LyricSize } from "../../generated/LyricSize";
 import type { StageOptions } from "../../generated/StageOptions";
 import { THEMES, type SingTheme } from "../../theme/themes";
-import type { TokenName } from "../../theme/tokens";
+import { tokenVar, type TokenName } from "../../theme/tokens";
+import type { SingState } from "./frame";
 import {
   DEFAULT_NOTE_SPEED,
   LANES_BOTTOM,
@@ -31,6 +34,13 @@ export const DEFAULT_SING_LOOK: SingLook = {
   showNextLine: true,
   laneFrostingPercent: 66,
 };
+
+/** Whether two looks are the same, option by option. */
+export function sameLook(a: SingLook, b: SingLook): boolean {
+  return (Object.keys(DEFAULT_SING_LOOK) as (keyof SingLook)[]).every(
+    (option) => a[option] === b[option],
+  );
+}
 
 /** Each Lyric size's text, as a share of `m`'s. */
 export const LYRIC_SCALE: Readonly<Record<LyricSize, number>> = {
@@ -133,6 +143,30 @@ export function lanesBottom(look: SingLook, voices: number): number {
 }
 
 /**
+ * A DOM surface's style for `fill`: its colour mixed to its alpha in
+ * `space`, over the backdrop blurred by its blur (then `filter`, such as a
+ * saturation), or no backdrop filter at all without a blur.
+ */
+export function surfaceFillStyle(
+  fill: SurfaceFill,
+  space: "oklab" | "srgb",
+  filter = "",
+): Pick<
+  CSSProperties,
+  "backgroundColor" | "backdropFilter" | "WebkitBackdropFilter"
+> {
+  const backdrop =
+    fill.blur > 0
+      ? [`blur(${String(fill.blur)}px)`, filter].filter(Boolean).join(" ")
+      : "none";
+  return {
+    backgroundColor: `color-mix(in ${space}, ${tokenVar(fill.colour)} ${String(Math.round(fill.alpha * 100))}%, transparent)`,
+    backdropFilter: backdrop,
+    WebkitBackdropFilter: backdrop,
+  };
+}
+
+/**
  * The lane panels' fill, in the theme's surface colour (white in Bubble
  * Pop): frosted at the Lane frosting option, or solid in a theme with solid
  * lanes (High contrast), whatever the option says.
@@ -150,15 +184,14 @@ export function laneFill(
       };
 }
 
-/** What the sing screen's layout depends on. */
-export interface LaidOut {
-  lanes: readonly unknown[];
-  voices: readonly unknown[];
-  look?: SingLook;
-}
+/**
+ * What the lanes' layout reads of a sing state: how many lanes, how many
+ * Voices (a duet's lyric bar is taller) and the look.
+ */
+export type SingLayoutInput = Pick<SingState, "lanes" | "voices" | "look">;
 
 /** The lanes for a sing state: one per Player, above its lyric bar. */
-export function singLayout(state: LaidOut): LaneLayout {
+export function singLayout(state: SingLayoutInput): LaneLayout {
   return laneLayout(
     state.lanes.length,
     DEFAULT_NOTE_SPEED,

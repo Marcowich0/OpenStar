@@ -9,6 +9,9 @@ import type { Effects } from "../generated/Effects";
 
 export type { Effects };
 
+/** Full: today's behaviour (`EFFECTS_DEFAULT` on the server). */
+export const DEFAULT_EFFECTS: Effects = "full";
+
 /**
  * What each Effects value shows. **Full**: confetti on a Perfect! Line,
  * sparkles on a golden Note, and the sing screen's motion (the head ball's

@@ -12,15 +12,16 @@
  * options existed. `StageOptionsLoader` fills it.
  *
  * To add an option: its field in `crates/protocol/src/stage_options.rs`, its
- * default and range in `STAGE_OPTIONS` below, and its row in
- * `OptionsList.tsx`.
+ * default and range in `STAGE_OPTIONS` below, its name in `optionNames.ts`,
+ * and its row in `OptionsList.tsx`.
  */
 
 import { queryOptions } from "@tanstack/react-query";
 
 import { api } from "../api/api";
 import type { StageOptions } from "../generated/StageOptions";
-import { EFFECTS } from "./effects";
+import { DEFAULT_THEME } from "../theme/themes";
+import { DEFAULT_EFFECTS, EFFECTS } from "./effects";
 
 export type { StageOptions };
 
@@ -33,14 +34,14 @@ export const STAGE_OPTIONS = {
     startingDifficulty: "medium",
     resumeCountdownSeconds: 3,
     lineRatings: true,
-    effects: "full",
+    effects: DEFAULT_EFFECTS,
     songVideo: true,
     previewVolumePercent: 100,
     skipIntros: false,
     lyricSize: "m",
     showNextLine: true,
     laneFrostingPercent: 66,
-    theme: "bubblePop",
+    theme: DEFAULT_THEME,
     uiSoundsPercent: 60,
   } satisfies StageOptions,
   /** 0 (plays on at once) to 5 seconds. */

@@ -58,7 +58,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       "easy",
     ]);
     expect(state.lengthSeconds).toBe(30);
-    expect(state.effects).toBeDefined();
+    expect(state.particles).toBeDefined();
   });
 
   it("chooses the background at Start: blobs without a video or a background image, moving", () => {
@@ -119,7 +119,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       profiles: PROFILES,
     });
     const state = shown.state([new PitchBuffer(8)]);
-    expect(state.effects).toBeDefined();
+    expect(state.particles).toBeDefined();
     expect(state.ratings).toBeDefined();
     const hidden = singSetup({
       detail: testDetail(),
@@ -132,7 +132,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       },
     });
     const bare = hidden.state([new PitchBuffer(8)]);
-    expect(bare.effects).toBeUndefined();
+    expect(bare.particles).toBeUndefined();
     expect(bare.ratings).toBeUndefined();
   });
 
@@ -176,7 +176,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
         display: { ...STAGE_OPTIONS.defaults, effects, lineRatings: true },
       }).state([new PitchBuffer(8)]);
       expect(state.effectsMode, effects).toBe(effects);
-      expect(state.effects !== undefined, effects).toBe(effects !== "off");
+      expect(state.particles !== undefined, effects).toBe(effects !== "off");
     }
   });
 

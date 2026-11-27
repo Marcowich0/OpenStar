@@ -846,7 +846,7 @@ describe("Line ratings on the sing screen (ticket 216)", () => {
     t.frames(2400);
     // Mid-Line: no rating yet.
     expect(shown(view.state)).toEqual([]);
-    expect(view.state.effects?.live).toBe(0);
+    expect(view.state.particles?.live).toBe(0);
 
     sing(t, 4, 7);
     t.frames(4500); // the first Line ends at Beat 10, every Note hit
@@ -856,7 +856,7 @@ describe("Line ratings on the sing screen (ticket 216)", () => {
         word: "sing.lineRating.perfect",
       }),
     ]);
-    expect(view.state.effects?.live).toBe(30);
+    expect(view.state.particles?.live).toBe(30);
   });
 
   it("clears the pops and the confetti on Restart", async () => {
@@ -870,7 +870,7 @@ describe("Line ratings on the sing screen (ticket 216)", () => {
     expect(shown(view.state)).toHaveLength(1);
     t.control("restart");
     expect(shown(view.state)).toEqual([]);
-    expect(view.state.effects?.live).toBe(0);
+    expect(view.state.particles?.live).toBe(0);
   });
 });
 

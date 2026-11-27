@@ -398,7 +398,7 @@ describe("SingScreen", () => {
     confettiBurst(effects, 400, 500, "cherry");
     const { container } = render(
       <SingScreen
-        state={{ ...state, effects }}
+        state={{ ...state, particles: effects }}
         clock={{ songTime: () => 3 }}
         avOffset={() => 0}
       />,
@@ -425,7 +425,7 @@ describe("SingScreen", () => {
     confettiBurst(effects, 400, 500, "cherry");
     render(
       <SingScreen
-        state={{ ...state, effects }}
+        state={{ ...state, particles: effects }}
         clock={{ songTime: () => 3 }}
         avOffset={() => 0}
         frameTime={() => 0}

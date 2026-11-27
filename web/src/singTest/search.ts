@@ -5,7 +5,7 @@
 
 import type { LyricSize } from "../generated/LyricSize";
 import type { Theme } from "../generated/Theme";
-import { isTheme } from "../theme/themes";
+import { DEFAULT_THEME, isTheme } from "../theme/themes";
 
 /**
  * The synthetic sing screens: 1, 4 and 8 Players, a duet, and 2 Players of a
@@ -34,7 +34,7 @@ const DEFAULT: SingTestSearch = {
   case: "one",
   t: 6,
   lyricSize: "m",
-  theme: "bubblePop",
+  theme: DEFAULT_THEME,
 };
 const LYRIC_SIZES: readonly LyricSize[] = ["s", "m", "l", "xl"];
 

@@ -15,7 +15,7 @@
 
 import { SCORING } from "../../scoring/constants";
 import type { LineRatingKey, LineResult } from "../../scoring/scorer";
-import { EFFECTS } from "../../stageOptions/effects";
+import { DEFAULT_EFFECTS, EFFECTS } from "../../stageOptions/effects";
 import type { PaletteKey } from "../../theme/tokens";
 import { confettiBurst, MAX_FRAME_DELTA } from "./effects";
 import type { DrawList, SingLane, SingState } from "./frame";
@@ -159,15 +159,15 @@ export function lineEnded(
   if (result.word !== null) state.ratings?.show(lane, result.word);
   if (
     result.rating < SCORING.lineRatingScale ||
-    !state.effects ||
-    !EFFECTS.confetti(state.effectsMode ?? "full")
+    !state.particles ||
+    !EFFECTS.confetti(state.effectsMode ?? DEFAULT_EFFECTS)
   )
     return;
   const player = state.lanes[lane];
   const rect = singLayout(state)[lane];
   if (!player || !rect) return;
   confettiBurst(
-    state.effects,
+    state.particles,
     (rect.x + rect.notesX) / 2,
     rect.y + rect.height / 2,
     player.colour,

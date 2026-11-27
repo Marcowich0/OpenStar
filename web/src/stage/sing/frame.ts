@@ -17,7 +17,11 @@ import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { ParsedSong } from "../../generated/ParsedSong";
-import { EFFECTS, type Effects } from "../../stageOptions/effects";
+import {
+  DEFAULT_EFFECTS,
+  EFFECTS,
+  type Effects,
+} from "../../stageOptions/effects";
 import type { SingTheme } from "../../theme/themes";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { LaneLayout } from "./laneLayout";
@@ -133,10 +137,10 @@ export interface SingState {
    * The effects' particle pool (#134). Game code bursts into it; the render
    * loop advances it by each frame's real delta, and `frame()` only reads it.
    */
-  effects?: ParticlePool;
+  particles?: ParticlePool;
   /**
    * The Stage option Effects, fixed at the Song's start (`EFFECTS` says
-   * what each value shows); absent: `full`. Without `effects` there are no
+   * what each value shows); absent: `DEFAULT_EFFECTS`. Without `particles` there are no
    * particles whatever it says.
    */
   effectsMode?: Effects;
@@ -546,7 +550,7 @@ export function frame(
   const length = songLength(state);
   const look = state.look ?? DEFAULT_SING_LOOK;
   const fill = laneFill(look, theme);
-  const motion = EFFECTS.screenMotion(state.effectsMode ?? "full");
+  const motion = EFFECTS.screenMotion(state.effectsMode ?? DEFAULT_EFFECTS);
   // First: the background layer is below everything else.
   if (state.background) {
     list.push(backgroundEntry(state.background, state.lanes, songTime));
@@ -716,6 +720,6 @@ export function frame(
   lyricFill(list, state, now);
   state.ratings?.draw(list, state.lanes, layout, motion);
   // Last: the painter draws these on the effects canvas, above the DOM layers.
-  state.effects?.draw(list);
+  state.particles?.draw(list);
   return list;
 }

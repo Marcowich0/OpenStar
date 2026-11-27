@@ -39,6 +39,9 @@ export interface SingTheme {
   playheadAlpha: number;
 }
 
+/** Bubble Pop: v1's look (`THEME_DEFAULT` on the server). */
+export const DEFAULT_THEME: Theme = "bubblePop";
+
 /** One theme. */
 export interface ThemeDef {
   tokens: ThemeTokens;
@@ -281,7 +284,7 @@ export function isTheme(value: unknown): value is Theme {
 }
 
 /** The theme on the document root; Bubble Pop until one is applied there. */
-let shown: Theme = "bubblePop";
+let shown: Theme = DEFAULT_THEME;
 const shownListeners = new Set<() => void>();
 
 /**

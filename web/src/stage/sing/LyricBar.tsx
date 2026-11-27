@@ -19,6 +19,7 @@ import {
   DEFAULT_SING_LOOK,
   LYRIC_BAR,
   lyricBarBox,
+  surfaceFillStyle,
   type LyricBarBox,
   type SingLook,
 } from "./singLook";
@@ -128,15 +129,12 @@ export function createLyricDriver(): LyricDriver {
  * box's, so the theme's: frosted in Bubble Pop, solid in High contrast.
  */
 function barStyle({ fill }: LyricBarBox): CSSProperties {
-  const backdrop = fill.blur > 0 ? `blur(${String(fill.blur)}px)` : "none";
   return {
     position: "absolute",
     left: "50%",
     bottom: `${String(LYRIC_BAR.bottomGap)}px`,
     translate: "-50% 0",
-    background: `color-mix(in srgb, ${tokenVar(fill.colour)} ${String(Math.round(fill.alpha * 100))}%, transparent)`,
-    backdropFilter: backdrop,
-    WebkitBackdropFilter: backdrop,
+    ...surfaceFillStyle(fill, "srgb"),
     borderRadius: `${String(LYRIC_BAR.radius)}px`,
     padding: `${String(LYRIC_BAR.paddingTop)}px ${String(LYRIC_BAR.paddingInline)}px ${String(LYRIC_BAR.paddingBottom)}px`,
     boxShadow: "var(--shadow-ledge-lyric)",

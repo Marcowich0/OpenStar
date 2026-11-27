@@ -34,7 +34,7 @@ import {
   createLineRatingWriter,
   type LineRatingWriter,
 } from "./lineRatingWriter";
-import { DEFAULT_NOTE_SPEED, laneLayout, type LaneRect } from "./laneLayout";
+import type { LaneRect } from "./laneLayout";
 import { createLyricDriver, LyricBar } from "./LyricBar";
 import {
   coverTransform,
@@ -46,8 +46,9 @@ import { createRenderLoop } from "./renderLoop";
 import {
   DEFAULT_SING_LOOK,
   laneFill,
-  lanesBottom,
+  sameLook,
   singLayout,
+  surfaceFillStyle,
   type SingLook,
 } from "./singLook";
 
@@ -235,7 +236,7 @@ export function SingScreen({
       >
         <LanePanels
           lanes={state.lanes}
-          voices={state.voices.length}
+          voices={state.voices}
           look={state.look}
         />
       </div>
@@ -289,59 +290,49 @@ export function SingScreen({
 
 interface LanePanelsProps {
   lanes: readonly SingLane[];
-  /** The Song's Voice count: a duet's lyric bar is taller. */
-  voices?: number;
+  /** The Song's Voices: a duet's lyric bar is taller. None: one Voice. */
+  voices?: SingState["voices"];
   /** The lyric bar's size and the frosting; none: `DEFAULT_SING_LOOK`. */
   look?: SingLook | undefined;
 }
 
 /**
- * Panels change only with the Line-up (how many Players, in which colours)
- * and the look.
+ * Panels change only with the Line-up (how many Players, in which colours),
+ * the Voice count and the look.
  */
 function sameLineUp(a: LanePanelsProps, b: LanePanelsProps): boolean {
-  const lookA = a.look ?? DEFAULT_SING_LOOK;
-  const lookB = b.look ?? DEFAULT_SING_LOOK;
   return (
     a.lanes.length === b.lanes.length &&
     a.lanes.every((lane, i) => lane.colour === b.lanes[i]?.colour) &&
-    (a.voices ?? 1) === (b.voices ?? 1) &&
-    lookA.lyricSize === lookB.lyricSize &&
-    lookA.showNextLine === lookB.showNextLine &&
-    lookA.laneFrostingPercent === lookB.laneFrostingPercent
+    (a.voices?.length ?? 1) === (b.voices?.length ?? 1) &&
+    sameLook(a.look ?? DEFAULT_SING_LOOK, b.look ?? DEFAULT_SING_LOOK)
   );
 }
 
 /**
  * The frosted lane panels (DOM, for the backdrop blur), one per lane, placed
- * by the same `lanesBottom` as the canvas, frosted by the same `laneFill` as
+ * by the same `singLayout` as the canvas, frosted by the same `laneFill` as
  * the draw list's lanes (solid in High contrast) and tinted in the Party
  * colour. They re-render only when the Line-up, the look or the shown theme
  * changes, not when a Score or a frame does.
  */
 export const LanePanels = memo(function LanePanels({
   lanes,
-  voices = 1,
+  voices = [],
   look = DEFAULT_SING_LOOK,
 }: LanePanelsProps) {
-  const fill = laneFill(look, THEMES[useShownTheme()].sing);
-  const backdrop =
-    fill.blur > 0 ? `blur(${String(fill.blur)}px) saturate(130%)` : "none";
-  const background = `color-mix(in oklab, ${tokenVar(fill.colour)} ${String(Math.round(fill.alpha * 100))}%, transparent)`;
-  const layout = laneLayout(
-    lanes.length,
-    DEFAULT_NOTE_SPEED,
-    lanesBottom(look, voices),
+  const fill = surfaceFillStyle(
+    laneFill(look, THEMES[useShownTheme()].sing),
+    "oklab",
+    "saturate(130%)",
   );
-  return layout.map((lane, i) => (
+  return singLayout({ lanes, voices, look }).map((lane, i) => (
     <div
       key={i}
       data-lane-panel
       className="absolute overflow-hidden"
       style={{
-        backgroundColor: background,
-        backdropFilter: backdrop,
-        WebkitBackdropFilter: backdrop,
+        ...fill,
         left: `${String(lane.x)}px`,
         top: `${String(lane.y)}px`,
         width: `${String(lane.width)}px`,

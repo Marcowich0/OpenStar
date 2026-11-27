@@ -228,7 +228,7 @@ export function singSetup(input: SingSetupInput): SingSetup {
       effectsMode: display.effects,
       // Calm still sparkles, so only Off goes without particles.
       ...(EFFECTS.sparkles(display.effects)
-        ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
+        ? { particles: new ParticlePool(EFFECTS_CAPACITY) }
         : {}),
       ...(display.lineRatings ? { ratings: new LineRatings() } : {}),
       lanes: players.map((player, index): SingLane => {

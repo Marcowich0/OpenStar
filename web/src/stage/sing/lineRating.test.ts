@@ -202,7 +202,7 @@ describe("a Line rating with Effects calm or off", () => {
 describe("a Perfect! Line", () => {
   it("bursts about 30 particles at the lane header, in the Player's colour and the accents", () => {
     const pool = new ParticlePool(512, { seed: 7 });
-    const s = state(2, { ratings: new LineRatings(), effects: pool });
+    const s = state(2, { ratings: new LineRatings(), particles: pool });
     lineEnded(s, 1, result(8));
     expect(pool.live).toBe(30);
     const layout = laneLayout(2);
@@ -221,7 +221,7 @@ describe("a Perfect! Line", () => {
   it("bursts at the lane header where the lanes moved up for an xl lyric bar", () => {
     const pool = new ParticlePool(512, { seed: 7 });
     const s = state(4, {
-      effects: pool,
+      particles: pool,
       look: { lyricSize: "xl", showNextLine: true, laneFrostingPercent: 66 },
     });
     lineEnded(s, 3, result(8));
@@ -241,7 +241,7 @@ describe("a Perfect! Line", () => {
       const pool = new ParticlePool(512);
       const s = state(1, {
         ratings: new LineRatings(),
-        effects: pool,
+        particles: pool,
         effectsMode,
       });
       lineEnded(s, 0, result(8));
@@ -251,7 +251,7 @@ describe("a Perfect! Line", () => {
 
   it("only Perfect! bursts", () => {
     const pool = new ParticlePool(512);
-    const s = state(1, { ratings: new LineRatings(), effects: pool });
+    const s = state(1, { ratings: new LineRatings(), particles: pool });
     lineEnded(s, 0, result(7));
     expect(pool.live).toBe(0);
   });

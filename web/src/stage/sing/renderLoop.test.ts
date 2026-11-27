@@ -145,7 +145,7 @@ describe("the render loop's effects", () => {
   function withStar() {
     const effects = new ParticlePool(4, { gravity: 1000 });
     effects.spawn(100, 100, 0, 0, 0, 2, 10, "star", "cherry", 0);
-    return { ...state, effects };
+    return { ...state, particles: effects };
   }
 
   function particleY(list: DrawList | undefined): number | undefined {
@@ -248,7 +248,7 @@ describe("the render loop's golden sparkle", () => {
           },
         },
       ],
-      effects: new ParticlePool(256),
+      particles: new ParticlePool(256),
     };
   }
 
@@ -258,9 +258,9 @@ describe("the render loop's golden sparkle", () => {
     time(3.5);
     loop.start();
     callbacks[0]?.(1000); // the first frame only notes the time
-    expect(sung.effects?.live).toBe(0);
+    expect(sung.particles?.live).toBe(0);
     callbacks[1]?.(1250);
-    expect(sung.effects?.live).toBe(SPARKLE_RATE / 4);
+    expect(sung.particles?.live).toBe(SPARKLE_RATE / 4);
   });
 
   it("throws sparkles with Effects full or calm, and none with Effects off", () => {
@@ -275,7 +275,7 @@ describe("the render loop's golden sparkle", () => {
       loop.start();
       callbacks[0]?.(1000);
       callbacks[1]?.(1250);
-      expect(sung.effects?.live, effectsMode).toBe(live);
+      expect(sung.particles?.live, effectsMode).toBe(live);
     }
   });
 
@@ -286,7 +286,7 @@ describe("the render loop's golden sparkle", () => {
     loop.start();
     callbacks[0]?.(1000);
     callbacks[1]?.(1250);
-    expect(sung.effects?.live).toBe(0);
+    expect(sung.particles?.live).toBe(0);
   });
 
   it("throws none on a step() of its own (no real time passes)", () => {
@@ -294,6 +294,6 @@ describe("the render loop's golden sparkle", () => {
     const { at } = setup({ state: () => sung });
     at(3.5);
     at(3.5);
-    expect(sung.effects?.live).toBe(0);
+    expect(sung.particles?.live).toBe(0);
   });
 });

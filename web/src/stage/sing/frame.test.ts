@@ -469,9 +469,11 @@ describe("frame", () => {
       rotation: 0,
       alpha: 1,
     };
-    const at3 = frame({ ...solo, effects }, 3, oneLane);
+    const at3 = frame({ ...solo, particles: effects }, 3, oneLane);
     expect(at3.at(-1)).toEqual(particle);
-    expect(frame({ ...solo, effects }, 9, oneLane).at(-1)).toEqual(particle);
+    expect(frame({ ...solo, particles: effects }, 9, oneLane).at(-1)).toEqual(
+      particle,
+    );
     expect(at3.filter((e) => e.type === "particle")).toHaveLength(1);
     expect(frame(solo, 3, oneLane).some((e) => e.type === "particle")).toBe(
       false,
@@ -493,7 +495,7 @@ describe("frame", () => {
     const colours: unknown[] = [];
     for (const t of [3, 3.95, 9]) {
       for (const entry of frame(
-        { ...duet, effects, ratings, background: BLOBS },
+        { ...duet, particles: effects, ratings, background: BLOBS },
         t,
         laneLayout(2),
       )) {

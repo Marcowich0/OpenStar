@@ -15,12 +15,17 @@
  */
 
 import type { SongClock } from "../../clock/songClock";
-import { EFFECTS } from "../../stageOptions/effects";
+import { DEFAULT_EFFECTS, EFFECTS } from "../../stageOptions/effects";
 import type { SingTheme } from "../../theme/themes";
 import { GoldenSparkles } from "./effects";
 import { frame, type DrawList, type SingState } from "./frame";
-import { DEFAULT_NOTE_SPEED, laneLayout, type LaneLayout } from "./laneLayout";
-import { DEFAULT_SING_LOOK, DEFAULT_SING_THEME, lanesBottom } from "./singLook";
+import type { LaneLayout } from "./laneLayout";
+import {
+  DEFAULT_SING_LOOK,
+  DEFAULT_SING_THEME,
+  lanesBottom,
+  singLayout,
+} from "./singLook";
 
 export interface RenderLoopOptions {
   /** The current Song clock (#96). Only its `songTime()` is read. */
@@ -73,14 +78,15 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
 
   function step(delta = 0) {
     const state = options.state();
-    state.effects?.advance(delta);
+    state.particles?.advance(delta);
     state.ratings?.advance(delta);
+    // Laid out again only when the lane count or the bar's height changes.
     const bottom = lanesBottom(
       state.look ?? DEFAULT_SING_LOOK,
       state.voices.length,
     );
     if (layout.length !== state.lanes.length || bottom !== layoutBottom) {
-      layout = laneLayout(state.lanes.length, DEFAULT_NOTE_SPEED, bottom);
+      layout = singLayout(state);
       layoutBottom = bottom;
     }
     // The one place the drawing time is read.
@@ -89,8 +95,11 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
     const list = frame(state, drawTime, layout, theme);
     // A head ball on a golden Note sparkles (Effects full or calm); the new
     // particles show from the next frame on.
-    if (state.effects && EFFECTS.sparkles(state.effectsMode ?? "full")) {
-      sparkles.emit(list, state.effects, delta);
+    if (
+      state.particles &&
+      EFFECTS.sparkles(state.effectsMode ?? DEFAULT_EFFECTS)
+    ) {
+      sparkles.emit(list, state.particles, delta);
     }
     options.paint(list);
   }
