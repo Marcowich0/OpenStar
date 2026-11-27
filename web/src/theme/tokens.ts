@@ -130,6 +130,7 @@ export const INTERFACE_TOKENS = [
   "--animate-overlay-in",
   "--animate-overlay-out",
   "--animate-toast-in",
+  "--animate-veil-out",
   "--animate-fade-in",
   "--animate-fade-out",
   "--font-sans",

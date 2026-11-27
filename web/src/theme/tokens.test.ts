@@ -187,6 +187,7 @@ describe("motion", () => {
         "overlay-out var(--motion-exit) var(--ease-exit) both",
       "--animate-toast-in":
         "toast-in var(--motion-spring) var(--ease-spring) both",
+      "--animate-veil-out": "fade-out var(--motion-exit) ease-in both",
       "--animate-fade-in": "fade-in var(--motion-fade) ease-out both",
       "--animate-fade-out": "fade-out var(--motion-fade) ease-in both",
     });
@@ -196,7 +197,8 @@ describe("motion", () => {
     expect(
       Object.fromEntries(
         [...declarations].filter(
-          ([name]) => name.startsWith("--motion-") || name.startsWith("--ease-"),
+          ([name]) =>
+            name.startsWith("--motion-") || name.startsWith("--ease-"),
         ),
       ),
     ).toEqual({
