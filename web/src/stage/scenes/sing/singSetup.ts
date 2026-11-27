@@ -28,7 +28,8 @@ import {
   type StageOptions,
 } from "../../../stageOptions/stageOptions";
 import type { PaletteKey } from "../../../theme/tokens";
-import { prefersReducedMotion, singBackground } from "../../sing/background";
+import { prefersReducedMotion } from "../../../theme/motion";
+import { singBackground } from "../../sing/background";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
 import {

@@ -5,7 +5,12 @@ import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { STAGE_OPTIONS } from "../stageOptions/stageOptions";
-import { effectsOff, MotionMode, REDUCED_MOTION_QUERY } from "./motion";
+import {
+  effectsOff,
+  MotionMode,
+  prefersReducedMotion,
+  REDUCED_MOTION_QUERY,
+} from "./motion";
 
 /** A browser whose reduced-motion query answers `reduced`, and can change. */
 function stubReducedMotion(reduced: boolean) {
@@ -81,6 +86,20 @@ describe("MotionMode", () => {
     const { unmount } = render(<MotionMode effectsOff={false} />);
     unmount();
     expect(mode()).toBeUndefined();
+  });
+});
+
+describe("prefersReducedMotion, the one reduced-motion reader", () => {
+  it("reads the system's prefers-reduced-motion now", () => {
+    const media = stubReducedMotion(true);
+    expect(prefersReducedMotion()).toBe(true);
+    media.change(false);
+    expect(prefersReducedMotion()).toBe(false);
+  });
+
+  it("is false in a browser without matchMedia", () => {
+    vi.stubGlobal("matchMedia", undefined);
+    expect(prefersReducedMotion()).toBe(false);
   });
 });
 
