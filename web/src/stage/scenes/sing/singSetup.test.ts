@@ -74,7 +74,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       profiles: PROFILES,
       display: {
         ...STAGE_OPTIONS.defaults,
-        effects: false,
+        effects: "off",
         lineRatings: false,
       },
     });
@@ -111,6 +111,20 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       showNextLine: false,
       laneFrostingPercent: 40,
     });
+  });
+
+  it("keeps a particle pool for sparkles with Effects calm or full, and carries the Effects into the state", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    for (const effects of ["off", "calm", "full"] as const) {
+      const state = singSetup({
+        detail: testDetail(),
+        party,
+        profiles: PROFILES,
+        display: { ...STAGE_OPTIONS.defaults, effects, lineRatings: true },
+      }).state([new PitchBuffer(8)]);
+      expect(state.effectsMode, effects).toBe(effects);
+      expect(state.effects !== undefined, effects).toBe(effects !== "off");
+    }
   });
 
   it("puts each Player's own buffer in their lane's trace, with the Mic threshold fixed at Start", () => {

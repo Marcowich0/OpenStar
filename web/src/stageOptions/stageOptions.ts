@@ -31,7 +31,7 @@ export const STAGE_OPTIONS = {
     startingDifficulty: "medium",
     resumeCountdownSeconds: 3,
     lineRatings: true,
-    effects: true,
+    effects: "full",
     songVideo: true,
     previewVolumePercent: 100,
     skipIntros: false,

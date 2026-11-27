@@ -247,6 +247,22 @@ describe("the render loop's golden sparkle", () => {
     expect(sung.effects?.live).toBe(SPARKLE_RATE / 4);
   });
 
+  it("throws sparkles with Effects full or calm, and none with Effects off", () => {
+    for (const [effectsMode, live] of [
+      ["full", SPARKLE_RATE / 4],
+      ["calm", SPARKLE_RATE / 4],
+      ["off", 0],
+    ] as const) {
+      const sung = { ...goldenSung(), effectsMode };
+      const { loop, callbacks, time } = setup({ state: () => sung });
+      time(3.5);
+      loop.start();
+      callbacks[0]?.(1000);
+      callbacks[1]?.(1250);
+      expect(sung.effects?.live, effectsMode).toBe(live);
+    }
+  });
+
   it("throws none off the golden Note", () => {
     const sung = goldenSung();
     const { loop, callbacks, time } = setup({ state: () => sung });

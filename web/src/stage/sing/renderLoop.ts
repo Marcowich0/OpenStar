@@ -15,6 +15,7 @@
  */
 
 import type { SongClock } from "../../clock/songClock";
+import { EFFECTS } from "../../stageOptions/effects";
 import { GoldenSparkles } from "./effects";
 import { frame, type DrawList, type SingState } from "./frame";
 import { DEFAULT_NOTE_SPEED, laneLayout, type LaneLayout } from "./laneLayout";
@@ -79,9 +80,11 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
     // The one place the drawing time is read.
     const drawTime = options.clock().songTime() - options.avOffset();
     const list = frame(state, drawTime, layout);
-    // A head ball on a golden Note sparkles; the new particles show from
-    // the next frame on.
-    if (state.effects) sparkles.emit(list, state.effects, delta);
+    // A head ball on a golden Note sparkles (Effects full or calm); the new
+    // particles show from the next frame on.
+    if (state.effects && EFFECTS.sparkles(state.effectsMode ?? "full")) {
+      sparkles.emit(list, state.effects, delta);
+    }
     options.paint(list);
   }
 

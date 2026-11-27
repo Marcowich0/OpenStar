@@ -23,9 +23,11 @@ describe("the Stage options", () => {
     };
     const number = (name: string) => Number(constant(name, "u8"));
     const bool = (name: string) => constant(name, "bool") === "true";
-    /** A lowercase-renamed enum constant as serde writes it (`LyricSize::Xl` → `xl`). */
-    const lowercase = (name: string, type: string) =>
-      constant(name, type).replace(`${type}::`, "").toLowerCase();
+    /** An enum's default, `Type::FooBar`, as its camelCase name `fooBar`. */
+    const variant = (name: string, type: string) => {
+      const value = constant(name, type).replace(`${type}::`, "");
+      return value.charAt(0).toLowerCase() + value.slice(1);
+    };
     const difficulty = constant(
       "STARTING_DIFFICULTY_DEFAULT",
       "Difficulty",
@@ -35,11 +37,11 @@ describe("the Stage options", () => {
         startingDifficulty: difficulty.toLowerCase(),
         resumeCountdownSeconds: number("RESUME_COUNTDOWN_DEFAULT_SECONDS"),
         lineRatings: bool("LINE_RATINGS_DEFAULT"),
-        effects: bool("EFFECTS_DEFAULT"),
+        effects: variant("EFFECTS_DEFAULT", "Effects"),
         songVideo: bool("SONG_VIDEO_DEFAULT"),
         previewVolumePercent: number("PREVIEW_VOLUME_DEFAULT_PERCENT"),
         skipIntros: bool("SKIP_INTROS_DEFAULT"),
-        lyricSize: lowercase("LYRIC_SIZE_DEFAULT", "LyricSize"),
+        lyricSize: variant("LYRIC_SIZE_DEFAULT", "LyricSize"),
         showNextLine: bool("SHOW_NEXT_LINE_DEFAULT"),
         laneFrostingPercent: number("LANE_FROSTING_DEFAULT_PERCENT"),
       },
