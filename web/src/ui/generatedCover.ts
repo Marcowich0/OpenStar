@@ -254,6 +254,8 @@ function escapeXml(text: string): string {
 }
 
 /** The cover's Song from a full Song (`GET /api/songs/{id}`), once loaded. */
+export function coverSongOf(detail: SongDetail): CoverSong;
+export function coverSongOf(detail: SongDetail | undefined): CoverSong | null;
 export function coverSongOf(detail: SongDetail | undefined): CoverSong | null {
   if (detail === undefined) return null;
   return {

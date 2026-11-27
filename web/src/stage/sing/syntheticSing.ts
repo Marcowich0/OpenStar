@@ -11,8 +11,9 @@
 // seeded burst, aged a fixed time, so the screenshots stay exact (the page
 // freezes the effects' frame time). The first lane's Line rating (Perfect!)
 // and the second's (Great!) are caught settled, before they fade (#216).
-// The title card (#264) shows a made-up title and artist on the tile colour,
-// with the pause hint under it, until 4 s.
+// The title card (#264) shows a made-up title and artist with the Song's
+// generated cover (#259, its letter drawn on the canvas), with the pause hint
+// under it, until 4 s.
 // The no-video case's 2 Players share the one Voice over the moving blobs
 // (#263), caught at the frozen Song time; the other cases have no background,
 // so the page's tile backdrop shows as before.
@@ -28,6 +29,12 @@ import type { SingTestCase } from "../../singTest/search";
 import { confettiBurst, EFFECTS_CAPACITY, ParticlePool } from "./effects";
 import { singVoices, type SingState } from "./frame";
 import { laneLayout } from "./laneLayout";
+import type { SingSong } from "./titleCard";
+import {
+  generatedCover,
+  generatedCoverDataUrl,
+  type CoverSong,
+} from "../../ui/generatedCover";
 import { LineRatings } from "./lineRating";
 
 /** How long the synthetic Line ratings have been showing, seconds. */
@@ -172,6 +179,25 @@ function player(i: number) {
   };
 }
 
+const COVER_SONG: CoverSong = {
+  id: 1,
+  title: "Placeholder Song",
+  tileColour: "navy",
+};
+
+/**
+ * The made-up Song of the title card, with its generated cover in the
+ * theme's colours as they are when the state is built.
+ */
+function syntheticSong(): SingSong {
+  return {
+    ...COVER_SONG,
+    artist: "Nobody in Particular",
+    cover: generatedCoverDataUrl(COVER_SONG, { letter: false }),
+    letter: generatedCover(COVER_SONG).letter,
+  };
+}
+
 export function syntheticSing(name: SingTestCase): SingState {
   // Only the duet has a second Voice, so only its headers carry "· V1".
   const voices = singVoices({
@@ -197,13 +223,9 @@ export function syntheticSing(name: SingTestCase): SingState {
     })),
     effects: burst(lanes.length, PALETTE_KEYS[0]),
     ratings: ratings(),
-    // No cover, so the page needs no network: the tile colour shows.
-    song: {
-      title: "Placeholder Song",
-      artist: "Nobody in Particular",
-      cover: null,
-      tileColour: "navy",
-    },
+    // No cover image: the generated cover (#259), so the page needs no
+    // network.
+    song: syntheticSong(),
     pauseHint: "keyboard",
     ...(name === "noVideo"
       ? { background: { kind: "blobs", still: false } as const }

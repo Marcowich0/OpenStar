@@ -39,6 +39,7 @@ import {
   type SingState,
 } from "../../sing/frame";
 import { laneLayout } from "../../sing/laneLayout";
+import { singSongOf } from "../../sing/titleCard";
 import {
   pauseHintInput,
   stageFirstSongMemory,
@@ -190,6 +191,7 @@ export function singSetup(input: SingSetupInput): SingSetup {
     requestId !== null && isFirstSong(party.partyId, requestId)
       ? pauseHintInput()
       : null;
+  const singSong = singSongOf(detail);
   const background = singBackground(
     detail.media,
     display,
@@ -204,12 +206,7 @@ export function singSetup(input: SingSetupInput): SingSetup {
       grid: song.headers,
       voices,
       lengthSeconds: detail.lengthSeconds,
-      song: {
-        title: song.headers.title,
-        artist: song.headers.artist,
-        cover: detail.media.cover,
-        tileColour: detail.media.tileColour,
-      },
+      song: singSong,
       pauseHint,
       background,
       ...(display.effects

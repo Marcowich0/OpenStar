@@ -19,10 +19,12 @@ const notes: Note[] = [
 ];
 
 const song = {
+  id: 1,
   title: "Made-up Song",
   artist: "Nobody Real",
   cover: "/api/songs/1/cover",
   tileColour: "navy",
+  letter: null,
 } as const;
 
 const base: SingState = {
@@ -84,6 +86,20 @@ describe("the title card", () => {
       frame({ ...base, song: { ...song, cover: null } }, 1, layout),
     );
     expect(entry?.cover).toMatchObject({ url: null, tile: "navy" });
+    expect(entry?.cover.letter).toBeNull();
+  });
+
+  it("draws the generated cover's letter in the middle of the cover (ticket 259)", () => {
+    const generated = { ...song, cover: "data:image/svg+xml,x", letter: "M" };
+    const entry = card(frame({ ...base, song: generated }, 1, layout));
+    // The cover is 80 px at (92, 64): its middle is (132, 104).
+    expect(entry?.cover).toMatchObject({
+      url: "data:image/svg+xml,x",
+      letter: { text: "M", x: 132, y: 104, weight: 700, colour: "--color-white" },
+    });
+    // It slides with the card.
+    const sliding = card(frame({ ...base, song: generated }, 4.2, layout));
+    expect(sliding?.cover.letter?.x).toBe((sliding?.cover.x ?? 0) + 40);
   });
 
   it("cuts a very long title or artist short with an ellipsis", () => {

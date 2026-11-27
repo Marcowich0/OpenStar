@@ -482,6 +482,18 @@ export function createPainter(
       );
       ctx.restore();
     }
+    // A generated cover's letter, in the theme's font: the image has none.
+    const letter = c.letter;
+    if (letter) {
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = font(letter);
+      ctx.globalAlpha = letter.shadowAlpha;
+      ctx.fillStyle = colour(letter.shadow);
+      ctx.fillText(letter.text, letter.x, letter.y + letter.shadowDy);
+      ctx.globalAlpha = 1;
+      text(letter);
+    }
 
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
