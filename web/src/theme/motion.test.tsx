@@ -4,9 +4,7 @@
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { STAGE_OPTIONS } from "../stageOptions/stageOptions";
 import {
-  effectsOff,
   MotionMode,
   prefersReducedMotion,
   REDUCED_MOTION_QUERY,
@@ -100,14 +98,5 @@ describe("prefersReducedMotion, the one reduced-motion reader", () => {
   it("is false in a browser without matchMedia", () => {
     vi.stubGlobal("matchMedia", undefined);
     expect(prefersReducedMotion()).toBe(false);
-  });
-});
-
-describe("effectsOff", () => {
-  it("is off only when the Stage options turn Effects off", () => {
-    expect(effectsOff(STAGE_OPTIONS.defaults)).toBe(false);
-    expect(effectsOff({ ...STAGE_OPTIONS.defaults, effects: false })).toBe(
-      true,
-    );
   });
 });

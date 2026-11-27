@@ -15,7 +15,7 @@
 // own pitch detection. Nothing outside `src/stage/` imports this module.
 
 import { dbToGain, volumeGain } from "../../playback/gain";
-import { stageOptions } from "../../stageOptions/stageOptions";
+import { effectsOff, stageOptions } from "../../stageOptions/stageOptions";
 
 /**
  * The UI sounds level (0–100 %) until Options › Sound has it (#270, "UI
@@ -24,15 +24,6 @@ import { stageOptions } from "../../stageOptions/stageOptions";
 export const UI_SOUNDS_LEVEL = 60;
 export function uiSoundsLevel(): number {
   return UI_SOUNDS_LEVEL;
-}
-
-/**
- * Whether Effects are off, read for each sound. Until #268 makes Effects
- * off, calm or full, "off" is the Stage options' `effects: false`; that
- * ticket replaces this reader with its "off".
- */
-export function effectsOff(): boolean {
-  return !stageOptions().current().effects;
 }
 
 /** How much lower UI sounds play while a Song plays, dB. */
@@ -175,7 +166,10 @@ export interface UiSoundsOptions {
   output: () => AudioNode;
   /** The UI sounds level, 0–100 %, read for each sound. */
   level?: () => number;
-  /** Whether Effects are off, read for each sound (`effectsOff` by default). */
+  /**
+   * Whether Effects are off, read for each sound: by default `effectsOff`
+   * on the Stage options as they are now.
+   */
   effectsOff?: () => boolean;
 }
 
@@ -188,6 +182,21 @@ export type UiSounds = { readonly [Name in UiSoundName]: () => void } & {
   /** Ducks every UI sound by `DUCK_DB` while a Song plays. */
   setDucked(ducked: boolean): void;
 };
+
+/**
+ * UI sounds that play nothing: outside the Stage's provider (tests of single
+ * screens), and for a playing Song given no sounds.
+ */
+export function silentSounds(): UiSounds {
+  const quiet = () => {};
+  return {
+    ...(Object.fromEntries(UI_SOUND_NAMES.map((name) => [name, quiet])) as {
+      [Name in UiSoundName]: () => void;
+    }),
+    gesture: quiet,
+    setDucked: quiet,
+  };
+}
 
 /** Seconds of white noise kept for the noise layers; longer than any one. */
 const NOISE_SECONDS = 0.5;
@@ -203,7 +212,7 @@ export function createUiSounds({
   context: makeContext,
   output,
   level = uiSoundsLevel,
-  effectsOff: isEffectsOff = effectsOff,
+  effectsOff: isEffectsOff = () => effectsOff(stageOptions().current()),
 }: UiSoundsOptions): UiSounds {
   let gestured = false;
   let ducked = false;

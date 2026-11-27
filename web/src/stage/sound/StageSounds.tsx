@@ -37,22 +37,13 @@ import { FOCUSABLE } from "../frame/focusables";
 import { pickScene } from "../frame/scenes";
 import { stageAudio } from "../playback/stageAudio";
 import {
-  UI_SOUND_NAMES,
   createUiSounds,
+  silentSounds,
   type UiSoundName,
   type UiSounds,
 } from "./uiSounds";
 
-/** What plays nothing: outside the provider (tests of single screens). */
-const SILENT: UiSounds = {
-  ...(Object.fromEntries(UI_SOUND_NAMES.map((name) => [name, () => {}])) as {
-    [Name in UiSoundName]: () => void;
-  }),
-  gesture: () => {},
-  setDucked: () => {},
-};
-
-const StageSoundsContext = createContext<UiSounds>(SILENT);
+const StageSoundsContext = createContext<UiSounds>(silentSounds());
 
 /** The Stage's named UI sounds, for a screen's own events. */
 export function useStageSounds(): UiSounds {
