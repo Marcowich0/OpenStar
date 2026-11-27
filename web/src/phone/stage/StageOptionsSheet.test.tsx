@@ -61,24 +61,23 @@ describe("the Stage options on a Phone", () => {
         "false",
       );
     });
-    fireEvent.click(sheet.getByRole("switch", { name: "Effects" }));
+    fireEvent.click(sheet.getByRole("switch", { name: "Line ratings" }));
     expect(sent).toContainEqual({
       type: "setStageOptions",
-      options: { ...kept, effects: false },
+      options: { ...kept, lineRatings: false },
     });
     // Shown before the server's change notice.
     await waitFor(() => {
-      expect(sheet.getByRole("switch", { name: "Effects" })).toHaveAttribute(
-        "aria-checked",
-        "false",
-      );
+      expect(
+        sheet.getByRole("switch", { name: "Line ratings" }),
+      ).toHaveAttribute("aria-checked", "false");
     });
     fireEvent.click(
       sheet.getByRole("button", { name: "Reset Song video to its default" }),
     );
     expect(sent).toContainEqual({
       type: "setStageOptions",
-      options: { ...kept, effects: false, songVideo: true },
+      options: { ...kept, lineRatings: false, songVideo: true },
     });
   });
 

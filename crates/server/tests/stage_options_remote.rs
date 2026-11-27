@@ -6,7 +6,7 @@
 //! nothing changes.
 
 use openstar_protocol::profile::{Avatar, AvatarKey, PaletteKey};
-use openstar_protocol::stage_options::StageOptions;
+use openstar_protocol::stage_options::{Effects, StageOptions};
 use openstar_protocol::{
     Actor, ChangeEvent, ChangeTopic, ClientMessage, JoinAs, JoinCode, NewGuest, PartyEvent,
     PhoneId, ServerMessage, UserMessage,
@@ -90,7 +90,7 @@ async fn a_phone_sets_them_and_the_stage_hears_who_changed_what() {
     };
 
     let options = StageOptions {
-        effects: false,
+        effects: Effects::Off,
         ..StageOptions::default()
     };
     phone
@@ -174,7 +174,7 @@ async fn a_connection_not_in_the_party_is_refused() {
     stranger
         .send(&ClientMessage::SetStageOptions {
             options: StageOptions {
-                effects: false,
+                effects: Effects::Off,
                 ..StageOptions::default()
             },
         })

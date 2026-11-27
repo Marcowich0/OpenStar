@@ -36,8 +36,8 @@ test("a Phone changes an option and the Stage shows it and toasts who did", asyn
   await stage.getByRole("button", { name: "Setup" }).click();
   await stage.getByRole("menuitem", { name: "Options" }).click();
   const onStage = stage.getByRole("dialog", { name: "Options" });
-  const stageEffects = onStage.getByRole("switch", { name: "Effects" });
-  await expect(stageEffects).toHaveAttribute("aria-checked", "true");
+  const stageRatings = onStage.getByRole("switch", { name: "Line ratings" });
+  await expect(stageRatings).toHaveAttribute("aria-checked", "true");
 
   await phone.getByRole("tab", { name: "Stage" }).click();
   await phone.getByRole("button", { name: "Options" }).click();
@@ -63,10 +63,10 @@ test("a Phone changes an option and the Stage shows it and toasts who did", asyn
     ).toBeLessThanOrEqual(SMALL_PHONE.width);
   }
 
-  const phoneEffects = sheet.getByRole("switch", { name: "Effects" });
-  await phoneEffects.click();
-  await expect(phoneEffects).toHaveAttribute("aria-checked", "false");
-  await expect(stageEffects).toHaveAttribute("aria-checked", "false");
+  const phoneRatings = sheet.getByRole("switch", { name: "Line ratings" });
+  await phoneRatings.click();
+  await expect(phoneRatings).toHaveAttribute("aria-checked", "false");
+  await expect(stageRatings).toHaveAttribute("aria-checked", "false");
 
   // The Stage's modal hides the toasts from the accessibility tree only.
   const toasts = stage.getByRole("status", {
@@ -75,7 +75,7 @@ test("a Phone changes an option and the Stage shows it and toasts who did", asyn
   });
   const toast = toasts
     .getByRole("listitem", { includeHidden: true })
-    .filter({ hasText: `${name} changed Effects` });
+    .filter({ hasText: `${name} changed Line ratings` });
   await expect(toast).toBeAttached();
   await expect(
     toast.getByRole("img", { name, includeHidden: true }),
@@ -83,9 +83,9 @@ test("a Phone changes an option and the Stage shows it and toasts who did", asyn
 
   // Reset on the Phone puts the default back on the Stage too.
   await sheet
-    .getByRole("button", { name: "Reset Effects to its default" })
+    .getByRole("button", { name: "Reset Line ratings to its default" })
     .click();
-  await expect(stageEffects).toHaveAttribute("aria-checked", "true");
+  await expect(stageRatings).toHaveAttribute("aria-checked", "true");
 
   await sheet.getByRole("button", { name: "Back" }).click();
   await expect(sheet).toHaveCount(0);
