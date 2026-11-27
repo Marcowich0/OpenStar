@@ -48,6 +48,7 @@ export const en = {
   "joinForm.namePlaceholder": "Your name for tonight",
   "joinForm.colour": "Colour",
   "joinForm.colourHint": "Crossed out ones are taken tonight",
+  "joinForm.favouriteColour": "Favourite colour",
   "joinForm.picture": "Picture",
   "joinForm.pictureNumber": "Picture {number, number}",
   "joinForm.areYou": "Are you {name}?",
@@ -846,6 +847,10 @@ export const en = {
   "admin.profiles.delete": "Delete {name}",
   "admin.profiles.deleteShort": "Delete",
   "admin.profiles.deleteFailed": "The Profile could not be deleted",
+  "admin.profiles.edit": "Edit {name}",
+  "admin.profiles.editShort": "Edit",
+  "admin.profiles.editClose": "Close",
+  "admin.profiles.editTitle": "Edit {name}",
   "admin.testGuarded": "Test guarded action",
   "admin.testGuardedDone": "The guarded action is done",
 
