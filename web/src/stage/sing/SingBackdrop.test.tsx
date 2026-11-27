@@ -119,4 +119,17 @@ describe("SingBackdrop", () => {
     expect(images(container)).toEqual([]);
     expect(container.querySelector("[data-backdrop-tile]")).not.toBeNull();
   });
+
+  it("shows no image under the blobs (ticket 263), but keeps a video that carries the sound", () => {
+    const { container } = render(
+      <SingBackdrop
+        media={{ ...media, video: { kind: "inAudio" }, background: null }}
+        background="blobs"
+        showVideo={false}
+      />,
+    );
+    expect(images(container)).toEqual([]);
+    expect(container.querySelector("[data-backdrop-tile]")).toBeNull();
+    expect(container.querySelector("video")).toHaveClass("invisible");
+  });
 });

@@ -7,6 +7,7 @@
  */
 
 import type { SongMedia } from "../../generated/SongMedia";
+import type { StageOptions } from "../../stageOptions/stageOptions";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { SingLane } from "./frame";
 
@@ -38,6 +39,38 @@ export function backgroundKind(
 ): BackgroundKind {
   if (songVideo && playableVideo(media) !== null) return "video";
   return media.background !== null ? "image" : "blobs";
+}
+
+/**
+ * Effects set to **off**: the one place the sing screen asks. Today
+ * `effects` is a switch; #268 makes it `"off" | "calm" | "full"` (a stored
+ * `false` reads as `"off"`), and this becomes `options.effects === "off"`.
+ */
+export function effectsOff(options: Pick<StageOptions, "effects">): boolean {
+  return !options.effects;
+}
+
+/** The system asks for reduced motion (`prefers-reduced-motion: reduce`). */
+export function prefersReducedMotion(): boolean {
+  return (
+    typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/**
+ * The background a Song's sing screen shows, chosen at Start from its media
+ * and the Stage options: still with Effects off or reduced motion.
+ */
+export function singBackground(
+  media: SongMedia,
+  options: Pick<StageOptions, "effects" | "songVideo">,
+  reducedMotion: boolean,
+): SingBackground {
+  return {
+    kind: backgroundKind(media, options.songVideo),
+    still: effectsOff(options) || reducedMotion,
+  };
 }
 
 /** A blob's colour: a Player's Party colour, or slate for a shared Voice. */
