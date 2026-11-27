@@ -19,6 +19,7 @@ import {
   stageMicSettings,
 } from "../../../mics/stageMicSettings";
 import { OPENSTAR_VOLUME } from "../../../playback/gain";
+import { playbackPlan } from "../../../playback/playbackPlan";
 import { memberLook } from "../../../phone/memberLook";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
 import type { PitchMic } from "../../../pitch/pitchRouter";
@@ -192,6 +193,7 @@ export function singSetup(input: SingSetupInput): SingSetup {
       ? pauseHintInput()
       : null;
   const singSong = singSongOf(detail);
+  const plan = playbackPlan(detail);
   const background = singBackground(
     detail.media,
     display,
@@ -205,7 +207,9 @@ export function singSetup(input: SingSetupInput): SingSetup {
     state: (buffers) => ({
       grid: song.headers,
       voices,
-      lengthSeconds: detail.lengthSeconds,
+      // Where playback starts and stops (`#START`, `#END`).
+      lengthSeconds: plan.endSeconds ?? detail.lengthSeconds,
+      startSeconds: plan.startSeconds,
       song: singSong,
       pauseHint,
       background,

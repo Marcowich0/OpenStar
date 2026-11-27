@@ -77,6 +77,19 @@ describe("the title card", () => {
     expect(card(frame(base, 0.5, layout))).toBeDefined();
   });
 
+  it("counts its 4 s from where play starts (#START), and shows again after a Restart", () => {
+    const late: SingState = { ...base, startSeconds: 20 };
+    expect(card(frame(late, 21, layout))?.x).toBe(80);
+    expect(card(frame(late, 24, layout))?.x).toBe(80);
+    expect(card(frame(late, 24.2, layout))?.x).toBeLessThan(80);
+    expect(card(frame(late, 25, layout))).toBeUndefined();
+    // A Restart seeks back to #START.
+    expect(card(frame(late, 20.5, layout))?.x).toBe(80);
+    expect(
+      hint(frame({ ...late, pauseHint: "keyboard" }, 21, layout)),
+    ).toBeDefined();
+  });
+
   it("is left out without the Song's title", () => {
     expect(card(frame({ ...base, song: null }, 1, layout))).toBeUndefined();
   });

@@ -4,13 +4,14 @@
  * top of the screen stays clear video: these three are all that sits there.
  *
  * - The title card: a white pill with the cover, title and artist in the
- *   top-left clear area, under the progress bar, from the Song's start to
- *   4 s; then it slides out to the left.
+ *   top-left clear area, under the progress bar, for the first 4 s of play
+ *   (from `#START`, again after a Restart); then it slides out to the left.
  * - The pause hint: "Space: pause" under the title card, for the same time,
  *   on the first Song since the Party started only (the Stage sets
  *   `SingState.pauseHint`).
  * - The time left: `m:ss` at the right end of the progress bar, counting
- *   down to the Song's end, for the whole Song.
+ *   down to the Song's end (`#END`, where playback stops), for the whole
+ *   Song.
  *
  * Like the rest of `frame()`, every entry is a pure function of Song time,
  * in the 1920 × 1080 reference frame, with colours as token names.
@@ -149,7 +150,7 @@ export interface TimeLeftEntry {
   outlineWidth: number;
 }
 
-/** The card shows this long from the Song's start, then slides out. */
+/** The card shows this long from where play starts, then slides out. */
 export const TITLE_CARD_SECONDS = 4;
 /** How long the slide-out takes. */
 const SLIDE_SECONDS = 0.4;
@@ -188,10 +189,13 @@ function cut(text: string): string {
     : text;
 }
 
-/** How far the card has slid out, 0 to 1 (eased in); `null`: it is gone. */
-function slide(songTime: number): number | null {
-  if (songTime <= TITLE_CARD_SECONDS) return 0;
-  const p = (songTime - TITLE_CARD_SECONDS) / SLIDE_SECONDS;
+/**
+ * How far the card has slid out `played` seconds after play started, 0 to 1
+ * (eased in); `null`: it is gone.
+ */
+function slide(played: number): number | null {
+  if (played <= TITLE_CARD_SECONDS) return 0;
+  const p = (played - TITLE_CARD_SECONDS) / SLIDE_SECONDS;
   return p >= 1 ? null : p * p * p;
 }
 
@@ -202,7 +206,11 @@ function slide(songTime: number): number | null {
  */
 export function topBand(
   list: DrawList,
-  state: { song?: SingSong | null; pauseHint?: PauseHint | null },
+  state: {
+    song?: SingSong | null;
+    pauseHint?: PauseHint | null;
+    startSeconds?: number;
+  },
   songTime: number,
   length: number,
 ) {
@@ -227,7 +235,8 @@ export function topBand(
   }
 
   const song = state.song;
-  const out = slide(songTime);
+  // From where play starts, so a Song with a #START shows it too.
+  const out = slide(songTime - (state.startSeconds ?? 0));
   if (!song || out === null) return;
   const x = LEFT - out * (CARD.maxWidth + LEFT);
   const textX = x + CARD.inset + CARD.cover + CARD.gap;

@@ -313,6 +313,32 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     }
   });
 
+  it("counts the top band from #START to #END, where playback starts and stops", () => {
+    const detail = testDetail();
+    const state = (startSeconds: number | null, endSeconds: number | null) =>
+      singSetup({
+        detail: {
+          ...detail,
+          lengthSeconds: 200,
+          song: {
+            ...detail.song,
+            headers: { ...detail.song.headers, startSeconds, endSeconds },
+          },
+        },
+        party: testParty(),
+        profiles: PROFILES,
+      }).state([new PitchBuffer(8)]);
+    expect(state(20, 150)).toMatchObject({
+      startSeconds: 20,
+      lengthSeconds: 150,
+    });
+    // Without #START and #END: from 0 to the audio's end.
+    expect(state(null, null)).toMatchObject({
+      startSeconds: 0,
+      lengthSeconds: 200,
+    });
+  });
+
   it("gives the title card the Song's title, artist and cover", () => {
     const state = singSetup({
       detail: {
