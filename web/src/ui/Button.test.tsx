@@ -73,6 +73,21 @@ describe("Button", () => {
       expect(button).not.toHaveAttribute("data-shaking");
     });
 
+    it("reports a press while disabled to onDisabledPress only", () => {
+      const onPress = vi.fn();
+      const onDisabledPress = vi.fn();
+      render(
+        <Button isDisabled onPress={onPress} onDisabledPress={onDisabledPress}>
+          Start
+        </Button>,
+      );
+      act(() => {
+        fireEvent.click(screen.getByRole("button"));
+      });
+      expect(onDisabledPress).toHaveBeenCalledOnce();
+      expect(onPress).not.toHaveBeenCalled();
+    });
+
     it("does not breathe", () => {
       render(
         <Button isDisabled breathing>

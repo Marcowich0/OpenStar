@@ -12,6 +12,7 @@ import { useMemo, useRef, useState } from "react";
 import { profilesQuery, songsQuery } from "../../../api/queries";
 import type { LineUp } from "../../../generated/LineUp";
 import type { LineUpEdit } from "../../../generated/LineUpEdit";
+import type { LineUpWarning } from "../../../generated/LineUpWarning";
 import type { PartyMemberId } from "../../../generated/PartyMemberId";
 import type { PartySnapshot } from "../../../generated/PartySnapshot";
 import type { SongId } from "../../../generated/SongId";
@@ -20,6 +21,11 @@ import type { SongSummary } from "../../../generated/SongSummary";
 import type { UserMessage } from "../../../generated/UserMessage";
 import { lineUpWarningText } from "../../../i18n/serverText";
 import { t } from "../../../i18n/t";
+import {
+  blocksStart,
+  lineUpFix,
+  type LineUpFix,
+} from "../../../live/lineUpFixes";
 import type { LiveState } from "../../../live/liveState";
 import { useLive } from "../../../live/useLive";
 import { useLocalMics } from "../../../mics/LocalMics";
@@ -40,7 +46,13 @@ import {
   type MicLevels,
 } from "./lineUpView";
 import { LineUpHeader } from "./LineUpHeader";
-import { AddPlayerCard, SeatCard } from "./SeatCard";
+import {
+  AddPlayerCard,
+  FixButton,
+  SeatCard,
+  type SeatWarning,
+  type WarningFix,
+} from "./SeatCard";
 import { MicPickList, WhoPickList } from "./SeatPickLists";
 
 /** v1 seats at most 4 Players (v1 spec #48). */
@@ -53,6 +65,20 @@ interface Picking {
 }
 
 const selectParty = (live: LiveState) => live.stage?.party ?? null;
+
+/** The text on a fix button. */
+function fixLabel(fix: LineUpFix): string {
+  switch (fix.kind) {
+    case "pickMic":
+      return t("stage.lineUp.fix.pickMic");
+    case "pickVoice":
+      return t("stage.lineUp.fix.pickVoice");
+    case "addSinger":
+      return t("stage.lineUp.addSinger");
+    case "calibrate":
+      return t("stage.overlay.calibrateMics");
+  }
+}
 
 export function LineUpScene() {
   const { store } = useStageFrame();
@@ -103,6 +129,7 @@ function LineUpBody({
   const adjustingMic =
     adjusting === null ? null : (lineUp.seats[adjusting]?.mic ?? null);
   const startRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<HTMLElement>(null);
 
   const songOf = (id: SongId | undefined): SongSummary | undefined =>
     songs?.find((s) => s.id === id);
@@ -147,6 +174,57 @@ function LineUpBody({
       (reason) => reason,
       null,
     );
+  };
+  // A warning's fix (`lineUpFix`): a pick list opens, or the focus goes to
+  // the field to change.
+  const fixOf = (warning: LineUpWarning): WarningFix | null => {
+    const fix = lineUpFix(warning, lineUp);
+    if (fix === null) return null;
+    return {
+      label: fixLabel(fix),
+      blocksStart: blocksStart(warning),
+      onPress: (button) => {
+        runFix(fix, button);
+      },
+    };
+  };
+  const runFix = (fix: LineUpFix, button: HTMLElement) => {
+    switch (fix.kind) {
+      case "pickMic":
+        setPicking({ seat: fix.seat, field: "mic" });
+        return;
+      case "addSinger":
+        setPicking({ seat: lineUp.seats.length, field: "who" });
+        return;
+      case "pickVoice":
+        button
+          .closest("[data-line-up]")
+          ?.querySelector<HTMLElement>(
+            `[data-seat-voice="${String(fix.seat)}"]`,
+          )
+          ?.focus();
+        return;
+      case "calibrate": {
+        // The usual checklist, with this seat's Mic ticked.
+        const mic = lineUp.seats[fix.seat]?.mic;
+        if (mic) store.send({ type: "openCalibrationFor", mic });
+        return;
+      }
+    }
+  };
+  const withFix = (warning: LineUpWarning): SeatWarning => {
+    const text = lineUpWarningText(warning, nameOf, party.localMics);
+    const fix = fixOf(warning);
+    return fix ? { text, fix } : text;
+  };
+  // A press on the greyed Start shakes it and takes the focus to the
+  // first warning's fix, preferring one whose warning blocks Start.
+  const toFirstFix = () => {
+    const scene = sceneRef.current;
+    (
+      scene?.querySelector<HTMLElement>('[data-line-up-fix="blocks"]') ??
+      scene?.querySelector<HTMLElement>("[data-line-up-fix]")
+    )?.focus();
   };
   const start = () => {
     store.send({
@@ -204,7 +282,11 @@ function LineUpBody({
   };
 
   return (
-    <section className="relative flex h-full flex-col items-center">
+    <section
+      ref={sceneRef}
+      data-line-up
+      className="relative flex h-full flex-col items-center"
+    >
       <LineUpHeader song={head} duet={lineUp.duet} />
 
       {then.length > 0 && (
@@ -254,18 +336,7 @@ function LineUpBody({
                     : micLabel(party, seat.mic, localMics),
                 )}
                 micBad={micHasProblem(warnings)}
-                warnings={warnings.map((w) => {
-                  const text = lineUpWarningText(w, nameOf, party.localMics);
-                  const mic = seat.mic;
-                  if (w.code !== "notCalibrated" || mic === null) return text;
-                  // The usual checklist, with this seat's Mic ticked.
-                  return {
-                    text,
-                    onCalibrate: () => {
-                      store.send({ type: "openCalibrationFor", mic });
-                    },
-                  };
-                })}
+                warnings={warnings.map(withFix)}
                 order={index}
                 isDefault={index === 0}
                 onWho={() => {
@@ -350,14 +421,20 @@ function LineUpBody({
       </ol>
 
       <div className="absolute inset-x-0 bottom-[90px] flex flex-col items-center gap-3.5">
-        {songWide.map((warning) => (
-          <p
-            key={JSON.stringify(warning)}
-            className="text-[28px] font-semibold text-warn-fg"
-          >
-            {lineUpWarningText(warning, nameOf, party.localMics)}
-          </p>
-        ))}
+        {songWide.map((warning) => {
+          const fix = fixOf(warning);
+          return (
+            <div
+              key={JSON.stringify(warning)}
+              className="flex items-center gap-4"
+            >
+              <p className="text-[28px] font-semibold text-warn-fg">
+                {lineUpWarningText(warning, nameOf, party.localMics)}
+              </p>
+              {fix && <FixButton fix={fix} />}
+            </div>
+          );
+        })}
         <div ref={startRef}>
           <Button
             fill="green"
@@ -365,6 +442,7 @@ function LineUpBody({
             breathing
             isDisabled={!lineUp.canStart}
             onPress={start}
+            onDisabledPress={toFirstFix}
           >
             {t("stage.start")}
           </Button>

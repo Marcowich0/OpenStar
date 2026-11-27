@@ -38,6 +38,8 @@ export interface ButtonProps {
   /** Greyed and shaking when pressed; `onPress` is not called. */
   isDisabled?: boolean;
   onPress?: () => void;
+  /** A press while disabled, after the shake starts (to show the way out). */
+  onDisabledPress?: () => void;
   /** Layout utilities from the caller (position, width). */
   className?: string;
 }
@@ -49,6 +51,7 @@ export function Button({
   breathing = false,
   isDisabled = false,
   onPress,
+  onDisabledPress,
   className = "",
 }: ButtonProps) {
   const [shaking, setShaking] = useState(false);
@@ -88,8 +91,10 @@ export function Button({
       ref={ref}
       onPress={() => {
         cue?.(isDisabled ? "refuse" : "select");
-        if (isDisabled) setShaking(true);
-        else onPress?.();
+        if (isDisabled) {
+          setShaking(true);
+          onDisabledPress?.();
+        } else onPress?.();
       }}
       className={classes.filter(Boolean).join(" ")}
     >
