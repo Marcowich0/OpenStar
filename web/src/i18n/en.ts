@@ -520,10 +520,18 @@ export const en = {
   // The Mics screen (Setup › Mics) and Local mic names.
   "mics.group.thisBrowser": "This browser",
   "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
-  "mics.noDevices": "No input device found",
+  "mics.noDevices":
+    "No input device found. Plug in a microphone or an audio interface; the list updates by itself.",
   "mics.allowMicrophone":
     "Allow this browser to use the microphone to list its inputs",
-  "mics.unavailable": "This browser cannot read its microphones here",
+  "mics.unavailable":
+    "This browser cannot read its microphones here. Reload the page to try again.",
+  "mics.unavailable.insecureContext":
+    "This page is not on a secure (https) address, so the browser hides its microphones. Open OpenStar over HTTPS, or at http://localhost on this computer.",
+  "mics.unavailable.noMediaDevices":
+    "This browser cannot use microphones. Open the Stage in a current Chrome, Chromium, Edge or Firefox.",
+  "mics.unavailable.permissionDenied":
+    "This browser is not allowed to use the microphone. Click the icon left of the address bar, set Microphone to Allow, then reload the page.",
   "mics.switchedOn": "On",
   "mics.switchedOff": "Off",
   "mics.switch": "{name} switched on",
