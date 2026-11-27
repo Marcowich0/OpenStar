@@ -1,7 +1,9 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { PartySnapshot } from "../generated/PartySnapshot";
 import type { Profile } from "../generated/Profile";
+import type { ProfileEdit } from "../generated/ProfileEdit";
 import { STATS_ADA } from "../profile/profileStatsFixture";
 import { HOLD_DURATION_MS } from "../ui/hold";
 import { fakeLibraryServer, renderLive, settle } from "./adminTestKit";
@@ -25,6 +27,38 @@ function profile(id: number, name: string, lastSungAt: number | null) {
 const SUNG = Date.UTC(2024, 2, 14, 12);
 const ADA = profile(1, "Ada", SUNG);
 const BO = profile(2, "Bo", null);
+
+/** Tonight's Party: one Guest called `name`. */
+function partyWithGuest(name: string): PartySnapshot {
+  return {
+    partyId: "p1",
+    stageId: "main",
+    joinCode: "4821",
+    startedAtMs: 1,
+    members: [
+      {
+        memberId: 4,
+        identity: {
+          kind: "guest",
+          name,
+          avatar: { kind: "builtIn", key: "flame" },
+          difficulty: "medium",
+        },
+        colour: "cherry",
+        favouriteTaken: false,
+        onPhone: true,
+        singing: false,
+      },
+    ],
+    phones: [],
+    queue: [],
+    head: null,
+    lineUp: null,
+    playing: null,
+    results: null,
+    localMics: [],
+  };
+}
 
 const status = (code: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), {
@@ -58,9 +92,30 @@ function profilesServer(
     list = list.filter((p) => p.id !== id);
     return status(204);
   };
-  for (const p of profiles)
+  /** Every edit body, in order. */
+  const edits: ProfileEdit[] = [];
+  const editAnswer = (url: URL, init: RequestInit) => {
+    const edit = JSON.parse(init.body as string) as ProfileEdit;
+    edits.push(edit);
+    if (answer) return answer;
+    const id = Number(url.pathname.split("/").pop());
+    list = list.map((p) =>
+      p.id === id
+        ? {
+            ...p,
+            name: edit.name ?? p.name,
+            avatar: edit.avatar ?? p.avatar,
+            favouriteColour: edit.favouriteColour ?? p.favouriteColour,
+          }
+        : p,
+    );
+    return list.find((p) => p.id === id);
+  };
+  for (const p of profiles) {
     server.answers[`DELETE /api/profiles/${String(p.id)}`] = deleteAnswer;
-  return server;
+    server.answers[`PATCH /api/profiles/${String(p.id)}`] = editAnswer;
+  }
+  return Object.assign(server, { edits });
 }
 
 const list = () => screen.getByRole("list", { name: "Profiles" });
@@ -68,6 +123,19 @@ const rows = () => within(list()).getAllByRole("listitem");
 const deleteButton = (name: string) =>
   screen.getByRole("button", { name: `Delete ${name}` });
 const pad = () => screen.queryByRole("dialog", { name: "Admin PIN" });
+const nameField = () => screen.getByRole("textbox", { name: "Name" });
+
+function typeName(name: string) {
+  act(() => {
+    fireEvent.change(nameField(), { target: { value: name } });
+  });
+}
+
+function press(name: string | RegExp) {
+  act(() => {
+    fireEvent.click(screen.getByRole("button", { name }));
+  });
+}
 
 /** Presses Delete for `name` for `ms`, then lets go. */
 async function holdDelete(name: string, ms = HOLD_DURATION_MS) {
@@ -217,5 +285,129 @@ describe("the Profiles section", () => {
       fireEvent.click(toggle);
     });
     expect(page.queryByText("Songs sung")).toBeNull();
+  });
+
+  it("shows the Profile page or the Edit form under a row, not both", async () => {
+    const server = profilesServer([ADA, BO]);
+    server.answers["GET /api/profiles/1/stats"] = STATS_ADA;
+    await renderLive((store) => <Profiles store={store} />);
+
+    press("Stats for Ada");
+    await settle();
+    expect(screen.getByText("Songs sung")).toBeInTheDocument();
+
+    press("Edit Ada");
+    expect(screen.getByRole("form", { name: "Edit Ada" })).toBeInTheDocument();
+    expect(screen.queryByText("Songs sung")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Stats for Ada" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+});
+
+describe("editing a Profile", () => {
+  it("Edit opens the Phone's form, filled in with the Profile's own", async () => {
+    profilesServer([ADA, BO]);
+    await renderLive((store) => <Profiles store={store} />);
+
+    press("Edit Ada");
+
+    const form = screen.getByRole("form", { name: "Edit Ada" });
+    expect(nameField()).toHaveValue("Ada");
+    expect(nameField()).toHaveAttribute("maxlength", "16");
+    const colours = within(
+      within(form).getByRole("radiogroup", { name: /Favourite colour/ }),
+    );
+    expect(colours.getAllByRole("radio")).toHaveLength(12);
+    expect(colours.getByRole("radio", { name: "Sky" })).toBeChecked();
+    const pictures = within(
+      within(form).getByRole("radiogroup", { name: "Picture" }),
+    );
+    expect(pictures.getByRole("radio", { name: "Picture 1" })).toBeChecked();
+  });
+
+  it("saves the name, picture and favourite colour, and the list follows", async () => {
+    const server = profilesServer([ADA, BO]);
+    const live = await renderLive((store) => <Profiles store={store} />);
+
+    press("Edit Ada");
+    typeName(" Ada L ");
+    act(() => {
+      fireEvent.click(screen.getByRole("radio", { name: "Teal" }));
+      fireEvent.click(screen.getByRole("radio", { name: "Picture 3" }));
+    });
+    press("Save");
+    await settle();
+
+    expect(server.edits).toEqual([
+      {
+        name: "Ada L",
+        avatar: { kind: "builtIn", key: "moon" },
+        favouriteColour: "teal",
+      },
+    ]);
+    // The server tells everyone, every Phone showing Ada included.
+    await live.changed("profiles");
+    expect(screen.queryByRole("form", { name: "Edit Ada" })).toBeNull();
+    expect(rows()[0]).toHaveTextContent("Ada L");
+    expect(rows()[0]?.querySelector('[role="img"]')).toHaveAttribute(
+      "aria-label",
+      "Ada L",
+    );
+  });
+
+  it("keeps its own name free, and refuses another Profile's", async () => {
+    const server = profilesServer([ADA, BO]);
+    await renderLive((store) => <Profiles store={store} />);
+
+    press("Edit Ada");
+    typeName("ADA");
+    expect(screen.queryByRole("alert")).toBeNull();
+
+    typeName(" bo");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "A Profile with that name already exists",
+    );
+    press("Save");
+    await settle();
+    expect(server.edits).toEqual([]);
+  });
+
+  it("shows the server's refusal of a taken name and stays open", async () => {
+    const server = profilesServer([ADA], {
+      answer: status(409, { code: "profileNameTaken", profileId: 7 }),
+    });
+    await renderLive((store) => <Profiles store={store} />);
+
+    press("Edit Ada");
+    typeName("Cleo");
+    press("Save");
+    await settle();
+
+    expect(server.edits).toHaveLength(1);
+    const form = screen.getByRole("form", { name: "Edit Ada" });
+    expect(within(form).getByRole("alert")).toHaveTextContent(
+      "A Profile with that name already exists",
+    );
+  });
+
+  it("refuses a name a Guest has tonight", async () => {
+    const server = profilesServer([ADA]);
+    const live = await renderLive((store) => <Profiles store={store} />);
+    await live.receive({
+      type: "liveState",
+      stageId: "main",
+      isStage: false,
+      party: partyWithGuest("Kim"),
+    });
+
+    press("Edit Ada");
+    typeName("kim");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Someone already has that name tonight",
+    );
+    press("Save");
+    await settle();
+    expect(server.edits).toEqual([]);
   });
 });
