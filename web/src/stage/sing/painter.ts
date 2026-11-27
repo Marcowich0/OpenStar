@@ -14,14 +14,19 @@ import type {
   LaneEntry,
   LineStyle,
   ParticleEntry,
+  PauseHintEntry,
   PillEntry,
   PitchLineEntry,
   PlayheadEntry,
   ProgressEntry,
   ShimmerStyle,
   StarStyle,
+  TextStyle,
+  TimeLeftEntry,
+  TitleCardEntry,
   TracePoint,
 } from "./frame";
+import type { ImageSource } from "./coverImages";
 
 /** The reference frame every draw list is in (#55). */
 const REFERENCE_WIDTH = 1920;
@@ -72,14 +77,20 @@ export type PaintLayer = "lanes" | "effects";
 /** A particle star's notch radius as a share of its point radius. */
 const PARTICLE_STAR_INNER = 0.45;
 
+/** No images: every cover shows its tile. */
+const NO_IMAGES: ImageSource = () => null;
+
 /**
  * A painter for `ctx`. `readColour` resolves a palette key or token name to a
- * colour (`readToken` in the app); it is called at most once per name per frame.
+ * colour (`readToken` in the app), and the font token to its font family; it
+ * is called at most once per name per frame. `images` gives the loaded image
+ * for a URL (the title card's cover), or `null` to draw the fallback.
  */
 export function createPainter(
   ctx: CanvasRenderingContext2D,
   readColour: (ref: TokenRef) => string,
   layer: PaintLayer = "lanes",
+  images: ImageSource = NO_IMAGES,
 ): Painter {
   // Reused across frames, so painting allocates nothing per frame beyond what
   // the canvas API itself does.
@@ -372,6 +383,107 @@ export function createPainter(
     ctx.globalAlpha = 1;
   }
 
+  function font(style: TextStyle): string {
+    return `${String(style.weight)} ${String(style.size)}px ${colour("--font-sans")}`;
+  }
+
+  /** Fills `style`'s text in its font and colour, at most `maxWidth` wide. */
+  function text(style: TextStyle, maxWidth?: number) {
+    ctx.font = font(style);
+    ctx.fillStyle = colour(style.colour);
+    if (maxWidth === undefined) ctx.fillText(style.text, style.x, style.y);
+    else ctx.fillText(style.text, style.x, style.y, maxWidth);
+  }
+
+  function textWidth(style: TextStyle): number {
+    ctx.font = font(style);
+    return ctx.measureText(style.text).width;
+  }
+
+  function titleCard(entry: TitleCardEntry) {
+    const { x, y, height, title, artist, cover: c } = entry;
+    const width = Math.min(
+      entry.maxWidth,
+      title.x -
+        x +
+        Math.max(textWidth(title), textWidth(artist)) +
+        entry.paddingRight,
+    );
+    const radius = height / 2;
+    ctx.fillStyle = colour(entry.ledge);
+    ctx.beginPath();
+    ctx.roundRect(x, y + entry.ledgeDepth, width, height, radius);
+    ctx.fill();
+    ctx.globalAlpha = entry.alpha;
+    ctx.fillStyle = colour(entry.fill);
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, radius);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // The cover: the rim, the tile inside it, then the image over the tile.
+    ctx.fillStyle = colour(c.rim);
+    ctx.beginPath();
+    ctx.roundRect(c.x, c.y, c.size, c.size, c.radius);
+    ctx.fill();
+    const inX = c.x + c.rimWidth;
+    const inY = c.y + c.rimWidth;
+    const inSize = c.size - 2 * c.rimWidth;
+    ctx.fillStyle = colour(c.tile);
+    ctx.beginPath();
+    ctx.roundRect(inX, inY, inSize, inSize, c.radius - c.rimWidth);
+    ctx.fill();
+    const image = c.url === null ? null : images(c.url);
+    if (image) {
+      // Cropped to a square from the middle, like `object-fit: cover`.
+      const side = Math.min(image.naturalWidth, image.naturalHeight);
+      ctx.save();
+      ctx.clip();
+      ctx.drawImage(
+        image,
+        (image.naturalWidth - side) / 2,
+        (image.naturalHeight - side) / 2,
+        side,
+        side,
+        inX,
+        inY,
+        inSize,
+        inSize,
+      );
+      ctx.restore();
+    }
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    const room = x + width - entry.paddingRight;
+    text(title, room - title.x);
+    text(artist, room - artist.x);
+  }
+
+  function pauseHint(entry: PauseHintEntry) {
+    const width = textWidth(entry.text) + 2 * entry.padding;
+    ctx.fillStyle = colour(entry.fill);
+    ctx.beginPath();
+    ctx.roundRect(entry.x, entry.y, width, entry.height, entry.height / 2);
+    ctx.fill();
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    text(entry.text);
+  }
+
+  function timeLeft(entry: TimeLeftEntry) {
+    const style = entry.text;
+    ctx.font = font(style);
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = entry.outlineWidth;
+    ctx.setLineDash(NO_DASH as number[]);
+    ctx.strokeStyle = colour(entry.outline);
+    ctx.strokeText(style.text, style.x, style.y);
+    text(style);
+  }
+
   function paintEffects(list: DrawList) {
     for (const entry of list) {
       if (entry.type === "particle") particle(entry);
@@ -414,6 +526,15 @@ export function createPainter(
             break;
           case "laneEnd":
             ctx.restore();
+            break;
+          case "titleCard":
+            titleCard(entry);
+            break;
+          case "pauseHint":
+            pauseHint(entry);
+            break;
+          case "timeLeft":
+            timeLeft(entry);
             break;
           case "lyric":
             // DOM text: the render loop writes it to the lyric bar.

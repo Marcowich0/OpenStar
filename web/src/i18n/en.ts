@@ -404,6 +404,8 @@ export const en = {
   "sing.lineRating.great": "Great!",
   "sing.lineRating.good": "Good",
   "sing.lineRating.ok": "OK",
+  "sing.pauseHint.keyboard": "Space: pause",
+  "sing.pauseHint.gamepad": "Start: pause",
 
   // The Stage frame (#120): the pill row, the Setup menu and the overlays.
   "stage.pill.songs": "Songs",
