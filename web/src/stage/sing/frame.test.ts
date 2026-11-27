@@ -421,7 +421,7 @@ describe("frame", () => {
     expect(band(7.5)).toBeNull();
   });
 
-  it("draws the progress bar across the top: 80 px in, 20 px down, about 10 px tall", () => {
+  it("draws the progress bar across the top: 80 px in, 20 px down, about 10 px tall, with room for the time left", () => {
     // The last Note ends at Beat 62: Song time 1 + 62 / 2 = 32 s.
     const progress = (t: number, s: SingState = solo) =>
       frame(s, t, oneLane).filter((e) => e.type === "progress");
@@ -430,7 +430,7 @@ describe("frame", () => {
         type: "progress",
         x: 80,
         y: 20,
-        width: 1760,
+        width: 1660,
         height: 10,
         fraction: 0.5,
         track: "--color-white",
@@ -521,6 +521,17 @@ describe("frame", () => {
           case "particle":
           case "lineRating":
             colours.push(entry.colour);
+            break;
+          case "titleCard":
+            colours.push(entry.fill, entry.ledge, entry.cover.tile);
+            colours.push(entry.cover.rim, entry.title.colour);
+            colours.push(entry.artist.colour);
+            break;
+          case "pauseHint":
+            colours.push(entry.fill, entry.text.colour);
+            break;
+          case "timeLeft":
+            colours.push(entry.text.colour, entry.outline);
             break;
           case "laneEnd":
             break;

@@ -20,6 +20,7 @@ import { t } from "../../i18n/t";
 import { Avatar } from "../../ui/Avatar";
 import { Icon } from "../../ui/Icon";
 import { Score } from "../../ui/Score";
+import { createImageCache } from "./coverImages";
 import type { DrawList, SingLane, SingState } from "./frame";
 import { laneHeaderSizes } from "./laneHeader";
 import { createLaneLostWriter, type LaneLostWriter } from "./laneLost";
@@ -91,6 +92,8 @@ export function SingScreen({
   const [lyrics] = useState(createLyricDriver);
   const [lost] = useState(createLaneLostWriter);
   const [ratings] = useState(createLineRatingWriter);
+  // The title card's cover (#264), loaded once per URL.
+  const [images] = useState(() => createImageCache());
 
   // The loop reads the latest props each frame without restarting.
   const latest = useRef({ state, clock, avOffset, frameTime, viewport });
@@ -116,7 +119,12 @@ export function SingScreen({
   useEffect(() => {
     const ctx = lanesRef.current?.getContext("2d");
     if (!ctx) return;
-    const painter = createPainter(ctx, (ref) => readToken(ref));
+    const painter = createPainter(
+      ctx,
+      (ref) => readToken(ref),
+      "lanes",
+      images.get,
+    );
     const effectsCtx = effectsRef.current?.getContext("2d");
     const effects =
       effectsCtx &&
@@ -151,7 +159,7 @@ export function SingScreen({
     return () => {
       loop.stop();
     };
-  }, [lyrics, lost, ratings]);
+  }, [lyrics, lost, ratings, images]);
 
   const frame = referenceTransform(viewport.width, viewport.height, 1);
   const referenceStyle = {
