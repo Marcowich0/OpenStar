@@ -428,6 +428,19 @@ const MIGRATIONS: &[&str] = &[
         id      INTEGER PRIMARY KEY CHECK (id = 1),
         options TEXT NOT NULL
     ) STRICT;",
+    // 32: the Song's artist and title as the Library had them when the
+    // round was stored (#272), so Profile stats can name a Song that has
+    // left the Library. Rounds stored before this take them from a Library
+    // row of the same identity, if one is still there; NULL otherwise.
+    "ALTER TABLE rounds ADD COLUMN artist TEXT;
+    ALTER TABLE rounds ADD COLUMN title TEXT;
+    UPDATE rounds SET
+        artist = (SELECT f.artist FROM library_files f
+            WHERE f.identity = rounds.song_identity AND f.artist IS NOT NULL
+            ORDER BY f.playable DESC, f.id LIMIT 1),
+        title = (SELECT f.title FROM library_files f
+            WHERE f.identity = rounds.song_identity AND f.title IS NOT NULL
+            ORDER BY f.playable DESC, f.id LIMIT 1);",
 ];
 
 /// The schema version this build migrates to.
@@ -747,5 +760,50 @@ mod tests {
             )
         );
         assert_eq!(row("b/song.txt"), (None, None, None, None, None));
+    }
+
+    #[test]
+    fn rounds_stored_before_their_names_take_them_from_the_library() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let adds_them = MIGRATIONS
+            .iter()
+            .position(|m| m.contains("ALTER TABLE rounds ADD COLUMN artist"))
+            .unwrap();
+        for sql in &MIGRATIONS[..adds_them] {
+            conn.execute_batch(sql).unwrap();
+        }
+        conn.execute_batch(
+            "INSERT INTO library_files (path, size, mtime_ns, parser_version, artist, title,
+                 duet, txt_problems, file_references, playable, identity)
+             VALUES ('a/song.txt', 1, 1, 1, 'Old Artist', 'Old Title', 0, '[]', '[]', 0, 'kept'),
+                    ('b/song.txt', 1, 1, 1, 'An Artist', 'A Title', 0, '[]', '[]', 1, 'kept');
+             INSERT INTO rounds (song_identity, party_id, mode, started_at_ms, ended)
+             VALUES ('kept', 'p', 'normal', 0, 'played'),
+                    ('gone', 'p', 'normal', 0, 'played');",
+        )
+        .unwrap();
+        conn.pragma_update(None, "user_version", adds_them as i64)
+            .unwrap();
+        migrate(&mut conn).unwrap();
+
+        let names = |identity: &str| {
+            conn.query_row(
+                "SELECT artist, title FROM rounds WHERE song_identity = ?1",
+                [identity],
+                |r| {
+                    Ok((
+                        r.get::<_, Option<String>>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                    ))
+                },
+            )
+            .unwrap()
+        };
+        assert_eq!(
+            names("kept"),
+            (Some("An Artist".into()), Some("A Title".into())),
+            "a playable row first"
+        );
+        assert_eq!(names("gone"), (None, None));
     }
 }

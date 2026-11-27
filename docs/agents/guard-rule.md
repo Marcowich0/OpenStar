@@ -57,6 +57,7 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - which Songs have an Original to restore (`GET /api/library/originals`);
 - Undo of a Phone's fit proposal, which writes nothing;
 - creating and editing Profiles;
+- looking at a Profile's stats (`GET /api/profiles/{id}/stats`), on the Phone, the Stage or in the Admin area: it only reads Score records;
 - checking a Join code and joining the Party (Join code plus identity), and a Phone's silent rejoin with its Phone id;
 - removing a Party member (press and hold) and Leave party;
 - New party (press and hold only);
