@@ -7,6 +7,7 @@ import { stageOptionsKey } from "../stageOptions/stageOptions";
 import {
   libraryProblemsQuery,
   micBridgesQuery,
+  profileStatsKey,
   profilesQuery,
   scanStatusQuery,
   serverInfoQuery,
@@ -20,8 +21,13 @@ import {
  */
 export const QUERIES_BY_TOPIC: Record<ChangeTopic, readonly QueryKey[]> = {
   serverInfo: [serverInfoQuery.queryKey],
-  profiles: [profilesQuery.queryKey],
-  library: [songsKey, libraryProblemsQuery.queryKey, scanStatusQuery.queryKey],
+  profiles: [profilesQuery.queryKey, profileStatsKey],
+  library: [
+    songsKey,
+    libraryProblemsQuery.queryKey,
+    scanStatusQuery.queryKey,
+    profileStatsKey,
+  ],
   // Mic settings and Local mics: every such query's key starts with
   // "micSettings" (`localMicsQuery`, `stageOutputMicSettingsQuery`).
   micSettings: [["micSettings"]],

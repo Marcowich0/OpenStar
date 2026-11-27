@@ -2,6 +2,7 @@ import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Profile } from "../generated/Profile";
+import { STATS_ADA } from "../profile/profileStatsFixture";
 import { HOLD_DURATION_MS } from "../ui/hold";
 import { fakeLibraryServer, renderLive, settle } from "./adminTestKit";
 import { Profiles } from "./Profiles";
@@ -190,5 +191,31 @@ describe("the Profiles section", () => {
     );
     expect(rows()[0]).toContainElement(alert);
     expect(rows()).toHaveLength(2);
+  });
+
+  it("shows a Profile's page inline under its row", async () => {
+    const server = profilesServer([ADA, BO]);
+    server.answers["GET /api/profiles/1/stats"] = STATS_ADA;
+    await renderLive(<Profiles />);
+    const [ada] = rows();
+    const toggle = screen.getByRole("button", { name: "Stats for Ada" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(server.count("GET /api/profiles/1/stats")).toBe(0);
+
+    act(() => {
+      fireEvent.click(toggle);
+    });
+    await settle();
+
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const page = within(ada as HTMLElement);
+    expect(page.getByRole("heading", { name: "Ada" })).toBeInTheDocument();
+    expect(page.getByText("Songs sung")).toBeInTheDocument();
+    expect(page.getByRole("list", { name: "Most sung" })).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.click(toggle);
+    });
+    expect(page.queryByText("Songs sung")).toBeNull();
   });
 });
