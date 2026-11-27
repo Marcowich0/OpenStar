@@ -1,16 +1,17 @@
-// The People overlay, "Tonight's Party" (v1 spec #55, "Overlays: Songs,
-// Queue and People"): the twelve Party colours as a 6 × 2 grid in palette
-// order, each spot showing who holds it or that it is free. Holding a
-// spot's control removes that Party member (not one in the Line-up, who
-// shows "singing"); New party, also a hold, and the join card sit at the
-// bottom. The join card here never hides, whatever the song browser's Hide
-// choice. Deleting a Profile lives in the Admin area, never here.
+// The People overlay (v1 spec #55, "Overlays: Songs, Queue and People";
+// reordered by spec #241): the Party members first, as cards in the order
+// they joined, then the free colours as a compact row of named swatches.
+// Holding a card's control removes that Party member (not one in the
+// Line-up, who shows "singing"). New party, also a hold, says what it
+// clears; the join card sits beside it and never hides here, whatever the
+// song browser's Hide choice. Deleting a Profile lives in the Admin area,
+// never here.
 //
-// A Profile's spot opens its Profile page (spec #244) on Enter or a click:
+// A Profile's card opens its Profile page (spec #244) on Enter or a click:
 // a layer over this overlay, so Esc comes back here. Guests have none.
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { profilesQuery } from "../../api/queries";
 import type { PartyMember } from "../../generated/PartyMember";
@@ -42,22 +43,22 @@ export function PeopleOverlay() {
   const [shown, setShown] = useState<ShownProfile | null>(null);
   // The Stage is no Party member, so no row is "me".
   const rows = peopleRows(members, null, profiles);
-  const byColour = new Map(rows.map((row) => [row.member.colour, row]));
+  const taken = new Set(members.map((member) => member.colour));
+  const free = PALETTE_KEYS.filter((colour) => !taken.has(colour));
 
   return (
     <div className="flex flex-col gap-6">
       <p className="-mt-4 text-3xl text-ink-2">
         {t("stage.people.count", { count: members.length })}
       </p>
-      <ul
-        aria-label={t("stage.people.colours")}
-        className="grid grid-cols-6 gap-4"
-      >
-        {PALETTE_KEYS.map((colour) => {
-          const row = byColour.get(colour);
-          return row ? (
-            <TakenSpot
-              key={colour}
+      {rows.length > 0 ? (
+        <ul
+          aria-label={t("stage.people.members")}
+          className="grid grid-cols-6 gap-4"
+        >
+          {rows.map((row) => (
+            <MemberCard
+              key={row.member.memberId}
               row={row}
               onRemove={() => {
                 setProblem(null);
@@ -67,25 +68,25 @@ export function PeopleOverlay() {
                 setShown({ id, name: row.look?.name ?? "" });
               }}
             />
-          ) : (
-            <FreeSpot key={colour} colour={colour} />
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-card-sm border-4 border-dashed border-mute py-10 text-center text-3xl font-semibold text-ink-2">
+          {t("stage.people.nobody")}
+        </p>
+      )}
+      {free.length > 0 ? <FreeColours colours={free} /> : null}
       {problem ? (
         <p role="alert" className="text-2xl font-semibold text-warn-fg">
           {userMessageText(problem)}
         </p>
       ) : null}
       <div className="flex items-end justify-between gap-8">
-        <HoldButton
-          fill="ink"
+        <NewParty
           onHold={() => {
             store.send({ type: "newParty" });
           }}
-        >
-          {t("stage.newParty")}
-        </HoldButton>
+        />
         <StageJoinCard hideable={false} layout="wide" />
       </div>
       {shown ? (
@@ -117,7 +118,7 @@ function ProfileLayer({
       role="dialog"
       aria-modal
       aria-label={t("profilePage.sheet", { name })}
-      className="absolute inset-0 z-10 flex animate-pop-in flex-col gap-6 overflow-auto rounded-card bg-cream p-9"
+      className="absolute inset-0 z-[1] flex animate-pop-in flex-col gap-6 overflow-auto rounded-card bg-cream p-9"
     >
       <div className="flex justify-end">
         <button
@@ -135,10 +136,7 @@ function ProfileLayer({
   );
 }
 
-const SPOT =
-  "flex h-[212px] min-w-0 flex-col items-center gap-1 rounded-card-sm p-3 text-center *:shrink-0";
-
-function TakenSpot({
+function MemberCard({
   row,
   onRemove,
   onOpen,
@@ -157,10 +155,10 @@ function TakenSpot({
           name={look.name}
           avatar={look.avatar}
           colour={member.colour}
-          size={56}
+          size={48}
         />
       ) : (
-        <span className="size-14" />
+        <span className="size-12" />
       )}
       <span className="w-full truncate text-2xl leading-tight font-semibold">
         {name}
@@ -179,9 +177,8 @@ function TakenSpot({
   return (
     <li
       data-colour={member.colour}
-      data-free="false"
       aria-label={name}
-      className={`${SPOT} border-t-[6px] bg-white shadow-ledge-sm`}
+      className="flex h-[192px] min-w-0 flex-col items-center gap-1 rounded-card-sm border-t-[6px] bg-white p-3 text-center shadow-ledge-sm *:shrink-0"
       style={{ borderTopColor: tokenVar(member.colour) }}
     >
       {identity.kind === "profile" ? (
@@ -217,22 +214,49 @@ function TakenSpot({
   );
 }
 
-function FreeSpot({ colour }: { colour: PaletteKey }) {
-  const label = t("stage.people.free", { colour: colourName(colour) });
+function FreeColours({ colours }: { colours: readonly PaletteKey[] }) {
+  const labelId = useId();
   return (
-    <li
-      data-colour={colour}
-      data-free="true"
-      aria-label={label}
-      className={`${SPOT} justify-center border-4 border-dashed border-mute`}
-    >
-      <span
-        data-free-ring
-        aria-hidden="true"
-        className="size-16 rounded-full border-[6px]"
-        style={{ borderColor: tokenVar(colour) }}
-      />
-      <span className="text-xl font-semibold text-ink-2">{label}</span>
-    </li>
+    <div className="flex items-baseline gap-6">
+      <span id={labelId} className="shrink-0 text-xl text-ink-2">
+        {t("stage.people.freeColours")}
+      </span>
+      <ul aria-labelledby={labelId} className="flex flex-wrap gap-x-6 gap-y-3">
+        {colours.map((colour) => (
+          <li
+            key={colour}
+            data-colour={colour}
+            className="flex items-center gap-2 text-xl font-semibold"
+          >
+            <span
+              data-swatch
+              aria-hidden="true"
+              className="size-7 shrink-0 self-center rounded-full"
+              style={{ backgroundColor: tokenVar(colour) }}
+            />
+            {colourName(colour)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** New party, held, with the line that says what it clears. */
+function NewParty({ onHold }: { onHold: () => void }) {
+  const clearsId = useId();
+  return (
+    <div className="flex max-w-[400px] flex-col items-start gap-3">
+      <p id={clearsId} className="text-xl leading-snug text-ink-2">
+        {t("stage.newPartyClears")}
+      </p>
+      <HoldButton
+        fill="outline-red"
+        aria-describedby={clearsId}
+        onHold={onHold}
+      >
+        {t("stage.newParty")}
+      </HoldButton>
+    </div>
   );
 }

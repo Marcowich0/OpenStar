@@ -10,7 +10,8 @@
 // Stage scale. The one focus ring moves over its buttons and its USDB search
 // box with the arrows and the mouse; in the box the keys are the box's
 // (`isTextField`), and ↓ or ↑ leaves it. The video picker and the Admin PIN
-// pad are dialogs above the frame and take their own keys.
+// pad are dialogs above the frame and take their own keys. A USDB setup
+// problem shows one friendly line, its variable names folded "For the owner".
 
 import "./downloadsOverlay.css";
 
@@ -58,7 +59,7 @@ export function DownloadsOverlay() {
         target.scrollIntoView?.({ block: "nearest" });
       }}
     >
-      <Downloads store={store} showTitle={false} />
+      <Downloads store={store} showTitle={false} foldOwnerDetail />
     </div>
   );
 }

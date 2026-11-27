@@ -1,8 +1,8 @@
 import { expect, newParty, test } from "../fixtures";
 
-// The Profile page on the Stage (#273): Enter on a Profile's spot in the
+// The Profile page on the Stage (#273): Enter on a Profile's card in the
 // People overlay opens its page over the overlay, Esc goes back to the
-// overlay with the focus where it was. A Guest's spot opens nothing.
+// overlay with the focus where it was. A Guest's card opens nothing.
 
 test("opens a Profile page from the Stage's People overlay with the keyboard, and Esc closes it", async ({
   stage,
@@ -25,7 +25,7 @@ test("opens a Profile page from the Stage's People overlay with the keyboard, an
   await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();
 
   await stage.keyboard.press("p");
-  const people = stage.getByRole("dialog", { name: "Tonight's Party" });
+  const people = stage.getByRole("dialog", { name: "People" });
   await expect(people).toBeVisible();
   const open = people.getByRole("button", {
     name: `Open ${name}'s Profile page`,

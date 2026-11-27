@@ -1,7 +1,8 @@
 // Delete a Song (v1 spec #46, "Deleting, trash and restore"): its whole
 // folder moves to the trash in `/appdata`. It needs an Unlock and writes the
 // Library, so it goes through `useGuardedAction`, confirmed by a press and
-// hold. The row goes with the `library` notice; a refusal (the Song plays,
+// hold. It is the row's careful action, outlined in red with a trash icon,
+// and never louder than Timing (spec #241). The row goes with the `library` notice; a refusal (the Song plays,
 // its folder holds another `.txt`, its `.txt` sits in the Library root)
 // shows why under the button, and nothing was moved.
 
@@ -13,6 +14,7 @@ import { useGuardedAction } from "../guarded/useGuardedAction";
 import { userMessageText } from "../i18n/serverText";
 import { t } from "../i18n/t";
 import { HoldButton } from "../ui/HoldButton";
+import { Icon } from "../ui/Icon";
 
 export function DeleteSong({ song }: { song: SongSummary }) {
   const [failure, setFailure] = useState<string | null>(null);
@@ -31,13 +33,14 @@ export function DeleteSong({ song }: { song: SongSummary }) {
   return (
     <div className="flex flex-col items-end gap-1">
       <HoldButton
-        fill="red"
+        fill="outline-red"
         size="small"
         aria-label={t("admin.songs.delete", { title: song.title })}
         onHold={onHold}
         isDisabled={remove.isDisabled}
         className="w-36 shrink-0"
       >
+        <Icon name="trash" className="size-5.5" />
         {t("admin.songs.deleteShort")}
       </HoldButton>
       {failure === null ? null : (

@@ -15,6 +15,7 @@ import {
 import type { PartySnapshot } from "../../generated/PartySnapshot";
 import type { UsdbMirrorStatus } from "../../generated/UsdbMirrorStatus";
 import type { UsdbSong } from "../../generated/UsdbSong";
+import type { UsdbState } from "../../generated/UsdbState";
 import { Button } from "../../ui/Button";
 import { SCENES } from "../frame/sceneComponents";
 import { StageFrame } from "../frame/StageFrame";
@@ -70,9 +71,9 @@ const answer = (code: number, body: unknown) =>
     headers: { "Content-Type": "application/json" },
   });
 
-function usdbServer() {
+function usdbServer(state: UsdbState = "loggedIn") {
   return fakeLibraryServer({
-    "GET /api/usdb/status": { state: "loggedIn" },
+    "GET /api/usdb/status": { state },
     "GET /api/usdb/mirror": FRESH,
     "POST /api/usdb/mirror/refresh": FRESH,
     "GET /api/usdb/songs": {
@@ -105,8 +106,8 @@ function BrowserStandIn() {
   );
 }
 
-async function setup() {
-  const server = usdbServer();
+async function setup(state: UsdbState = "loggedIn") {
+  const server = usdbServer(state);
   const view = await renderLive((store) => (
     <StageFrame
       store={store}
@@ -185,6 +186,50 @@ describe("the Stage's Downloads overlay", () => {
       "data-overlay",
       "downloads",
     );
+  });
+
+  it("says Downloads aren't set up yet, with the USDB variables in a closed For the owner fold", async () => {
+    await setup("credentialsMissing");
+    const dialog = await openDownloads();
+
+    expect(
+      within(dialog).getByText("Downloads aren't set up yet."),
+    ).toBeVisible();
+    const fold = within(dialog).getByRole("button", { name: "For the owner" });
+    expect(fold).toHaveAttribute("aria-expanded", "false");
+    const detail = within(dialog).getByText(/OPENSTAR_USDB_USERNAME/);
+    expect(detail).not.toBeVisible();
+    expect(detail).toHaveTextContent(
+      "USDB is not set up. Set OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD to a USDB account (or OPENSTAR_USDB_USERNAME_FILE and OPENSTAR_USDB_PASSWORD_FILE for Docker secrets), then restart OpenStar.",
+    );
+
+    // The Stage's keys reach the fold: Enter on the focused trigger opens it.
+    act(() => {
+      fold.focus();
+    });
+    act(() => {
+      fireEvent.keyDown(fold, { key: "Enter" });
+      fireEvent.keyUp(fold, { key: "Enter" });
+    });
+    expect(fold).toHaveAttribute("aria-expanded", "true");
+    expect(detail).toBeVisible();
+  });
+
+  it("folds the USDB login's variables away too when the login failed", async () => {
+    await setup("loginFailed");
+    const dialog = await openDownloads();
+
+    expect(
+      within(dialog).getByText(
+        "Downloads can't log in to USDB. Ask the owner.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByText(/OPENSTAR_USDB_PASSWORD/),
+    ).not.toBeVisible();
+    expect(
+      within(dialog).getByRole("button", { name: "For the owner" }),
+    ).toBeVisible();
   });
 
   it("takes typing in the search box without the Stage's letter keys", async () => {

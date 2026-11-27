@@ -32,6 +32,7 @@ import {
   type ColourChoice,
 } from "../phone/joinForm";
 import type { MemberLook } from "../phone/memberLook";
+import { useKeyboardInset } from "../phone/useKeyboardInset";
 import { PALETTE_KEYS, type PaletteKey } from "../theme/tokens";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
@@ -119,6 +120,7 @@ export function LookForm(props: LookFormProps) {
   );
   const [pending, setPending] = useState(false);
   const [problem, setProblem] = useState<UserMessage | null>(null);
+  const keyboardInset = useKeyboardInset();
 
   const { choices, preselected } =
     props.kind === "profile"
@@ -177,12 +179,26 @@ export function LookForm(props: LookFormProps) {
   }
 
   const Heading = level === 1 ? "h1" : "h3";
+  const saveButton = (
+    <Button
+      fill="green"
+      className="w-full"
+      isDisabled={!canSend}
+      onPress={send}
+    >
+      {editing
+        ? t("me.save")
+        : trimmed === ""
+          ? t("joinForm.join")
+          : t("joinForm.joinAs", { name: trimmed })}
+    </Button>
+  );
 
   return (
     <form
       aria-labelledby={headingId}
       className={
-        level === 1 ? "flex flex-col gap-5 px-5 pb-8" : "flex flex-col gap-5"
+        level === 1 ? "flex grow flex-col gap-5 px-5" : "flex flex-col gap-5"
       }
       onSubmit={(event) => {
         event.preventDefault();
@@ -199,6 +215,27 @@ export function LookForm(props: LookFormProps) {
       >
         {title}
       </Heading>
+      {level === 1 ? (
+        // The Phone's page (#256): what the others will see; every part of
+        // it is a field below.
+        <div
+          aria-hidden="true"
+          data-testid="avatar-preview"
+          className="flex items-center gap-4"
+        >
+          <Avatar
+            name={trimmed}
+            avatar={avatar}
+            colour={colour ?? "cherry"}
+            size={88}
+          />
+          <span
+            className={`min-w-0 truncate text-3xl font-bold ${trimmed === "" ? "text-ink-2" : ""}`}
+          >
+            {trimmed === "" ? t("joinForm.previewName") : trimmed}
+          </span>
+        </div>
+      ) : null}
       <TextField
         value={name}
         onChange={setName}
@@ -306,18 +343,19 @@ export function LookForm(props: LookFormProps) {
           {userMessageText(problem)}
         </p>
       ) : null}
-      <Button
-        fill="green"
-        className="w-full"
-        isDisabled={!canSend}
-        onPress={send}
-      >
-        {editing
-          ? t("me.save")
-          : trimmed === ""
-            ? t("joinForm.join")
-            : t("joinForm.joinAs", { name: trimmed })}
-      </Button>
+      {level === 1 ? (
+        // The Phone's page (#256): stuck to the bottom of the screen, above
+        // the on-screen keyboard.
+        <div
+          data-testid="join-bar"
+          className="sticky z-[1] -mx-5 mt-auto bg-linear-to-t from-cream-2 from-70% to-cream-2/0 px-5 pt-6 pb-5"
+          style={{ bottom: keyboardInset }}
+        >
+          {saveButton}
+        </div>
+      ) : (
+        saveButton
+      )}
     </form>
   );
 }

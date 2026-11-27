@@ -30,7 +30,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
+  Button as AriaButton,
   Dialog as AriaDialog,
+  Disclosure,
+  DisclosurePanel,
   Heading,
   Modal,
   ModalOverlay,
@@ -125,9 +128,16 @@ import {
 } from "./editorView";
 import { overviewFrame, overviewTimeAt } from "./overviewFrame";
 import { AutoFitPanel, type FitOutcome } from "./AutoFitPanel";
-import { EditList, SaveSection, ShareMeter, TypedValue } from "./TimingPanel";
+import {
+  EditButtons,
+  EditList,
+  SaveSection,
+  ShareMeter,
+  TypedValue,
+} from "./TimingPanel";
 import { PlaybackPanel } from "./PlaybackPanel";
 import { isFormField } from "../../ui/formField";
+import { Icon } from "../../ui/Icon";
 
 export interface TimingEditorProps {
   song: SongId;
@@ -295,6 +305,7 @@ function Editor({
   const [clicks, setClicks] = useState(true);
   const [hum, setHum] = useState(false);
   const [checkingAvSync, setCheckingAvSync] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
   useEffect(() => {
     playback?.setSounds(noteSounds(timing.song, timing.grid, { clicks, hum }));
   }, [playback, timing, clicks, hum]);
@@ -391,6 +402,9 @@ function Editor({
     },
     clear: () => {
       setSelection(clearSelection());
+    },
+    keys: () => {
+      setKeysOpen((open) => !open);
     },
   });
   const openAvSync = () => {
@@ -705,16 +719,12 @@ function Editor({
             </p>
           )}
         </div>
-        <p className="text-sm text-ink-2">
-          {t("timing.view.help")}
-          {pin && (
-            <strong className="ml-2 text-purple">
-              {t("timing.drag.pinned", { line: pin.line + 1 })}
-            </strong>
-          )}
-        </p>
-        <p className="text-sm text-ink-2">{t("timing.drag.help")}</p>
-        <p className="text-sm text-ink-2">{t("timing.drag.keys")}</p>
+        {pin && (
+          <strong className="text-sm text-purple">
+            {t("timing.drag.pinned", { line: pin.line + 1 })}
+          </strong>
+        )}
+        <KeysAndGestures isOpen={keysOpen} onOpenChange={setKeysOpen} />
         <SongMedia
           plan={plan}
           setElement={setElement}
@@ -778,36 +788,44 @@ function Editor({
           onGo={goToLine}
           onApply={applySuggestion}
         />
-        <EditList
-          entries={editList(model)}
-          canUndo={model.applied.length > 0}
-          canRedo={model.undone.length > 0}
-          onUndo={() => {
-            setModel(undo);
-          }}
-          onRedo={() => {
-            setModel(redo);
-          }}
-          onBackToTheFile={() => {
-            setModel(backToTheFile);
-          }}
-        />
-        <SaveSection
-          song={detail.id}
-          operations={operations}
-          playing={playing}
-          openedAtMs={openedAtMs}
-          onSaved={() => {
-            // The saved file is the new base, and the undo history starts
-            // again. Timing operations change lines in place, so the saved
-            // file parses to the loaded Song with the operations applied;
-            // the `library` notice refreshes the Song's detail as well.
-            setModel((m) =>
-              openTimingModel(applyOperations(m.song, operationsOf(m))),
-            );
-            void queryClient.invalidateQueries(songQuery(detail.id));
-          }}
-        />
+        <EditList entries={editList(model)} />
+        {/* The Save bar: stuck to the bottom of the window while the panel
+            runs below it, so Save and what it changes stay in view. */}
+        <div
+          role="group"
+          aria-label={t("timing.panel.saveBar")}
+          className="sticky bottom-0 -mx-5 -mb-5 flex flex-col gap-3 rounded-b-[22px] border-t-2 border-ledge bg-white px-5 pt-4 pb-5"
+        >
+          <EditButtons
+            canUndo={model.applied.length > 0}
+            canRedo={model.undone.length > 0}
+            onUndo={() => {
+              setModel(undo);
+            }}
+            onRedo={() => {
+              setModel(redo);
+            }}
+            onBackToTheFile={() => {
+              setModel(backToTheFile);
+            }}
+          />
+          <SaveSection
+            song={detail.id}
+            operations={operations}
+            playing={playing}
+            openedAtMs={openedAtMs}
+            onSaved={() => {
+              // The saved file is the new base, and the undo history starts
+              // again. Timing operations change lines in place, so the saved
+              // file parses to the loaded Song with the operations applied;
+              // the `library` notice refreshes the Song's detail as well.
+              setModel((m) =>
+                openTimingModel(applyOperations(m.song, operationsOf(m))),
+              );
+              void queryClient.invalidateQueries(songQuery(detail.id));
+            }}
+          />
+        </div>
       </aside>
       {checkingAvSync && (
         <EditorAvSync
@@ -925,12 +943,14 @@ function usePlaybackKeys(actions: {
 /**
  * `,`/`.` nudge (with Shift, or as `<`/`>`, the big step), `[`/`]` change the
  * tempo around the playhead (Shift or `{`/`}`: the big step), Esc clears the
- * selection. Inside a text field the keys stay the field's own.
+ * selection, `?` opens and closes Keys and gestures. Inside a text field the
+ * keys stay the field's own.
  */
 function useGestureKeys(actions: {
   nudge: (direction: -1 | 1, shift: boolean) => void;
   tempo: (direction: -1 | 1, shift: boolean) => void;
   clear: () => void;
+  keys: () => void;
 }) {
   const latest = useRef(actions);
   useEffect(() => {
@@ -963,6 +983,9 @@ function useGestureKeys(actions: {
         case "Escape":
           act.clear();
           break;
+        case "?":
+          act.keys();
+          break;
         default:
           return;
       }
@@ -973,6 +996,47 @@ function useGestureKeys(actions: {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, []);
+}
+
+/**
+ * The shortcuts and gestures of the views, folded away until asked for (the
+ * trigger or `?`).
+ */
+function KeysAndGestures({
+  isOpen,
+  onOpenChange,
+}: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Disclosure
+      isExpanded={isOpen}
+      onExpandedChange={onOpenChange}
+      className="flex flex-col gap-2"
+    >
+      <Heading level={3} className="text-base">
+        <AriaButton
+          slot="trigger"
+          className="flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+        >
+          <Icon
+            name="chevron"
+            className={`size-5 transition-transform ${isOpen ? "rotate-90" : ""}`}
+          />
+          {t("timing.keys.title")}
+          <kbd aria-hidden className="font-mono text-sm text-ink-2">
+            {t("timing.keys.shortcut")}
+          </kbd>
+        </AriaButton>
+      </Heading>
+      <DisclosurePanel className="flex flex-col gap-2 text-sm text-ink-2">
+        <p>{t("timing.view.help")}</p>
+        <p>{t("timing.drag.help")}</p>
+        <p>{t("timing.drag.keys")}</p>
+      </DisclosurePanel>
+    </Disclosure>
+  );
 }
 
 /** The detail view's cursor over what the pointer is on (Alt: the Note tools). */

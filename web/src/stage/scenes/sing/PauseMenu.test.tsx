@@ -2,7 +2,7 @@
 // Esc resumes, and Restart, Skip and End fire only after a hold.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createLiveStore } from "../../../live/liveStore";
@@ -39,6 +39,18 @@ const key = (name: string) => {
   act(() => {
     fireEvent.keyDown(document.activeElement ?? document.body, { key: name });
   });
+};
+
+const keyUp = (name: string) => {
+  act(() => {
+    fireEvent.keyUp(document.activeElement ?? document.body, { key: name });
+  });
+};
+
+/** Resume, Restart, Skip, End, then "How to read the screen". */
+const tabToLegend = () => {
+  // jsdom lays nothing out, so Tab rather than the arrows.
+  for (let i = 0; i < 4; i++) key("Tab");
 };
 
 describe("the pause menu", () => {
@@ -80,6 +92,83 @@ describe("the pause menu", () => {
       expect(onControl).toHaveBeenCalledExactlyOnceWith("resume");
     },
   );
+  describe("How to read the screen", () => {
+    const open = () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "How to read the screen" }),
+      );
+      return screen.getByRole("dialog", { name: "How to read the screen" });
+    };
+
+    it("opens a card with the Note kinds, the pitch line and the lyric styles", () => {
+      const { onControl } = setup();
+      const card = open();
+      for (const name of [
+        "Normal Note",
+        "Golden Note",
+        "Rap Note",
+        "Freestyle Note",
+        "Sung Note",
+        "On pitch",
+        "Off pitch",
+      ]) {
+        expect(within(card).getByRole("img", { name })).toBeInTheDocument();
+      }
+      for (const text of [
+        "Sung",
+        "Being sung",
+        "Golden",
+        "Freestyle",
+        "The next Line",
+      ]) {
+        expect(within(card).getByText(text)).toBeInTheDocument();
+      }
+      // Opening it sends nothing: the Song stays paused, no countdown.
+      expect(onControl).not.toHaveBeenCalled();
+    });
+
+    it("goes back to the pause menu on Esc, without resuming", () => {
+      const { onControl } = setup();
+      tabToLegend();
+      key("Enter");
+      keyUp("Enter");
+      expect(screen.getByRole("button", { name: "Back" })).toHaveFocus();
+      key("Escape");
+      expect(
+        screen.queryByRole("dialog", { name: "How to read the screen" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("dialog", { name: "Paused" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "How to read the screen" }),
+      ).toHaveFocus();
+      expect(onControl).not.toHaveBeenCalled();
+    });
+
+    it("goes back to the pause menu on Back", () => {
+      const { onControl } = setup();
+      open();
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      expect(
+        screen.queryByRole("dialog", { name: "How to read the screen" }),
+      ).not.toBeInTheDocument();
+      expect(onControl).not.toHaveBeenCalled();
+    });
+
+    it("is reached with the keyboard", () => {
+      setup();
+      tabToLegend();
+      expect(
+        screen.getByRole("button", { name: "How to read the screen" }),
+      ).toHaveFocus();
+      key("Enter");
+      keyUp("Enter");
+      expect(
+        screen.getByRole("dialog", { name: "How to read the screen" }),
+      ).toBeInTheDocument();
+    });
+  });
 
   it.each([
     ["Restart", "restart"],

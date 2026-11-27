@@ -1,0 +1,30 @@
+/*
+ * The Stage's one stacking order (#245), bottom to top. Each token is a
+ * Tailwind v4 `--z-index-*` theme variable, so it makes a utility: `z-scene`,
+ * `z-chrome`, `z-menu`, `z-overlay`, `z-dialog`, `z-toast`.
+ *
+ * - scene:   the scene's reference box (song browser, Line-up, results, sing),
+ *            the join card in it included.
+ * - chrome:  the Stage menu (pill row) and the Line-up toggle above the scene.
+ * - menu:    pick lists (the Setup menu, a Line-up field's list), above the
+ *            chrome and the scene.
+ * - overlay: an open overlay (Songs, Queue, People, Setup's screens): its
+ *            veil covers and dims everything below.
+ * - dialog:  react-aria modals portalled to the body (the Admin PIN, the
+ *            Downloads overlay's video picker).
+ * - toast:   toasts and short-lived pills that take no pointer.
+ *
+ * A layer sits in the frame's stacking context, so give the token to the
+ * layer's outermost element (a `ReferenceBox` takes it as `layer`). Inside
+ * one layer, order a component's own parts with small `z-[n]` values; never
+ * a numbered `z-10`…`z-50`, which reads as a layer (`layers.test.ts`).
+ */
+
+@theme static {
+  --z-index-scene: 0;
+  --z-index-chrome: 10;
+  --z-index-menu: 20;
+  --z-index-overlay: 30;
+  --z-index-dialog: 40;
+  --z-index-toast: 50;
+}

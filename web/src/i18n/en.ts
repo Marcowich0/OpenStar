@@ -57,6 +57,7 @@ export const en = {
   "joinForm.nameTakenTonight": "Someone already has that name tonight",
   "joinForm.join": "Join",
   "joinForm.joinAs": "Join as {name}",
+  "joinForm.previewName": "Your name",
   "remote.tabs": "Remote",
   "remote.songs": "Songs",
   "remote.queue": "Queue",
@@ -203,6 +204,8 @@ export const en = {
   "stageTab.upNext": "Up next: who sings?",
   "stageTab.noMic": "no mic",
   "stageTab.addSinger": "Add a singer",
+  "stageTab.pickMic": "Pick a mic",
+  "stageTab.pickVoice": "Pick a voice",
   "stageTab.start": "Start",
   "stageTab.results": "Results on the Stage",
   "stageTab.yourScore": "Your Score: {total, number}",
@@ -367,6 +370,7 @@ export const en = {
     one: "{count, number} digit entered",
     other: "{count, number} digits entered",
   },
+  "numberPad.pinHint": "Enter the PIN",
   "numberPad.delete": "Delete",
   "numberPad.ok": "OK",
 
@@ -390,6 +394,8 @@ export const en = {
   "live.stageMoved": "Another browser is the Stage now",
 
   // The Stage, the Mic bridge page and the Admin area.
+  // The fold that holds owner-only setup detail on the Stage (`ui/OwnerFold`).
+  "ownerFold.title": "For the owner",
   "stage.sing": "Sing!",
   "stage.start": "Start",
   "stage.volume": "Volume {volume, number}",
@@ -408,18 +414,18 @@ export const en = {
   "sing.pauseHint.gamepad": "Start: pause",
 
   // The Stage frame (#120): the pill row, the Setup menu and the overlays.
-  "stage.pill.songs": "Songs",
+  "stage.pill.songs": "Add songs",
   "stage.pill.queue": "Queue {count, number}",
   "stage.pill.people": "People {count, number}",
   "stage.pill.setup": "Setup",
   "stage.pills": "Stage menu",
-  "stage.browse.songs": "Browse songs",
+  "stage.browse.songs": "◀ Song browser",
   "stage.browse.back": "Back to Line-up",
   "stage.browse.backTo": "Up next: {song}. Back to Line-up",
   "stage.setup.menu": "Setup",
   "stage.overlay.songs": "Songs",
   "stage.overlay.queue": "Queue",
-  "stage.overlay.people": "Tonight's Party",
+  "stage.overlay.people": "People",
   "stage.overlay.mics": "Mics",
   "stage.overlay.calibrateMics": "Calibrate mics",
   "stage.overlay.avSync": "Check A/V sync",
@@ -520,10 +526,18 @@ export const en = {
   // The Mics screen (Setup › Mics) and Local mic names.
   "mics.group.thisBrowser": "This browser",
   "mics.bridgeHint": "More than 2 inputs? Use a Mic bridge.",
-  "mics.noDevices": "No input device found",
+  "mics.noDevices":
+    "No input device found. Plug in a microphone or an audio interface; the list updates by itself.",
   "mics.allowMicrophone":
     "Allow this browser to use the microphone to list its inputs",
-  "mics.unavailable": "This browser cannot read its microphones here",
+  "mics.unavailable":
+    "This browser cannot read its microphones here. Reload the page to try again.",
+  "mics.unavailable.insecureContext":
+    "This page is not on a secure (https) address, so the browser hides its microphones. Open OpenStar over HTTPS, or at http://localhost on this computer.",
+  "mics.unavailable.noMediaDevices":
+    "This browser cannot use microphones. Open the Stage in a current Chrome, Chromium, Edge or Firefox.",
+  "mics.unavailable.permissionDenied":
+    "This browser is not allowed to use the microphone. Click the icon left of the address bar, set Microphone to Allow, then reload the page.",
   "mics.switchedOn": "On",
   "mics.switchedOff": "Off",
   "mics.switch": "{name} switched on",
@@ -574,8 +588,9 @@ export const en = {
     "Ⓐ adds or takes off a singer, up to {seats, number}",
   "stage.songs.added": "Added {song}",
   "stage.people.count": "{count, number} of 12 colours taken",
-  "stage.people.colours": "Party colours",
-  "stage.people.free": "{colour} is free",
+  "stage.people.members": "Party members",
+  "stage.people.nobody": "Nobody has joined yet",
+  "stage.people.freeColours": "Free colours",
   "stage.people.profile": "Profile",
   "stage.people.guest": "Guest",
   "stage.people.phone": "Phone",
@@ -584,6 +599,8 @@ export const en = {
   "stage.people.holdToRemove": "hold to remove",
   "stage.people.remove": "Hold to remove {name}",
   "stage.newParty": "New party",
+  "stage.newPartyClears":
+    "Clears the Queue and the people, and makes a new Join code",
 
   // The Stage's scenes (#120 placeholders; #124, #164, #182 fill them).
   "stage.logo": "OpenStar",
@@ -600,7 +617,12 @@ export const en = {
   "stage.joinCard.goTo": "Go to {address}",
   "stage.joinCard.hide": "Hide",
   "stage.joinCard.chip": "Join · {code}",
-  "stage.joinCard.cantSing": "Phones can't sing yet",
+  // The chip when Phones can't reach a working join address (#250).
+  "stage.joinCard.chipCantSing": "Join · {code} · Phones can't sing yet",
+  // The join card's line when Phones can't reach a working join address; the
+  // owner's detail (`.notHttps`, `.localhost`) is folded under "For the owner".
+  "stage.joinCard.needsSecureAddress":
+    "Phones need a secure address to sing. Ask the owner.",
   "stage.joinCard.notHttps":
     "This Stage was opened over plain http://. Set up HTTPS (see the Caddy example), then reload.",
   "stage.joinCard.localhost":
@@ -622,10 +644,13 @@ export const en = {
   "stage.lineUp.micLevel": "{name}'s mic level",
   "stage.lineUp.remove": "Take {name} off this Song",
   "stage.lineUp.addSinger": "Add a singer",
+  "stage.lineUp.fix.pickMic": "Pick a mic",
+  "stage.lineUp.fix.pickVoice": "Pick a voice",
   "stage.lineUp.addGuest": "+ Guest",
   "stage.lineUp.addProfile": "+ Profile",
   "stage.lineUp.namePlaceholder": "Type a name",
   "stage.lineUp.ok": "OK",
+  "stage.lineUp.cancel": "Cancel",
   "stage.sing.loading": "Getting the Song ready",
   "stage.sing.failed": "The Song could not be loaded",
   "stage.sing.notPlaying": "This Song is not playing here",
@@ -646,6 +671,32 @@ export const en = {
   "pad.b": "Ⓑ",
   "pad.y": "Ⓨ",
   "pad.start": "Start",
+  "stage.pause.legend": "How to read the screen",
+  // The pause menu's "How to read the screen" card (#258).
+  "stage.legend.title": "How to read the screen",
+  "stage.legend.back": "Back",
+  "stage.legend.notes": "Notes",
+  "stage.legend.note.normal": "Normal Note",
+  "stage.legend.note.normalHint": "Sing it on pitch",
+  "stage.legend.note.golden": "Golden Note",
+  "stage.legend.note.goldenHint": "Twice the points",
+  "stage.legend.note.rap": "Rap Note",
+  "stage.legend.note.rapHint": "Any pitch hits it",
+  "stage.legend.note.freestyle": "Freestyle Note",
+  "stage.legend.note.freestyleHint": "Never scored",
+  "stage.legend.note.passed": "Sung Note",
+  "stage.legend.note.passedHint": "Past the line",
+  "stage.legend.pitch": "Your pitch line",
+  "stage.legend.pitch.hit": "On pitch",
+  "stage.legend.pitch.hitHint": "Thick, in your colour",
+  "stage.legend.pitch.miss": "Off pitch",
+  "stage.legend.pitch.missHint": "Thin and grey",
+  "stage.legend.lyrics": "Lyrics",
+  "stage.legend.lyric.sung": "Sung",
+  "stage.legend.lyric.current": "Being sung",
+  "stage.legend.lyric.golden": "Golden",
+  "stage.legend.lyric.freestyle": "Freestyle",
+  "stage.legend.lyric.next": "The next Line",
   "stage.perf.measuring": "Measuring frame times",
   "stage.perf.current": "Frame {ms} ms",
   "stage.perf.mean": "Mean {ms} ms",
@@ -714,6 +765,9 @@ export const en = {
     "Make the file executable, write {address} into ~/.config/openstar-mic-bridge/server, then start it.",
   "bridge.uninstall": "To remove it again: openstar-mic-bridge --uninstall",
   "mics.addBridge": "Add a Mic bridge",
+  // Add a Mic bridge's line on the Stage; the guide is folded "For the owner".
+  "mics.addBridge.line":
+    "A Mic bridge brings every input of an audio interface to the Stage. Ask the owner to set one up.",
   "admin.title": "Admin",
   "admin.downloads": "Downloads",
   "admin.songs": "Songs",
@@ -723,6 +777,11 @@ export const en = {
   "admin.intro":
     "Anyone may look around here. Changing the Library's files, deleting kept data and taking the Stage ask for the Admin PIN.",
   "admin.lock": "Lock",
+  "admin.waysOut": "Leave the Admin area",
+  "admin.toStage": "Stage",
+  "admin.stageOpenElsewhere":
+    "The Stage is already open in another tab of this browser. Switch to that tab.",
+  "admin.toPhone": "Phone",
   "admin.downloads.search": "Search USDB by artist or title",
   "admin.downloads.sort": "Sort by",
   "admin.downloads.sort.views": "Views",
@@ -741,6 +800,10 @@ export const en = {
   "admin.downloads.failed": "The USDB songs could not be loaded",
   "admin.downloads.credentialsMissing":
     "USDB is not set up. Set OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD to a USDB account (or OPENSTAR_USDB_USERNAME_FILE and OPENSTAR_USDB_PASSWORD_FILE for Docker secrets), then restart OpenStar.",
+  // The Stage's Downloads overlay says these; the text above is folded "For the owner".
+  "admin.downloads.stage.notSetUp": "Downloads aren't set up yet.",
+  "admin.downloads.stage.loginFailed":
+    "Downloads can't log in to USDB. Ask the owner.",
   "admin.downloads.checking": "Checking the USDB login…",
   "admin.downloads.loginFailed":
     "USDB login failed. Check OPENSTAR_USDB_USERNAME and OPENSTAR_USDB_PASSWORD, then restart OpenStar.",
@@ -1210,6 +1273,9 @@ export const en = {
     "Drag empty space: move the whole Song · double-click a Line: pin it, then drag far from it to stretch the tempo · click a Line to select it (Shift: a range), drag it to shift, drag ◀▶ to stretch · Alt-drag a Note: move it, or its right end: length",
   "timing.drag.keys":
     ", and .: nudge the Song by 10 ms (Shift 100 ms), or the selection by 1 beat (Shift 4) · [ and ]: tempo around the playhead · Esc: clear the selection",
+  // The fold under the views that holds the three lines above (#257).
+  "timing.keys.title": "Keys and gestures",
+  "timing.keys.shortcut": "?",
   // Checking by ear (#220): playback, speeds, clicks, hum, loop, A/V sync.
   "timing.play.section": "Playback",
   "timing.play.play": "Play",
@@ -1235,6 +1301,8 @@ export const en = {
   "timing.panel.undo": "Undo",
   "timing.panel.redo": "Redo",
   "timing.panel.backToTheFile": "Back to the file",
+  // The bar at the bottom of the side panel: Undo to Save (#257).
+  "timing.panel.saveBar": "Undo and Save",
   "timing.panel.keys":
     "Ctrl or Cmd + Z: undo · Ctrl or Cmd + Shift + Z or + Y: redo",
   "timing.panel.preview": "What Save changes",

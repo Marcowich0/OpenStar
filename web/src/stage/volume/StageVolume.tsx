@@ -56,7 +56,7 @@ export function StageVolume() {
 
   if (!showing || volume === null) return null;
   return (
-    <ReferenceBox passThrough>
+    <ReferenceBox passThrough layer="toast">
       <div
         data-testid="volume-pill"
         className="absolute top-32 right-12 rounded-full bg-ink px-7 py-3 text-2xl font-semibold text-white"

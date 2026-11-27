@@ -59,7 +59,7 @@ export function StageOverlay({ id }: { id: OverlayId }) {
   const root = useRef<HTMLDivElement>(null);
   useExitGhost(root);
   return (
-    <div ref={root} className="absolute inset-0 z-40" data-overlay={id}>
+    <div ref={root} className="absolute inset-0 z-overlay" data-overlay={id}>
       <div
         aria-hidden="true"
         data-testid="overlay-veil"

@@ -1,6 +1,6 @@
 // The Timing editor's side panel (v1 spec #57): the typed `#GAP` and `#BPM`,
-// the "notes on the singing" share, the edit list with Undo, Redo and Back
-// to the file, and the save preview with Save. The preview comes from the
+// the "notes on the singing" share, the edit list, and the Save bar's Undo,
+// Redo, Back to the file and save preview with Save. The preview comes from the
 // server, computed from the current operations by the patcher that writes;
 // the browser never writes `.txt` bytes.
 
@@ -136,21 +136,7 @@ const SMALL_BUTTON =
   "rounded-full bg-white px-3.5 py-1.5 text-base font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow disabled:opacity-40";
 
 /** The edit list, each edit in words; undone ones struck through. */
-export function EditList({
-  entries,
-  canUndo,
-  canRedo,
-  onUndo,
-  onRedo,
-  onBackToTheFile,
-}: {
-  entries: readonly EditListEntry[];
-  canUndo: boolean;
-  canRedo: boolean;
-  onUndo: () => void;
-  onRedo: () => void;
-  onBackToTheFile: () => void;
-}) {
+export function EditList({ entries }: { entries: readonly EditListEntry[] }) {
   return (
     <div className="flex flex-col gap-2">
       <span className="text-lg font-semibold">{t("timing.panel.edits")}</span>
@@ -172,6 +158,26 @@ export function EditList({
       {entries.length === 0 ? (
         <p className="text-ink-2">{t("timing.panel.noEdits")}</p>
       ) : null}
+    </div>
+  );
+}
+
+/** Undo, Redo and Back to the file, in the Save bar. */
+export function EditButtons({
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onBackToTheFile,
+}: {
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onBackToTheFile: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
       <div className="flex flex-wrap gap-2">
         <AriaButton
           className={SMALL_BUTTON}
@@ -305,34 +311,37 @@ export function SaveSection({
         <p className="text-ink-2">{t("timing.panel.previewNothing")}</p>
       ) : (
         <>
-          <table className="w-full table-fixed text-sm">
-            <thead>
-              <tr className="text-left text-ink-2">
-                <th className="w-12 font-semibold">
-                  {t("timing.panel.previewLine")}
-                </th>
-                <th className="font-semibold">
-                  {t("timing.panel.previewOld")}
-                </th>
-                <th className="font-semibold">
-                  {t("timing.panel.previewNew")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="font-mono">
-              {changed.map((c) => (
-                <tr key={c.line} className="align-top">
-                  <td className="tabular-nums">{c.line}</td>
-                  <td className="break-all text-red">
-                    {c.old ?? t("timing.panel.previewNoLine")}
-                  </td>
-                  <td className="break-all text-green">
-                    {c.new ?? t("timing.panel.previewNoLine")}
-                  </td>
+          {/* Capped, so the Save bar stays short however much changes. */}
+          <div className="max-h-32 overflow-y-auto">
+            <table className="w-full table-fixed text-sm">
+              <thead>
+                <tr className="text-left text-ink-2">
+                  <th className="w-12 font-semibold">
+                    {t("timing.panel.previewLine")}
+                  </th>
+                  <th className="font-semibold">
+                    {t("timing.panel.previewOld")}
+                  </th>
+                  <th className="font-semibold">
+                    {t("timing.panel.previewNew")}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="font-mono">
+                {changed.map((c) => (
+                  <tr key={c.line} className="align-top">
+                    <td className="tabular-nums">{c.line}</td>
+                    <td className="break-all text-red">
+                      {c.old ?? t("timing.panel.previewNoLine")}
+                    </td>
+                    <td className="break-all text-green">
+                      {c.new ?? t("timing.panel.previewNoLine")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <p className="text-ink-2">
             {t("timing.panel.previewCount", { count: changed.length })}
           </p>

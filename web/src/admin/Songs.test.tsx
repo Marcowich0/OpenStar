@@ -183,6 +183,29 @@ describe("the Songs section", () => {
     expect(queries).toContain("(pointer: fine) and (min-width: 48rem)");
   });
 
+  it("makes Timing the filled primary action and Delete the outlined, careful one", async () => {
+    screenFor(true);
+    fakeLibraryServer({ "GET /api/songs": songList(SONGS) });
+    await renderLive(<SongsInRouter />);
+
+    const row = within(rows()[0] as HTMLElement);
+    const timing = row.getByRole("link", { name: "Timing of Waterloo" });
+    const remove = row.getByRole("button", { name: "Delete Waterloo" });
+    expect(timing.classList).toContain("bg-ink");
+    expect(timing.classList).toContain("text-white");
+    // Delete is red on white, with a red ring: never a red fill.
+    expect(remove.classList).toContain("bg-white");
+    expect(remove.classList).toContain("text-red");
+    expect(remove.classList).toContain("ring-red");
+    expect(remove.classList).not.toContain("bg-red");
+    expect(remove.querySelector('[data-icon="trash"]')).not.toBeNull();
+    expect(remove).toHaveTextContent("Delete");
+    // Timing comes first in the row.
+    expect(
+      timing.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("offers only Fit to the singing on a Phone or without a fine pointer", async () => {
     screenFor(false);
     fakeLibraryServer({ "GET /api/songs": songList(SONGS) });

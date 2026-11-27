@@ -14,6 +14,7 @@ import { rememberedProfileId, type PhoneStorage } from "../live/phoneId";
 import { useLive } from "../live/useLive";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
+import { BackButton } from "./BackButton";
 import { TopBar } from "./Logo";
 import { whosSinging } from "./whosSinging";
 
@@ -130,17 +131,7 @@ export function WhosSinging({
 
   return (
     <main className="flex min-h-dvh flex-col">
-      <TopBar>
-        {onBack ? (
-          <Button
-            size="medium"
-            className="min-h-12 px-5 text-xl"
-            onPress={onBack}
-          >
-            {t("join.back")}
-          </Button>
-        ) : null}
-      </TopBar>
+      <TopBar>{onBack ? <BackButton onPress={onBack} /> : null}</TopBar>
       <div className="flex flex-col gap-2 px-5 pb-8">
         <h1 className="text-4xl leading-tight font-bold">
           {t("join.whosSinging")}

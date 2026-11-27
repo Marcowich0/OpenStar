@@ -108,13 +108,48 @@ function SeatMeter({
   );
 }
 
-/** A red warning bubble with a pointer up to the card. */
-/**
- * One warning under a seat card: its text, and for "Not calibrated" the
- * Calibrate mics button that goes with it.
- */
-export type SeatWarning = string | { text: string; onCalibrate: () => void };
+/** A warning's fix: the button that goes with its text. */
+export interface WarningFix {
+  label: string;
+  /** Gets the fix button pressed. */
+  onPress: (button: HTMLElement) => void;
+  /** Its warning keeps Start greyed. */
+  blocksStart: boolean;
+}
 
+/** One warning under a seat card: its text, and its fix when it has one. */
+export type SeatWarning = string | { text: string; fix: WarningFix };
+
+/**
+ * A warning's fix as a white pill. `data-line-up-fix` marks it for a press
+ * on the greyed Start, which moves the focus to the first one (the first
+ * of a warning that blocks Start, when there is one).
+ */
+export function FixButton({
+  fix,
+  className = "",
+}: {
+  fix: WarningFix;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      data-line-up-fix={fix.blocksStart ? "blocks" : "other"}
+      onClick={(event) => {
+        fix.onPress(event.currentTarget);
+      }}
+      className={`relative cursor-pointer rounded-full bg-white px-5 py-1.5 text-xl font-bold whitespace-nowrap text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow ${className}`}
+    >
+      {fix.label}
+    </button>
+  );
+}
+
+/**
+ * A red warning bubble with a pointer up to the card, and its fix beside the
+ * text: one row keeps the bubbles clear of Start below.
+ */
 function WarningBubble({ warning }: { warning: SeatWarning }) {
   const text = typeof warning === "string" ? warning : warning.text;
   return (
@@ -125,13 +160,7 @@ function WarningBubble({ warning }: { warning: SeatWarning }) {
       />
       <p className="relative">{text}</p>
       {typeof warning !== "string" && (
-        <button
-          type="button"
-          onClick={warning.onCalibrate}
-          className="relative -mr-2.5 cursor-pointer rounded-full bg-white px-5 py-1.5 text-xl font-bold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
-        >
-          {t("stage.overlay.calibrateMics")}
-        </button>
+        <FixButton fix={warning.fix} className="-mr-2.5" />
       )}
     </div>
   );
@@ -258,6 +287,7 @@ export function SeatCard({
       {duet && (
         <button
           type="button"
+          data-seat-voice={order}
           onClick={() => {
             onEdit((index) => ({
               kind: "setVoice",

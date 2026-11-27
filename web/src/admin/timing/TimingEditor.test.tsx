@@ -587,6 +587,67 @@ describe("the save preview", () => {
   });
 });
 
+describe("the Save bar", () => {
+  it("holds Undo, Redo, Back to the file and Save with what Save changes", async () => {
+    await open();
+    await type(gapField(), "753");
+    const bar = screen.getByRole("group", { name: "Undo and Save" });
+    for (const name of ["Undo", "Redo", "Back to the file", "Save"])
+      expect(within(bar).getByRole("button", { name })).toBeInTheDocument();
+    expect(
+      within(bar).getByRole("region", { name: "What Save changes" }),
+    ).toHaveTextContent("1 line changed, everything else byte for byte");
+    // The edit list itself stays in the panel above the bar.
+    expect(within(bar).queryByRole("list", { name: "Edits" })).toBeNull();
+  });
+});
+
+describe("the Keys and gestures fold", () => {
+  const SHORTCUTS = [
+    "Wheel: move in time · Ctrl or Cmd + wheel: zoom · drag on the ruler to move the playhead · click the overview to go there",
+    "Drag empty space: move the whole Song · double-click a Line: pin it, then drag far from it to stretch the tempo · click a Line to select it (Shift: a range), drag it to shift, drag ◀▶ to stretch · Alt-drag a Note: move it, or its right end: length",
+    ", and .: nudge the Song by 10 ms (Shift 100 ms), or the selection by 1 beat (Shift 4) · [ and ]: tempo around the playhead · Esc: clear the selection",
+  ];
+  const fold = () => screen.getByRole("button", { name: "Keys and gestures" });
+
+  it("is closed at first, and lists today's shortcuts once opened", async () => {
+    await open();
+    expect(fold()).toHaveAttribute("aria-expanded", "false");
+    for (const text of SHORTCUTS)
+      expect(screen.getByText(text)).not.toBeVisible();
+
+    press("Keys and gestures");
+    expect(fold()).toHaveAttribute("aria-expanded", "true");
+    for (const text of SHORTCUTS) expect(screen.getByText(text)).toBeVisible();
+  });
+
+  it("opens and closes with ?", async () => {
+    await open();
+    await key({ key: "?" });
+    expect(fold()).toHaveAttribute("aria-expanded", "true");
+    await key({ key: "?" });
+    expect(fold()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("leaves ? to a text field while typing in it", async () => {
+    await open();
+    act(() => {
+      fireEvent.keyDown(gapField(), { key: "?" });
+    });
+    await settle();
+    expect(fold()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("keeps the pinned Line in sight while the fold is closed", async () => {
+    await open();
+    act(() => {
+      fireEvent.doubleClick(detailCanvas(), { clientX: 55, clientY: 150 });
+    });
+    await settle();
+    expect(screen.getByText("Pinned: Line 1")).toBeVisible();
+  });
+});
+
 describe("saving a Timing edit", () => {
   it("asks for the Admin PIN without an Unlock, then saves the operations against the previewed file", async () => {
     const { server } = await open();

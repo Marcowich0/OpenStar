@@ -5,7 +5,9 @@
 //   as soon as the fourth digit is typed; there is no OK key. A refused code
 //   shakes the boxes, says "That code is not on the Stage" and clears.
 // - `form="adminPin"` (v1 spec #45): a lock icon, the heading "Admin PIN",
-//   the digits as dots and an OK key. 4 to 8 digits, sent only on OK.
+//   one filled dot per digit typed (the hint "Enter the PIN" while there are
+//   none, so the field never suggests a length) and an OK key. 4 to 8
+//   digits, sent only on OK.
 //   Checking the PIN, the lockout countdown and the Unlock are the caller's;
 //   it shows its own text through `message` and stops all keys with
 //   `locked` while the wrong-guess wait runs (`pin/AdminPinDialog.tsx`).
@@ -23,7 +25,6 @@ import {
   EMPTY_PAD,
   JOIN_CODE_LENGTH,
   PIN_MIN_LENGTH,
-  maxLength,
   padStep,
   type PadAction,
   type PadForm,
@@ -175,10 +176,6 @@ export function NumberPad({
       </div>
     );
   } else {
-    const slots = Math.min(
-      maxLength(form),
-      Math.max(PIN_MIN_LENGTH, pad.digits.length + 1),
-    );
     entry = (
       <div
         key={refusals}
@@ -187,13 +184,20 @@ export function NumberPad({
         className="flex min-h-20 items-center justify-center gap-3 rounded-full bg-white px-6 shadow-ledge-sm data-shaking:animate-shake"
         {...shake}
       >
-        {Array.from({ length: slots }, (_, index) => (
-          <span
-            key={index}
-            data-filled={index < pad.digits.length || undefined}
-            className="size-5 rounded-full bg-passed data-filled:bg-ink"
-          />
-        ))}
+        {pad.digits.length === 0 ? (
+          <span className="text-xl font-semibold text-ink-2">
+            {t("numberPad.pinHint")}
+          </span>
+        ) : (
+          Array.from(pad.digits, (_, index) => (
+            <span
+              key={index}
+              data-testid="pin-dot"
+              data-filled
+              className="size-5 rounded-full bg-ink"
+            />
+          ))
+        )}
       </div>
     );
   }

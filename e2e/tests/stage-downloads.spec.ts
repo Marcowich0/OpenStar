@@ -85,3 +85,26 @@ test("the Stage opens Downloads from its Setup menu, in place", async ({
   await expect(stage).toHaveURL(/\/stage$/);
   await expect(stage.getByRole("dialog", { name: "Admin PIN" })).toHaveCount(0);
 });
+
+test("without USDB credentials the Stage says Downloads aren't set up yet, the variables folded for the owner", async ({
+  stage,
+}) => {
+  // The e2e server has the fake's credentials: answer the status as if not.
+  await stage.route("**/api/usdb/status", (route) =>
+    route.fulfill({ json: { state: "credentialsMissing" } }),
+  );
+  await newParty(stage);
+
+  await stage.getByRole("button", { name: "Setup" }).click();
+  await stage.getByRole("menuitem", { name: "Downloads" }).click();
+  const overlay = stage.getByRole("dialog", { name: "Downloads" });
+  await expect(overlay.getByText("Downloads aren't set up yet.")).toBeVisible();
+  const detail = overlay.getByText(/OPENSTAR_USDB_USERNAME/);
+  await expect(detail).toBeHidden();
+
+  const fold = overlay.getByRole("button", { name: "For the owner" });
+  await fold.focus();
+  await stage.keyboard.press("Enter");
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  await expect(detail).toBeVisible();
+});

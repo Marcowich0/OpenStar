@@ -143,7 +143,7 @@ export async function newParty(stage: Page): Promise<string> {
   await expect(frame).toHaveAttribute("data-scene", /.+/);
   // P opens People; New party needs a hold of Enter.
   await stage.keyboard.press("p");
-  const people = stage.getByRole("dialog", { name: "Tonight's Party" });
+  const people = stage.getByRole("dialog", { name: "People" });
   await expect(people).toBeVisible();
   // The People overlay's join card always shows the code.
   const peopleCode = people.getByTestId("party-join-code");
