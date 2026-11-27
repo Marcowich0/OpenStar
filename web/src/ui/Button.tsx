@@ -68,7 +68,8 @@ export function Button({
   }, [shaking]);
   const classes = [
     "inline-flex items-center justify-center gap-3 rounded-full font-sans outline-none",
-    "transition-transform duration-200 data-pressed:scale-95",
+    // The press squash (#260): to the press scale and springing back.
+    "transition-transform duration-(--motion-press) data-pressed:scale-(--motion-press-scale)",
     "data-focus-visible:outline-6 data-focus-visible:outline-yellow",
     FILL_CLASSES[fill],
     SIZE_CLASSES[size],

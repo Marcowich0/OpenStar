@@ -1,17 +1,22 @@
 /*
  * The Stage's one focus ring (v1 spec #55): a yellow ring with an ink edge
- * that keeps the element's own ledge, and a grow to 103 % with the spring
- * easing. It shows for keyboard and mouse alike, because the mouse moves the
- * same focus. Every button and `[data-stage-focus]` element in the frame can
- * hold the focus.
+ * that keeps the element's own ledge. It shows for keyboard and mouse alike,
+ * because the mouse moves the same focus. Every button and
+ * `[data-stage-focus]` element in the frame can hold the focus.
  *
- * Unlayered, so it wins over the components' own focus outlines (Tailwind
- * utilities sit in a cascade layer). `--tw-shadow` is the element's shadow
- * utility (its ledge); it falls back to no shadow.
+ * Its motion is the motion tokens' (#260): the ring bounces 1 → 1.06 → 1 as
+ * it lands, and a press squashes the element and springs it back. A press
+ * is the pointer's (`:active`), React Aria's (`data-pressed`) or Enter's
+ * (`data-stage-pressed`, set by the frame). With reduced motion or Effects
+ * off the tokens hold still (`tokens.css`).
+ *
+ * Unlayered, so the ring wins over the components' own focus outlines
+ * (Tailwind utilities sit in a cascade layer). `--tw-shadow` is the
+ * element's shadow utility (its ledge); it falls back to no shadow.
  */
 [data-stage-frame] :is(button, [data-stage-focus]) {
   transition:
-    scale 0.25s var(--ease-spring),
+    scale var(--motion-press) var(--ease-spring),
     transform 0.2s var(--ease-spring);
 }
 
@@ -21,5 +26,23 @@
     0 0 0 6px var(--color-yellow),
     0 0 0 10px var(--color-ink),
     var(--tw-shadow, 0 0 transparent);
-  scale: 1.03;
+}
+
+[data-stage-frame]
+  :is(button, [data-stage-focus]):is(
+    :active,
+    [data-pressed],
+    [data-stage-pressed]
+  ) {
+  scale: var(--motion-press-scale);
+}
+
+/*
+ * The bounce sits in the components layer, so an element's own animation
+ * (the carousel cover's squish, a breathing Start, a disabled shake) wins.
+ */
+@layer components {
+  [data-stage-frame] :is(button, [data-stage-focus]):focus {
+    animation: var(--animate-focus-bounce);
+  }
 }
