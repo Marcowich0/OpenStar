@@ -18,10 +18,12 @@ import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { ParsedSong } from "../../generated/ParsedSong";
 import { EFFECTS, type Effects } from "../../stageOptions/effects";
+import type { SingTheme } from "../../theme/themes";
 import type { PaletteKey, TokenName } from "../../theme/tokens";
 import type { LaneLayout } from "./laneLayout";
 import {
   DEFAULT_SING_LOOK,
+  DEFAULT_SING_THEME,
   laneFill,
   lyricBarBox,
   type LyricBarBox,
@@ -339,10 +341,19 @@ const GOLDEN: PillFill = {
 };
 const SOLID: readonly number[] = [];
 const PLAYHEAD_DASH: readonly number[] = [1, 12];
-/** Rap outlines: dashes and gaps each twice the outline width. */
-const RAP_DASH = new Map<number, readonly number[]>(
-  [2.5, 3.5, 4.5].map((w) => [w, [2 * w, 2 * w]]),
-);
+/**
+ * Rap outlines: dashes and gaps each twice the outline width. One array per
+ * width (three per theme's ink edge), so a frame allocates none.
+ */
+const RAP_DASH = new Map<number, readonly number[]>();
+function rapDash(width: number): readonly number[] {
+  let dash = RAP_DASH.get(width);
+  if (!dash) {
+    dash = [2 * width, 2 * width];
+    RAP_DASH.set(width, dash);
+  }
+  return dash;
+}
 
 /** The pitch grid's step, in semitones. */
 const GRID_STEP = 2;
@@ -365,16 +376,27 @@ const SEPARATOR_WIDTH = 2;
 /** A pill is this much shorter than its Note, in Beats, to leave a gap. */
 const PILL_GAP_BEATS = 0.2;
 
-function outlineWidth(height: number): number {
-  if (height < 14) return 2.5;
-  if (height < 20) return 3.5;
-  return 4.5;
+/** #55's outline width for a pill `height` tall, times the theme's ink edge. */
+function outlineWidth(height: number, inkEdge: number): number {
+  if (height < 14) return 2.5 * inkEdge;
+  if (height < 20) return 3.5 * inkEdge;
+  return 4.5 * inkEdge;
 }
 
 function pillFill(kind: NoteKind, passed: boolean): PillFill | null {
   if (kind === "freestyle") return null;
   if (passed) return PASSED;
   return kind === "golden" || kind === "goldenRap" ? GOLDEN : WHITE;
+}
+
+/**
+ * A pill's outline: a filled pill's is a mark on its bright fill
+ * (`on-bright`: ink in Bubble Pop, still dark on Night's navy); a hollow
+ * Freestyle pill's sits on the lane, in ink, grey once passed.
+ */
+function pillOutline(kind: NoteKind, passed: boolean): TokenName {
+  if (kind !== "freestyle") return "--color-on-bright";
+  return passed ? "--color-passed" : "--color-ink";
 }
 
 /** The Beat position at Song time `t`, fractional between Beats. */
@@ -452,18 +474,22 @@ function songLength(state: SingState): number {
 /**
  * The draw list for Song time `songTime` (seconds, already shifted by the
  * Stage's A/V offset). Lane `i` of `state.lanes` is drawn in `layout[i]`.
+ * `theme` is the shown theme's sing screen (Bubble Pop's by default): its
+ * frosting, ink edge and faint lines; its colours stay token names, which
+ * the painter reads from the shown theme.
  */
 export function frame(
   state: SingState,
   songTime: number,
   layout: LaneLayout,
+  theme: SingTheme = DEFAULT_SING_THEME,
 ): DrawList {
   const list: DrawList = [];
   const now = beatPosition(state.grid, songTime);
   const lanes = Math.min(state.lanes.length, layout.length);
   const length = songLength(state);
   const look = state.look ?? DEFAULT_SING_LOOK;
-  const fill = laneFill(look);
+  const fill = laneFill(look, theme);
   const motion = EFFECTS.screenMotion(state.effectsMode ?? "full");
   list.push({
     type: "progress",
@@ -502,7 +528,7 @@ export function frame(
         top: rect.y + padding,
         bottom: rect.y + rect.height - padding,
         colour: "--color-ink",
-        alpha: 0.12,
+        alpha: theme.separatorAlpha,
         width: SEPARATOR_WIDTH,
       },
     });
@@ -512,7 +538,7 @@ export function frame(
     const inner = rect.height - 2 * padding;
     const bottom = rect.y + rect.height - padding;
     const height = Math.min(42, Math.max(8, (inner / range) * 1.5));
-    const outline = outlineWidth(height);
+    const outline = outlineWidth(height, theme.inkEdge);
     const right = rect.x + rect.width;
     // The lane scrolls at a fixed speed in time, so a Beat's width follows the BPM.
     const pixelsPerBeat =
@@ -529,7 +555,7 @@ export function frame(
       right,
       ys,
       colour: "--color-ink",
-      alpha: 0.07,
+      alpha: theme.gridAlpha,
       width: 2,
     });
 
@@ -561,12 +587,9 @@ export function frame(
         width,
         height,
         fill: pillFill(note.kind, passed),
-        outline:
-          passed && note.kind === "freestyle"
-            ? "--color-passed"
-            : "--color-ink",
+        outline: pillOutline(note.kind, passed),
         outlineWidth: outline,
-        dash: rap ? (RAP_DASH.get(outline) ?? SOLID) : SOLID,
+        dash: rap ? rapDash(outline) : SOLID,
         star:
           golden && height >= STAR_MIN_HEIGHT
             ? {
@@ -595,7 +618,7 @@ export function frame(
       top: rect.y,
       bottom: rect.y + rect.height,
       colour: "--color-ink",
-      alpha: 0.3,
+      alpha: theme.playheadAlpha,
       width: 4,
       dash: PLAYHEAD_DASH,
     });
@@ -611,6 +634,7 @@ export function frame(
           notesX: rect.notesX,
           height: rect.height,
           bounce: motion,
+          inkEdge: theme.inkEdge,
           low,
           range,
           inner,
@@ -626,7 +650,7 @@ export function frame(
   }
   list.push({
     type: "lyricBar",
-    ...lyricBarBox(look, state.voices.length),
+    ...lyricBarBox(look, state.voices.length, theme),
   });
   lyricFill(list, state, now);
   state.ratings?.draw(list, state.lanes, layout, motion);

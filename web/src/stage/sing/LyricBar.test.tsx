@@ -3,12 +3,13 @@
 // fill itself (fraction and colour) is #133's and tested in SingScreen.test.
 
 import { act, render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { LyricEntry, SingVoice } from "./frame";
+import { applyTheme } from "../../theme/themes";
 import { createLyricDriver, LyricBar } from "./LyricBar";
 import { DEFAULT_SING_LOOK, type SingLook } from "./singLook";
 
@@ -64,6 +65,10 @@ function mount(
   return { ...utils, driver, bar, current, next };
 }
 
+afterEach(() => {
+  applyTheme("bubblePop");
+});
+
 describe("the lyric bar's look", () => {
   it("is a frosted surface bar (white in Bubble Pop) centred 34 px above the bottom", () => {
     const { bar } = mount([SONG], [entry(0, 0)]);
@@ -76,6 +81,21 @@ describe("the lyric bar's look", () => {
     expect(bar?.style.borderRadius).toBe("52px");
     expect(bar?.style.padding).toBe("10px 60px 16px");
     expect(bar?.style.boxShadow).toBe("var(--shadow-ledge-lyric)");
+  });
+
+  it("is solid with no blur in High contrast, and follows a theme shown while it is up", () => {
+    const { bar } = mount([SONG], [entry(0, 0)]);
+    act(() => {
+      applyTheme("highContrast");
+    });
+    expect(bar?.style.background).toBe(
+      "color-mix(in srgb, var(--color-surface) 100%, transparent)",
+    );
+    expect(bar?.style.getPropertyValue("backdrop-filter")).toBe("none");
+    act(() => {
+      applyTheme("bubblePop");
+    });
+    expect(bar?.style.getPropertyValue("backdrop-filter")).toBe("blur(14px)");
   });
 
   it("is hidden while no Voice has a Line to show", () => {

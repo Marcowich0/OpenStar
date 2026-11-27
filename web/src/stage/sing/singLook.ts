@@ -10,6 +10,7 @@
 
 import type { LyricSize } from "../../generated/LyricSize";
 import type { StageOptions } from "../../generated/StageOptions";
+import { THEMES, type SingTheme } from "../../theme/themes";
 import type { TokenName } from "../../theme/tokens";
 import {
   DEFAULT_NOTE_SPEED,
@@ -54,9 +55,8 @@ export const LYRIC_BAR = {
   paddingInline: 60,
   /** From the bar's bottom edge to the bottom of the frame; the bar grows up from here. */
   bottomGap: 34,
-  /** The bar's frosted background. */
-  fill: { colour: "--color-surface", alpha: 0.86 },
-  blur: 14,
+  /** The bar's background; its alpha and blur are the theme's. */
+  fill: "--color-surface",
   radius: 52,
 } as const;
 
@@ -65,10 +65,15 @@ const FRAME_HEIGHT = 1080;
 /** The least space kept between the lowest lane and the lyric bar. */
 const LANES_ABOVE_BAR = 12;
 
-/** A surface's flat fill: a token at an alpha. */
+/** Bubble Pop's sing screen, for a frame drawn with no theme. */
+export const DEFAULT_SING_THEME: SingTheme = THEMES.bubblePop.sing;
+
+/** A surface's flat fill: a token at an alpha, over a backdrop blurred by `blur` px. */
 export interface SurfaceFill {
   colour: TokenName;
   alpha: number;
+  /** 0: no backdrop blur. */
+  blur: number;
 }
 
 /** The lyric bar's box at its tallest, which the lanes stay above. */
@@ -86,8 +91,12 @@ export interface LyricBarBox {
   fill: SurfaceFill;
 }
 
-/** The lyric bar for `look` on a Song of `voices` Voices. */
-export function lyricBarBox(look: SingLook, voices: number): LyricBarBox {
+/** The lyric bar for `look` on a Song of `voices` Voices, in `theme`. */
+export function lyricBarBox(
+  look: SingLook,
+  voices: number,
+  theme: SingTheme = DEFAULT_SING_THEME,
+): LyricBarBox {
   const scale = LYRIC_SCALE[look.lyricSize];
   const duet = voices > 1;
   const lines = duet ? 2 : 1;
@@ -106,7 +115,11 @@ export function lyricBarBox(look: SingLook, voices: number): LyricBarBox {
     lines,
     lineSize,
     nextSize,
-    fill: LYRIC_BAR.fill,
+    fill: {
+      colour: LYRIC_BAR.fill,
+      alpha: theme.lyricBar.alpha,
+      blur: theme.lyricBar.blur,
+    },
   };
 }
 
@@ -119,9 +132,22 @@ export function lanesBottom(look: SingLook, voices: number): number {
   return Math.min(LANES_BOTTOM, Math.floor(bar.top - LANES_ABOVE_BAR));
 }
 
-/** The lane panels' frosting, in the theme's surface colour (white in Bubble Pop). */
-export function laneFill(look: SingLook): SurfaceFill {
-  return { colour: "--color-surface", alpha: look.laneFrostingPercent / 100 };
+/**
+ * The lane panels' fill, in the theme's surface colour (white in Bubble
+ * Pop): frosted at the Lane frosting option, or solid in a theme with solid
+ * lanes (High contrast), whatever the option says.
+ */
+export function laneFill(
+  look: SingLook,
+  theme: SingTheme = DEFAULT_SING_THEME,
+): SurfaceFill {
+  return theme.lanes === "solid"
+    ? { colour: "--color-surface", alpha: 1, blur: 0 }
+    : {
+        colour: "--color-surface",
+        alpha: look.laneFrostingPercent / 100,
+        blur: theme.laneBlur,
+      };
 }
 
 /** What the sing screen's layout depends on. */

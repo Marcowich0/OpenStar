@@ -8,6 +8,7 @@ import { laneLayout } from "./laneLayout";
 import { LineRatings } from "./lineRating";
 import { singLayout } from "./singLook";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
+import { THEMES, type SingTheme } from "../../theme/themes";
 import { SPARKLE_RATE } from "./effects";
 import { createRenderLoop } from "./renderLoop";
 
@@ -35,6 +36,7 @@ function setup(
     avOffset?: number;
     state?: () => SingState;
     frameTime?: () => number;
+    theme?: () => SingTheme;
   } = {},
 ) {
   let now = 0;
@@ -48,6 +50,7 @@ function setup(
     requestFrame: (cb) => callbacks.push(cb),
     cancelFrame: vi.fn(),
     ...(options.frameTime && { frameTime: options.frameTime }),
+    ...(options.theme && { theme: options.theme }),
   });
   return {
     loop,
@@ -108,6 +111,19 @@ describe("the render loop", () => {
     at(3);
     expect(painted[1]).toEqual(frame(current, 3, singLayout(current)));
     expect(painted[1]).not.toEqual(frame(current, 3, laneLayout(4)));
+  });
+
+  it("draws each frame in the theme shown at that frame", () => {
+    let theme = THEMES.bubblePop.sing;
+    const { at, painted } = setup({ theme: () => theme });
+    at(3);
+    theme = THEMES.highContrast.sing;
+    at(3);
+    expect(painted[0]).toEqual(frame(state, 3, laneLayout(1)));
+    expect(painted[1]).toEqual(
+      frame(state, 3, laneLayout(1), THEMES.highContrast.sing),
+    );
+    expect(painted[1]).not.toEqual(painted[0]);
   });
 
   it("asks for each frame with the same callback, and stops on stop()", () => {

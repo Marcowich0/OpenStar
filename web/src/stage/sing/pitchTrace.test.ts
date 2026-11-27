@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { THEMES } from "../../theme/themes";
 import type { Difficulty } from "../../generated/Difficulty";
 import * as scorer from "../../scoring/scorer";
 import { readingHits } from "../../scoring/scorer";
@@ -365,6 +366,18 @@ describe("hit colouring", () => {
       [5, false],
       [5.2, false],
     ]);
+  });
+
+  it("draws the ink edge 1.5 × as thick in High contrast: 7.5 px beyond the hit stroke instead of 5", () => {
+    const [line] = lines(
+      frame(
+        state(trace(buffer(sung(3, 3.2, 60)))),
+        3.2,
+        oneLane,
+        THEMES.highContrast.sing,
+      ),
+    );
+    expect(line?.hit).toMatchObject({ width: 12, edgeWidth: 19.5 });
   });
 
   it("styles hits in the Party colour over an ink edge and misses thin ink", () => {

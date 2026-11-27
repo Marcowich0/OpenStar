@@ -4,6 +4,8 @@
 // `just update-screenshots`, never into the binary.
 
 import type { LyricSize } from "../generated/LyricSize";
+import type { Theme } from "../generated/Theme";
+import { isTheme } from "../theme/themes";
 
 /** The synthetic sing screens: 1, 4 and 8 Players, and a duet. */
 export const SING_TEST_CASES = ["one", "four", "eight", "duet"] as const;
@@ -15,9 +17,16 @@ export interface SingTestSearch {
   t: number;
   /** The Lyric size option. */
   lyricSize: LyricSize;
+  /** The theme the page shows. */
+  theme: Theme;
 }
 
-const DEFAULT: SingTestSearch = { case: "one", t: 6, lyricSize: "m" };
+const DEFAULT: SingTestSearch = {
+  case: "one",
+  t: 6,
+  lyricSize: "m",
+  theme: "bubblePop",
+};
 const LYRIC_SIZES: readonly LyricSize[] = ["s", "m", "l", "xl"];
 
 function isLyricSize(value: unknown): value is LyricSize {
@@ -29,18 +38,20 @@ function isCase(value: unknown): value is SingTestCase {
 }
 
 /**
- * `?case=<one|four|eight|duet>&t=<seconds>&lyricSize=<s|m|l|xl>`; anything
- * else takes the default.
+ * `?case=<one|four|eight|duet>&t=<seconds>&lyricSize=<s|m|l|xl>&theme=<a
+ * theme>`; anything else takes the default.
  */
 export function parseSingTestSearch(search: string): SingTestSearch {
   const params = new URLSearchParams(search);
   const kase = params.get("case");
   const t = params.get("t");
   const lyricSize = params.get("lyricSize");
+  const theme = params.get("theme");
   const seconds = t === null || t.trim() === "" ? NaN : Number(t);
   return {
     case: isCase(kase) ? kase : DEFAULT.case,
     t: Number.isFinite(seconds) ? seconds : DEFAULT.t,
     lyricSize: isLyricSize(lyricSize) ? lyricSize : DEFAULT.lyricSize,
+    theme: isTheme(theme) ? theme : DEFAULT.theme,
   };
 }
