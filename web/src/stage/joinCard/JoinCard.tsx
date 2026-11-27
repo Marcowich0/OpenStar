@@ -98,7 +98,7 @@ export function JoinCard({
           onPress={() => {
             hide(false);
           }}
-          className="flex items-center gap-3 rounded-full bg-white px-7 py-3 text-[34px] font-semibold text-ink shadow-ledge outline-none"
+          className="flex items-center gap-3 rounded-full bg-surface px-7 py-3 text-[34px] font-semibold text-ink shadow-ledge outline-none"
         >
           <span data-testid="party-join-code" className="sr-only">
             {joinCode}
@@ -125,7 +125,7 @@ export function JoinCard({
       <aside
         data-layout={layout}
         style={layout === "tall" ? { width: TALL_CARD_WIDTH_PX } : undefined}
-        className={`relative flex items-center gap-4 rounded-card bg-white p-7 text-ink shadow-ledge-lg ${layout === "wide" ? "max-w-[760px] flex-row gap-7" : "flex-col"}`}
+        className={`relative flex items-center gap-4 rounded-card bg-surface p-7 text-ink shadow-ledge-lg ${layout === "wide" ? "max-w-[760px] flex-row gap-7" : "flex-col"}`}
       >
         {join.warning === "none" ? (
           <QrCode
@@ -150,7 +150,7 @@ export function JoinCard({
             onPress={() => {
               hide(true);
             }}
-            className="absolute -top-5 -right-3 rounded-full bg-ink px-5 py-1.5 text-[22px] font-semibold text-white shadow-ledge-ink outline-none"
+            className="absolute -top-5 -right-3 rounded-full bg-ink-fill px-5 py-1.5 text-[22px] font-semibold text-white shadow-ledge-ink outline-none"
           >
             {t("stage.joinCard.hide")}
           </AriaButton>
@@ -168,7 +168,7 @@ function CodeBoxes({ joinCode }: { joinCode: string }) {
         <b
           // The same digit can appear twice; the position is its identity.
           key={i}
-          className="flex h-[95px] w-[78px] items-center justify-center rounded-[22px] bg-white text-[63px] leading-none font-bold tabular-nums shadow-[0_6px_0_var(--color-ledge),inset_0_0_0_3px_var(--color-passed)]"
+          className="flex h-[95px] w-[78px] items-center justify-center rounded-[22px] bg-surface text-[63px] leading-none font-bold tabular-nums shadow-[0_6px_0_var(--color-ledge),inset_0_0_0_3px_var(--color-passed)]"
         >
           {digit}
         </b>
@@ -188,7 +188,7 @@ function JoinWarning({
 }) {
   return (
     <div
-      className={`flex ${short ? "min-h-[200px]" : "min-h-[266px]"} w-[310px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-white p-5 text-center leading-tight font-semibold text-warn-fg`}
+      className={`flex ${short ? "min-h-[200px]" : "min-h-[266px]"} w-[310px] flex-col items-center justify-center gap-2 rounded-[28px] border-[5px] border-dashed border-red bg-surface p-5 text-center leading-tight font-semibold text-warn-fg`}
     >
       <Icon name="lock" className="size-14" />
       <p className="text-[24px]">{t("stage.joinCard.cantSing")}</p>

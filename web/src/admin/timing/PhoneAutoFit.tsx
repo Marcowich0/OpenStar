@@ -174,7 +174,7 @@ export function PhoneAutoFit({
     phase.kind === "listening" ? (
       <span
         role="status"
-        className="rounded-full bg-ink px-4 py-1.5 text-lg font-semibold whitespace-nowrap text-white"
+        className="rounded-full bg-ink-fill px-4 py-1.5 text-lg font-semibold whitespace-nowrap text-white"
       >
         {phase.percent === null
           ? t("timing.view.listening")
@@ -257,7 +257,7 @@ function Details({
       return (
         <section
           aria-label={t("admin.songs.fit.title")}
-          className="flex flex-col gap-2 rounded-2xl bg-white p-3 shadow-ledge-sm"
+          className="flex flex-col gap-2 rounded-2xl bg-surface p-3 shadow-ledge-sm"
         >
           <p className="font-semibold">{change}</p>
           <p>

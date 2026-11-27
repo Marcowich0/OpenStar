@@ -58,7 +58,7 @@ export function StageAvSync() {
       {switchFirst && (
         <p
           role="alert"
-          className="rounded-card bg-white px-8 py-5 text-center text-2xl font-semibold"
+          className="rounded-card bg-surface px-8 py-5 text-center text-2xl font-semibold"
         >
           {t("avSync.switchProfiles")}
         </p>

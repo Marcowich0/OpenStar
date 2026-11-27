@@ -116,7 +116,7 @@ function TabButton({
       aria-selected={selected}
       onClick={onPick}
       {...(isDefault ? { "data-stage-default": "" } : {})}
-      className={`${TAB} ${selected ? "bg-ink text-white" : "bg-white text-ink"}`}
+      className={`${TAB} ${selected ? "bg-ink-fill text-white" : "bg-surface text-ink"}`}
     >
       {children}
     </button>
@@ -138,7 +138,7 @@ function Entries({ table }: { table: HighScoreTable | undefined }) {
       {table.entries.map((entry) => (
         <li
           key={entry.holder.profileId}
-          className="flex h-[76px] items-center gap-4 rounded-card-sm bg-white px-6 shadow-ledge-sm"
+          className="flex h-[76px] items-center gap-4 rounded-card-sm bg-surface px-6 shadow-ledge-sm"
         >
           <span className="w-10 text-center text-[32px] font-bold tabular-nums">
             {entry.place}

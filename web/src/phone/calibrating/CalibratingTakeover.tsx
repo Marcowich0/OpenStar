@@ -111,7 +111,7 @@ export function CalibratingTakeover({
         {view.step === "blocked" && (
           <section
             aria-label={t("phoneMic.failed")}
-            className="flex w-full grow flex-col items-center gap-4 rounded-card bg-ink p-5"
+            className="flex w-full grow flex-col items-center gap-4 rounded-card bg-ink-fill p-5"
           >
             <h2 className="text-3xl font-bold">{t("phoneMic.failed")}</h2>
             {view.blocked && (

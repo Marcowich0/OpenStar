@@ -46,7 +46,7 @@ export function AdminArea() {
             <li key={to} className="min-w-0">
               <Link
                 to={to}
-                className="flex min-h-14 items-center justify-center rounded-full bg-white px-3 text-center text-lg font-semibold text-ink shadow-ledge outline-none focus-visible:outline-6 focus-visible:outline-yellow data-[status=active]:bg-ink data-[status=active]:text-white data-[status=active]:shadow-ledge-ink"
+                className="flex min-h-14 items-center justify-center rounded-full bg-surface px-3 text-center text-lg font-semibold text-ink shadow-ledge outline-none focus-visible:outline-6 focus-visible:outline-yellow data-[status=active]:bg-ink-fill data-[status=active]:text-white data-[status=active]:shadow-ledge-ink"
               >
                 {t(label)}
               </Link>

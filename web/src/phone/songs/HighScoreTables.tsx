@@ -13,7 +13,7 @@ import { Avatar } from "../../ui/Avatar";
 const DIFFICULTIES: readonly Difficulty[] = ["easy", "medium", "hard"];
 
 const TAB =
-  "cursor-pointer rounded-full px-3.5 py-1 text-sm font-semibold text-ink-2 outline-none data-focus-visible:outline-4 data-focus-visible:outline-yellow data-selected:bg-ink data-selected:text-white";
+  "cursor-pointer rounded-full px-3.5 py-1 text-sm font-semibold text-ink-2 outline-none data-focus-visible:outline-4 data-focus-visible:outline-yellow data-selected:bg-ink-fill data-selected:text-white";
 const TAB_LIST = "flex gap-1.5";
 
 export function HighScoreTables({
@@ -90,7 +90,7 @@ function Entries({ table }: { table: HighScoreTable | undefined }) {
       {table.entries.map((entry) => (
         <li
           key={entry.holder.profileId}
-          className="flex items-center gap-2.5 rounded-card-sm bg-white px-3 py-1.5 shadow-ledge-sm"
+          className="flex items-center gap-2.5 rounded-card-sm bg-surface px-3 py-1.5 shadow-ledge-sm"
         >
           <span className="w-5 text-center font-bold tabular-nums">
             {entry.place}

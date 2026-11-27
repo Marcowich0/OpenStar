@@ -148,7 +148,7 @@ export function StageTab({
       )}
       {state?.kind === "empty" && <EmptyQueueCard />}
       {lineUp && (
-        <section className="flex flex-col gap-2 rounded-card bg-ink p-4.5 text-white shadow-ledge">
+        <section className="flex flex-col gap-2 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge">
           <div className="mb-2 flex items-center gap-3">
             <Cover
               src={song?.media.cover ?? null}
@@ -227,7 +227,7 @@ export function StageTab({
                       onClick={() => {
                         store.send({ type: "openCalibrationFor", mic });
                       }}
-                      className="min-h-11 shrink-0 cursor-pointer rounded-full bg-white px-4 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+                      className="min-h-11 shrink-0 cursor-pointer rounded-full bg-surface px-4 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
                     >
                       {t("stage.overlay.calibrateMics")}
                     </button>

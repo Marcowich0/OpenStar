@@ -39,7 +39,7 @@ export function AvSyncStartButton({ store }: { store: LiveStore }) {
 }
 
 const STEP_BUTTON =
-  "flex size-24 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow";
+  "flex size-24 shrink-0 cursor-pointer items-center justify-center rounded-full bg-surface text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow";
 
 /** The value large, −/+, Reset to 0 and Done. */
 function AvSyncControls({ store }: { store: LiveStore }) {
@@ -99,7 +99,7 @@ export function AvSyncCard({ store }: { store: LiveStore }) {
   return (
     <section
       data-testid="av-sync-card"
-      className="flex flex-col gap-4 rounded-card bg-ink p-4.5 text-white shadow-ledge"
+      className="flex flex-col gap-4 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge"
     >
       <h2 className="text-2xl font-bold">{t("avSync.start")}</h2>
       <AvSyncControls store={store} />
@@ -112,7 +112,7 @@ export function AvSyncPage({ store }: { store: LiveStore }) {
   return (
     <main
       aria-label={t("avSync.start")}
-      className="flex min-h-dvh flex-col justify-center gap-6 bg-ink px-4 py-8 text-white"
+      className="flex min-h-dvh flex-col justify-center gap-6 bg-ink-fill px-4 py-8 text-white"
     >
       <h1 className="text-4xl font-bold">{t("avSync.start")}</h1>
       <AvSyncControls store={store} />

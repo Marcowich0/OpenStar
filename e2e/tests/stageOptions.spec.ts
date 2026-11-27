@@ -1,11 +1,12 @@
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 
 import { expect, newParty, test } from "../fixtures";
 
 // Setup › Options in real Chromium: the Stage opens it from the Setup pill
 // with no Admin PIN, a change is saved at once and kept after a reload, and
-// Reset puts the default back, also under a group's Advanced fold. The options are the server's, so the test
-// leaves the defaults behind.
+// Reset puts the default back, also under a group's Advanced fold. A theme
+// chosen on the Stage recolours a joined Phone with no reload. The options
+// are the server's, so the test leaves the defaults behind.
 
 test.afterEach(async ({ request }) => {
   await request.put("/api/stage-options", { data: {} });
@@ -116,4 +117,61 @@ test("an option under Advanced marks its fold, across a reload, until it is rese
     })
     .click();
   await expect(fold.getByTestId("options-advanced-changed")).toHaveCount(0);
+});
+
+/** The page's background token, as every screen paints it. */
+function background(page: Page): Promise<string> {
+  return page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--color-cream")
+      .trim()
+      .toLowerCase(),
+  );
+}
+
+async function createProfile(request: APIRequestContext): Promise<string> {
+  const name = `Theme ${String(Date.now() % 100000)}`;
+  const response = await request.post("/api/profiles", {
+    data: {
+      name,
+      avatar: { kind: "builtIn", key: "rocket" },
+      favouriteColour: "teal",
+    },
+  });
+  expect(response.ok()).toBe(true);
+  return name;
+}
+
+test("a theme chosen on the Stage recolours the Stage and a joined Phone at once", async ({
+  stage,
+  openPhone,
+  request,
+}) => {
+  const code = await newParty(stage);
+  const name = await createProfile(request);
+  const phone = await openPhone();
+  await phone.goto(`/?join=${code}`);
+  await phone.getByRole("button", { name, exact: true }).click();
+  await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();
+
+  // Bubble Pop's cream (tokens.css) on both.
+  expect(await background(stage)).toBe("#fff6e9");
+  expect(await background(phone)).toBe("#fff6e9");
+
+  const options = await openOptions(stage);
+  const theme = options.getByRole("group", { name: "Theme" });
+  const put = saved(stage);
+  await theme.getByRole("button", { name: "Bubble Pop Night" }).click();
+  expect((await put).ok()).toBe(true);
+
+  // Night's deep navy (themes.ts), on the Phone over its WebSocket.
+  await expect.poll(() => background(stage)).toBe("#1b1f3f");
+  await expect.poll(() => background(phone)).toBe("#1b1f3f");
+  await expect(phone.locator("html")).toHaveAttribute(
+    "data-theme",
+    "bubblePopNight",
+  );
+
+  await theme.getByRole("button", { name: "Bubble Pop", exact: true }).click();
+  await expect.poll(() => background(phone)).toBe("#fff6e9");
 });

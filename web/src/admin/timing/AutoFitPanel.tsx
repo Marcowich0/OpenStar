@@ -22,9 +22,9 @@ export interface FitOutcome {
 }
 
 const BIG_BUTTON =
-  "rounded-full bg-green px-5 py-2 text-xl font-bold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow disabled:opacity-40";
+  "rounded-full bg-green px-5 py-2 text-xl font-bold text-on-bright shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow disabled:opacity-40";
 const SMALL_BUTTON =
-  "rounded-full bg-white px-3.5 py-1.5 text-base font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow disabled:opacity-40";
+  "rounded-full bg-surface px-3.5 py-1.5 text-base font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow disabled:opacity-40";
 
 export function AutoFitPanel({
   ready,

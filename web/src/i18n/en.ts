@@ -446,6 +446,12 @@ export const en = {
   "options.startingDifficulty": "Starting Difficulty",
   "options.startingDifficulty.help":
     "Where a Guest starts, and a new Profile. A Profile that has sung keeps its last Difficulty.",
+  "options.theme": "Theme",
+  "options.theme.help":
+    "How every screen looks. Night is for a dark room. Every Phone follows the Stage.",
+  "options.theme.bubblePop": "Bubble Pop",
+  "options.theme.bubblePopNight": "Bubble Pop Night",
+  "options.theme.highContrast": "High contrast",
   "options.resumeCountdown": "Countdown after a pause",
   "options.resumeCountdown.help":
     "How long the Stage counts down before the Song plays on. At 0 it plays on at once.",

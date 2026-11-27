@@ -124,7 +124,7 @@ function ProfileLayer({
           type="button"
           data-stage-default=""
           onClick={onClose}
-          className="inline-flex h-16 cursor-pointer items-center gap-3 rounded-full bg-white px-7 text-3xl font-semibold shadow-ledge-sm"
+          className="inline-flex h-16 cursor-pointer items-center gap-3 rounded-full bg-surface px-7 text-3xl font-semibold shadow-ledge-sm"
         >
           <Icon name="close" className="size-8" />
           {t("profilePage.back")}
@@ -181,7 +181,7 @@ function TakenSpot({
       data-colour={member.colour}
       data-free="false"
       aria-label={name}
-      className={`${SPOT} border-t-[6px] bg-white shadow-ledge-sm`}
+      className={`${SPOT} border-t-[6px] bg-surface shadow-ledge-sm`}
       style={{ borderTopColor: tokenVar(member.colour) }}
     >
       {identity.kind === "profile" ? (

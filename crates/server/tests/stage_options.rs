@@ -6,7 +6,7 @@
 
 use openstar::db::DATABASE_FILE;
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
-use openstar_protocol::stage_options::{Effects, LyricSize, StageOptions};
+use openstar_protocol::stage_options::{Effects, LyricSize, StageOptions, Theme};
 use openstar_protocol::{
     ChangeTopic, ClientMessage, Identity, JoinAs, NewGuest, PhoneId, ServerMessage, UserMessage,
 };
@@ -40,6 +40,7 @@ fn changed_options() -> StageOptions {
         lyric_size: LyricSize::Xl,
         show_next_line: false,
         lane_frosting_percent: 40,
+        theme: Theme::BubblePopNight,
     }
 }
 
@@ -110,6 +111,8 @@ async fn a_set_kept_when_effects_was_a_switch_reads_on_as_full_and_keeps_the_res
                 lyric_size: defaults.lyric_size,
                 show_next_line: defaults.show_next_line,
                 lane_frosting_percent: defaults.lane_frosting_percent,
+                // Kept before themes existed: the default theme.
+                theme: Theme::BubblePop,
                 ..changed_options()
             }
         );
@@ -166,6 +169,14 @@ async fn a_v1_set_reads_with_the_new_options_at_their_defaults() {
             ..StageOptions::default()
         }
     );
+}
+
+#[tokio::test]
+async fn an_unknown_theme_is_refused_and_nothing_changes() {
+    let app = TestApp::start().await;
+    let response = put(&app, &serde_json::json!({ "theme": "pink" })).await;
+    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(read(&app).await, StageOptions::default());
 }
 
 #[tokio::test]

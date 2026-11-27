@@ -73,7 +73,7 @@ function StageOptionsBody({
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex min-h-12 cursor-pointer items-center gap-1.5 self-start rounded-full bg-white pr-5 pl-3 text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+        className="inline-flex min-h-12 cursor-pointer items-center gap-1.5 self-start rounded-full bg-surface pr-5 pl-3 text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
       >
         <Icon name="chevron" className="size-5 rotate-180" />
         {t("stageTab.optionsBack")}

@@ -76,7 +76,7 @@ describe("Setup › Options", () => {
     openAdvanced("singScreen");
     for (const [group, ids] of [
       ["options-players", ["startingDifficulty"]],
-      ["options-look", ["laneFrostingPercent"]],
+      ["options-look", ["theme", "laneFrostingPercent"]],
       [
         "options-singScreen",
         [

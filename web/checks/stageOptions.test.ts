@@ -28,13 +28,12 @@ describe("the Stage options", () => {
       const value = constant(name, type).replace(`${type}::`, "");
       return value.charAt(0).toLowerCase() + value.slice(1);
     };
-    const difficulty = constant(
-      "STARTING_DIFFICULTY_DEFAULT",
-      "Difficulty",
-    ).replace("Difficulty::", "");
     expect(STAGE_OPTIONS).toEqual({
       defaults: {
-        startingDifficulty: difficulty.toLowerCase(),
+        startingDifficulty: variant(
+          "STARTING_DIFFICULTY_DEFAULT",
+          "Difficulty",
+        ),
         resumeCountdownSeconds: number("RESUME_COUNTDOWN_DEFAULT_SECONDS"),
         lineRatings: bool("LINE_RATINGS_DEFAULT"),
         effects: variant("EFFECTS_DEFAULT", "Effects"),
@@ -44,6 +43,7 @@ describe("the Stage options", () => {
         lyricSize: variant("LYRIC_SIZE_DEFAULT", "LyricSize"),
         showNextLine: bool("SHOW_NEXT_LINE_DEFAULT"),
         laneFrostingPercent: number("LANE_FROSTING_DEFAULT_PERCENT"),
+        theme: variant("THEME_DEFAULT", "Theme"),
       },
       resumeCountdownMaxSeconds: number("RESUME_COUNTDOWN_MAX_SECONDS"),
       previewVolumeStepPercent: number("PREVIEW_VOLUME_STEP_PERCENT"),

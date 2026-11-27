@@ -76,7 +76,7 @@ function ToastPill({
   return (
     <li
       data-leaving={phase === "showing" ? undefined : ""}
-      className={`flex items-center gap-2 rounded-full bg-ink py-2 pr-4 text-base font-medium text-white shadow-[0_5px_0_var(--color-ink-ledge)] ${
+      className={`flex items-center gap-2 rounded-full bg-ink-fill py-2 pr-4 text-base font-medium text-white shadow-[0_5px_0_var(--color-ink-ledge)] ${
         phase === "showing" ? "animate-pop-in" : "animate-toast-out"
       } ${actor ? "pl-2" : "pl-4"}`}
     >

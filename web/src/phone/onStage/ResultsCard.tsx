@@ -25,7 +25,7 @@ export function ResultsCard({
   return (
     <section
       data-testid="results-card"
-      className="flex flex-col gap-1 rounded-card bg-ink p-4.5 text-white shadow-ledge"
+      className="flex flex-col gap-1 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge"
     >
       <p className="text-sm font-semibold text-white/70">
         {t("stageTab.results")}
@@ -50,7 +50,7 @@ export function ResultsCard({
 /** The Stage tab's card with an empty Queue. */
 export function EmptyQueueCard() {
   return (
-    <section className="flex flex-col gap-1 rounded-card bg-ink p-4.5 text-white shadow-ledge">
+    <section className="flex flex-col gap-1 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge">
       <h2 className="text-2xl font-bold">{t("stageTab.waiting")}</h2>
       <p className="text-white/70">{t("stageTab.queueEmpty")}</p>
     </section>

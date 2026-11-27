@@ -36,7 +36,7 @@ export function PlaybackCheck() {
   });
   if (detail.data) return <PlaybackView detail={detail.data} />;
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-ink text-5xl text-white">
+    <main className="flex min-h-dvh items-center justify-center bg-ink-fill text-5xl text-white">
       {detail.isError || song === undefined
         ? t("stage.playback.noSong")
         : t("stage.playback.loading")}
@@ -168,7 +168,7 @@ function PlaybackView({ detail }: { detail: SongDetail }) {
           <track kind="captions" />
         </audio>
       )}
-      <div className="absolute right-8 bottom-8 flex items-center gap-6 rounded-card bg-white/90 px-8 py-4 text-3xl text-ink tabular-nums">
+      <div className="absolute right-8 bottom-8 flex items-center gap-6 rounded-card bg-surface/90 px-8 py-4 text-3xl text-ink tabular-nums">
         <span>{detail.song.headers.title}</span>
         <span ref={readout} data-testid="song-time" data-song-time="0" />
         <span ref={jitter} />
@@ -232,7 +232,7 @@ function PlaybackView({ detail }: { detail: SongDetail }) {
           role="status"
           className="pointer-events-none absolute inset-0 flex items-center justify-center"
         >
-          <span className="rounded-card bg-white/90 px-16 py-8 text-8xl text-ink">
+          <span className="rounded-card bg-surface/90 px-16 py-8 text-8xl text-ink">
             {t("stage.playback.paused")}
           </span>
         </div>

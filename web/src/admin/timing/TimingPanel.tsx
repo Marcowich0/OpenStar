@@ -70,7 +70,7 @@ export function TypedValue({
           if (event.key === "Enter") commit();
           if (event.key === "Escape") setDraft(null);
         }}
-        className="h-11 rounded-full bg-white px-4 text-xl tabular-nums text-ink ring-2 ring-ledge outline-none focus-visible:ring-ink"
+        className="h-11 rounded-full bg-surface px-4 text-xl tabular-nums text-ink ring-2 ring-ledge outline-none focus-visible:ring-ink"
       />
       {value === fileValue ? null : (
         <span className="text-sm text-ink-2 tabular-nums">
@@ -133,7 +133,7 @@ export function ShareMeter({
 }
 
 const SMALL_BUTTON =
-  "rounded-full bg-white px-3.5 py-1.5 text-base font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow disabled:opacity-40";
+  "rounded-full bg-surface px-3.5 py-1.5 text-base font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow disabled:opacity-40";
 
 /** The edit list, each edit in words; undone ones struck through. */
 export function EditList({
