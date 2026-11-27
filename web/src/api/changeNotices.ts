@@ -3,6 +3,7 @@ import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import type { ChangeTopic } from "../generated/ChangeTopic";
 import type { LiveConnection } from "../live/liveState";
 import type { LiveStore } from "../live/liveStore";
+import { stageOptionsKey } from "../stageOptions/stageOptions";
 import {
   libraryProblemsQuery,
   micBridgesQuery,
@@ -28,6 +29,8 @@ export const QUERIES_BY_TOPIC: Record<ChangeTopic, readonly QueryKey[]> = {
   micBridges: [micBridgesQuery.queryKey],
   // The mirror's status; #193's USDB search keys start with "usdb" too.
   usdbMirror: [["usdb"]],
+  // The Stage options (Setup › Options).
+  stageOptions: [stageOptionsKey],
 };
 
 const TOPICS = Object.keys(QUERIES_BY_TOPIC) as ChangeTopic[];

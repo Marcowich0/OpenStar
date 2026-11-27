@@ -18,6 +18,7 @@ pub mod mic_settings;
 mod pin_wait;
 mod profiles;
 pub mod scores;
+pub mod stage_options;
 pub mod stage_outputs;
 mod stage_trust;
 mod startup;

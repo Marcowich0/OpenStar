@@ -1039,6 +1039,18 @@ const V1_ACTIONS: &[Action] = {
             )],
         },
         Action {
+            name: "Reading and setting the Stage options (Setup › Options)",
+            needs: Nothing,
+            via: &[
+                Http("GET", "/api/stage-options"),
+                Http("PUT", "/api/stage-options"),
+            ],
+            proofs: &[(
+                "stage_options.rs",
+                "anyone_sets_them_and_they_survive_a_restart",
+            )],
+        },
+        Action {
             name: "Hiding the join card",
             needs: Nothing,
             via: &[Frontend],

@@ -12,6 +12,7 @@ export type OverlayId =
   | "calibrateMics"
   | "avSync"
   | "downloads"
+  | "options"
   | "songDetail";
 
 /** The overlay each letter key toggles. */

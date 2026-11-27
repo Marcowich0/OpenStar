@@ -27,6 +27,7 @@ import type { SongQuery } from "../generated/SongQuery";
 import type { TrashList } from "../generated/TrashList";
 import type { RoundStored } from "../generated/RoundStored";
 import type { StageOutputMicSettings } from "../generated/StageOutputMicSettings";
+import type { StageOptions } from "../generated/StageOptions";
 import type { StageTrustRequest } from "../generated/StageTrustRequest";
 import type { StageTrustStatus } from "../generated/StageTrustStatus";
 import type { TimingEdit } from "../generated/TimingEdit";
@@ -64,6 +65,8 @@ export interface Endpoints {
   };
   "GET /api/av-offset": { query: AvOffsetQuery; response: AvOffset };
   "PUT /api/av-offset": { body: AvOffset; response: AvOffset };
+  "GET /api/stage-options": { response: StageOptions };
+  "PUT /api/stage-options": { body: StageOptions; response: StageOptions };
   "GET /api/unlock": { response: UnlockStatus };
   "POST /api/unlock": { body: UnlockRequest; response: UnlockStatus };
   "POST /api/unlock/heartbeat": { response: UnlockStatus };

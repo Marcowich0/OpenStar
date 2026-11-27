@@ -211,7 +211,8 @@ pub enum Avatar {
 #[ts(export)]
 pub enum Difficulty {
     Easy,
-    /// Where a Profile that has never sung, and a Guest, start.
+    /// The default starting Difficulty (`stage_options`): where a Guest, and
+    /// a new Profile, start until the Stage options say otherwise.
     #[default]
     Medium,
     Hard,
@@ -252,7 +253,8 @@ pub struct Profile {
     pub avatar: Avatar,
     /// Shown outside a Party, and given in a Party when it is free.
     pub favourite_colour: PaletteKey,
-    /// Preselected in the Profile's next seat; Medium until it sings.
+    /// Preselected in the Profile's next seat; until it sings, the Stage
+    /// options' starting Difficulty when it was created.
     pub last_difficulty: Difficulty,
     /// When the Profile was created, in milliseconds since the Unix epoch.
     #[ts(type = "number")]

@@ -3,8 +3,8 @@
 // Queue and People are `../overlays/`. Mics is `mics/MicsScreen.tsx`,
 // Calibrate mics `calibration/StageCalibration.tsx`, Check A/V sync
 // `avSync/StageAvSync.tsx`, Downloads `../overlays/DownloadsOverlay.tsx` (the
-// Admin area's Downloads section). The Song detail is
-// `../overlays/SongDetailOverlay.tsx`.
+// Admin area's Downloads section), Options `stageOptions/OptionsScreen.tsx`.
+// The Song detail is `../overlays/SongDetailOverlay.tsx`.
 
 import { useId, type ComponentType } from "react";
 
@@ -12,6 +12,7 @@ import { t, type MessageKey } from "../../i18n/t";
 import { StageAvSync } from "../../avSync/StageAvSync";
 import { StageCalibration } from "../../calibration/StageCalibration";
 import { MicsScreen } from "../../mics/MicsScreen";
+import { OptionsScreen } from "../../stageOptions/OptionsScreen";
 import { Icon } from "../../ui/Icon";
 import { DownloadsOverlay } from "../overlays/DownloadsOverlay";
 import { PeopleOverlay } from "../overlays/PeopleOverlay";
@@ -38,6 +39,7 @@ export const OVERLAYS: Record<OverlayId, OverlayDefinition> = {
   },
   avSync: { title: "stage.overlay.avSync", component: StageAvSync },
   downloads: { title: "stage.overlay.downloads", component: DownloadsOverlay },
+  options: { title: "stage.overlay.options", component: OptionsScreen },
   songDetail: {
     title: "stage.overlay.songDetail",
     component: SongDetailOverlay,

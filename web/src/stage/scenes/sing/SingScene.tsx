@@ -20,6 +20,7 @@ import { SingBackdrop } from "../../sing/SingBackdrop";
 import { SingScreen } from "../../sing/SingScreen";
 import { useStageAvOffset } from "../../output/useStageAvOffset";
 import { useStagePerf } from "../../perf/stagePerf";
+import { useStageOptions } from "../../../stageOptions/useStageOptions";
 import type { StageSong, StageSongView } from "./stageSong";
 import { writeLaneScore } from "./laneScore";
 import { useStageSong, useStageSongView } from "./useStageSong";
@@ -96,6 +97,9 @@ function Singing({
   // `?perf`: the frame-time overlay; `?perf&lanes=8`: synthetic lanes drawn
   // instead of the Line-up's, which then show no real Player's Score (#227).
   const perf = useStagePerf(view);
+  // Setup › Options: without the Song video, its background or cover shows
+  // (the video still plays under it when it carries the sound).
+  const { songVideo } = useStageOptions().options;
   const synthetic = perf.state !== null;
   useEffect(
     () =>
@@ -136,7 +140,7 @@ function Singing({
         backdrop={
           <SingBackdrop
             media={view.detail.media}
-            showVideo={view.videoShown}
+            showVideo={view.videoShown && songVideo}
             {...(videoRef ? { videoRef } : {})}
           />
         }

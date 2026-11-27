@@ -50,6 +50,7 @@ use tokio::sync::{mpsc, oneshot};
 use crate::db::Database;
 use crate::profiles::{self, Refused};
 use crate::scores;
+use crate::stage_options;
 use crate::stage_outputs::{self, StageOutput};
 use hub::{Connection, ConnectionId, Hub};
 use openstar_protocol::scoring::{
@@ -1583,12 +1584,17 @@ impl LiveState {
             JoinAs::Guest(guest) => {
                 let name = profiles::check_name(&guest.name)?;
                 self.refuse_profile_name(&name).await?;
+                let difficulty = stage_options::get(&self.db)
+                    .await
+                    .map_err(|error| server_error(&error, "reading the Stage options"))?
+                    .starting_difficulty;
                 let joined = party::join_guest(
                     &mut party,
                     phone_id.clone(),
                     &name,
                     guest.colour,
                     guest.avatar,
+                    difficulty,
                 )?;
                 self.save_join(&party, joined, &phone_id).await?;
                 (party, joined, name.display, false)
@@ -2271,8 +2277,15 @@ impl LiveState {
                     } => party::enter_profile(&mut party, profile_id, favourite)
                         .map(|joined| (joined.member_id, joined.new_member, false)),
                     Entering::Guest { name, guest } => {
-                        party::enter_guest(&mut party, &name, guest.colour, guest.avatar)
-                            .map(|member_id| (member_id, true, false))
+                        let difficulty = stage_options::read_in(&tx)?.starting_difficulty;
+                        party::enter_guest(
+                            &mut party,
+                            &name,
+                            guest.colour,
+                            guest.avatar,
+                            difficulty,
+                        )
+                        .map(|member_id| (member_id, true, false))
                     }
                     Entering::NewProfile { name, new } => {
                         match profiles::create_in(&tx, &name, &new, now_ms)? {

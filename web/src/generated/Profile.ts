@@ -18,7 +18,8 @@ name: string, avatar: Avatar,
  */
 favouriteColour: PaletteKey, 
 /**
- * Preselected in the Profile's next seat; Medium until it sings.
+ * Preselected in the Profile's next seat; until it sings, the Stage
+ * options' starting Difficulty when it was created.
  */
 lastDifficulty: Difficulty, 
 /**

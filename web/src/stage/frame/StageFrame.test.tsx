@@ -253,7 +253,7 @@ describe("StageFrame overlays", () => {
     expect(overlay()).toHaveAccessibleName("Tonight's Party");
   });
 
-  it("holds a Setup menu of Mics, Calibrate mics, Check A/V sync and Downloads", () => {
+  it("holds a Setup menu of Mics, Calibrate mics, Check A/V sync, Downloads and Options", () => {
     const { sent } = setup();
     act(() => {
       fireEvent.click(screen.getByRole("button", { name: "Setup" }));
@@ -263,7 +263,13 @@ describe("StageFrame overlays", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Mics", "Calibrate mics", "Check A/V sync", "Downloads"]);
+    ).toEqual([
+      "Mics",
+      "Calibrate mics",
+      "Check A/V sync",
+      "Downloads",
+      "Options",
+    ]);
     act(() => {
       fireEvent.click(
         within(menu).getByRole("menuitem", { name: "Calibrate mics" }),

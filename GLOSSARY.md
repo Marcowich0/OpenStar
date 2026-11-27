@@ -32,6 +32,10 @@ _Avoid_: Mobile client, controller
 The role of a Phone when it browses the Library, changes the Queue or controls the Stage.
 _Avoid_: Controller, companion
 
+**Stage options**:
+The choices kept for the Stage that change how a Party plays and looks (the starting Difficulty, the countdown after a pause, Line ratings, effects, the Song video, the preview volume), set in the Stage's Setup › Options with no Admin PIN. Each has a default that is how the Stage behaves without it.
+_Avoid_: Settings, preferences, config
+
 **Admin PIN**:
 The one secret number that guards whatever changes the Library's files, deletes kept data, or makes a browser the Stage. It is set by the owner when OpenStar starts, and is not a Join code.
 _Avoid_: Password, admin login, passcode
