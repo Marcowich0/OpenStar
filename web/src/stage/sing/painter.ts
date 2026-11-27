@@ -443,7 +443,6 @@ export function createPainter(
     ) {
       return false;
     }
-    if (entry?.kind !== "blobs" || was?.kind !== "blobs") return false;
     if (entry.base !== was.base || entry.blobs.length !== was.blobs.length) {
       return false;
     }
