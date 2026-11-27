@@ -11,6 +11,7 @@
 
 import { useRef, useState } from "react";
 
+import type { PartyMember } from "../../generated/PartyMember";
 import type { PartyMemberId } from "../../generated/PartyMemberId";
 import type { PhoneId } from "../../generated/PhoneId";
 import type { Seat } from "../../generated/Seat";
@@ -317,7 +318,7 @@ export function StageTab({
                   nameOf,
                   party?.localMics,
                 );
-                const fix = lineUpFix(warning, lineUp);
+                const fix = phoneFix(lineUpFix(warning, lineUp), free);
                 return (
                   <li key={text} className="flex items-center gap-2.5">
                     <span className="grow">{text}</span>
@@ -389,4 +390,16 @@ function FixButton({
       {label}
     </button>
   );
+}
+
+/**
+ * A warning's fix as the Phone offers it: "Add a singer" seats the first
+ * Party member not seated yet, so with none free it would do nothing and
+ * is left out (the Stage's opens its Who list, which can add a Guest).
+ */
+function phoneFix(
+  fix: LineUpFix | null,
+  free: PartyMember | undefined,
+): LineUpFix | null {
+  return fix?.kind === "addSinger" && free === undefined ? null : fix;
 }

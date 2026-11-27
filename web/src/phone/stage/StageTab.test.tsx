@@ -1,4 +1,10 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LineUp } from "../../generated/LineUp";
@@ -189,6 +195,35 @@ describe("the Stage tab while a Line-up waits", () => {
     });
     expect(
       await screen.findByRole("dialog", { name: "Sara" }),
+    ).toBeInTheDocument();
+  });
+
+  it("gives a lone duet singer's missing Voice an Add a singer fix only while a member is free", async () => {
+    const lone: LineUp = {
+      ...LINE_UP,
+      duet: true,
+      canStart: false,
+      seats: [BO_SEAT],
+      warnings: [{ code: "duetNeedsVoice", params: { voice: "p2" } }],
+    };
+    const fixes = () =>
+      screen
+        .queryAllByRole("button", { name: "Add a singer" })
+        .filter((button) => button.dataset.lineUpFix !== undefined);
+    renderTab(lone);
+    await seatRow("Bo");
+    expect(fixes()).toHaveLength(1);
+    cleanup();
+
+    // Bo is the only Party member, already seated: the fix would do nothing.
+    renderWithParty(
+      { ...PARTY, members: PARTY.members.slice(0, 1), lineUp: lone },
+      (store) => <StageTab store={store} myPhoneId={MY_PHONE} />,
+    );
+    await seatRow("Bo");
+    expect(fixes()).toEqual([]);
+    expect(
+      screen.getByText(/needs a singer|second singer|Voice 2/i),
     ).toBeInTheDocument();
   });
 
