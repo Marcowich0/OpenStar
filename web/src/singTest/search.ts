@@ -3,8 +3,17 @@
 // is a Vite entry of its own, built only for `just e2e` and
 // `just update-screenshots`, never into the binary.
 
-/** The synthetic sing screens: 1, 4 and 8 Players, and a duet. */
-export const SING_TEST_CASES = ["one", "four", "eight", "duet"] as const;
+/**
+ * The synthetic sing screens: 1, 4 and 8 Players, a duet, and 2 Players of a
+ * Song with no video, over the blobs (#263).
+ */
+export const SING_TEST_CASES = [
+  "one",
+  "four",
+  "eight",
+  "duet",
+  "noVideo",
+] as const;
 export type SingTestCase = (typeof SING_TEST_CASES)[number];
 
 export interface SingTestSearch {
@@ -19,7 +28,7 @@ function isCase(value: unknown): value is SingTestCase {
   return (SING_TEST_CASES as readonly unknown[]).includes(value);
 }
 
-/** `?case=<one|four|eight|duet>&t=<seconds>`; anything else takes the default. */
+/** `?case=<one|four|eight|duet|noVideo>&t=<seconds>`; anything else takes the default. */
 export function parseSingTestSearch(search: string): SingTestSearch {
   const params = new URLSearchParams(search);
   const kase = params.get("case");

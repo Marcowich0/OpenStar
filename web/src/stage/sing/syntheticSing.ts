@@ -11,6 +11,9 @@
 // seeded burst, aged a fixed time, so the screenshots stay exact (the page
 // freezes the effects' frame time). The first lane's Line rating (Perfect!)
 // and the second's (Great!) are caught settled, before they fade (#216).
+// The no-video case's 2 Players share the one Voice over the moving blobs
+// (#263), caught at the frozen Song time; the other cases have no background,
+// so the page's tile backdrop shows as before.
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
@@ -109,6 +112,7 @@ const LANES: Record<SingTestCase, number[]> = {
   four: [0, 0, 0, 0],
   eight: [0, 0, 0, 0, 0, 0, 0, 0],
   duet: [0, 1],
+  noVideo: [0, 0],
 };
 
 /** Made-up Players, in lane order: [name, avatar, Score]. The second is a Guest. */
@@ -191,5 +195,8 @@ export function syntheticSing(name: SingTestCase): SingState {
     })),
     effects: burst(lanes.length, PALETTE_KEYS[0]),
     ratings: ratings(),
+    ...(name === "noVideo"
+      ? { background: { kind: "blobs", still: false } as const }
+      : {}),
   };
 }

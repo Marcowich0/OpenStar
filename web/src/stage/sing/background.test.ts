@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SongMedia } from "../../generated/SongMedia";
-import { backgroundKind } from "./background";
+import { backgroundKind, effectsOff, prefersReducedMotion } from "./background";
 
 const media: SongMedia = {
   audio: { url: "/api/songs/7/media/audio", native: true },
@@ -49,5 +49,28 @@ describe("which background the sing screen shows", () => {
     expect(backgroundKind(bare, true)).toBe("blobs");
     expect(backgroundKind({ ...bare, cover: null }, true)).toBe("blobs");
     expect(backgroundKind({ ...media, background: null }, false)).toBe("blobs");
+  });
+});
+
+describe("the reduced-motion reader", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("reads the system's prefers-reduced-motion", () => {
+    const query = vi.fn((q: string) => ({
+      matches: q === "(prefers-reduced-motion: reduce)",
+    }));
+    vi.stubGlobal("matchMedia", query);
+    expect(prefersReducedMotion()).toBe(true);
+    vi.stubGlobal("matchMedia", () => ({ matches: false }));
+    expect(prefersReducedMotion()).toBe(false);
+  });
+});
+
+describe("Effects off (the seam ticket 268 rewires)", () => {
+  it("is the Stage options' effects switched off", () => {
+    expect(effectsOff({ effects: false })).toBe(true);
+    expect(effectsOff({ effects: true })).toBe(false);
   });
 });

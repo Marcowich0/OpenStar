@@ -5,7 +5,8 @@ import { expect, STAGE_VIEWPORT, test } from "../fixtures";
 
 // The painter screenshots (#203). The canvas painter is checked only by these:
 // the sing screen painted from `frame()` on fixed synthetic state at a frozen
-// Song time, for 1, 4 and 8 Players and a duet.
+// Song time, for 1, 4 and 8 Players, a duet, and 2 Players of a Song with no
+// video, over the blobs (#263).
 //
 // The page (`web/sing-test.html`) is a test build of its own, which `just e2e`
 // writes to e2e/generated/screenshot-page/ (`vite build --mode screenshots`).
@@ -31,6 +32,7 @@ const CASES = [
   { name: "four", label: "4 Players" },
   { name: "eight", label: "8 Players" },
   { name: "duet", label: "a duet" },
+  { name: "noVideo", label: "no video, 2 Players" },
 ] as const;
 
 /** The frozen Song time every shot draws (a Note sits on the playhead). */
