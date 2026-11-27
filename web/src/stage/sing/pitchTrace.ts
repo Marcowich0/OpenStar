@@ -191,7 +191,8 @@ export interface TraceLane {
   lane: number;
   colour: PaletteKey;
   playheadX: number;
-  pixelsPerBeat: number;
+  /** Horizontal scale, px per second of Song time. */
+  pixelsPerSecond: number;
   /** Left edge of the Notes area. */
   notesX: number;
   /** Lane height, for the narrow-lane sizes. */
@@ -276,9 +277,7 @@ function addPoint(songTime: number, beat: number, guessed: boolean) {
   const point: TracePoint = {
     songTime,
     pitch,
-    x:
-      g.playheadX +
-      ((songTime - playhead) * grid.beatsPerMinute * g.pixelsPerBeat) / 60,
+    x: g.playheadX + (songTime - playhead) * g.pixelsPerSecond,
     y: g.bottom - ((pitch - g.low) / g.range) * g.inner,
     hit,
     guessed,
@@ -350,9 +349,8 @@ export function traceLane(
   // here would hide from TypeScript's narrowing.
   resetHead();
 
-  const secondsPerPixel = 60 / (songGrid.beatsPerMinute * g.pixelsPerBeat);
   const from = Math.min(
-    songTime - (g.playheadX - g.notesX) * secondsPerPixel,
+    songTime - (g.playheadX - g.notesX) / g.pixelsPerSecond,
     songTime - TRACE_HOLD_SECONDS,
   );
   trace.readings.forEachFrom(from, visit);

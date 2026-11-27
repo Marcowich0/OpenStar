@@ -22,7 +22,11 @@ import { TRACE_HOLD_SECONDS } from "./pitchTrace";
 
 // Beat b starts at Song time 1 + b / 2 (Beat 0 at 1 s, half a second a Beat).
 const grid = { gapSeconds: 1, beatsPerMinute: 120 };
-const oneLane = laneLayout(1);
+/**
+ * 88 px per second, 44 px per Beat on this grid: the lane shows 3.2 s behind
+ * its playhead, so every test reading stays in view.
+ */
+const oneLane = laneLayout(1).map((lane) => ({ ...lane, pixelsPerSecond: 88 }));
 const THRESHOLD = -40;
 
 function note(

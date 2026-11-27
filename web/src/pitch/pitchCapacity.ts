@@ -26,17 +26,15 @@ const LATE_DELIVERY_SECONDS = 0.3;
 /** The capacity for a Song with Beat grid `grid` drawn in `lanes`. */
 export function pitchBufferCapacity(grid: BeatGrid, lanes: LaneLayout): number {
   const beatSeconds = 60 / grid.beatsPerMinute;
-  let pastBeats = 0;
+  let pastSeconds = 0;
   for (const lane of lanes) {
-    pastBeats = Math.max(
-      pastBeats,
-      (lane.playheadX - lane.notesX) / lane.pixelsPerBeat,
+    pastSeconds = Math.max(
+      pastSeconds,
+      (lane.playheadX - lane.notesX) / lane.pixelsPerSecond,
     );
   }
   const drawnSeconds =
-    lanes.length === 0
-      ? 0
-      : pastBeats * beatSeconds + AV_OFFSET_ALLOWANCE_SECONDS;
+    lanes.length === 0 ? 0 : pastSeconds + AV_OFFSET_ALLOWANCE_SECONDS;
   const unfinalisedSeconds =
     beatSeconds + SCORING.gracePeriodMs / 1000 + LATE_DELIVERY_SECONDS;
   const seconds = Math.max(drawnSeconds, unfinalisedSeconds);

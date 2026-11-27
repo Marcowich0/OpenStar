@@ -1,9 +1,11 @@
 // Synthetic sing state for the test-only screenshot page (`sing-test.html`) and the
 // painter screenshots (#58): a made-up Song with placeholder lyrics, every
 // Note kind, and lanes in distinct Party colours. Nothing here is a real Song.
-// Each lane gets made-up Pitch readings: on pitch, an octave up (drawn folded),
-// a sharp miss, an unvoiced gap, and readings ending 150 ms before the default
-// 6 s, so the line is held to the playhead. The four-Player case's last lane
+// The Beat grid is a realistic `#BPM:120` (8 Beats a second), so the lanes
+// scroll as a real Song's do. Each lane gets made-up Pitch readings: on pitch,
+// an octave up (drawn folded), a sharp miss, an unvoiced gap, and readings
+// ending 150 ms before the default 6 s, so the line is held to the playhead;
+// the features sit in the last half second, the past a lane shows. The four-Player case's last lane
 // has lost its Mic. Every lane has a made-up Player (one a Guest) and Score.
 // A confetti burst from the first lane header (#134) is caught in flight: a
 // seeded burst, aged a fixed time, so the screenshots stay exact (the page
@@ -57,14 +59,17 @@ function burst(lanes: number, colour: PaletteKey): ParticlePool {
   return pool;
 }
 
-/** Beat 0 at 1 s, half a second per Beat: Song time 6 s is Beat 10. */
-const GRID = { gapSeconds: 1, beatsPerMinute: 120 };
+/**
+ * `#BPM:120` (#BPM × 4 Beats a minute, an eighth of a second per Beat), Beat
+ * 0 at 0.75 s: Song time 6 s is Beat 42, Beat 10 of the second pass.
+ */
+const GRID = { gapSeconds: 0.75, beatsPerMinute: 480 };
 
 /** One pass of the pattern: [kind, start, length, pitch]. */
 const PATTERN: [NoteKind, number, number, number][] = [
   ["normal", 4, 2, 0],
   ["golden", 6, 3, 2],
-  ["normal", 10, 2, 4], // on the playhead at Beat 10
+  ["normal", 10, 2, 4], // on the playhead at 6 s (Beat 42)
   ["rap", 13, 2, 4],
   ["golden", 16, 4, 6], // a span of 6 keeps one lane's pills ≥ 18 px: stars
   ["goldenRap", 21, 2, 5],
@@ -135,9 +140,9 @@ function readings(notes: readonly Note[], cents: number): PitchBuffer {
     if (under) target = under.pitch;
     let pitch: number | null =
       60 + target + cents / 100 + 0.15 * Math.sin(t * 30);
-    if (ms >= 4000 && ms < 4600) pitch += 12; // an octave up
-    if (ms >= 4600 && ms < 4800) pitch += 2.5; // a miss
-    if (ms >= 4950 && ms < 5050) pitch = null; // a breath
+    if (ms >= 5450 && ms < 5550) pitch += 12; // an octave up
+    if (ms >= 5550 && ms < 5630) pitch += 2.5; // a miss
+    if (ms >= 5690 && ms < 5730) pitch = null; // a breath
     buffer.push(
       {
         captureMs: ms,
@@ -181,7 +186,7 @@ export function syntheticSing(name: SingTestCase): SingState {
         readings: readings(voices[v]?.notes ?? [], 20 * i),
         micThresholdDbfs: -45,
         difficulty: "medium",
-        lostAt: name === "four" && i === lanes.length - 1 ? 5 : null,
+        lostAt: name === "four" && i === lanes.length - 1 ? 5.6 : null,
       },
     })),
     effects: burst(lanes.length, PALETTE_KEYS[0]),

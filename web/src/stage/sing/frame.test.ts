@@ -18,6 +18,11 @@ import { LineRatings } from "./lineRating";
 // One Beat lasts 0.5 s (beatsPerMinute is the real rate, #BPM × 4); Beat 0
 // falls at 1 s. Beat b starts at Song time 1 + b / 2.
 const grid = { gapSeconds: 1, beatsPerMinute: 120 };
+/**
+ * The mechanics tests draw at 88 px per second, 44 px per Beat on this grid,
+ * so the whole test Song fits in the lane; the default scale has its own tests.
+ */
+const PX_PER_BEAT = 44;
 
 function note(
   kind: NoteKind,
@@ -52,7 +57,12 @@ function state(
 }
 
 const solo = state([{ colour: "cherry", voice: 0 }]);
-const oneLane = laneLayout(1);
+const oneLane = laneLayout(1).map((lane) => ({
+  ...lane,
+  pixelsPerSecond: PX_PER_BEAT * 2,
+}));
+/** The default Note speed: 420 px per second, whatever the BPM. */
+const defaultLane = laneLayout(1);
 
 function pills(list: readonly DrawEntry[], lane = 0): PillEntry[] {
   return list.filter(
@@ -131,19 +141,45 @@ describe("frame", () => {
     // Song time 3 s is Beat 4: the first Note starts on the playhead.
     const pill = pillFor(frame(solo, 3, oneLane), 4);
     expect(pill.x).toBe(600);
-    expect(pill.width).toBeCloseTo((2 - 0.2) * 44, 9);
+    expect(pill.width).toBeCloseTo((2 - 0.2) * PX_PER_BEAT, 9);
     expect(pill.passed).toBe(false);
     // Notes further on sit 44 px per Beat to the right.
-    expect(pillFor(frame(solo, 3, oneLane), 8).x).toBe(600 + 4 * 44);
+    expect(pillFor(frame(solo, 3, oneLane), 8).x).toBe(600 + 4 * PX_PER_BEAT);
   });
 
   it("scrolls Notes left continuously as Song time runs, between Beats too", () => {
     // 3.25 s is half a Beat after Beat 4.
-    expect(pillFor(frame(solo, 3.25, oneLane), 4).x).toBeCloseTo(600 - 22, 9);
-    expect(pillFor(frame(solo, 4.1, oneLane), 8).x).toBeCloseTo(
-      600 + (8 - 6.2) * 44,
+    expect(pillFor(frame(solo, 3.25, oneLane), 4).x).toBeCloseTo(
+      600 - PX_PER_BEAT / 2,
       9,
     );
+    expect(pillFor(frame(solo, 4.1, oneLane), 8).x).toBeCloseTo(
+      600 + (8 - 6.2) * PX_PER_BEAT,
+      9,
+    );
+  });
+
+  it("scrolls at the same speed in px per second whatever the BPM", () => {
+    // Four times the BPM: each Beat is a quarter as long and as wide, and a
+    // Note one second ahead still sits 420 px right of the playhead.
+    const fast = { ...solo, grid: { gapSeconds: 1, beatsPerMinute: 480 } };
+    // Beat 4 starts 1 s after 2 s on the slow grid, Beat 8 1 s after 1 s on the fast one.
+    const slowPill = pillFor(frame(solo, 2, defaultLane), 4);
+    const fastPill = pillFor(frame(fast, 1, defaultLane), 8);
+    expect(slowPill.x).toBeCloseTo(600 + 420, 9);
+    expect(fastPill.x).toBeCloseTo(600 + 420, 9);
+    // A Beat is 210 px on the slow grid and 52.5 px on the fast one.
+    expect(slowPill.width).toBeCloseTo((2 - 0.2) * 210, 9);
+    expect(fastPill.width).toBeCloseTo((4 - 0.2) * 52.5, 9);
+  });
+
+  it("shows 3 s of Notes ahead of the playhead at the default Note speed", () => {
+    // Beat 12 starts at 7 s: at 4 s it is 3 s ahead, at the lane's right edge.
+    const at = (t: number) =>
+      pills(frame(solo, t, defaultLane)).filter((p) => p.note.start === 12);
+    expect(at(4 - 1e-3)).toHaveLength(0);
+    expect(at(4 + 1e-6)).toHaveLength(1);
+    expect(at(4 + 1e-6)[0]?.x).toBeCloseTo(1860, 2);
   });
 
   it("places a pill vertically by pitch across the Voice's range ± 2 semitones", () => {
@@ -299,8 +335,13 @@ describe("frame", () => {
     );
     const list = frame(eight, 3, laneLayout(8));
     expect(list.filter((e) => e.type === "lane")).toHaveLength(8);
-    // 34 px per Beat in two columns; the right column's playhead is at 1350.
-    expect(pillFor(list, 8, 4).x).toBe(1350 + 4 * 34);
+    // 420 × 34 / 44 px per second in two columns; the right column's
+    // playhead is at 1350, and the Note at Beat 4 is half a second ahead.
+    const twoColumns = (420 * 34) / 44;
+    expect(pillFor(frame(eight, 2.5, laneLayout(8)), 4, 4).x).toBeCloseTo(
+      1350 + 0.5 * twoColumns,
+      9,
+    );
   });
 
   it("draws the pitch grid every 2 semitones across the lane's range, faint ink, 2 px", () => {
