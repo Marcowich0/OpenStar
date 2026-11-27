@@ -122,8 +122,9 @@ pub fn join_guest(
     name: &CheckedName,
     colour: PaletteKey,
     avatar: Avatar,
+    difficulty: Difficulty,
 ) -> Result<Joined, UserMessage> {
-    let member_id = enter_guest(party, name, colour, avatar)?;
+    let member_id = enter_guest(party, name, colour, avatar, difficulty)?;
     use_on_phone(party, phone_id, member_id);
     Ok(Joined {
         member_id,
@@ -132,7 +133,8 @@ pub fn join_guest(
 }
 
 /// Adds a new Guest named `name` (already through the name rules) with
-/// `colour` and `avatar` to `party`, starting on Medium, with no Phone.
+/// `colour` and `avatar` to `party`, starting on `difficulty` (the Stage
+/// options' starting Difficulty), with no Phone.
 /// Refused, with nothing changed, with [`UserMessage::PartyFull`] when
 /// twelve colours are held, [`UserMessage::ColourTaken`] when `colour` is
 /// held and [`UserMessage::NameTakenTonight`] when a Guest has the name.
@@ -141,6 +143,7 @@ pub fn enter_guest(
     name: &CheckedName,
     colour: PaletteKey,
     avatar: Avatar,
+    difficulty: Difficulty,
 ) -> Result<PartyMemberId, UserMessage> {
     if is_full(party) {
         return Err(UserMessage::PartyFull);
@@ -157,7 +160,7 @@ pub fn enter_guest(
         identity: Identity::Guest {
             name: name.display.clone(),
             avatar,
-            difficulty: Difficulty::Medium,
+            difficulty,
         },
         colour,
         favourite_taken: false,
@@ -543,7 +546,15 @@ mod tests {
     fn a_new_guest_enters_with_its_name_free_colour_and_avatar_on_medium() {
         let mut party = party();
         join_phone(&mut party, phone(1), ProfileId(1), Sky).unwrap();
-        let joined = join_guest(&mut party, phone(2), &name("  Kim "), Cherry, star()).unwrap();
+        let joined = join_guest(
+            &mut party,
+            phone(2),
+            &name("  Kim "),
+            Cherry,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         assert_eq!(
             joined,
             Joined {
@@ -569,24 +580,62 @@ mod tests {
     #[test]
     fn a_guest_must_pick_a_free_colour_but_may_share_an_avatar() {
         let mut party = party();
-        join_guest(&mut party, phone(1), &name("Kim"), Lime, star()).unwrap();
+        join_guest(
+            &mut party,
+            phone(1),
+            &name("Kim"),
+            Lime,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         let before = party.clone();
         assert_eq!(
-            join_guest(&mut party, phone(2), &name("Lou"), Lime, star()),
+            join_guest(
+                &mut party,
+                phone(2),
+                &name("Lou"),
+                Lime,
+                star(),
+                Difficulty::Medium
+            ),
             Err(UserMessage::ColourTaken)
         );
         assert_eq!(party, before);
-        join_guest(&mut party, phone(2), &name("Lou"), Mint, star()).unwrap();
+        join_guest(
+            &mut party,
+            phone(2),
+            &name("Lou"),
+            Mint,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         assert_eq!(colours(&party), vec![Lime, Mint]);
     }
 
     #[test]
     fn guest_names_are_unique_in_the_party_ignoring_case_and_spaces() {
         let mut party = party();
-        join_guest(&mut party, phone(1), &name("Kim"), Lime, star()).unwrap();
+        join_guest(
+            &mut party,
+            phone(1),
+            &name("Kim"),
+            Lime,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         let before = party.clone();
         assert_eq!(
-            join_guest(&mut party, phone(2), &name(" kIM  "), Mint, star()),
+            join_guest(
+                &mut party,
+                phone(2),
+                &name(" kIM  "),
+                Mint,
+                star(),
+                Difficulty::Medium
+            ),
             Err(UserMessage::NameTakenTonight {
                 member_id: PartyMemberId(1)
             })
@@ -608,7 +657,14 @@ mod tests {
         let before = party.clone();
         assert!(is_full(&party));
         assert_eq!(
-            join_guest(&mut party, phone(13), &name("Kim"), Cherry, star()),
+            join_guest(
+                &mut party,
+                phone(13),
+                &name("Kim"),
+                Cherry,
+                star(),
+                Difficulty::Medium
+            ),
             Err(UserMessage::PartyFull)
         );
         assert_eq!(party, before);
@@ -617,7 +673,15 @@ mod tests {
     #[test]
     fn switching_from_a_guest_keeps_the_guest_in_the_party_with_its_colour() {
         let mut party = party();
-        join_guest(&mut party, phone(1), &name("Kim"), Teal, star()).unwrap();
+        join_guest(
+            &mut party,
+            phone(1),
+            &name("Kim"),
+            Teal,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
         assert_eq!(colours(&party), vec![Teal, Cherry]);
         assert_eq!(party.phones.len(), 1);
@@ -625,7 +689,14 @@ mod tests {
         assert!(!party.members[0].on_phone);
         // Two Guests with one name never exist, even one off its Phone.
         assert_eq!(
-            join_guest(&mut party, phone(2), &name("kim"), Lime, star()),
+            join_guest(
+                &mut party,
+                phone(2),
+                &name("kim"),
+                Lime,
+                star(),
+                Difficulty::Medium
+            ),
             Err(UserMessage::NameTakenTonight {
                 member_id: PartyMemberId(1)
             })
@@ -637,7 +708,15 @@ mod tests {
         let mut party = party();
         join_phone(&mut party, phone(1), ProfileId(1), Navy).unwrap();
         join_phone(&mut party, phone(2), ProfileId(2), Navy).unwrap();
-        join_guest(&mut party, phone(3), &name("Kim"), Lime, star()).unwrap();
+        join_guest(
+            &mut party,
+            phone(3),
+            &name("Kim"),
+            Lime,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         assert!(party.members[1].favourite_taken);
         let before = party.clone();
         let colour = |colour| MemberEdit {
@@ -665,8 +744,24 @@ mod tests {
     #[test]
     fn a_guest_edit_changes_its_name_and_avatar_and_keeps_names_unique() {
         let mut party = party();
-        join_guest(&mut party, phone(1), &name("Kim"), Lime, star()).unwrap();
-        join_guest(&mut party, phone(2), &name("Lou"), Mint, star()).unwrap();
+        join_guest(
+            &mut party,
+            phone(1),
+            &name("Kim"),
+            Lime,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
+        join_guest(
+            &mut party,
+            phone(2),
+            &name("Lou"),
+            Mint,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         join_phone(&mut party, phone(3), ProfileId(1), Sky).unwrap();
         let moon = Avatar::BuiltIn {
             key: AvatarKey::Moon,
@@ -733,7 +828,15 @@ mod tests {
     fn a_member_who_leaves_frees_its_colour_and_takes_every_phone_on_it_out() {
         let mut party = party();
         join_phone(&mut party, phone(1), ProfileId(1), Teal).unwrap();
-        join_guest(&mut party, phone(2), &name("Lukas"), Tangerine, star()).unwrap();
+        join_guest(
+            &mut party,
+            phone(2),
+            &name("Lukas"),
+            Tangerine,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         join_phone(&mut party, phone(3), ProfileId(1), Teal).unwrap();
         let left = leave(&mut party, PartyMemberId(1)).unwrap();
         assert_eq!(left.member.colour, Teal);
@@ -742,7 +845,15 @@ mod tests {
         assert_eq!(party.phones.len(), 1);
         assert_eq!(party.phones[0].phone_id, phone(2));
         // The freed colour goes to the next member who enters.
-        join_guest(&mut party, phone(4), &name("Mia"), Teal, star()).unwrap();
+        join_guest(
+            &mut party,
+            phone(4),
+            &name("Mia"),
+            Teal,
+            star(),
+            Difficulty::Medium,
+        )
+        .unwrap();
         assert_eq!(colours(&party), vec![Tangerine, Teal]);
     }
 

@@ -104,7 +104,7 @@ function recordingGains(context: FakeAudioContext): RecordedParam[] {
   return params;
 }
 
-function setUp() {
+function setUp(level?: () => number) {
   const context = fakeAudioContext();
   const output = context.createGain();
   const params = recordingGains(context);
@@ -114,6 +114,7 @@ function setUp() {
   const previewer = createSongPreviewer({
     context: asAudioContext(context),
     output: output as unknown as AudioNode,
+    ...(level ? { level } : {}),
     createElement: () => {
       const made = new FakeElement();
       elements.push(made);
@@ -190,6 +191,24 @@ describe("playing a preview", () => {
       "set 0@0.2",
       `ramp 1@${String(0.2 + PREVIEW.fadeInSeconds)}`,
     ]);
+  });
+});
+
+describe("the preview volume", () => {
+  it("fades in to the level read at each start (the Stage options' preview volume)", () => {
+    let level = 0.25;
+    const { previewer, elements, params, advance } = setUp(() => level);
+    previewer.play(song(1));
+    (elements[0] as FakeElement).fire("playing");
+    const fade = params[1] as RecordedParam;
+    expect(fade.events.at(-1)).toBe(
+      `ramp 0.25@${String(PREVIEW.fadeInSeconds)}`,
+    );
+    level = 0.81;
+    previewer.play(song(2));
+    advance(PREVIEW.fadeOutSeconds * 1000);
+    (elements[0] as FakeElement).fire("playing");
+    expect(fade.events.at(-1)).toMatch(/^ramp 0\.81@/);
   });
 });
 

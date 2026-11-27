@@ -35,7 +35,7 @@ class FakeMedia extends EventTarget implements PlaybackElement {
  * element, a Stage clock and timers the test moves by hand, one Pitch buffer
  * and one scorer.
  */
-async function stage(startSeconds = 0) {
+async function stage(startSeconds = 0, countdownFrom?: number) {
   let now = 10_000;
   const timers: { at: number; run: () => void }[] = [];
   const media = new FakeMedia();
@@ -65,6 +65,9 @@ async function stage(startSeconds = 0) {
     buffers: () => [buffer],
     scorers: () => [scorer],
     onChange: (state) => states.push(state),
+    ...(countdownFrom === undefined
+      ? {}
+      : { countdownFrom: () => countdownFrom }),
     schedule: (run, ms) => {
       const timer = { at: now + ms, run };
       timers.push(timer);
@@ -152,7 +155,7 @@ describe("resume", () => {
     expect(s.media.paused).toBe(true);
     expect(s.clock.songTime()).toBe(frozen);
     s.advance(1);
-    expect(RESUME_COUNTDOWN.ms).toBe(3000);
+    expect(RESUME_COUNTDOWN.from * RESUME_COUNTDOWN.stepMs).toBe(3000);
     // The countdown is over: the element plays on where it stopped.
     expect(s.media.paused).toBe(false);
     expect(s.media.currentTime).toBe(0);
@@ -164,6 +167,27 @@ describe("resume", () => {
     s.media.fire("playing");
     s.advance(500);
     expect(s.clock.songTime()).toBeCloseTo(frozen + 0.5, 9);
+  });
+
+  it("counts down from the Stage options' number, one a second", async () => {
+    const s = await stage(0, 5);
+    s.controls.pause();
+    s.controls.resume();
+    expect(s.controls.state).toEqual({ phase: "countdown", count: 5 });
+    s.advance(4000);
+    expect(s.controls.state).toEqual({ phase: "countdown", count: 1 });
+    expect(s.media.paused).toBe(true);
+    s.advance(1000);
+    expect(s.controls.state).toEqual({ phase: "playing" });
+    expect(s.media.paused).toBe(false);
+  });
+
+  it("with a countdown of 0 plays on at once", async () => {
+    const s = await stage(0, 0);
+    s.controls.pause();
+    s.controls.resume();
+    expect(s.media.paused).toBe(false);
+    expect(s.states).toEqual([{ phase: "paused" }, { phase: "playing" }]);
   });
 
   it("on a Song that plays changes nothing", async () => {
@@ -245,7 +269,7 @@ describe("which readings reach scoring", () => {
     const pausedAt = s.now;
     s.advance(600); // paused
     s.controls.resume();
-    s.advance(RESUME_COUNTDOWN.ms); // counting down
+    s.advance(RESUME_COUNTDOWN.from * RESUME_COUNTDOWN.stepMs); // counting down
     s.media.fire("playing");
     const resumedAt = s.now;
     s.advance(500); // playing

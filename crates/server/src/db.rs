@@ -421,6 +421,13 @@ const MIGRATIONS: &[&str] = &[
     // lies beside the `.txt` (#142): the first step of the preferred-copy
     // rule among duplicates. Set again at every scan.
     "ALTER TABLE library_files ADD COLUMN has_original INTEGER NOT NULL DEFAULT 0;",
+    // 31: the Stage options (see `stage_options`), one row for the server,
+    // as the JSON of `StageOptions`: a field added later reads as its
+    // default, so a new option needs no migration. No row: every default.
+    "CREATE TABLE stage_options (
+        id      INTEGER PRIMARY KEY CHECK (id = 1),
+        options TEXT NOT NULL
+    ) STRICT;",
 ];
 
 /// The schema version this build migrates to.

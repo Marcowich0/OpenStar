@@ -152,7 +152,9 @@ pub(crate) fn create_in(
             avatar_kind,
             avatar_ref,
             new.favourite_colour.as_str(),
-            Difficulty::default().as_str(),
+            crate::stage_options::read_in(conn)?
+                .starting_difficulty
+                .as_str(),
             now,
         ],
     )?;

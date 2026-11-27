@@ -388,8 +388,45 @@ export const en = {
   "stage.overlay.calibrateMics": "Calibrate mics",
   "stage.overlay.avSync": "Check A/V sync",
   "stage.overlay.downloads": "Downloads",
+  "stage.overlay.options": "Options",
   "stage.overlay.songDetail": "High scores",
   "stage.overlay.close": "Close",
+  // Setup › Options: the Stage options, each with its explanation and Reset.
+  "options.hint": "Every change is saved at once and kept for every Party.",
+  "options.group.players": "Players",
+  "options.group.singScreen": "Sing screen",
+  "options.group.playback": "Sound and pauses",
+  "options.on": "On",
+  "options.off": "Off",
+  "options.reset": "Reset",
+  "options.resetLabel": "Reset {name} to its default",
+  "options.down": "{name} down",
+  "options.up": "{name} up",
+  "options.default": "Default: {value}",
+  "options.saveFailed": "Couldn't save the options. Try again.",
+  "options.startingDifficulty": "Starting Difficulty",
+  "options.startingDifficulty.help":
+    "Where a Guest starts, and a new Profile. A Profile that has sung keeps its last Difficulty.",
+  "options.resumeCountdown": "Countdown after a pause",
+  "options.resumeCountdown.help":
+    "How long the Stage counts down before the Song plays on. At 0 it plays on at once.",
+  "options.resumeCountdown.value": {
+    one: "{count, number} second",
+    other: "{count, number} seconds",
+  },
+  "options.lineRatings": "Line ratings",
+  "options.lineRatings.help":
+    "Show Perfect!, Great!, Good or OK when a Line ends. The Line bonus counts either way.",
+  "options.effects": "Effects",
+  "options.effects.help":
+    "Confetti on a Perfect! Line and sparkles while a golden Note is hit.",
+  "options.songVideo": "Song video",
+  "options.songVideo.help":
+    "Show the Song's video behind the lanes. Off shows its background or cover instead.",
+  "options.previewVolume": "Preview volume",
+  "options.previewVolume.help":
+    "How loud the song browser plays a preview, compared with the Song itself.",
+  "options.previewVolume.value": "{percent, number} %",
   // Check A/V sync (#163), on the Stage and on a Remote's Stage tab.
   "avSync.later": "+{ms, number} ms",
   "avSync.earlier": "−{ms, number} ms",

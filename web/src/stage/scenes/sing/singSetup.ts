@@ -23,6 +23,10 @@ import { memberLook } from "../../../phone/memberLook";
 import type { PitchBuffer } from "../../../pitch/pitchBuffer";
 import type { PitchMic } from "../../../pitch/pitchRouter";
 import { pitchBufferCapacity } from "../../../pitch/pitchCapacity";
+import {
+  stageOptions,
+  type StageOptions,
+} from "../../../stageOptions/stageOptions";
 import type { PaletteKey } from "../../../theme/tokens";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
@@ -66,6 +70,11 @@ export interface SingSetupInput {
   /** The OpenStar volume the Mic thresholds are fixed at. */
   volume?: number;
   /**
+   * Whether the sing screen shows effects (confetti, sparkles) and Line
+   * rating words. By default the Stage options as they are now.
+   */
+  display?: Pick<StageOptions, "effects" | "lineRatings">;
+  /**
    * What is stored for a seated Mic at the current Stage output
    * (`undefined`: its defaults). By default the Stage's loaded values,
    * `stageMicSettings()`, as they are now.
@@ -106,6 +115,8 @@ export function singSetup(input: SingSetupInput): SingSetup {
   if (!lineUp) throw new Error("Start without a Line-up");
   const song = detail.song;
   const volume = input.volume ?? OPENSTAR_VOLUME.default;
+  // Fixed for the whole Song, like the Mic settings.
+  const display = input.display ?? stageOptions().current();
   const storedFor =
     input.storedFor ?? ((mic: MicKey) => stageMicSettings().storedFor(mic));
   const reportedInputDelayFor =
@@ -165,8 +176,10 @@ export function singSetup(input: SingSetupInput): SingSetup {
       grid: song.headers,
       voices,
       lengthSeconds: detail.lengthSeconds,
-      effects: new ParticlePool(EFFECTS_CAPACITY),
-      ratings: new LineRatings(),
+      ...(display.effects
+        ? { effects: new ParticlePool(EFFECTS_CAPACITY) }
+        : {}),
+      ...(display.lineRatings ? { ratings: new LineRatings() } : {}),
       lanes: players.map((player, index): SingLane => {
         const readings = buffers[index];
         return {

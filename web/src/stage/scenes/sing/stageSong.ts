@@ -67,6 +67,7 @@ import {
   type SongControlsState,
 } from "../../playback/songControls";
 import { ApiFailure } from "../../../api/api";
+import { stageOptions } from "../../../stageOptions/stageOptions";
 import { roundOutcome } from "./roundOutcome";
 import { singSetup, type SingSetup } from "./singSetup";
 
@@ -160,6 +161,11 @@ export interface StageSongOptions {
   now?: () => number;
   /** The countdown's timer (`SongControlsOptions.schedule`). */
   schedule?: SongControlsOptions["schedule"];
+  /**
+   * The resume countdown's first number, read at each resume
+   * (`SongControlsOptions.countdownFrom`; the Stage options' by default).
+   */
+  countdownFrom?: () => number;
   /** The Stage clock in ms (`performance.now`), for the Song clock and lost Mics. */
   stageNow?: () => number;
   /** The animation frame loop that ticks the scoring (`requestAnimationFrame`). */
@@ -324,6 +330,9 @@ export function createStageSong(options: StageSongOptions): StageSong {
         if (session === s) update({ playFailed: true });
       },
       ...(options.schedule ? { schedule: options.schedule } : {}),
+      countdownFrom:
+        options.countdownFrom ??
+        (() => stageOptions().current().resumeCountdownSeconds),
     });
     play(s);
   }

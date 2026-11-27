@@ -22,9 +22,12 @@ import type { SongControl } from "../../generated/SongControl";
 import type { MediaPlayback } from "../../playback/mediaPlayback";
 
 export const RESUME_COUNTDOWN = {
-  /** How long the countdown runs before the Song plays on, ms. */
-  ms: 3000,
-  /** The first number shown; one number a second, down to 1. */
+  /** One number a second, down to 1. */
+  stepMs: 1000,
+  /**
+   * The first number shown by default (the Stage options' resume countdown,
+   * `resumeCountdownSeconds`; 0 plays on at once).
+   */
   from: 3,
 } as const;
 
@@ -53,6 +56,11 @@ export interface SongControlsOptions {
   onPlayFailed?: (error: unknown) => void;
   /** Runs `run` after `ms`; returns a cancel. `setTimeout` by default. */
   schedule?: (run: () => void, ms: number) => () => void;
+  /**
+   * The countdown's first number, read at each resume (`RESUME_COUNTDOWN.from`
+   * by default); 0 plays on at once.
+   */
+  countdownFrom?: () => number;
 }
 
 export interface SongControls {
@@ -109,14 +117,23 @@ export function createSongControls(options: SongControlsOptions): SongControls {
     },
     resume() {
       if (state.phase !== "paused") return;
-      const step = RESUME_COUNTDOWN.ms / RESUME_COUNTDOWN.from;
-      set({ phase: "countdown", count: RESUME_COUNTDOWN.from });
+      const from = Math.max(
+        0,
+        Math.round(options.countdownFrom?.() ?? RESUME_COUNTDOWN.from),
+      );
+      if (from === 0) {
+        set({ phase: "playing" });
+        playback.resume().catch(playFailed);
+        return;
+      }
+      const step = RESUME_COUNTDOWN.stepMs;
+      set({ phase: "countdown", count: from });
       // Every step is timed from the resume itself, so the countdown lasts
-      // exactly `RESUME_COUNTDOWN.ms` however late a timer runs.
-      for (let shown = 1; shown < RESUME_COUNTDOWN.from; shown += 1) {
+      // exactly `from` seconds however late a timer runs.
+      for (let shown = 1; shown < from; shown += 1) {
         cancels.push(
           schedule(() => {
-            set({ phase: "countdown", count: RESUME_COUNTDOWN.from - shown });
+            set({ phase: "countdown", count: from - shown });
           }, shown * step),
         );
       }
@@ -125,7 +142,7 @@ export function createSongControls(options: SongControlsOptions): SongControls {
           cancels = [];
           set({ phase: "playing" });
           playback.resume().catch(playFailed);
-        }, RESUME_COUNTDOWN.ms),
+        }, from * step),
       );
     },
     restart() {

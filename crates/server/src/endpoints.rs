@@ -30,7 +30,7 @@ use tower_http::trace::TraceLayer;
 
 use crate::{
     AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles,
-    scores, stage_outputs, stage_trust, unlock, usdb,
+    scores, stage_options, stage_outputs, stage_trust, unlock, usdb,
 };
 
 /// Whether an endpoint needs an Unlock.
@@ -361,6 +361,20 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/av-offset",
             NotGuarded,
             stage_outputs::write_av_offset,
+        )
+        // The Stage options (Setup › Options) change no Library file and
+        // delete no kept data: anyone reads and sets them.
+        .add(
+            Method::GET,
+            "/api/stage-options",
+            NotGuarded,
+            stage_options::read,
+        )
+        .add(
+            Method::PUT,
+            "/api/stage-options",
+            NotGuarded,
+            stage_options::write,
         )
         // Anyone reads the kept Local mics; the Stage switches them over its
         // WebSocket.

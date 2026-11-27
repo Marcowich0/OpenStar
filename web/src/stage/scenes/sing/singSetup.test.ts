@@ -57,6 +57,27 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
     expect(state.effects).toBeDefined();
   });
 
+  it("leaves out the effects and the Line rating words the Stage options switch off", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const shown = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+    });
+    const state = shown.state([new PitchBuffer(8)]);
+    expect(state.effects).toBeDefined();
+    expect(state.ratings).toBeDefined();
+    const hidden = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+      display: { effects: false, lineRatings: false },
+    });
+    const bare = hidden.state([new PitchBuffer(8)]);
+    expect(bare.effects).toBeUndefined();
+    expect(bare.ratings).toBeUndefined();
+  });
+
   it("puts each Player's own buffer in their lane's trace, with the Mic threshold fixed at Start", () => {
     const party = testParty({ lineUp: testLineUp([MIA_SEAT, LEO_SEAT], true) });
     const setup = singSetup({

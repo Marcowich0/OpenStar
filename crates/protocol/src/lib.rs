@@ -16,6 +16,7 @@ pub mod pitch_track;
 pub mod profile;
 pub mod scoring;
 pub mod song;
+pub mod stage_options;
 pub mod usdb;
 pub mod volume;
 
@@ -699,6 +700,8 @@ pub enum ChangeTopic {
     /// USDB search over the mirror). Sent after every stored list page and
     /// when a mirror run starts or ends.
     UsdbMirror,
+    /// `GET /api/stage-options`: the Stage options (Setup › Options).
+    StageOptions,
 }
 
 /// Every user-facing message from the server (errors, rejections and toast

@@ -104,6 +104,11 @@ export interface SongPreviewerOptions {
   output: AudioNode;
   /** Makes the preview's own media element, never the Song's. */
   createElement?: () => HTMLMediaElement;
+  /**
+   * The gain a preview fades in to, read at each start (1 by default): the
+   * Stage options' preview volume.
+   */
+  level?: () => number;
   setTimer?: (run: () => void, ms: number) => unknown;
   clearTimer?: (timer: unknown) => void;
 }
@@ -118,6 +123,7 @@ export function createSongPreviewer({
   context,
   output,
   createElement = () => document.createElement("audio"),
+  level = () => 1,
   setTimer = (run, ms) => setTimeout(run, ms),
   clearTimer = (timer) => {
     clearTimeout(timer as ReturnType<typeof setTimeout>);
@@ -185,7 +191,7 @@ export function createSongPreviewer({
         const now = context.currentTime;
         fade.gain.cancelScheduledValues(now);
         fade.gain.setValueAtTime(0, now);
-        fade.gain.linearRampToValueAtTime(1, now + PREVIEW.fadeInSeconds);
+        fade.gain.linearRampToValueAtTime(level(), now + PREVIEW.fadeInSeconds);
       },
       { once: true },
     );
