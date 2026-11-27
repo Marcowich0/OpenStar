@@ -6,6 +6,8 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+# One test binary, `tests/main.rs`, instead of one per file in `tests/`.
+autotests = false
 
 [lints]
 workspace = true
@@ -42,3 +44,13 @@ openstar-test-harness.workspace = true
 proptest.workspace = true
 tempfile.workspace = true
 tokio-tungstenite.workspace = true
+
+[[test]]
+name = "integration"
+path = "tests/main.rs"
+
+# A process of its own: it installs a log subscriber, which tests running
+# beside it on other threads would disturb.
+[[test]]
+name = "pin_wait_log"
+path = "tests/pin_wait_log.rs"

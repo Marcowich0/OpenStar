@@ -1,4 +1,5 @@
-//! The log line of each wrong Admin PIN guess. A test binary of its own:
+//! The log line of each wrong Admin PIN guess. A test binary of its own (a
+//! `[[test]]` of its own in `Cargo.toml`, outside `tests/main.rs`):
 //! the test installs a log subscriber, which tests running beside it on
 //! other threads would disturb.
 
