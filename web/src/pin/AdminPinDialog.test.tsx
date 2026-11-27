@@ -79,10 +79,12 @@ async function settle() {
   });
 }
 
-const dotsEntered = () =>
-  screen
-    .getByRole("img", { name: /digits? entered/ })
-    .getAttribute("aria-label");
+const pinField = () => screen.getByRole("img", { name: /digits? entered/ });
+
+const dotsEntered = () => pinField().getAttribute("aria-label");
+
+/** The dots the PIN field draws, filled or not. */
+const dots = () => pinField().querySelectorAll("[data-testid=pin-dot]");
 
 afterEach(() => {
   vi.useRealTimers();
@@ -101,6 +103,29 @@ describe("AdminPinDialog", () => {
       "aria-disabled",
       "true",
     );
+  });
+
+  it("shows one filled dot per digit typed, and a hint when there are none", () => {
+    fakeServer();
+    renderPad();
+    // No digits: no dots at all, so the field does not suggest a length.
+    expect(dots()).toHaveLength(0);
+    expect(pinField()).toHaveTextContent("Enter the PIN");
+
+    for (const digit of "4321") press(digit);
+    expect(dotsEntered()).toBe("4 digits entered");
+    expect(dots()).toHaveLength(4);
+    for (const dot of dots()) expect(dot).toHaveAttribute("data-filled");
+    expect(pinField()).not.toHaveTextContent("Enter the PIN");
+
+    for (const digit of "5678") press(digit);
+    expect(dotsEntered()).toBe("8 digits entered");
+    expect(dots()).toHaveLength(8);
+    for (const dot of dots()) expect(dot).toHaveAttribute("data-filled");
+
+    // A ninth digit is not taken.
+    press("9");
+    expect(dots()).toHaveLength(8);
   });
 
   it("on a wrong PIN clears the entry and says the PIN is wrong", async () => {

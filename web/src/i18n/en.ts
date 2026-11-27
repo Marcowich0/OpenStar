@@ -367,6 +367,7 @@ export const en = {
     one: "{count, number} digit entered",
     other: "{count, number} digits entered",
   },
+  "numberPad.pinHint": "Enter the PIN",
   "numberPad.delete": "Delete",
   "numberPad.ok": "OK",
 
