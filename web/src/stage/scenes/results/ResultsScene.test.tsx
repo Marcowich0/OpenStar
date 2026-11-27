@@ -1,6 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { songsQuery } from "../../../api/queries";
 import { createQueryClient } from "../../../api/queryClient";
@@ -11,6 +11,9 @@ import type { SongSummary } from "../../../generated/SongSummary";
 import type { LiveClientOptions } from "../../../live/liveClient";
 import { createLiveStore } from "../../../live/liveStore";
 import { StageFrame } from "../../frame/StageFrame";
+import { StageSoundsProvider } from "../../sound/StageSounds";
+import { recordedSounds } from "../../sound/testSounds";
+import { ResultsBody } from "./ResultsScene";
 import { playerResult, songResults } from "./testResults";
 
 const song = (id: number, title: string, artist: string): SongSummary => ({
@@ -250,5 +253,65 @@ describe("the results scene", () => {
   it("shows no Join code", () => {
     setup(party(songResults([bo])));
     expect(screen.queryByText(/4821/)).not.toBeInTheDocument();
+  });
+});
+
+describe("the results scene's sounds (ticket 262)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderBody(results: SongResults) {
+    vi.useFakeTimers();
+    const store = createLiveStore(() => ({
+      send: () => true,
+      close: () => {},
+    }));
+    const recorded = recordedSounds();
+    const view = render(
+      <StageSoundsProvider store={store} sounds={recorded.sounds}>
+        <ResultsBody
+          results={results}
+          song={null}
+          next={null}
+          onNext={() => {}}
+        />
+      </StageSoundsProvider>,
+    );
+    const at = (ms: number) => {
+      act(() => {
+        vi.advanceTimersByTime(ms);
+      });
+    };
+    return { played: recorded.played, at, view };
+  }
+
+  it("rises with the bars, plays the fanfare when they land and the high score with the sticker", () => {
+    // Bo has the sticker: his bar grows first, so it pops 1.1 s + 0.9 s in.
+    const { played, at } = renderBody(songResults([bo, mia]));
+    at(0);
+    expect(played).toEqual(["resultsRise"]);
+    at(1249); // Mia's bar starts 150 ms in and grows for 1.1 s
+    expect(played).toEqual(["resultsRise"]);
+    at(1);
+    expect(played).toEqual(["resultsRise", "fanfare"]);
+    at(750);
+    expect(played).toEqual(["resultsRise", "fanfare", "highScore"]);
+    at(10_000);
+    expect(played).toEqual(["resultsRise", "fanfare", "highScore"]);
+  });
+
+  it("plays no high score without a sticker", () => {
+    const { played, at } = renderBody(songResults([mia]));
+    at(10_000);
+    expect(played).toEqual(["resultsRise", "fanfare"]);
+  });
+
+  it("stops the sounds still to come when the results close", () => {
+    const { played, at, view } = renderBody(songResults([bo, mia]));
+    at(500);
+    view.unmount();
+    at(10_000);
+    expect(played).toEqual(["resultsRise"]);
   });
 });

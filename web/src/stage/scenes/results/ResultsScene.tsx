@@ -3,10 +3,12 @@
 // ranked by total, with the total, the Rank title and the avatar above it and
 // where the points came from under it; a sticker for a new High score, a
 // hatched bar and an "unfinished" stamp for a Player who did not finish; and
-// "Next: <Song>" (or Done) leading on. No Join code here.
+// "Next: <Song>" (or Done) leading on. No Join code here. It sounds the
+// bars rising (`resultsRise`), their landing (`fanfare`) and the first
+// sticker (`highScore`), #262.
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { songsQuery } from "../../../api/queries";
 import type { SongResults } from "../../../generated/SongResults";
@@ -21,6 +23,7 @@ import { Avatar } from "../../../ui/Avatar";
 import { Button } from "../../../ui/Button";
 import { Score } from "../../../ui/Score";
 import { useStageFrame } from "../../frame/stageFrameContext";
+import { useStageSounds } from "../../sound/StageSounds";
 import { resultsView, type BarView } from "./resultsView";
 import "./results.css";
 
@@ -64,6 +67,7 @@ export interface ResultsBodyProps {
 export function ResultsBody({ results, song, next, onNext }: ResultsBodyProps) {
   const view = resultsView(results.players);
   const duet = results.players.some((p) => p.voice !== null);
+  useResultsSounds(view.landMs, view.highScoreMs);
   return (
     <section className="relative h-full">
       {/* The head ends above the toast band (150 px from the top), so a toast
@@ -100,6 +104,34 @@ export function ResultsBody({ results, song, next, onNext }: ResultsBodyProps) {
       </div>
     </section>
   );
+}
+
+/** The bars rise now, land at `landMs` and the first sticker pops at `highScoreMs`. */
+function useResultsSounds(landMs: number | null, highScoreMs: number | null) {
+  const sounds = useStageSounds();
+  useEffect(() => {
+    if (landMs === null) return;
+    // Every sound on a timer, the rise too, so a cleanup (StrictMode's
+    // first mount) cancels them all and none plays twice.
+    const timers = [
+      setTimeout(() => {
+        sounds.resultsRise();
+      }, 0),
+      setTimeout(() => {
+        sounds.fanfare();
+      }, landMs),
+    ];
+    if (highScoreMs !== null) {
+      timers.push(
+        setTimeout(() => {
+          sounds.highScore();
+        }, highScoreMs),
+      );
+    }
+    return () => {
+      for (const timer of timers) clearTimeout(timer);
+    };
+  }, [sounds, landMs, highScoreMs]);
 }
 
 function Legend() {
