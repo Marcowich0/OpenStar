@@ -80,6 +80,15 @@ describe("the Stage options on a Phone", () => {
     });
   });
 
+  it("closes with Back: the full-height sheet leaves nothing outside it to tap", async () => {
+    renderTab();
+    const sheet = await openOptions();
+    fireEvent.click(sheet.getByRole("button", { name: "Back" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Options" })).toBeNull();
+    });
+  });
+
   it("is there while a Song plays too", async () => {
     renderTab({
       ...PARTY,

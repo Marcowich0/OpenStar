@@ -205,6 +205,7 @@ export const en = {
   "stageTab.addSinger": "Add a singer",
   "stageTab.start": "Start",
   "stageTab.options": "Options",
+  "stageTab.optionsBack": "Back",
   "stageTab.results": "Results on the Stage",
   "stageTab.yourScore": "Your Score: {total, number}",
   "stageTab.newHighScore": "New high score!",
