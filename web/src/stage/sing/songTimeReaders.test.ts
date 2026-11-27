@@ -51,7 +51,9 @@ describe("who reads the Song's position", () => {
     // `currentTime`; it feeds no clock. The Calibration tone run (#156) reads
     // its AudioContext's `currentTime` only to schedule tones; their play
     // times come from `outputTime`. So does the Check A/V sync click
-    // (#163) for its clicks and their landing times.
+    // (#163) for its clicks and their landing times. The UI sounds (#261)
+    // read the Stage AudioContext's `currentTime` only to start a sound's
+    // voices now; they never read the Song element or Song time.
     expect(
       filesMatching(
         /\.currentTime\b|\.mediaTime\b|requestVideoFrameCallback\s*\(/,
@@ -62,6 +64,7 @@ describe("who reads the Song's position", () => {
       "src/clock/songClock.ts",
       "src/playback/mediaPlayback.ts",
       "src/playback/songPreview.ts",
+      "src/stage/sound/uiSounds.ts",
     ]);
   });
 
