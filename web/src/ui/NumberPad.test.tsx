@@ -126,6 +126,15 @@ describe("NumberPad, Admin PIN form", () => {
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith("1234567");
   });
 
+  it("waits for OK even at 8 digits, the longest PIN", () => {
+    const onSubmit = vi.fn();
+    render(<NumberPad form="adminPin" onSubmit={onSubmit} />);
+    type("12345678");
+    expect(onSubmit).not.toHaveBeenCalled();
+    press("OK");
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith("12345678");
+  });
+
   it("takes digits and OK from a hardware keyboard", () => {
     const onSubmit = vi.fn();
     render(<NumberPad form="adminPin" onSubmit={onSubmit} />);
