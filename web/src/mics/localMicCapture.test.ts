@@ -222,9 +222,61 @@ describe("the Stage browser's capture", () => {
     expect(capture.levelDbfs("webcam", 0)).toBeNull();
   });
 
-  it("reports itself unavailable without mediaDevices (not a secure context)", () => {
-    const capture = createLocalMicCapture({ mediaDevices: undefined });
-    expect(capture.getSnapshot().status).toBe("unavailable");
+  it("reports itself unavailable outside a secure context, which hides mediaDevices", () => {
+    const capture = createLocalMicCapture({
+      mediaDevices: undefined,
+      secureContext: false,
+    });
+    expect(capture.getSnapshot()).toMatchObject({
+      status: "unavailable",
+      unavailableCause: "insecureContext",
+    });
+  });
+
+  it("reports a secure page without mediaDevices as an unsupported browser", () => {
+    const capture = createLocalMicCapture({
+      mediaDevices: undefined,
+      secureContext: true,
+    });
+    expect(capture.getSnapshot()).toMatchObject({
+      status: "unavailable",
+      unavailableCause: "noMediaDevices",
+    });
+  });
+
+  it("reports a refused microphone permission as denied", async () => {
+    const { capture, mediaDevices } = fakeBrowser([DONGLE], { granted: false });
+    mediaDevices.getUserMedia.mockRejectedValueOnce(
+      new DOMException("Permission denied", "NotAllowedError"),
+    );
+    await capture.refresh(true);
+    expect(capture.getSnapshot()).toMatchObject({
+      status: "unavailable",
+      unavailableCause: "permissionDenied",
+    });
+  });
+
+  it("reports a browser with no input device to ask for as no device", async () => {
+    const { capture, mediaDevices } = fakeBrowser([], { granted: false });
+    mediaDevices.getUserMedia.mockRejectedValueOnce(
+      new DOMException("Requested device not found", "NotFoundError"),
+    );
+    await capture.refresh(true);
+    expect(capture.getSnapshot()).toMatchObject({
+      status: "unavailable",
+      unavailableCause: "noDevice",
+    });
+  });
+
+  it("forgets the cause once it lists its devices", async () => {
+    const { capture, mediaDevices } = fakeBrowser([DONGLE], { granted: false });
+    mediaDevices.getUserMedia.mockRejectedValueOnce(
+      new DOMException("Permission denied", "NotAllowedError"),
+    );
+    await capture.refresh(true);
+    await capture.refresh(true);
+    expect(capture.getSnapshot().status).toBe("ready");
+    expect(capture.getSnapshot().unavailableCause).toBeUndefined();
   });
 });
 

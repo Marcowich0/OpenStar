@@ -71,7 +71,10 @@ function setup({
   kept = [] as LocalMic[],
   bridges = NO_BRIDGES,
   bridgeLevelDbfs = () => null,
+  capture = {},
 }: {
+  /** Overrides of the capture's snapshot (by default every device is ready). */
+  capture?: Partial<CaptureSnapshot>;
   open?: Map<string, number>;
   kept?: LocalMic[];
   bridges?: MicBridges;
@@ -95,6 +98,7 @@ function setup({
     status: "ready",
     devices: [WEBCAM, DONGLE],
     open,
+    ...capture,
   };
   const api: LocalMicsApi = {
     capture: {
@@ -198,6 +202,65 @@ describe("the Mics screen", () => {
     expect(
       within(openMicsScreen()).getByText(
         "More than 2 inputs? Use a Mic bridge.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "insecureContext",
+      "This page is not on a secure (https) address, so the browser hides its microphones. Open OpenStar over HTTPS, or at http://localhost on this computer.",
+    ],
+    [
+      "noMediaDevices",
+      "This browser cannot use microphones. Open the Stage in a current Chrome, Chromium, Edge or Firefox.",
+    ],
+    [
+      "permissionDenied",
+      "This browser is not allowed to use the microphone. Click the icon left of the address bar, set Microphone to Allow, then reload the page.",
+    ],
+    [
+      "noDevice",
+      "No input device found. Plug in a microphone or an audio interface; the list updates by itself.",
+    ],
+  ] as const)(
+    "says why this browser cannot read its microphones: %s",
+    (cause, message) => {
+      setup({
+        capture: {
+          status: "unavailable",
+          unavailableCause: cause,
+          devices: [],
+          open: new Map(),
+        },
+      });
+      const group = within(openMicsScreen()).getByRole("group", {
+        name: "This browser",
+      });
+      expect(within(group).getByText(message)).toBeInTheDocument();
+    },
+  );
+
+  it("names the next step for a refusal of no known kind", () => {
+    setup({ capture: { status: "unavailable", devices: [], open: new Map() } });
+    const group = within(openMicsScreen()).getByRole("group", {
+      name: "This browser",
+    });
+    expect(
+      within(group).getByText(
+        "This browser cannot read its microphones here. Reload the page to try again.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("says the same about no input device whether the browser refused or listed none", () => {
+    setup({ capture: { devices: [], open: new Map() } });
+    const group = within(openMicsScreen()).getByRole("group", {
+      name: "This browser",
+    });
+    expect(
+      within(group).getByText(
+        "No input device found. Plug in a microphone or an audio interface; the list updates by itself.",
       ),
     ).toBeInTheDocument();
   });
