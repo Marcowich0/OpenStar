@@ -29,8 +29,8 @@ use openstar_protocol::UserMessage;
 use tower_http::trace::TraceLayer;
 
 use crate::{
-    AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings, profiles,
-    scores, stage_options, stage_outputs, stage_trust, unlock, usdb,
+    AppState, bridge, frontend, jobs, library, local_mics, mic_bridges, mic_settings,
+    profile_stats, profiles, scores, stage_options, stage_outputs, stage_trust, unlock, usdb,
 };
 
 /// Whether an endpoint needs an Unlock.
@@ -227,6 +227,13 @@ pub(crate) fn router(state: &AppState) -> (Router, Vec<Endpoint>) {
             "/api/profiles/{id}",
             NotGuarded,
             profiles::edit_profile,
+        )
+        // A Profile's stats only read its Score records.
+        .add(
+            Method::GET,
+            "/api/profiles/{id}/stats",
+            NotGuarded,
+            profile_stats::profile_stats,
         )
         .add(
             Method::DELETE,
