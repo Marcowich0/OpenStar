@@ -3,7 +3,8 @@
 // then steps a row of the free Party colours (the first free one
 // preselected) and a row of the 24 avatar icons (one prefilled at random)
 // with ← and →, leaving each row with ↑ and ↓, and OK seats the new Guest
-// or Profile, entering them into the Party. The name rules are the Phone
+// or Profile, entering them into the Party; Cancel, left of OK, and Esc close
+// the form without adding anyone. The name rules are the Phone
 // form's (`phone/joinForm.ts`); the server's refusals show in the form.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -39,6 +40,8 @@ export interface NewPlayerFormProps {
   profiles: readonly Profile[];
   /** Seats them; resolves to a refusal to show, or `null` when it is handled. */
   onSeat: (who: SeatWho) => Promise<UserMessage | null>;
+  /** Cancel: closes the form without adding anyone (Esc closes its list). */
+  onCancel: () => void;
   /** The avatar's random source (tests pass a fixed one). */
   random?: () => number;
 }
@@ -55,6 +58,9 @@ function stepped<T>(
   return items[next] ?? null;
 }
 
+// 72 px in the 1920×1080 frame: 48 px on a 1280×800 window, big enough to
+// tell apart from the sofa (#251). Eight to a row, in three rows.
+const PICTURE_SIZE = 72;
 const ROW = "gap-2.5 rounded-card-sm bg-cream p-3 outline-none";
 const ITEM =
   "flex cursor-pointer items-center justify-center rounded-full ring-ink";
@@ -64,6 +70,7 @@ export function NewPlayerForm({
   members,
   profiles,
   onSeat,
+  onCancel,
   random,
 }: NewPlayerFormProps) {
   const [name, setName] = useState("");
@@ -75,6 +82,8 @@ export function NewPlayerForm({
   const areYouRef = useRef<HTMLSpanElement>(null);
   const coloursRef = useRef<HTMLDivElement>(null);
   const avatarsRef = useRef<HTMLDivElement>(null);
+  const buttonsRef = useRef<HTMLSpanElement>(null);
+  const cancelRef = useRef<HTMLSpanElement>(null);
   const okRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -129,13 +138,15 @@ export function NewPlayerForm({
 
   // The form's parts top to bottom, for ↑ and ↓.
   const parts = (): HTMLElement[] =>
-    [nameRef, areYouRef, coloursRef, avatarsRef, okRef]
+    [nameRef, areYouRef, coloursRef, avatarsRef, buttonsRef]
       .map((ref) => ref.current)
       .filter((el) => el !== null);
   const focusable = (el: Element): HTMLElement | null =>
-    el.matches(`${FOCUSABLE}, input`)
-      ? (el as HTMLElement)
-      : el.querySelector<HTMLElement>(FOCUSABLE);
+    el === buttonsRef.current && okRef.current
+      ? focusable(okRef.current)
+      : el.matches(`${FOCUSABLE}, input`)
+        ? (el as HTMLElement)
+        : el.querySelector<HTMLElement>(FOCUSABLE);
   const leave = (step: number) => {
     const all = parts();
     const active = document.activeElement;
@@ -157,6 +168,17 @@ export function NewPlayerForm({
       if (next !== null) setAvatar({ kind: "builtIn", key: next });
       return true;
     }
+    // Cancel sits left of OK; ← and → go between the two and stop there.
+    const button = (ref: typeof okRef) =>
+      ref.current ? focusable(ref.current) : null;
+    if (active !== null && okRef.current?.contains(active)) {
+      if (step < 0) button(cancelRef)?.focus({ preventScroll: true });
+      return true;
+    }
+    if (active !== null && cancelRef.current?.contains(active)) {
+      if (step > 0) button(okRef)?.focus({ preventScroll: true });
+      return true;
+    }
     // In the name box the caret moves; elsewhere the frame moves the focus.
     return false;
   };
@@ -175,7 +197,7 @@ export function NewPlayerForm({
 
   return (
     <div
-      className="flex w-[680px] flex-col gap-3 p-3"
+      className="flex w-[740px] flex-col gap-3 p-3"
       onPointerOver={(event) => {
         // The frame moves the focus to whatever the mouse passes over; while
         // a name is typed, a passing mouse must not take the keys away.
@@ -257,7 +279,7 @@ export function NewPlayerForm({
           tabIndex={-1}
           role="radiogroup"
           aria-label={t("joinForm.picture")}
-          className={`${ROW} grid grid-cols-12`}
+          className={`${ROW} grid grid-cols-8 justify-items-center`}
         >
           {AVATAR_KEYS.map((key: AvatarKey, index) => (
             <span
@@ -275,7 +297,7 @@ export function NewPlayerForm({
                   name={trimmed}
                   avatar={{ kind: "builtIn", key }}
                   colour={colour ?? "cherry"}
-                  size={40}
+                  size={PICTURE_SIZE}
                 />
               </span>
             </span>
@@ -283,10 +305,17 @@ export function NewPlayerForm({
         </div>
       </FormRow>
       {shown && <Problem>{userMessageText(shown)}</Problem>}
-      <span ref={okRef} className="self-end">
-        <Button fill="green" isDisabled={!canSend} onPress={send}>
-          {t("stage.lineUp.ok")}
-        </Button>
+      <span ref={buttonsRef} className="flex gap-3 self-end">
+        <span ref={cancelRef} className="contents">
+          <Button fill="white" onPress={onCancel}>
+            {t("stage.lineUp.cancel")}
+          </Button>
+        </span>
+        <span ref={okRef} className="contents">
+          <Button fill="green" isDisabled={!canSend} onPress={send}>
+            {t("stage.lineUp.ok")}
+          </Button>
+        </span>
       </span>
     </div>
   );

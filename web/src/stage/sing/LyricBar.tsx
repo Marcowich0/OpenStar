@@ -131,7 +131,8 @@ const BAR_STYLE: CSSProperties = {
 
 const CURRENT_STYLE: CSSProperties = { fontSize: "78px", fontWeight: 700 };
 const DUET_STYLE: CSSProperties = { fontSize: "60px", fontWeight: 700 };
-const NEXT_STYLE: CSSProperties = {
+/** The next Line's text; the pause menu legend (#258) shows it too. */
+export const NEXT_LINE_STYLE: CSSProperties = {
   fontSize: "36px",
   fontWeight: 600,
   color: "var(--color-mute)",
@@ -162,7 +163,12 @@ const SYLLABLE_STYLE = {
 
 /** One style per Note look, so a Line change allocates no styles. */
 const NOTE_STYLES = new Map<string, CSSProperties>();
-function noteStyle(kind: NoteKind): CSSProperties {
+/**
+ * A Note's text in the current Line, filled to `--lyric-fill` in
+ * `--lyric-fill-colour` (set on an ancestor); the pause menu legend (#258)
+ * draws its lyric samples with it.
+ */
+export function lyricNoteStyle(kind: NoteKind): CSSProperties {
   const golden = GOLDEN.has(kind);
   const italic = ITALIC.has(kind);
   const key = `${String(golden)}:${String(italic)}`;
@@ -182,10 +188,14 @@ function noteStyle(kind: NoteKind): CSSProperties {
 
 const ITALIC_STYLE: CSSProperties = { fontStyle: "italic" };
 
+/** A Note's text lifts while it is sung (`data-singing`). */
+export const LYRIC_NOTE_CLASS =
+  "inline-block transition-[translate] duration-200 data-singing:-translate-y-[6px]";
+
 /** The next Line: plain text in mute, Rap and Freestyle Notes in italics. */
 function NextLine({ notes }: { notes: readonly Note[] }) {
   return (
-    <div data-lyric-next className="animate-line-in" style={NEXT_STYLE}>
+    <div data-lyric-next className="animate-line-in" style={NEXT_LINE_STYLE}>
       {notes.map((note, i) => (
         <span key={i} style={ITALIC.has(note.kind) ? ITALIC_STYLE : undefined}>
           {note.text}
@@ -231,8 +241,8 @@ export const LyricBar = memo(function LyricBar({
               <span
                 key={i}
                 data-lyric-note
-                className="inline-block transition-[translate] duration-200 data-singing:-translate-y-[6px]"
-                style={noteStyle(note.kind)}
+                className={LYRIC_NOTE_CLASS}
+                style={lyricNoteStyle(note.kind)}
               >
                 {note.text}
               </span>
