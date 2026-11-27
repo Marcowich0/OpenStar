@@ -34,13 +34,18 @@ async function settled(locator: Locator): Promise<void> {
   );
 }
 
-const HIDE = "aside[data-layout] button";
+/** The join card's Hide pill, not its "For the owner" fold (#254). */
+function hidePill(stage: Page): Locator {
+  return stage
+    .locator("aside[data-layout]")
+    .getByRole("button", { name: "Hide" });
+}
 const PILLS =
   "[data-testid=pill-row] > button, [data-testid=pill-row] > span > button";
 
 /** The centres of the Hide pill and of every Stage menu pill. */
 async function sceneTargets(stage: Page) {
-  const hide = stage.locator(HIDE);
+  const hide = hidePill(stage);
   await expect(hide).toBeVisible();
   const pills = await stage.locator(PILLS).all();
   // The song browser's row: Queue, People and Setup (no Add songs, #248).
@@ -60,7 +65,7 @@ test("the Setup menu lies over the join card's Hide pill", async ({
   stage,
 }) => {
   await newParty(stage);
-  const hide = stage.locator(HIDE);
+  const hide = hidePill(stage);
   await expect(hide).toBeVisible();
   await stage.getByRole("button", { name: "Setup" }).click();
   const menu = stage.getByRole("menu", { name: "Setup" });
