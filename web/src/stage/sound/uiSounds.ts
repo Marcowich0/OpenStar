@@ -15,6 +15,7 @@
 // own pitch detection. Nothing outside `src/stage/` imports this module.
 
 import { dbToGain, volumeGain } from "../../playback/gain";
+import { stageOptions } from "../../stageOptions/stageOptions";
 
 /**
  * The UI sounds level (0–100 %) until Options › Sound has it (#270, "UI
@@ -23,6 +24,15 @@ import { dbToGain, volumeGain } from "../../playback/gain";
 export const UI_SOUNDS_LEVEL = 60;
 export function uiSoundsLevel(): number {
   return UI_SOUNDS_LEVEL;
+}
+
+/**
+ * Whether Effects are off, read for each sound. Until #268 makes Effects
+ * off, calm or full, "off" is the Stage options' `effects: false`; that
+ * ticket replaces this reader with its "off".
+ */
+export function effectsOff(): boolean {
+  return !stageOptions().current().effects;
 }
 
 /** How much lower UI sounds play while a Song plays, dB. */
@@ -85,12 +95,75 @@ const MENU = {
   ],
 } as const satisfies Record<string, readonly Voice[]>;
 
-/** Every sound's recipe, by name. The game sounds (#262) join this table. */
-const SOUNDS: Readonly<Record<keyof typeof MENU, readonly Voice[]>> = MENU;
+/** The game sounds (#262): the sing screen's big moments and the results. */
+const GAME = {
+  /** Each number of a countdown: a short round blip. */
+  countdown: [
+    { wave: "triangle", hz: 784, decay: 0.12, peak: 0.36 },
+    { wave: "sine", hz: 1568, decay: 0.05, peak: 0.1 },
+  ],
+  /** The countdown is over and the Song plays: the blip an octave up, longer. */
+  go: [
+    { wave: "triangle", hz: 1568, toHz: 1661, decay: 0.32, peak: 0.36 },
+    { wave: "sine", hz: 784, decay: 0.28, peak: 0.22 },
+  ],
+  /** A Perfect! Line: a quick sparkling run up with a shimmer. */
+  linePerfect: [
+    { wave: "triangle", hz: 1047, decay: 0.07, peak: 0.26 },
+    { wave: "triangle", hz: 1319, at: 0.045, decay: 0.07, peak: 0.26 },
+    { wave: "triangle", hz: 1568, at: 0.09, decay: 0.07, peak: 0.26 },
+    { wave: "triangle", hz: 2093, at: 0.135, decay: 0.24, peak: 0.28 },
+    { noise: "highpass", hz: 6000, at: 0.135, decay: 0.2, peak: 0.06 },
+  ],
+  /** A golden Note being hit: a soft high glint (rate-limited by its caller). */
+  goldenHit: [{ wave: "sine", hz: 2637, toHz: 3136, decay: 0.06, peak: 0.1 }],
+  /** The results bars rise: a slow sweep up, as long as a bar grows. */
+  resultsRise: [
+    {
+      wave: "triangle",
+      hz: 220,
+      toHz: 880,
+      attack: 0.25,
+      decay: 0.85,
+      peak: 0.16,
+    },
+    { noise: "bandpass", hz: 1800, attack: 0.3, decay: 0.8, peak: 0.04 },
+  ],
+  /** The bars land: a short fanfare, three notes up into a major chord. */
+  fanfare: [
+    { wave: "square", hz: 392, decay: 0.1, peak: 0.1 },
+    { wave: "square", hz: 523, at: 0.11, decay: 0.1, peak: 0.1 },
+    { wave: "square", hz: 659, at: 0.22, decay: 0.1, peak: 0.1 },
+    { wave: "triangle", hz: 784, at: 0.33, decay: 0.7, peak: 0.3 },
+    { wave: "triangle", hz: 1047, at: 0.33, decay: 0.7, peak: 0.24 },
+    { wave: "triangle", hz: 1319, at: 0.33, decay: 0.7, peak: 0.2 },
+  ],
+  /** The "New high score!" sticker: a bright run to the top and a ring. */
+  highScore: [
+    { wave: "triangle", hz: 1319, decay: 0.06, peak: 0.26 },
+    { wave: "triangle", hz: 1568, at: 0.05, decay: 0.06, peak: 0.26 },
+    { wave: "triangle", hz: 2093, at: 0.1, decay: 0.06, peak: 0.26 },
+    { wave: "sine", hz: 2637, at: 0.15, decay: 0.45, peak: 0.24 },
+    { noise: "highpass", hz: 7000, at: 0.15, decay: 0.25, peak: 0.05 },
+  ],
+} as const satisfies Record<string, readonly Voice[]>;
+
+/** Every sound's recipe, by name. */
+const SOUNDS: Readonly<
+  Record<keyof typeof MENU | keyof typeof GAME, readonly Voice[]>
+> = { ...MENU, ...GAME };
 
 export type UiSoundName = keyof typeof SOUNDS;
 
 export const MENU_SOUNDS = Object.keys(MENU) as readonly (keyof typeof MENU)[];
+
+export const GAME_SOUNDS = Object.keys(GAME) as readonly (keyof typeof GAME)[];
+
+/** The sounds Effects off silences (spec #242). */
+export const EFFECT_SOUNDS: readonly UiSoundName[] = [
+  "linePerfect",
+  "goldenHit",
+];
 
 /** Every named sound. */
 export const UI_SOUND_NAMES = Object.keys(SOUNDS) as readonly UiSoundName[];
@@ -102,6 +175,8 @@ export interface UiSoundsOptions {
   output: () => AudioNode;
   /** The UI sounds level, 0–100 %, read for each sound. */
   level?: () => number;
+  /** Whether Effects are off, read for each sound (`effectsOff` by default). */
+  effectsOff?: () => boolean;
 }
 
 export type UiSounds = { readonly [Name in UiSoundName]: () => void } & {
@@ -128,6 +203,7 @@ export function createUiSounds({
   context: makeContext,
   output,
   level = uiSoundsLevel,
+  effectsOff: isEffectsOff = effectsOff,
 }: UiSoundsOptions): UiSounds {
   let gestured = false;
   let ducked = false;
@@ -202,6 +278,7 @@ export function createUiSounds({
 
   function play(name: UiSoundName) {
     if (!gestured || !(level() > 0)) return;
+    if (EFFECT_SOUNDS.includes(name) && isEffectsOff()) return;
     const audio = get();
     audio.ui.gain.value = uiGain();
     const start = audio.context.currentTime;

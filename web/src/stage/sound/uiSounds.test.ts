@@ -13,13 +13,15 @@ import {
   type FakeSynthContext,
 } from "./fakeSynthContext";
 import {
+  EFFECT_SOUNDS,
+  GAME_SOUNDS,
   MENU_SOUNDS,
   UI_SOUNDS_LEVEL,
   createUiSounds,
   type UiSoundName,
 } from "./uiSounds";
 
-function setUp(level = () => 60) {
+function setUp(level = () => 60, effectsOff = () => false) {
   const context = fakeSynthContext();
   const output = context.createGain();
   output.connect(context.destination);
@@ -28,6 +30,7 @@ function setUp(level = () => 60) {
     context: makeContext,
     output: () => output as unknown as AudioNode,
     level,
+    effectsOff,
   });
   return { context, output, makeContext, sounds };
 }
@@ -142,5 +145,65 @@ describe("the UI sound engine", () => {
     for (const source of startedSources(context)) {
       expect(source.outputs).toEqual([]);
     }
+  });
+});
+
+describe("the game sounds (ticket 262)", () => {
+  it("names the seven game sounds", () => {
+    expect([...GAME_SOUNDS].sort()).toEqual(
+      [
+        "countdown",
+        "fanfare",
+        "go",
+        "goldenHit",
+        "highScore",
+        "linePerfect",
+        "resultsRise",
+      ].sort(),
+    );
+  });
+
+  it.each(GAME_SOUNDS)("has a named function %s that plays", (name) => {
+    const { context, output, sounds } = setUp();
+    sounds.gesture();
+    sounds[name satisfies UiSoundName]();
+    const started = startedSources(context);
+    expect(started.length).toBeGreaterThan(0);
+    for (const source of started) expect(reaches(source, output)).toBe(true);
+  });
+
+  it("never plays at a UI sounds level of 0", () => {
+    const { context, sounds } = setUp(() => 0);
+    sounds.gesture();
+    for (const name of GAME_SOUNDS) sounds[name]();
+    expect(startedSources(context)).toEqual([]);
+  });
+
+  it("silences Perfect! and golden Notes with Effects off, and only those", () => {
+    expect([...EFFECT_SOUNDS].sort()).toEqual(["goldenHit", "linePerfect"]);
+    const { context, sounds } = setUp(
+      () => 60,
+      () => true,
+    );
+    sounds.gesture();
+    sounds.linePerfect();
+    sounds.goldenHit();
+    expect(startedSources(context)).toEqual([]);
+    sounds.countdown();
+    sounds.fanfare();
+    expect(startedSources(context).length).toBeGreaterThan(0);
+  });
+
+  it("reads Effects anew for each sound", () => {
+    let off = true;
+    const { context, sounds } = setUp(
+      () => 60,
+      () => off,
+    );
+    sounds.gesture();
+    sounds.linePerfect();
+    off = false;
+    sounds.linePerfect();
+    expect(startedSources(context).length).toBeGreaterThan(0);
   });
 });
