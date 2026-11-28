@@ -2,18 +2,21 @@
 
 🎤 OpenStar is an open-source, self-hosted, SingStar-style karaoke game for your home server. Uses your existing UltraStar song library, runs in any browser, and turns phones into microphones and remotes. Real-time pitch scoring, duets, profiles and leaderboards. No installs needed.
 
-I would like to create a project similar to that of ultrastar deluxe. Here is my initial requirements.
+## How it plays
 
-see the ultrastar project for context on a similar project and for reference on the structure of the files
+OpenStar is played in one room. One browser, usually on the TV, is the **Stage**: it shows the Song, the lyrics and every Player's Notes, and it scores them. Guests join the current **Party** on their **Phones** with the join QR code or the Join code, and each Phone is a Remote (browse the Library, change the Queue, control the Stage) and, while it is in the Line-up, a microphone. Microphones wired to a computer in the room are **Local mics**, read by the Stage browser itself or by a **Mic bridge**, a small Linux desktop app.
 
-1. backend and songs should be hosted on a server through docker
-2. client should access through a web interface
-3. client device should be able to use the clients microphone (and map users to each channel)
-4. client should allow for phones to join in as user + mic
-5. game should be able to use an existing ultrastar library
-6. the game should be able to download new songs - use same source as (https://github.com/Marcowich0/ultrastar)
-7. language should be chosen based on performance
-8. should have an edit mode where users may adjust the timing of the notes to the music if these are misalligned.
+Songs come from your UltraStar **Library** folder, which stays usable by other UltraStar programs. From the Admin area, behind the Admin PIN, the owner can Download Songs from USDB and fix a Song's timing with a Timing edit or Auto-fit.
+
+## How it is built
+
+- **Server** (`crates/server`, the `openstar` binary, Rust): one process in one Docker container. It serves the built frontend, an HTTP+JSON API, one WebSocket per browser and the Song media on one origin, keeps its state in SQLite, and runs ffprobe, ffmpeg and yt-dlp as child processes. It never hears Mic audio and never scores; it relays Pitch readings to the Stage and keeps the results.
+- **Pitch detection** runs on the device that captures the sound, with one Rust detector (`crates/detector`): as WASM in an `AudioWorklet` on Phones and in the Stage browser (`crates/detector-wasm`), and natively in the Mic bridge (`crates/mic-bridge`). `crates/capture-clock` stamps every Pitch reading on the Stage's clock.
+- **Protocol** (`crates/protocol`): every HTTP body and WebSocket message as Rust types; the frontend's TypeScript types are generated from them.
+- **Frontend** (`web/`): one Vite + React app for the Stage, the Phones and the Admin area.
+- **Tests**: `crates/test-harness` (the app in-process, a fake USDB, a yt-dlp stand-in), `e2e/` (Playwright) and `fixtures/` (test cases as data files).
+
+Contributors and coding agents start with [`AGENTS.md`](AGENTS.md) (layout, commands and house patterns), [`GLOSSARY.md`](GLOSSARY.md) (the words the code and the docs use) and the decisions in [`docs/adr/`](docs/adr/).
 
 ## Installing
 
