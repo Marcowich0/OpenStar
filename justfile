@@ -8,6 +8,14 @@ default: check
 # Prettier, the generated-types drift check and the fixture rules.
 check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check pins-check shell-check bridge-tarball-check compose-check
 
+# The inner loop while you work: only the checks the files changed since the
+# merge base with `base` can affect (scripts/quick-check.sh lists the rules):
+# rustfmt, clippy and the tests of the changed crates and their dependents,
+# ESLint and Vitest on the changed web files and what imports them, tsc, and
+# Prettier on the changed files. `just check` still runs before every push.
+quick base="origin/main":
+    scripts/quick-check.sh {{ base }}
+
 # What CI runs: every fast check, then the browser end-to-end tests.
 ci: check e2e
 
