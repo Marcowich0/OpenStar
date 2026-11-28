@@ -6,7 +6,13 @@ default: check
 
 # Every fast check: Rust, dependency licences and advisories, TypeScript,
 # Prettier, the generated-types drift check and the fixture rules.
-check: rust-check deny-check web-check e2e-check format-check drift-check fixtures-check ci-meta-check pins-check shell-check bridge-tarball-check compose-check
+check: check-rust check-rest
+
+# The two halves of `check`, which CI runs as parallel jobs: what builds and
+# tests the Cargo workspace, and everything else. A new check goes in one of
+# them, so `just check` and CI stay the same set.
+check-rust: rust-check deny-check drift-check
+check-rest: web-check e2e-check format-check fixtures-check ci-meta-check pins-check shell-check bridge-tarball-check compose-check
 
 # The inner loop while you work: only the checks the files changed since the
 # merge base with `base` can affect (scripts/quick-check.sh lists the rules):
@@ -16,7 +22,9 @@ check: rust-check deny-check web-check e2e-check format-check drift-check fixtur
 quick base="origin/main":
     scripts/quick-check.sh {{ base }}
 
-# What CI runs: every fast check, then the browser end-to-end tests.
+# What CI runs: every fast check, then the browser end-to-end tests. CI runs
+# the same recipes as parallel jobs: `check-rust`, `check-rest` and `e2e` in
+# shards (`just e2e --shard=1/3`), each shard with its own server and Library.
 ci: check e2e
 
 # The browser end-to-end tests: builds the release binary with its frontend,

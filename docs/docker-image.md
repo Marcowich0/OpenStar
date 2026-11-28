@@ -93,15 +93,18 @@ build in a BuildKit cache mount.
 
 `.github/workflows/ci.yml` builds, checks and publishes the image to
 `ghcr.io/marcowich0/openstar`, on GitHub-hosted runners only. It never deploys, and there
-is no Docker Hub mirror. Its jobs run in order, and a failing job stops the rest:
+is no Docker Hub mirror. Steps 1 and 2 run side by side; a failing job stops the push:
 
-1. `ci`: `just ci`.
+1. `ci`: `just ci`, as the parallel jobs `check-rust` (`just check-rust`), `check-rest`
+   (`just check-rest`) and `e2e` (`just e2e --shard=N/3`, three shards). The `ci` job
+   passes only when all of them did.
 2. `image`: builds the image, runs `just image-smoke` on it, and scans it with Trivy, which
    fails on any HIGH or CRITICAL vulnerability that has a fix. This job has read-only
-   permissions and never logs in to a registry.
-3. `publish`: rebuilds the image from the `image` job's layer cache and pushes it with
-   build provenance and an SBOM. It refuses to push if the rebuilt layers differ from
-   the tested ones. This is the only job with `packages: write`.
+   permissions and never logs in to a registry. A pull request reads its layer cache but
+   writes none, so the Actions cache keeps room for `main`'s.
+3. `publish`: once `ci` and `image` have passed, rebuilds the image from the `image` job's
+   layer cache and pushes it with build provenance and an SBOM. It refuses to push if the
+   rebuilt layers differ from the tested ones. This is the only job with `packages: write`.
 4. `release`: for a `vX.Y.Z` tag only, creates a GitHub release with generated notes and
    two files, `openstar-mic-bridge-X.Y.Z-x86_64-linux.tar.gz` and its `.sha256`. This is
    the only job with `contents: write`.

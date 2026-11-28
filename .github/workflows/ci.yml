@@ -1,8 +1,8 @@
 name: CI
 
-# The pipeline (docs/docker-image.md, "Publishing"): `just ci`, then build the
-# image, smoke-test it and scan it with Trivy, then push it to GHCR. Each job
-# needs the one before it, so a failing step stops the rest.
+# The pipeline (docs/docker-image.md, "Publishing"): `just ci` as parallel
+# jobs, and beside them build the image, smoke-test it and scan it with Trivy;
+# once both have passed, push it to GHCR. A failing job stops the push.
 #
 # Publishing happens only for a push to `main` (:edge, :sha-<short>), a pushed
 # `vX.Y.Z` tag (:X.Y.Z, :X.Y, :X, :latest and a GitHub release) and the weekly
@@ -28,8 +28,15 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ci:
-    # GitHub-hosted runners only: pull requests from forks must never run on the owner's network.
+  # The checks of `just ci` as parallel jobs: `just check-rust`,
+  # `just check-rest` and `just e2e` in three shards. Together they are
+  # `just ci` (the justfile's `check` is `check-rust` and `check-rest`).
+  # GitHub-hosted runners only: pull requests from forks must never run on the owner's network.
+  #
+  # The Rust caches are saved from `main` only, and pull requests restore
+  # them: the repository's Actions cache has 10 GB, and the image job's layer
+  # cache must stay in it for `publish`.
+  check-rust:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -43,10 +50,44 @@ jobs:
         run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2.90.8
         with:
           tool: cargo-deny@0.22.0
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+        with:
+          just-version: 1.59.0
+
+      # The server tests generate tiny media with the real ffmpeg (and the
+      # yt-dlp stub uses it too); they fail with a message naming ffmpeg without it.
+      # The Mic bridge links PipeWire (pipewire-sys runs bindgen, so libclang).
+      - name: ffmpeg and PipeWire
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg libpipewire-0.3-dev libclang-dev
+
+      - run: just check-rust
+
+  # The frontend, the e2e suite's lint and the repository checks. Rust only
+  # for the detector's WASM module, which Vitest runs.
+  check-rest:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Rust toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
         with:
@@ -62,32 +103,87 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
-      # The server tests generate tiny media with the real ffmpeg (and the
-      # yt-dlp stub uses it too); they fail with a message naming ffmpeg without it.
-      # The Mic bridge links PipeWire (pipewire-sys runs bindgen, so libclang).
+      - run: just check-rest
+
+  # The Playwright suite in three shards, split by spec file. Each shard builds
+  # the binary and runs its own server, appdata and Library (scripts/e2e.sh),
+  # so the specs of one shard never see another's.
+  e2e:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Rust toolchain
+        run: rustup toolchain install
+
+      # One cache for all shards: they build the same binaries.
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' && matrix.shard == 1 }}
+
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+        with:
+          just-version: 1.59.0
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: web/package.json
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      # The fixture Library's audio and the fake mic WAVs come from ffmpeg; the
+      # headless Mic bridge links PipeWire (bindgen, so libclang).
       - name: ffmpeg and PipeWire
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ffmpeg libpipewire-0.3-dev libclang-dev
 
-      - run: just ci
+      - run: just e2e --shard=${{ matrix.shard }}/3
 
       # `just e2e` leaves its HTML report, the traces and the server log here.
       - name: Keep the Playwright report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             e2e/playwright-report/
             e2e/test-results/
           if-no-files-found: ignore
 
-  # Build, smoke test and Trivy scan. Runs for every event, pull requests
-  # included, and can push nothing: it has no write permission and never logs
-  # in to a registry.
+  # `just ci` passed: every check job and every e2e shard succeeded. The one
+  # check to require on pull requests, and what `publish` waits for.
+  ci:
+    needs: [check-rust, check-rest, e2e]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Every check passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "check-rust, check-rest, e2e: $RESULTS"
+          for result in $RESULTS; do
+            [ "$result" = success ] || exit 1
+          done
+
+  # Build, smoke test and Trivy scan, beside the check jobs. Runs for every
+  # event, pull requests included, and can push nothing: it has no write
+  # permission and never logs in to a registry.
   image:
-    needs: ci
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -117,7 +213,9 @@ jobs:
       # The server derives its build identifier from GITHUB_REF and GITHUB_SHA
       # (crates/server/src/build_id.rs); the smoke test checks that it equals
       # the one ci-image-meta.sh worked out. The layer cache lives in the
-      # Actions cache, so the `publish` job rebuilds the same layers.
+      # Actions cache, so the `publish` job rebuilds the same layers. A pull
+      # request reads that cache but writes none: its layers would only take
+      # the 10 GB from the ones `publish` needs.
       - name: Build the image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
@@ -135,7 +233,7 @@ jobs:
             GITHUB_SHA=${{ github.sha }}
           no-cache-filters: ${{ steps.meta.outputs.no_cache_runtime == 'true' && 'runtime' || '' }}
           cache-from: type=gha,scope=openstar-image
-          cache-to: type=gha,scope=openstar-image,mode=max
+          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=openstar-image,mode=max' || '' }}
 
       # The smoke test runs the Mic bridge it fetches from the image on this
       # runner, as a desktop would: it needs the PipeWire library there.
@@ -229,9 +327,9 @@ jobs:
 
   # Push to GHCR, with build provenance and an SBOM. Only for a push to `main`,
   # a pushed vX.Y.Z tag and the weekly schedule on `main`; never for a pull
-  # request or any other branch.
+  # request or any other branch, and only once `ci` and `image` have passed.
   publish:
-    needs: image
+    needs: [ci, image]
     if: >-
       needs.image.outputs.publish == 'true' &&
       github.event_name != 'pull_request' &&
