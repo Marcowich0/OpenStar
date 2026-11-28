@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SING_TEST_CASES } from "../../singTest/search";
 import { frame } from "./frame";
 import { laneLayout } from "./laneLayout";
+import { singLayout } from "./singLook";
 import { syntheticSing } from "./syntheticSing";
 
 describe("syntheticSing", () => {
@@ -43,6 +44,22 @@ describe("syntheticSing", () => {
       ).toEqual(frame(state, 6, laneLayout(state.lanes.length)));
     },
   );
+
+  it("takes a Lyric size, and bursts its confetti from the moved first lane header", () => {
+    const state = syntheticSing("four", "xl");
+    expect(state.look?.lyricSize).toBe("xl");
+    const rect = singLayout(state)[0];
+    expect(rect?.y).toBeLessThan(laneLayout(4)[0]?.y ?? 0);
+    const centreY = (rect?.y ?? 0) + (rect?.height ?? 0) / 2;
+    const particles = frame(state, 6, singLayout(state)).filter(
+      (e) => e.type === "particle",
+    );
+    // Thrown up from the moved header's centre, not far below it.
+    for (const p of particles) {
+      expect(p.y).toBeLessThan(centreY);
+      expect(p.y).toBeGreaterThan(centreY - 200);
+    }
+  });
 
   it.each(SING_TEST_CASES)(
     "case %s pops a settled Perfect! beside the first lane header, and Great! beside the second where there is one",

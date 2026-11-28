@@ -308,7 +308,7 @@ function Panel({
       role="region"
       data-testid="phone-mic-diagnostics-panel"
       aria-label={t("phoneMic.diagnostics")}
-      className="flex w-full flex-col gap-3 rounded-card bg-ink/85 p-4 text-left text-white"
+      className="flex w-full flex-col gap-3 rounded-card bg-ink-fill/85 p-4 text-left text-white"
     >
       <Section title={t("micDiagnostics.heard")}>
         <Row
@@ -479,7 +479,7 @@ function Panel({
           onFocus={(event) => {
             event.currentTarget.select();
           }}
-          className="w-full rounded-card-sm bg-white p-2 font-mono text-xs text-ink"
+          className="w-full rounded-card-sm bg-surface p-2 font-mono text-xs text-ink"
         />
       )}
     </div>
@@ -532,7 +532,7 @@ function Processing({
           // The change is the tap: reopen the mic with the new processing.
           mic.reopen();
         }}
-        className="min-h-11 rounded-card-sm bg-white px-3 text-base text-ink"
+        className="min-h-11 rounded-card-sm bg-surface px-3 text-base text-ink"
       >
         {MIC_PROCESSINGS.map((p) => (
           <option key={p} value={p}>

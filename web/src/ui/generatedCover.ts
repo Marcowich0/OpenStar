@@ -122,7 +122,7 @@ export function generatedCoverSvg(
   if (letter) {
     const text = (dy: number, colour: string, opacity: number) =>
       `<text x="50" y="${n(50 + dy)}" text-anchor="middle" dominant-baseline="central" style="font-family:${paint("--font-sans")};font-weight:700;font-size:40px;fill:${colour};fill-opacity:${n(opacity)}">${escapeXml(cover.letter)}</text>`;
-    parts.push(text(2.5, paint("--color-ink"), 0.25));
+    parts.push(text(2.5, paint("--color-ink-fill"), 0.25));
     parts.push(text(0, paint("--color-white"), 1));
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n(SIZE)} ${n(SIZE)}" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${parts.join("")}</svg>`;

@@ -16,6 +16,7 @@ use crate::library::SongId;
 use crate::mics::{MicKey, PartyLocalMic};
 use crate::profile::{Avatar, Difficulty, NewProfile, PaletteKey, ProfileId};
 use crate::scoring::PlayerResult;
+use crate::stage_options::StageOptionKey;
 
 /// How many seats a Line-up has, and so how many requested Players a
 /// Request may name. 4 in v1. Nothing else hard-codes it: no database CHECK,
@@ -738,6 +739,10 @@ pub enum PartyEvent {
     /// A Phone's Auto-fit of a Song was accepted and saved (#223). `title`
     /// is the Song's title in the saved file.
     AutoFitAccepted { song_id: SongId, title: String },
+    /// The Stage options were changed from a Remote or the Stage
+    /// (`ClientMessage::SetStageOptions`). `options` names the changed ones,
+    /// in the order of the [`crate::stage_options::StageOptions`] fields.
+    StageOptionsChanged { options: Vec<StageOptionKey> },
 }
 
 /// One accepted change: who made it and what it was.

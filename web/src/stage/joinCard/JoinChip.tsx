@@ -42,7 +42,7 @@ export function JoinChip({
       <AriaButton
         aria-label={text}
         onPress={onPress}
-        className="pointer-events-auto flex items-center gap-3 rounded-full bg-white px-7 py-3 text-[28px] leading-none font-semibold whitespace-nowrap text-ink shadow-ledge outline-none"
+        className="pointer-events-auto flex items-center gap-3 rounded-full bg-surface px-7 py-3 text-[28px] leading-none font-semibold whitespace-nowrap text-ink shadow-ledge outline-none"
       >
         <span data-testid="party-join-code" className="sr-only">
           {joinCode}

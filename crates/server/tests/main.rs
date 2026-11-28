@@ -70,6 +70,7 @@ mod song_playing_now;
 mod song_progress;
 mod song_restore;
 mod stage_options;
+mod stage_options_remote;
 mod stage_outputs;
 mod stage_trust;
 mod startup;

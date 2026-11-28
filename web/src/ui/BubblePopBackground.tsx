@@ -1,7 +1,8 @@
 // The Bubble Pop background of every non-video screen: a radial gradient from
-// white through cream to cream-2, with three large soft blobs floating on a
-// 9 s cycle, a third of a cycle apart. Sizes follow the 1920 × 1080 reference
-// frame of the prototypes, as fractions of the viewport.
+// the surface colour (white in Bubble Pop) through cream to cream-2, with
+// three large soft blobs floating on a 9 s cycle, a third of a cycle apart.
+// Sizes follow the 1920 × 1080 reference frame of the prototypes, as
+// fractions of the viewport.
 
 import type { ReactNode } from "react";
 
@@ -32,7 +33,7 @@ export function BubblePopBackground({ children }: BubblePopBackgroundProps) {
       <div
         aria-hidden="true"
         data-bubble-pop-backdrop=""
-        className="fixed inset-0 -z-10 overflow-hidden bg-[radial-gradient(circle_at_20%_10%,var(--color-white)_0,var(--color-cream)_40%,var(--color-cream-2)_100%)]"
+        className="fixed inset-0 -z-10 overflow-hidden bg-[radial-gradient(circle_at_20%_10%,var(--color-surface)_0,var(--color-cream)_40%,var(--color-cream-2)_100%)]"
       >
         {BLOBS.map(({ colour, className }) => (
           <span

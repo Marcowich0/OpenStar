@@ -1,49 +1,177 @@
+import type { APIRequestContext, Page } from "@playwright/test";
+
 import { expect, newParty, test } from "../fixtures";
 
 // Setup › Options in real Chromium: the Stage opens it from the Setup pill
 // with no Admin PIN, a change is saved at once and kept after a reload, and
-// Reset puts the default back. The options are the server's, so the test
-// leaves the defaults behind.
+// Reset puts the default back, also under a group's Advanced fold. A theme
+// chosen on the Stage recolours a joined Phone with no reload. The options
+// are the server's, so the test leaves the defaults behind.
 
 test.afterEach(async ({ request }) => {
   await request.put("/api/stage-options", { data: {} });
 });
 
-test("the Stage changes an option, keeps it across a reload and resets it", async ({
-  stage,
-}) => {
-  await newParty(stage);
-  const open = async () => {
-    await stage.getByRole("button", { name: "Setup" }).click();
-    await stage.getByRole("menuitem", { name: "Options" }).click();
-    const dialog = stage.getByRole("dialog", { name: "Options" });
-    await expect(dialog).toBeVisible();
-    return dialog;
-  };
+async function openOptions(stage: Page) {
+  await stage.getByRole("button", { name: "Setup" }).click();
+  await stage.getByRole("menuitem", { name: "Options" }).click();
+  const dialog = stage.getByRole("dialog", { name: "Options" });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
 
-  let options = await open();
-  const effects = options.getByRole("switch", { name: "Effects" });
-  await expect(effects).toHaveAttribute("aria-checked", "true");
-  const saved = stage.waitForResponse(
+function saved(stage: Page) {
+  return stage.waitForResponse(
     (response) =>
       response.url().endsWith("/api/stage-options") &&
       response.request().method() === "PUT",
   );
-  await effects.click();
-  expect((await saved).ok()).toBe(true);
-  await expect(effects).toHaveAttribute("aria-checked", "false");
+}
 
+async function reload(stage: Page) {
   await stage.reload();
   await expect(stage.locator("[data-stage-frame]")).toHaveAttribute(
     "data-scene",
     /.+/,
   );
+}
+
+test("the Stage changes an option, keeps it across a reload and resets it", async ({
+  stage,
+}) => {
+  await newParty(stage);
+  const open = () => openOptions(stage);
+
+  let options = await open();
+  await expect(options.getByRole("heading", { level: 3 })).toHaveText([
+    "Players",
+    "Look",
+    "Sing screen",
+    "Sound",
+  ]);
+  // Effects: Off, Calm or Full, at Full.
+  const effects = options.getByRole("group", { name: "Effects" });
+  await expect(effects.getByRole("button")).toHaveText(["Off", "Calm", "Full"]);
+  await expect(effects.getByRole("button", { name: "Full" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  const put = saved(stage);
+  await effects.getByRole("button", { name: "Calm" }).click();
+  expect((await put).ok()).toBe(true);
+  await expect(effects.getByRole("button", { name: "Calm" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await reload(stage);
   options = await open();
-  const kept = options.getByRole("switch", { name: "Effects" });
-  await expect(kept).toHaveAttribute("aria-checked", "false");
+  const kept = options.getByRole("group", { name: "Effects" });
+  await expect(kept.getByRole("button", { name: "Calm" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
 
   await options
     .getByRole("button", { name: "Reset Effects to its default" })
     .click();
-  await expect(kept).toHaveAttribute("aria-checked", "true");
+  await expect(kept.getByRole("button", { name: "Full" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+});
+
+test("an option under Advanced marks its fold, across a reload, until it is reset", async ({
+  stage,
+}) => {
+  await newParty(stage);
+  let options = await openOptions(stage);
+  const sound = options.getByTestId("options-sound");
+  let fold = sound.getByRole("button", { name: /^Advanced/ });
+  await expect(fold).toHaveAttribute("aria-expanded", "false");
+  await expect(fold.getByTestId("options-advanced-changed")).toHaveCount(0);
+
+  await fold.click();
+  const put = saved(stage);
+  await sound
+    .getByRole("button", { name: "Countdown after a pause down" })
+    .click();
+  expect((await put).ok()).toBe(true);
+  await expect(
+    sound.getByLabel("Countdown after a pause", { exact: true }),
+  ).toHaveText("2 seconds");
+  await expect(fold.getByTestId("options-advanced-changed")).toBeVisible();
+
+  await reload(stage);
+  options = await openOptions(stage);
+  fold = options
+    .getByTestId("options-sound")
+    .getByRole("button", { name: /^Advanced/ });
+  await expect(fold).toHaveAttribute("aria-expanded", "false");
+  await expect(fold.getByTestId("options-advanced-changed")).toBeVisible();
+
+  await fold.click();
+  await options
+    .getByRole("button", {
+      name: "Reset Countdown after a pause to its default",
+    })
+    .click();
+  await expect(fold.getByTestId("options-advanced-changed")).toHaveCount(0);
+});
+
+/** The page's background token, as every screen paints it. */
+function background(page: Page): Promise<string> {
+  return page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--color-cream")
+      .trim()
+      .toLowerCase(),
+  );
+}
+
+async function createProfile(request: APIRequestContext): Promise<string> {
+  const name = `Theme ${String(Date.now() % 100000)}`;
+  const response = await request.post("/api/profiles", {
+    data: {
+      name,
+      avatar: { kind: "builtIn", key: "rocket" },
+      favouriteColour: "teal",
+    },
+  });
+  expect(response.ok()).toBe(true);
+  return name;
+}
+
+test("a theme chosen on the Stage recolours the Stage and a joined Phone at once", async ({
+  stage,
+  openPhone,
+  request,
+}) => {
+  const code = await newParty(stage);
+  const name = await createProfile(request);
+  const phone = await openPhone();
+  await phone.goto(`/?join=${code}`);
+  await phone.getByRole("button", { name, exact: true }).click();
+  await expect(phone.getByRole("tab", { name: "Songs" })).toBeVisible();
+
+  // Bubble Pop's cream (tokens.css) on both.
+  expect(await background(stage)).toBe("#fff6e9");
+  expect(await background(phone)).toBe("#fff6e9");
+
+  const options = await openOptions(stage);
+  const theme = options.getByRole("group", { name: "Theme" });
+  const put = saved(stage);
+  await theme.getByRole("button", { name: "Bubble Pop Night" }).click();
+  expect((await put).ok()).toBe(true);
+
+  // Night's deep navy (themes.ts), on the Phone over its WebSocket.
+  await expect.poll(() => background(stage)).toBe("#1b1f3f");
+  await expect.poll(() => background(phone)).toBe("#1b1f3f");
+  await expect(phone.locator("html")).toHaveAttribute(
+    "data-theme",
+    "bubblePopNight",
+  );
+
+  await theme.getByRole("button", { name: "Bubble Pop", exact: true }).click();
+  await expect.poll(() => background(phone)).toBe("#fff6e9");
 });

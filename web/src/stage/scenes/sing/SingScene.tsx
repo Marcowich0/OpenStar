@@ -108,7 +108,7 @@ function SingMessage({
   return (
     <section
       data-sing-scene={view.kind}
-      className="flex h-full items-center justify-center bg-ink text-white"
+      className="flex h-full items-center justify-center bg-ink-fill text-white"
     >
       <h1 className="text-7xl font-bold">{text}</h1>
     </section>
@@ -207,7 +207,7 @@ function Singing({
         {perf.overlay}
         {view.playFailed && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-10">
-            <p className="rounded-card bg-white/90 px-12 py-6 text-5xl text-ink">
+            <p className="rounded-card bg-surface/90 px-12 py-6 text-5xl text-ink">
               {t("stage.sing.playFailed")}
             </p>
             <div data-stage-default>

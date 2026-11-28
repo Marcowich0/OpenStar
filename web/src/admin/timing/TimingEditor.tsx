@@ -157,7 +157,7 @@ export function TimingEditor({ song, store }: TimingEditorProps) {
       <div className="flex flex-wrap items-center gap-3">
         <Link
           to="/admin/songs"
-          className="rounded-full bg-white px-4 py-1.5 text-lg font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+          className="rounded-full bg-surface px-4 py-1.5 text-lg font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
         >
           {t("timing.view.back")}
         </Link>
@@ -215,7 +215,7 @@ function PitchTrackStatus({ load }: { load: PitchTrackLoad }) {
     return (
       <span
         role="status"
-        className="rounded-full bg-ink px-4 py-1.5 text-lg font-semibold text-white"
+        className="rounded-full bg-ink-fill px-4 py-1.5 text-lg font-semibold text-white"
       >
         {load.percent === null
           ? t("timing.view.listening")
@@ -663,7 +663,7 @@ function Editor({
   }, [drawnTime, detailWidth]);
 
   const canvasClass =
-    "block w-full touch-none rounded-[18px] bg-white ring-3 ring-ink";
+    "block w-full touch-none rounded-[18px] bg-surface ring-3 ring-ink";
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div className="flex min-w-0 grow flex-col gap-2">
@@ -714,7 +714,7 @@ function Editor({
             style={{ height: DETAIL_HEIGHT }}
           />
           {dragPreview?.hint && (
-            <p className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 rounded-full bg-ink px-4 py-1 text-base font-semibold whitespace-nowrap text-white tabular-nums">
+            <p className="pointer-events-none absolute top-8 left-1/2 -translate-x-1/2 rounded-full bg-ink-fill px-4 py-1 text-base font-semibold whitespace-nowrap text-white tabular-nums">
               {dragPreview.hint}
             </p>
           )}
@@ -731,7 +731,7 @@ function Editor({
           setFollowVideo={setFollowVideo}
         />
       </div>
-      <aside className="flex w-full shrink-0 flex-col gap-5 rounded-[22px] bg-white p-5 shadow-ledge lg:w-96">
+      <aside className="flex w-full shrink-0 flex-col gap-5 rounded-[22px] bg-surface p-5 shadow-ledge lg:w-96">
         <PlaybackPanel
           ready={element !== null}
           state={playState}
@@ -794,7 +794,7 @@ function Editor({
         <div
           role="group"
           aria-label={t("timing.panel.saveBar")}
-          className="sticky bottom-0 -mx-5 -mb-5 flex flex-col gap-3 rounded-b-[22px] border-t-2 border-ledge bg-white px-5 pt-4 pb-5"
+          className="sticky bottom-0 -mx-5 -mb-5 flex flex-col gap-3 rounded-b-[22px] border-t-2 border-ledge bg-surface px-5 pt-4 pb-5"
         >
           <EditButtons
             canUndo={model.applied.length > 0}
@@ -1018,7 +1018,7 @@ function KeysAndGestures({
       <Heading level={3} className="text-base">
         <AriaButton
           slot="trigger"
-          className="flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+          className="flex items-center gap-2 rounded-full bg-surface px-3.5 py-1.5 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
         >
           <Icon
             name="chevron"
@@ -1075,7 +1075,7 @@ function SongMedia({
   setElement: (element: HTMLMediaElement | null) => void;
   setFollowVideo: (element: HTMLVideoElement | null) => void;
 }) {
-  const box = "w-80 max-w-full rounded-[18px] bg-ink ring-3 ring-ink";
+  const box = "w-80 max-w-full rounded-[18px] bg-ink-fill ring-3 ring-ink";
   return (
     <div className="flex flex-wrap gap-3">
       {plan.element === "video" ? (

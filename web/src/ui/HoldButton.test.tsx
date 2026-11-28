@@ -34,7 +34,7 @@ describe("HoldButton", () => {
       </HoldButton>,
     );
     const classes = screen.getByRole("button", { name: "Delete" }).classList;
-    expect(classes).toContain("bg-white");
+    expect(classes).toContain("bg-surface");
     expect(classes).toContain("text-red");
     expect(classes).toContain("ring-red");
     expect(classes).not.toContain("bg-red");

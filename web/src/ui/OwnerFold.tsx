@@ -39,7 +39,7 @@ export function OwnerFold({
         <>
           <AriaButton
             slot="trigger"
-            className="inline-flex items-center gap-2 rounded-full bg-white px-[0.8em] py-[0.3em] font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+            className="inline-flex items-center gap-2 rounded-full bg-surface px-[0.8em] py-[0.3em] font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
           >
             <Icon
               name="chevron"

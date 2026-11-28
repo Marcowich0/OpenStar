@@ -4,12 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Note } from "../../generated/Note";
 import type { ParsedSong } from "../../generated/ParsedSong";
+import { applyTheme } from "../../theme/themes";
 import { singVoices, type SingState } from "./frame";
 import { confettiBurst, ParticlePool } from "./effects";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
 import { laneLayout } from "./laneLayout";
 import { lineEnded, LineRatings } from "./lineRating";
 import { LanePanels, SingScreen } from "./SingScreen";
+import { DEFAULT_SING_LOOK, singLayout } from "./singLook";
 
 // The real lane layout, watched: the panels are placed by it.
 vi.mock(import("./laneLayout"), async (original) => {
@@ -103,6 +105,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  applyTheme("bubblePop");
 });
 
 function runFrame(timestamp = 0) {
@@ -232,9 +235,12 @@ describe("SingScreen", () => {
       />,
     );
     const panel = container.querySelector<HTMLElement>("[data-lane-panel]");
-    expect(panel?.className).toMatch(/\bbg-white\/66\b/);
-    expect(panel?.className).toMatch(/\bbackdrop-blur-lg\b/);
-    expect(panel?.className).toMatch(/\bbackdrop-saturate-130\b/);
+    expect(panel?.style.backgroundColor).toBe(
+      "color-mix(in oklab, var(--color-surface) 66%, transparent)",
+    );
+    expect(panel?.style.getPropertyValue("backdrop-filter")).toBe(
+      "blur(16px) saturate(130%)",
+    );
     expect(panel?.style.borderRadius).toBe("40px");
     expect(panel?.style.boxShadow).toBe(
       "0 10px 0 var(--color-lane-ledge), 0 20px 40px var(--color-lane-shadow)",
@@ -242,6 +248,73 @@ describe("SingScreen", () => {
     const tint = panel?.firstElementChild as HTMLElement | null;
     expect(tint?.className).toMatch(/\bopacity-16\b/);
     expect(tint?.style.backgroundColor).toBe("var(--color-party-cherry)");
+  });
+
+  it("frosts the lane panels at the Lane frosting option", () => {
+    const { container } = render(
+      <SingScreen
+        state={{
+          ...state,
+          look: { ...DEFAULT_SING_LOOK, laneFrostingPercent: 40 },
+        }}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    for (const panel of container.querySelectorAll<HTMLElement>(
+      "[data-lane-panel]",
+    )) {
+      expect(panel.style.backgroundColor).toBe(
+        "color-mix(in oklab, var(--color-surface) 40%, transparent)",
+      );
+    }
+  });
+
+  it("makes the lane panels solid with no blur in High contrast, whatever the Lane frosting, as soon as it shows", () => {
+    const { container } = render(
+      <SingScreen
+        state={{
+          ...state,
+          look: { ...DEFAULT_SING_LOOK, laneFrostingPercent: 40 },
+        }}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    act(() => {
+      applyTheme("highContrast");
+    });
+    const panels = container.querySelectorAll<HTMLElement>("[data-lane-panel]");
+    expect(panels).toHaveLength(2);
+    for (const panel of panels) {
+      expect(panel.style.backgroundColor).toBe(
+        "color-mix(in oklab, var(--color-surface) 100%, transparent)",
+      );
+      expect(panel.style.getPropertyValue("backdrop-filter")).toBe("none");
+    }
+  });
+
+  it("moves the panels and headers up above an xl lyric bar", () => {
+    const four: SingState = {
+      ...state,
+      lanes: [...state.lanes, ...state.lanes],
+      look: { ...DEFAULT_SING_LOOK, lyricSize: "xl" },
+    };
+    const { container } = render(
+      <SingScreen
+        state={four}
+        clock={{ songTime: () => 3 }}
+        avOffset={() => 0}
+      />,
+    );
+    const layout = singLayout(four);
+    expect(layout[3]?.y).toBeLessThan(laneLayout(4)[3]?.y ?? 0);
+    const panels = container.querySelectorAll<HTMLElement>("[data-lane-panel]");
+    expect([...panels].map((p) => p.style.top)).toEqual(
+      layout.map((lane) => `${String(lane.y)}px`),
+    );
+    const bar = container.querySelector<HTMLElement>("[data-lyric-line]");
+    expect(bar?.style.fontSize).toBe("117px");
   });
 
   it('heads each lane with the avatar, the name, "guest" for a Guest, and the running Score', () => {
@@ -325,7 +398,7 @@ describe("SingScreen", () => {
     confettiBurst(effects, 400, 500, "cherry");
     const { container } = render(
       <SingScreen
-        state={{ ...state, effects }}
+        state={{ ...state, particles: effects }}
         clock={{ songTime: () => 3 }}
         avOffset={() => 0}
       />,
@@ -352,7 +425,7 @@ describe("SingScreen", () => {
     confettiBurst(effects, 400, 500, "cherry");
     render(
       <SingScreen
-        state={{ ...state, effects }}
+        state={{ ...state, particles: effects }}
         clock={{ songTime: () => 3 }}
         avOffset={() => 0}
         frameTime={() => 0}
@@ -600,7 +673,7 @@ describe("a lane whose Mic is lost", () => {
       .getByText("Mia's mic lost")
       .closest<HTMLElement>("[data-lane-lost]");
     expect(pill).toBeVisible();
-    expect(pill).toHaveClass("bg-ink", "text-white", "rounded-full");
+    expect(pill).toHaveClass("bg-ink-fill", "text-white", "rounded-full");
     // Centred 150 px right of the lane's middle, on its vertical centre.
     const rect = laneLayout(2)[0];
     if (!rect || !pill) throw new Error("no lane");

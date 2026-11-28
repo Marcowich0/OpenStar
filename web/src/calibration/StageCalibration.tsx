@@ -93,7 +93,7 @@ export function StageCalibration() {
                       chosen: !entry.chosen,
                     });
                   }}
-                  className="flex min-h-19 w-full cursor-pointer items-center gap-6 rounded-card bg-white px-8 text-3xl font-semibold shadow-ledge-sm"
+                  className="flex min-h-19 w-full cursor-pointer items-center gap-6 rounded-card bg-surface px-8 text-3xl font-semibold shadow-ledge-sm"
                 >
                   <span
                     aria-hidden="true"
@@ -132,7 +132,7 @@ export function StageCalibration() {
             {run.mics.map((entry) => (
               <li
                 key={JSON.stringify(entry.mic)}
-                className="flex min-h-19 items-center justify-between rounded-card bg-white px-8 text-3xl"
+                className="flex min-h-19 items-center justify-between rounded-card bg-surface px-8 text-3xl"
                 data-ready={entry.ready}
               >
                 <span className="font-semibold">{nameOf(entry.mic)}</span>
@@ -172,7 +172,7 @@ export function StageCalibration() {
             {run.mics.map((entry) => (
               <li
                 key={JSON.stringify(entry.mic)}
-                className="rounded-card bg-white px-8 py-5 text-3xl"
+                className="rounded-card bg-surface px-8 py-5 text-3xl"
                 data-result={entry.outcome?.result ?? "failed"}
               >
                 {calibrationResultText(entry, nameOf(entry.mic))}

@@ -19,7 +19,7 @@ import { isTextField } from "./focusables";
 import { useStageFrame, useStageKeys } from "./stageFrameContext";
 
 const PILL =
-  "pointer-events-auto absolute top-12 left-12 inline-flex min-h-14 cursor-pointer items-center rounded-full bg-white px-7 text-2xl font-semibold text-ink shadow-ledge-sm";
+  "pointer-events-auto absolute top-12 left-12 inline-flex min-h-14 cursor-pointer items-center rounded-full bg-surface px-7 text-2xl font-semibold text-ink shadow-ledge-sm";
 
 const selectQueue = (live: LiveState) => live.stage?.party?.queue ?? null;
 
@@ -65,7 +65,7 @@ function UpNextBanner({ head }: { head: RequestId }) {
           : t("stage.browse.backTo", { song: title })
       }
       onClick={backToLineUp}
-      className="pointer-events-auto absolute bottom-12 left-12 flex max-w-[600px] cursor-pointer items-center gap-5 rounded-card-sm bg-white p-4 pr-8 text-left shadow-ledge-sm ring-6 ring-green"
+      className="pointer-events-auto absolute bottom-12 left-12 flex max-w-[600px] cursor-pointer items-center gap-5 rounded-card-sm bg-surface p-4 pr-8 text-left shadow-ledge-sm ring-6 ring-green"
     >
       <Cover
         src={song?.cover ?? null}

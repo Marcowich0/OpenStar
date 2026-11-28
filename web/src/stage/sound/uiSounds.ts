@@ -18,12 +18,12 @@ import { dbToGain, volumeGain } from "../../playback/gain";
 import { effectsOff, stageOptions } from "../../stageOptions/stageOptions";
 
 /**
- * The UI sounds level (0–100 %) until Options › Sound has it (#270, "UI
- * sounds" in Audio mix). That ticket replaces this reader with the option.
+ * The UI sounds level (0–100 %): the Stage option Options › Sound › UI
+ * sounds, read for each sound, so a change applies to the next one. 0 is
+ * off: no UI or game sound plays.
  */
-export const UI_SOUNDS_LEVEL = 60;
 export function uiSoundsLevel(): number {
-  return UI_SOUNDS_LEVEL;
+  return stageOptions().current().uiSoundsPercent;
 }
 
 /** How much lower UI sounds play while a Song plays, dB. */

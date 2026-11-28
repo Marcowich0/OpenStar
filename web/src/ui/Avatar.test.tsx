@@ -72,7 +72,7 @@ describe("Avatar", () => {
     expect(initial?.getAttribute("stroke-width")).toBe("7");
     expect(initial?.getAttribute("paint-order")).toBe("stroke fill");
     expect(initial?.style.fill).toBe("var(--color-white)");
-    expect(initial?.style.stroke).toBe("var(--color-ink)");
+    expect(initial?.style.stroke).toBe("var(--color-on-bright)");
     expect(initial?.getAttribute("class")).toContain("font-sans");
   });
 

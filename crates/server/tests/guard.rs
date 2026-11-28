@@ -405,6 +405,9 @@ fn every_client_message() -> Vec<ClientMessage> {
             request_id: RequestId(1),
         },
         ClientMessage::ReportMicBlocked { blocked: true },
+        ClientMessage::SetStageOptions {
+            options: openstar_protocol::stage_options::StageOptionsChange::default(),
+        },
         ClientMessage::ReportStageOutput {
             stage_browser: String::new(),
             stage_output: String::new(),
@@ -412,6 +415,7 @@ fn every_client_message() -> Vec<ClientMessage> {
         ClientMessage::StepVolume {
             step: openstar_protocol::volume::VolumeStep::Up,
         },
+        ClientMessage::SetVolume { volume: 80 },
         ClientMessage::StartAvSync,
         ClientMessage::StepAvSync {
             step: openstar_protocol::av_offset::AvSyncStep::Up,
@@ -1045,23 +1049,36 @@ const V1_ACTIONS: &[Action] = {
         Action {
             name: "Setting the OpenStar volume, from the Stage or a Remote",
             needs: Nothing,
-            via: &[Ws("stepVolume"), Ws("reportStageOutput")],
-            proofs: &[(
-                "stage_outputs.rs",
-                "a_joined_remote_steps_the_volume_with_no_pin_and_every_browser_hears_it",
-            )],
+            via: &[Ws("stepVolume"), Ws("setVolume"), Ws("reportStageOutput")],
+            proofs: &[
+                (
+                    "stage_outputs.rs",
+                    "a_joined_remote_steps_the_volume_with_no_pin_and_every_browser_hears_it",
+                ),
+                (
+                    "stage_outputs.rs",
+                    "the_stage_or_a_joined_remote_sets_the_volume_and_it_is_kept",
+                ),
+            ],
         },
         Action {
-            name: "Reading and setting the Stage options (Setup › Options)",
+            name: "Reading and setting the Stage options (Setup › Options, and a Phone's Stage tab)",
             needs: Nothing,
             via: &[
                 Http("GET", "/api/stage-options"),
                 Http("PUT", "/api/stage-options"),
+                Ws("setStageOptions"),
             ],
-            proofs: &[(
-                "stage_options.rs",
-                "anyone_sets_them_and_they_survive_a_restart",
-            )],
+            proofs: &[
+                (
+                    "stage_options.rs",
+                    "anyone_sets_them_and_they_survive_a_restart",
+                ),
+                (
+                    "stage_options_remote.rs",
+                    "a_phone_sets_them_and_the_stage_hears_who_changed_what",
+                ),
+            ],
         },
         Action {
             name: "Hiding the join card",

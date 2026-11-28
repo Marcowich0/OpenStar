@@ -107,6 +107,8 @@ export interface HeadBallEntry {
 
 /** The head ball's bounce at its widest: 14 % (#55). */
 export const HEAD_BALL_SQUASH = 0.14;
+/** A head ball that does not bounce (Effects calm or off). */
+const ROUND = { x: 1, y: 1 } as const;
 /** The bounce's speed, radians of Song time per second, as in the prototype. */
 const BOUNCE_RATE = 9;
 
@@ -197,6 +199,10 @@ export interface TraceLane {
   notesX: number;
   /** Lane height, for the narrow-lane sizes. */
   height: number;
+  /** The head ball bounces (Effects full); otherwise it holds round. */
+  bounce: boolean;
+  /** The theme's ink edge, as a share of Bubble Pop's: 1, or 1.5 in High contrast. */
+  inkEdge: number;
   /** Maps a Note pitch to y. */
   low: number;
   range: number;
@@ -223,13 +229,15 @@ const NARROW_LANE = 130;
 /**
  * A pitch line run's entry in lane `lane` (of height `laneHeight`, for the
  * narrow-lane sizes), drawing `points`: the sing screen's line, and the pause
- * menu legend's samples (#258).
+ * menu legend's samples (#258). `inkEdge` is the theme's ink edge, as a share
+ * of Bubble Pop's (`TraceLane.inkEdge`).
  */
 export function pitchLineEntry(
   lane: number,
   colour: PaletteKey,
   laneHeight: number,
   points: TracePoint[],
+  inkEdge = 1,
 ): PitchLineEntry {
   const narrow = laneHeight < NARROW_LANE;
   const width = narrow ? 9 : 12;
@@ -237,7 +245,12 @@ export function pitchLineEntry(
     type: "pitchLine",
     lane,
     points,
-    hit: { colour, width, edge: EDGE, edgeWidth: width + EDGE_EXTRA },
+    hit: {
+      colour,
+      width,
+      edge: EDGE,
+      edgeWidth: width + EDGE_EXTRA * inkEdge,
+    },
     miss: narrow ? MISS_NARROW : MISS_WIDE,
   };
 }
@@ -306,7 +319,7 @@ function addPoint(songTime: number, beat: number, guessed: boolean) {
   };
   if (!run) {
     run = [];
-    out.push(pitchLineEntry(g.lane, g.colour, g.height, run));
+    out.push(pitchLineEntry(g.lane, g.colour, g.height, run, g.inkEdge));
   }
   run.push(point);
 }
@@ -392,7 +405,7 @@ export function traceLane(
         colour: g.colour,
         rim: "--color-white",
         rimWidth: 3,
-        squash: headBallSquash(songTime, g.lane),
+        squash: g.bounce ? headBallSquash(songTime, g.lane) : ROUND,
         golden: lastGolden,
       } satisfies HeadBallEntry);
     }

@@ -684,6 +684,9 @@ export function createPainter(
           case "lyric":
             // DOM text: the render loop writes it to the lyric bar.
             break;
+          case "lyricBar":
+            // The DOM lyric bar, sized from the same box.
+            break;
           case "lineRating":
             // DOM text too: the render loop writes it beside the lane header.
             break;

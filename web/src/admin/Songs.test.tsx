@@ -191,10 +191,10 @@ describe("the Songs section", () => {
     const row = within(rows()[0] as HTMLElement);
     const timing = row.getByRole("link", { name: "Timing of Waterloo" });
     const remove = row.getByRole("button", { name: "Delete Waterloo" });
-    expect(timing.classList).toContain("bg-ink");
+    expect(timing.classList).toContain("bg-ink-fill");
     expect(timing.classList).toContain("text-white");
     // Delete is red on white, with a red ring: never a red fill.
-    expect(remove.classList).toContain("bg-white");
+    expect(remove.classList).toContain("bg-surface");
     expect(remove.classList).toContain("text-red");
     expect(remove.classList).toContain("ring-red");
     expect(remove.classList).not.toContain("bg-red");

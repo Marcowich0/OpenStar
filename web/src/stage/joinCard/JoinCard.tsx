@@ -110,7 +110,7 @@ export function JoinCard({
       <aside
         data-layout={layout}
         style={layout === "tall" ? { width: TALL_CARD_WIDTH_PX } : undefined}
-        className={`relative flex items-center gap-4 rounded-card bg-white p-7 text-ink shadow-ledge-lg ${layout === "wide" ? "max-w-[760px] flex-row gap-7" : "flex-col"}`}
+        className={`relative flex items-center gap-4 rounded-card bg-surface p-7 text-ink shadow-ledge-lg ${layout === "wide" ? "max-w-[760px] flex-row gap-7" : "flex-col"}`}
       >
         {join.warning === "none" ? (
           <QrCode
@@ -135,7 +135,7 @@ export function JoinCard({
             onPress={() => {
               hide(true);
             }}
-            className="absolute -top-5 -right-3 rounded-full bg-ink px-5 py-1.5 text-[22px] font-semibold text-white shadow-ledge-ink outline-none"
+            className="absolute -top-5 -right-3 rounded-full bg-ink-fill px-5 py-1.5 text-[22px] font-semibold text-white shadow-ledge-ink outline-none"
           >
             {t("stage.joinCard.hide")}
           </AriaButton>
@@ -153,7 +153,7 @@ function CodeBoxes({ joinCode }: { joinCode: string }) {
         <b
           // The same digit can appear twice; the position is its identity.
           key={i}
-          className="flex h-[95px] w-[78px] items-center justify-center rounded-[22px] bg-white text-[63px] leading-none font-bold tabular-nums shadow-[0_6px_0_var(--color-ledge),inset_0_0_0_3px_var(--color-passed)]"
+          className="flex h-[95px] w-[78px] items-center justify-center rounded-[22px] bg-surface text-[63px] leading-none font-bold tabular-nums shadow-[0_6px_0_var(--color-ledge),inset_0_0_0_3px_var(--color-passed)]"
         >
           {digit}
         </b>

@@ -25,7 +25,7 @@ export function Card({
 }: CardProps) {
   return (
     <div
-      className={`bg-white text-ink shadow-ledge-lg ${RADIUS_CLASSES[radius]} ${popIn ? "animate-pop-in" : ""} ${className}`}
+      className={`bg-surface text-ink shadow-ledge-lg ${RADIUS_CLASSES[radius]} ${popIn ? "animate-pop-in" : ""} ${className}`}
     >
       {children}
     </div>

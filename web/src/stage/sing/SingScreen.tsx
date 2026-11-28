@@ -19,7 +19,9 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { SongClock } from "../../clock/songClock";
+import { shownTheme, THEMES } from "../../theme/themes";
 import { readToken, tokenVar } from "../../theme/tokens";
+import { useShownTheme } from "../../theme/useShownTheme";
 import { t } from "../../i18n/t";
 import { Avatar } from "../../ui/Avatar";
 import { Icon } from "../../ui/Icon";
@@ -32,7 +34,7 @@ import {
   createLineRatingWriter,
   type LineRatingWriter,
 } from "./lineRatingWriter";
-import { laneLayout, type LaneRect } from "./laneLayout";
+import type { LaneRect } from "./laneLayout";
 import { createLyricDriver, LyricBar } from "./LyricBar";
 import {
   coverTransform,
@@ -41,6 +43,14 @@ import {
   type ReferenceTransform,
 } from "./painter";
 import { createRenderLoop } from "./renderLoop";
+import {
+  DEFAULT_SING_LOOK,
+  laneFill,
+  sameLook,
+  singLayout,
+  surfaceFillStyle,
+  type SingLook,
+} from "./singLook";
 
 export interface SingScreenProps {
   /** What to sing: the Song's Voices and one lane per Player. */
@@ -163,6 +173,7 @@ export function SingScreen({
       clock: () => latest.current.clock,
       avOffset: () => latest.current.avOffset(),
       state: () => latest.current.state,
+      theme: () => THEMES[shownTheme()].sing,
       frameTime: (timestamp) => latest.current.frameTime?.() ?? timestamp,
       paint: (list: DrawList) => {
         const view = latest.current.viewport;
@@ -201,13 +212,13 @@ export function SingScreen({
     transform: `translate(${String(frame.x)}px, ${String(frame.y)}px) scale(${String(frame.scale)})`,
     transformOrigin: "0 0",
   };
-  const lanes = laneLayout(state.lanes.length);
+  const lanes = singLayout(state);
 
   return (
     <div
       ref={rootRef}
       data-sing-screen
-      className="fixed inset-0 overflow-hidden bg-ink font-sans"
+      className="fixed inset-0 overflow-hidden bg-ink-fill font-sans"
     >
       <div data-layer="backdrop" className="absolute inset-0">
         {backdrop}
@@ -223,7 +234,11 @@ export function SingScreen({
         className="pointer-events-none absolute top-0 left-0"
         style={referenceStyle}
       >
-        <LanePanels lanes={state.lanes} />
+        <LanePanels
+          lanes={state.lanes}
+          voices={state.voices}
+          look={state.look}
+        />
       </div>
       <canvas
         ref={lanesRef}
@@ -258,7 +273,7 @@ export function SingScreen({
         {lanes.map((_, i) => (
           <LineRatingWord key={i} index={i} writer={ratings} />
         ))}
-        <LyricBar voices={state.voices} driver={lyrics} />
+        <LyricBar voices={state.voices} driver={lyrics} look={state.look} />
       </div>
       <canvas
         ref={effectsRef}
@@ -273,33 +288,51 @@ export function SingScreen({
   );
 }
 
-/** Panels change only with the Line-up: how many Players, in which colours. */
-function sameLineUp(
-  a: { lanes: readonly SingLane[] },
-  b: { lanes: readonly SingLane[] },
-): boolean {
+interface LanePanelsProps {
+  lanes: readonly SingLane[];
+  /** The Song's Voices: a duet's lyric bar is taller. None: one Voice. */
+  voices?: SingState["voices"];
+  /** The lyric bar's size and the frosting; none: `DEFAULT_SING_LOOK`. */
+  look?: SingLook | undefined;
+}
+
+/**
+ * Panels change only with the Line-up (how many Players, in which colours),
+ * the Voice count and the look.
+ */
+function sameLineUp(a: LanePanelsProps, b: LanePanelsProps): boolean {
   return (
     a.lanes.length === b.lanes.length &&
-    a.lanes.every((lane, i) => lane.colour === b.lanes[i]?.colour)
+    a.lanes.every((lane, i) => lane.colour === b.lanes[i]?.colour) &&
+    (a.voices?.length ?? 1) === (b.voices?.length ?? 1) &&
+    sameLook(a.look ?? DEFAULT_SING_LOOK, b.look ?? DEFAULT_SING_LOOK)
   );
 }
 
 /**
  * The frosted lane panels (DOM, for the backdrop blur), one per lane, placed
- * by the same `laneLayout` as the canvas and tinted in the Party colour. They
- * re-render only when the Line-up changes, not when a Score or a frame does.
+ * by the same `singLayout` as the canvas, frosted by the same `laneFill` as
+ * the draw list's lanes (solid in High contrast) and tinted in the Party
+ * colour. They re-render only when the Line-up, the look or the shown theme
+ * changes, not when a Score or a frame does.
  */
 export const LanePanels = memo(function LanePanels({
   lanes,
-}: {
-  lanes: readonly SingLane[];
-}) {
-  return laneLayout(lanes.length).map((lane, i) => (
+  voices = [],
+  look = DEFAULT_SING_LOOK,
+}: LanePanelsProps) {
+  const fill = surfaceFillStyle(
+    laneFill(look, THEMES[useShownTheme()].sing),
+    "oklab",
+    "saturate(130%)",
+  );
+  return singLayout({ lanes, voices, look }).map((lane, i) => (
     <div
       key={i}
       data-lane-panel
-      className="absolute overflow-hidden bg-white/66 backdrop-blur-lg backdrop-saturate-130"
+      className="absolute overflow-hidden"
       style={{
+        ...fill,
         left: `${String(lane.x)}px`,
         top: `${String(lane.y)}px`,
         width: `${String(lane.width)}px`,
@@ -445,7 +478,7 @@ function MicLostPill({
       ref={lost.pill(index)}
       data-lane-lost
       hidden
-      className="absolute flex -translate-1/2 items-center gap-3.5 rounded-full bg-ink py-2.5 pr-7 pl-3.5 text-[28px] font-semibold whitespace-nowrap text-white shadow-ledge-mic-lost"
+      className="absolute flex -translate-1/2 items-center gap-3.5 rounded-full bg-ink-fill py-2.5 pr-7 pl-3.5 text-[28px] font-semibold whitespace-nowrap text-white shadow-ledge-mic-lost"
       style={{
         left: `${String(rect.x + rect.width / 2 + 150)}px`,
         top: `${String(rect.y + rect.height / 2)}px`,

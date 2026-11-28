@@ -6,19 +6,22 @@
  *
  * The Stage's holder, `stageOptions()`, has them where code outside React
  * reads them without waiting: a Song's Start (effects, Line ratings, skipping
- * its Intro), each resume (the countdown) and each preview (its volume).
+ * its Intro), each resume (the countdown), each preview (its volume) and each
+ * UI sound (its level).
  * Until they load it holds the defaults, which are the behaviour before the
  * options existed. `StageOptionsLoader` fills it.
  *
  * To add an option: its field in `crates/protocol/src/stage_options.rs`, its
- * default and range in `STAGE_OPTIONS` below, and its row in
- * `OptionsScreen.tsx`.
+ * default and range in `STAGE_OPTIONS` below, its name in `optionNames.ts`,
+ * and its row in `OptionsList.tsx`.
  */
 
 import { queryOptions } from "@tanstack/react-query";
 
 import { api } from "../api/api";
 import type { StageOptions } from "../generated/StageOptions";
+import { DEFAULT_THEME } from "../theme/themeNames";
+import { DEFAULT_EFFECTS, EFFECTS } from "./effects";
 
 export type { StageOptions };
 
@@ -31,13 +34,24 @@ export const STAGE_OPTIONS = {
     startingDifficulty: "medium",
     resumeCountdownSeconds: 3,
     lineRatings: true,
-    effects: true,
+    effects: DEFAULT_EFFECTS,
     songVideo: true,
     previewVolumePercent: 100,
     skipIntros: false,
+    lyricSize: "m",
+    showNextLine: true,
+    laneFrostingPercent: 66,
+    theme: DEFAULT_THEME,
+    uiSoundsPercent: 60,
   } satisfies StageOptions,
-  resumeCountdownMaxSeconds: 5,
-  previewVolumeStepPercent: 10,
+  /** 0 (plays on at once) to 5 seconds. */
+  resumeCountdown: { min: 0, max: 5, step: 1 },
+  /** 0 to 100 % of the Song's level in 10s. */
+  previewVolume: { min: 0, max: 100, step: 10 },
+  /** 40 to 90 % in 10s; the default, 66, is off the steps. */
+  laneFrosting: { min: 40, max: 90, step: 10 },
+  /** The UI and game sounds, 0 (off) to 100 % in 10s. */
+  uiSounds: { min: 0, max: 100, step: 10 },
 } as const;
 
 /** The defaults, as a fresh `StageOptions`. */
@@ -91,12 +105,11 @@ export function previewGain(percent: number): number {
 }
 
 /**
- * Whether the Stage options turn Effects off: the one reader of that
- * setting, for the motion mode, the sing screen's effects and background,
- * the results bars (through the motion mode) and the UI sounds. Today
- * `effects` is a switch; #268 makes it `"off" | "calm" | "full"` (a stored
- * `false` reads as `"off"`), and this becomes `options.effects === "off"`.
+ * Whether the Stage options turn Effects off (`EFFECTS.off`: only Off, not
+ * Calm), for the motion mode (its fades), the sing screen's background
+ * blobs, the results bars (through the motion mode) and the effect sounds.
+ * What Calm and Full show on the sing screen is `EFFECTS`' other tests.
  */
 export function effectsOff(options: Pick<StageOptions, "effects">): boolean {
-  return !options.effects;
+  return EFFECTS.off(options.effects);
 }

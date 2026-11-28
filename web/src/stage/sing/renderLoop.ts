@@ -15,9 +15,17 @@
  */
 
 import type { SongClock } from "../../clock/songClock";
+import { DEFAULT_EFFECTS, EFFECTS } from "../../stageOptions/effects";
+import type { SingTheme } from "../../theme/themes";
 import { GoldenSparkles } from "./effects";
 import { frame, type DrawList, type SingState } from "./frame";
-import { laneLayout, type LaneLayout } from "./laneLayout";
+import type { LaneLayout } from "./laneLayout";
+import {
+  DEFAULT_SING_LOOK,
+  DEFAULT_SING_THEME,
+  lanesBottom,
+  singLayout,
+} from "./singLook";
 
 export interface RenderLoopOptions {
   /** The current Song clock (#96). Only its `songTime()` is read. */
@@ -26,6 +34,11 @@ export interface RenderLoopOptions {
   avOffset: () => number;
   /** The current sing state, read each frame (no React re-render). */
   state: () => SingState;
+  /**
+   * The shown theme's sing screen, read each frame, so a theme the Stage
+   * switches to mid-Song shows on the next frame; Bubble Pop's by default.
+   */
+  theme?: () => SingTheme;
   /** Turns a draw list into pixels. */
   paint: (list: DrawList) => void;
   /**
@@ -57,6 +70,7 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
       window.cancelAnimationFrame(handle);
     });
   let layout: LaneLayout = [];
+  let layoutBottom = NaN;
   const sparkles = new GoldenSparkles();
   let handle: number | null = null;
   /** The previous animation frame's time, ms; null on the first frame. */
@@ -64,17 +78,29 @@ export function createRenderLoop(options: RenderLoopOptions): RenderLoop {
 
   function step(delta = 0) {
     const state = options.state();
-    state.effects?.advance(delta);
+    state.particles?.advance(delta);
     state.ratings?.advance(delta);
-    if (layout.length !== state.lanes.length) {
-      layout = laneLayout(state.lanes.length);
+    // Laid out again only when the lane count or the bar's height changes.
+    const bottom = lanesBottom(
+      state.look ?? DEFAULT_SING_LOOK,
+      state.voices.length,
+    );
+    if (layout.length !== state.lanes.length || bottom !== layoutBottom) {
+      layout = singLayout(state);
+      layoutBottom = bottom;
     }
     // The one place the drawing time is read.
     const drawTime = options.clock().songTime() - options.avOffset();
-    const list = frame(state, drawTime, layout);
-    // A head ball on a golden Note sparkles; the new particles show from
-    // the next frame on.
-    if (state.effects) sparkles.emit(list, state.effects, delta);
+    const theme = options.theme?.() ?? DEFAULT_SING_THEME;
+    const list = frame(state, drawTime, layout, theme);
+    // A head ball on a golden Note sparkles (Effects full or calm); the new
+    // particles show from the next frame on.
+    if (
+      state.particles &&
+      EFFECTS.sparkles(state.effectsMode ?? DEFAULT_EFFECTS)
+    ) {
+      sparkles.emit(list, state.particles, delta);
+    }
     options.paint(list);
   }
 

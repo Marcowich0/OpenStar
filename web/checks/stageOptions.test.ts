@@ -23,22 +23,50 @@ describe("the Stage options", () => {
     };
     const number = (name: string) => Number(constant(name, "u8"));
     const bool = (name: string) => constant(name, "bool") === "true";
-    const difficulty = constant(
-      "STARTING_DIFFICULTY_DEFAULT",
-      "Difficulty",
-    ).replace("Difficulty::", "");
+    /** An enum's default, `Type::FooBar`, as its camelCase name `fooBar`. */
+    const variant = (name: string, type: string) => {
+      const value = constant(name, type).replace(`${type}::`, "");
+      return value.charAt(0).toLowerCase() + value.slice(1);
+    };
     expect(STAGE_OPTIONS).toEqual({
       defaults: {
-        startingDifficulty: difficulty.toLowerCase(),
+        startingDifficulty: variant(
+          "STARTING_DIFFICULTY_DEFAULT",
+          "Difficulty",
+        ),
         resumeCountdownSeconds: number("RESUME_COUNTDOWN_DEFAULT_SECONDS"),
         lineRatings: bool("LINE_RATINGS_DEFAULT"),
-        effects: bool("EFFECTS_DEFAULT"),
+        effects: variant("EFFECTS_DEFAULT", "Effects"),
         songVideo: bool("SONG_VIDEO_DEFAULT"),
         previewVolumePercent: number("PREVIEW_VOLUME_DEFAULT_PERCENT"),
         skipIntros: bool("SKIP_INTROS_DEFAULT"),
+        lyricSize: variant("LYRIC_SIZE_DEFAULT", "LyricSize"),
+        showNextLine: bool("SHOW_NEXT_LINE_DEFAULT"),
+        laneFrostingPercent: number("LANE_FROSTING_DEFAULT_PERCENT"),
+        theme: variant("THEME_DEFAULT", "Theme"),
+        uiSoundsPercent: number("UI_SOUNDS_DEFAULT_PERCENT"),
       },
-      resumeCountdownMaxSeconds: number("RESUME_COUNTDOWN_MAX_SECONDS"),
-      previewVolumeStepPercent: number("PREVIEW_VOLUME_STEP_PERCENT"),
+      // Seconds and percentages start at 0; the percentages end at 100.
+      resumeCountdown: {
+        min: 0,
+        max: number("RESUME_COUNTDOWN_MAX_SECONDS"),
+        step: 1,
+      },
+      previewVolume: {
+        min: 0,
+        max: 100,
+        step: number("PREVIEW_VOLUME_STEP_PERCENT"),
+      },
+      laneFrosting: {
+        min: number("LANE_FROSTING_MIN_PERCENT"),
+        max: number("LANE_FROSTING_MAX_PERCENT"),
+        step: number("LANE_FROSTING_STEP_PERCENT"),
+      },
+      uiSounds: {
+        min: 0,
+        max: 100,
+        step: number("UI_SOUNDS_STEP_PERCENT"),
+      },
     });
   });
 });

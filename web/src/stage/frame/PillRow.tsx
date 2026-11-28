@@ -15,7 +15,7 @@ import { useStageFrame } from "./stageFrameContext";
 const selectParty = (live: LiveState) => live.stage?.party ?? null;
 
 const PILL =
-  "inline-flex min-h-14 cursor-pointer items-center rounded-full bg-white px-7 text-2xl font-semibold text-ink shadow-ledge-sm";
+  "inline-flex min-h-14 cursor-pointer items-center rounded-full bg-surface px-7 text-2xl font-semibold text-ink shadow-ledge-sm";
 
 const SETUP_ENTRIES = [
   ["mics", "stage.overlay.mics"],

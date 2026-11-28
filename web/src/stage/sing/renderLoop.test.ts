@@ -6,7 +6,9 @@ import { frame, singVoices, type DrawList, type SingState } from "./frame";
 import { ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 import { LineRatings } from "./lineRating";
+import { singLayout } from "./singLook";
 import { PitchBuffer } from "../../pitch/pitchBuffer";
+import { THEMES, type SingTheme } from "../../theme/themes";
 import { SPARKLE_RATE } from "./effects";
 import { createRenderLoop } from "./renderLoop";
 
@@ -34,6 +36,7 @@ function setup(
     avOffset?: number;
     state?: () => SingState;
     frameTime?: () => number;
+    theme?: () => SingTheme;
   } = {},
 ) {
   let now = 0;
@@ -47,6 +50,7 @@ function setup(
     requestFrame: (cb) => callbacks.push(cb),
     cancelFrame: vi.fn(),
     ...(options.frameTime && { frameTime: options.frameTime }),
+    ...(options.theme && { theme: options.theme }),
   });
   return {
     loop,
@@ -93,6 +97,35 @@ describe("the render loop", () => {
     expect(painted[1]).toEqual(frame(current, 3, laneLayout(2)));
   });
 
+  it("lays the lanes out above the lyric bar of the state's look", () => {
+    let current: SingState = {
+      ...state,
+      lanes: [...state.lanes, ...state.lanes, ...state.lanes, ...state.lanes],
+    };
+    const { at, painted } = setup({ state: () => current });
+    at(3);
+    current = {
+      ...current,
+      look: { lyricSize: "xl", showNextLine: true, laneFrostingPercent: 66 },
+    };
+    at(3);
+    expect(painted[1]).toEqual(frame(current, 3, singLayout(current)));
+    expect(painted[1]).not.toEqual(frame(current, 3, laneLayout(4)));
+  });
+
+  it("draws each frame in the theme shown at that frame", () => {
+    let theme = THEMES.bubblePop.sing;
+    const { at, painted } = setup({ theme: () => theme });
+    at(3);
+    theme = THEMES.highContrast.sing;
+    at(3);
+    expect(painted[0]).toEqual(frame(state, 3, laneLayout(1)));
+    expect(painted[1]).toEqual(
+      frame(state, 3, laneLayout(1), THEMES.highContrast.sing),
+    );
+    expect(painted[1]).not.toEqual(painted[0]);
+  });
+
   it("asks for each frame with the same callback, and stops on stop()", () => {
     const { loop, callbacks, painted } = setup();
     loop.start();
@@ -112,7 +145,7 @@ describe("the render loop's effects", () => {
   function withStar() {
     const effects = new ParticlePool(4, { gravity: 1000 });
     effects.spawn(100, 100, 0, 0, 0, 2, 10, "star", "cherry", 0);
-    return { ...state, effects };
+    return { ...state, particles: effects };
   }
 
   function particleY(list: DrawList | undefined): number | undefined {
@@ -215,7 +248,7 @@ describe("the render loop's golden sparkle", () => {
           },
         },
       ],
-      effects: new ParticlePool(256),
+      particles: new ParticlePool(256),
     };
   }
 
@@ -225,9 +258,25 @@ describe("the render loop's golden sparkle", () => {
     time(3.5);
     loop.start();
     callbacks[0]?.(1000); // the first frame only notes the time
-    expect(sung.effects?.live).toBe(0);
+    expect(sung.particles?.live).toBe(0);
     callbacks[1]?.(1250);
-    expect(sung.effects?.live).toBe(SPARKLE_RATE / 4);
+    expect(sung.particles?.live).toBe(SPARKLE_RATE / 4);
+  });
+
+  it("throws sparkles with Effects full or calm, and none with Effects off", () => {
+    for (const [effectsMode, live] of [
+      ["full", SPARKLE_RATE / 4],
+      ["calm", SPARKLE_RATE / 4],
+      ["off", 0],
+    ] as const) {
+      const sung = { ...goldenSung(), effectsMode };
+      const { loop, callbacks, time } = setup({ state: () => sung });
+      time(3.5);
+      loop.start();
+      callbacks[0]?.(1000);
+      callbacks[1]?.(1250);
+      expect(sung.particles?.live, effectsMode).toBe(live);
+    }
   });
 
   it("throws none off the golden Note", () => {
@@ -237,7 +286,7 @@ describe("the render loop's golden sparkle", () => {
     loop.start();
     callbacks[0]?.(1000);
     callbacks[1]?.(1250);
-    expect(sung.effects?.live).toBe(0);
+    expect(sung.particles?.live).toBe(0);
   });
 
   it("throws none on a step() of its own (no real time passes)", () => {
@@ -245,6 +294,6 @@ describe("the render loop's golden sparkle", () => {
     const { at } = setup({ state: () => sung });
     at(3.5);
     at(3.5);
-    expect(sung.effects?.live).toBe(0);
+    expect(sung.particles?.live).toBe(0);
   });
 });

@@ -26,7 +26,7 @@ export function LockButton() {
           },
         );
       }}
-      className="inline-flex min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-ink px-5 text-xl font-semibold text-white shadow-ledge-ink outline-none transition-transform duration-200 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
+      className="inline-flex min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-ink-fill px-5 text-xl font-semibold text-white shadow-ledge-ink outline-none transition-transform duration-200 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
     >
       <Icon name="lock" className="size-5" />
       {t("admin.lock")}

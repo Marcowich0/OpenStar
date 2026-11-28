@@ -73,7 +73,7 @@ export function Avatar({
             className="font-sans"
             style={{
               fill: tokenVar("--color-white"),
-              stroke: tokenVar("--color-ink"),
+              stroke: tokenVar("--color-on-bright"),
             }}
           >
             {initialOf(name)}
@@ -86,7 +86,8 @@ export function Avatar({
 
 /** The icon, centred over 55 % of the disc: ink outline, white fill, ink marks. */
 function AvatarIcon({ avatar }: { avatar: AvatarValue }) {
-  const ink = tokenVar("--color-ink");
+  // Dark in every theme: the marks sit on the white glyph and the Party colour.
+  const ink = tokenVar("--color-on-bright");
   return (
     <svg
       x={(100 - ICON) / 2}

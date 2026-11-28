@@ -3,13 +3,15 @@
 // fill itself (fraction and colour) is #133's and tested in SingScreen.test.
 
 import { act, render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { Line } from "../../generated/Line";
 import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { LyricEntry, SingVoice } from "./frame";
+import { applyTheme } from "../../theme/themes";
 import { createLyricDriver, LyricBar } from "./LyricBar";
+import { DEFAULT_SING_LOOK, type SingLook } from "./singLook";
 
 function note(text: string, kind: NoteKind = "normal"): Note {
   return { kind, start: 0, length: 1, pitch: 0, text, line: 1 };
@@ -38,9 +40,19 @@ function entry(voiceIndex: number, line: number, note = -1): LyricEntry {
   };
 }
 
-function mount(voices: SingVoice[], entries: LyricEntry[]) {
+function mount(
+  voices: SingVoice[],
+  entries: LyricEntry[],
+  look?: Partial<SingLook>,
+) {
   const driver = createLyricDriver();
-  const utils = render(<LyricBar voices={voices} driver={driver} />);
+  const utils = render(
+    <LyricBar
+      voices={voices}
+      driver={driver}
+      {...(look ? { look: { ...DEFAULT_SING_LOOK, ...look } } : {})}
+    />,
+  );
   act(() => {
     driver.apply(entries);
   });
@@ -53,18 +65,37 @@ function mount(voices: SingVoice[], entries: LyricEntry[]) {
   return { ...utils, driver, bar, current, next };
 }
 
+afterEach(() => {
+  applyTheme("bubblePop");
+});
+
 describe("the lyric bar's look", () => {
-  it("is a frosted white bar centred 34 px above the bottom", () => {
+  it("is a frosted surface bar (white in Bubble Pop) centred 34 px above the bottom", () => {
     const { bar } = mount([SONG], [entry(0, 0)]);
     expect(bar?.style.bottom).toBe("34px");
     expect(bar?.style.left).toBe("50%");
-    expect(bar?.style.background).toBe(
-      "color-mix(in srgb, var(--color-white) 86%, transparent)",
+    expect(bar?.style.backgroundColor).toBe(
+      "color-mix(in srgb, var(--color-surface) 86%, transparent)",
     );
     expect(bar?.style.getPropertyValue("backdrop-filter")).toBe("blur(14px)");
     expect(bar?.style.borderRadius).toBe("52px");
     expect(bar?.style.padding).toBe("10px 60px 16px");
     expect(bar?.style.boxShadow).toBe("var(--shadow-ledge-lyric)");
+  });
+
+  it("is solid with no blur in High contrast, and follows a theme shown while it is up", () => {
+    const { bar } = mount([SONG], [entry(0, 0)]);
+    act(() => {
+      applyTheme("highContrast");
+    });
+    expect(bar?.style.backgroundColor).toBe(
+      "color-mix(in srgb, var(--color-surface) 100%, transparent)",
+    );
+    expect(bar?.style.getPropertyValue("backdrop-filter")).toBe("none");
+    act(() => {
+      applyTheme("bubblePop");
+    });
+    expect(bar?.style.getPropertyValue("backdrop-filter")).toBe("blur(14px)");
   });
 
   it("is hidden while no Voice has a Line to show", () => {
@@ -82,6 +113,39 @@ describe("the lyric bar's look", () => {
     expect(next()?.style.fontSize).toBe("36px");
     expect(next()?.style.fontWeight).toBe("600");
     expect(next()?.style.color).toBe("var(--color-mute)");
+  });
+
+  it("sizes its text by Lyric size: s, l, and xl at 1.5 × m", () => {
+    for (const [lyricSize, line, next] of [
+      ["s", "62.4px", "28.8px"],
+      ["l", "97.5px", "45px"],
+      ["xl", "117px", "54px"],
+    ] as const) {
+      const {
+        current,
+        next: nextLine,
+        unmount,
+      } = mount([SONG], [entry(0, 0)], { lyricSize });
+      expect(current()[0]?.style.fontSize, lyricSize).toBe(line);
+      expect(nextLine()?.style.fontSize, lyricSize).toBe(next);
+      unmount();
+    }
+  });
+
+  it("sizes a duet's Lines by Lyric size too", () => {
+    const other = voice([note("Oth"), note("er")]);
+    const { current } = mount([SONG, other], [entry(0, 0), entry(1, 0)], {
+      lyricSize: "xl",
+    });
+    expect(current().map((l) => l.style.fontSize)).toEqual(["90px", "90px"]);
+  });
+
+  it("shows no next Line when Show next Line is off", () => {
+    const { current, next } = mount([SONG], [entry(0, 0)], {
+      showNextLine: false,
+    });
+    expect(current()[0]?.textContent).toBe("Hello you ");
+    expect(next()).toBeNull();
   });
 
   it("shows no next Line after the last one", () => {

@@ -192,7 +192,7 @@ function UsdbNotices({
       {filling === null || mirror === undefined ? null : (
         <p
           role="status"
-          className="rounded-card-sm bg-white px-5 py-3 text-lg font-semibold text-ink shadow-ledge-sm"
+          className="rounded-card-sm bg-surface px-5 py-3 text-lg font-semibold text-ink shadow-ledge-sm"
         >
           {filling.percent === null
             ? t("admin.downloads.fillingStarted", { count: mirror.songs })
@@ -274,7 +274,7 @@ function MirrorLine({ status, mirror }: UsdbProps) {
         onPress={() => {
           void refetch();
         }}
-        className="inline-flex min-h-12 shrink-0 cursor-pointer items-center rounded-full bg-white px-5 text-lg font-semibold text-ink shadow-ledge outline-none transition-transform duration-200 data-disabled:cursor-default data-disabled:opacity-50 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
+        className="inline-flex min-h-12 shrink-0 cursor-pointer items-center rounded-full bg-surface px-5 text-lg font-semibold text-ink shadow-ledge outline-none transition-transform duration-200 data-disabled:cursor-default data-disabled:opacity-50 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
       >
         {t("admin.downloads.refetch")}
       </AriaButton>
@@ -304,7 +304,7 @@ function Search() {
           aria-label={t("admin.downloads.search")}
           value={search}
           onChange={setSearch}
-          className="flex h-13 min-w-0 grow basis-60 items-center gap-2.5 rounded-full bg-white px-4.5 ring-2 ring-ledge"
+          className="flex h-13 min-w-0 grow basis-60 items-center gap-2.5 rounded-full bg-surface px-4.5 ring-2 ring-ledge"
         >
           <Icon name="search" className="size-5.5 shrink-0 text-ink-2" />
           <Input
@@ -330,7 +330,7 @@ function Search() {
             <ToggleButton
               key={key}
               id={key}
-              className="rounded-full px-4 py-2 text-base font-semibold text-ink-2 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-ink data-[selected]:bg-white data-[selected]:text-ink data-[selected]:shadow-ledge-sm"
+              className="rounded-full px-4 py-2 text-base font-semibold text-ink-2 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-ink data-[selected]:bg-surface data-[selected]:text-ink data-[selected]:shadow-ledge-sm"
             >
               {t(
                 key === "views"
@@ -410,7 +410,7 @@ function UsdbSongRow({ song }: { song: UsdbSong }) {
         onPress={() => {
           setPicking(true);
         }}
-        className="flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-card-sm text-left outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:bg-white"
+        className="flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-card-sm text-left outline-none data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:bg-surface"
       >
         <Cover
           src={song.cover}

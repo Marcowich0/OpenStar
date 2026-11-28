@@ -5,6 +5,7 @@ import type { ParticleEntry } from "./effects";
 import { ParticlePool } from "./effects";
 import { frame, singVoices, type DrawEntry, type SingState } from "./frame";
 import { laneLayout } from "./laneLayout";
+import { singLayout } from "./singLook";
 import {
   LINE_RATING_SECONDS,
   lineEnded,
@@ -180,10 +181,28 @@ describe("Line ratings in the draw list", () => {
   });
 });
 
+describe("a Line rating with Effects calm or off", () => {
+  it("pops with no screen motion: no grow, no overshoot, no rise; it still fades out", () => {
+    for (const effectsMode of ["calm", "off"] as const) {
+      for (const age of [0, 0.2, 0.4, 1.2]) {
+        const pops = new LineRatings();
+        pops.show(0, "sing.lineRating.perfect");
+        // In frame-sized steps: one advance is clamped to a frame's delta.
+        for (let aged = 0; aged < age - 1e-9; aged += 0.05) pops.advance(0.05);
+        const s = state(1, { ratings: pops, effectsMode });
+        const [shown] = ratings(frame(s, 2, laneLayout(1)));
+        const label = `${effectsMode} at ${String(age)} s`;
+        expect(shown, label).toMatchObject({ scale: 1, rise: 0 });
+        expect(shown?.alpha, label).toBeCloseTo(lineRatingPop(age)?.alpha ?? 0);
+      }
+    }
+  });
+});
+
 describe("a Perfect! Line", () => {
   it("bursts about 30 particles at the lane header, in the Player's colour and the accents", () => {
     const pool = new ParticlePool(512, { seed: 7 });
-    const s = state(2, { ratings: new LineRatings(), effects: pool });
+    const s = state(2, { ratings: new LineRatings(), particles: pool });
     lineEnded(s, 1, result(8));
     expect(pool.live).toBe(30);
     const layout = laneLayout(2);
@@ -199,9 +218,40 @@ describe("a Perfect! Line", () => {
     expect(ps.some((p) => p.colour !== "sky")).toBe(true);
   });
 
+  it("bursts at the lane header where the lanes moved up for an xl lyric bar", () => {
+    const pool = new ParticlePool(512, { seed: 7 });
+    const s = state(4, {
+      particles: pool,
+      look: { lyricSize: "xl", showNextLine: true, laneFrostingPercent: 66 },
+    });
+    lineEnded(s, 3, result(8));
+    const rect = singLayout(s)[3];
+    expect(rect?.y).toBeLessThan(laneLayout(4)[3]?.y ?? 0);
+    for (const p of particles(frame(s, 2, singLayout(s)))) {
+      expect(p.y).toBeCloseTo((rect?.y ?? 0) + (rect?.height ?? 0) / 2);
+    }
+  });
+
+  it("bursts confetti only with Effects full: not calm, not off", () => {
+    for (const [effectsMode, live] of [
+      ["full", 30],
+      ["calm", 0],
+      ["off", 0],
+    ] as const) {
+      const pool = new ParticlePool(512);
+      const s = state(1, {
+        ratings: new LineRatings(),
+        particles: pool,
+        effectsMode,
+      });
+      lineEnded(s, 0, result(8));
+      expect(pool.live, effectsMode).toBe(live);
+    }
+  });
+
   it("only Perfect! bursts", () => {
     const pool = new ParticlePool(512);
-    const s = state(1, { ratings: new LineRatings(), effects: pool });
+    const s = state(1, { ratings: new LineRatings(), particles: pool });
     lineEnded(s, 0, result(7));
     expect(pool.live).toBe(0);
   });

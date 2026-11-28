@@ -240,7 +240,7 @@ function ChannelRow({
   const source = read ? sourceText(thresholds.source(mic)) : null;
   return (
     <li
-      className="flex items-center gap-8 rounded-card bg-white px-8 py-5"
+      className="flex items-center gap-8 rounded-card bg-surface px-8 py-5"
       data-local-mic={channel.localMicId}
     >
       <NameField
@@ -277,7 +277,7 @@ function ChannelRow({
         className={`inline-flex min-h-14 w-36 shrink-0 cursor-pointer items-center justify-center rounded-full text-2xl font-bold transition ${
           switchedOn
             ? "bg-green text-white shadow-ledge-green"
-            : "bg-white text-ink-2 shadow-ledge-sm"
+            : "bg-surface text-ink-2 shadow-ledge-sm"
         }`}
       >
         {switchedOn ? t("mics.switchedOn") : t("mics.switchedOff")}
@@ -310,7 +310,7 @@ function OfferRow({ offer, name }: { offer: CalibrateOffer; name: string }) {
       <button
         type="button"
         onClick={offer.onDecline}
-        className="inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-8 text-2xl font-bold shadow-ledge-sm"
+        className="inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-surface px-8 text-2xl font-bold shadow-ledge-sm"
       >
         {t("mics.calibrateOffer.notNow")}
       </button>
@@ -344,7 +344,7 @@ function ProfileMessage({
   const { label, profile } = card;
   return (
     <div
-      className="flex flex-col gap-4 rounded-card bg-white px-8 py-6"
+      className="flex flex-col gap-4 rounded-card bg-surface px-8 py-6"
       data-testid="mics-not-pro-audio"
     >
       <p role="alert" className="text-2xl font-semibold">
@@ -359,7 +359,7 @@ function ProfileMessage({
           </p>
           <code
             aria-label={t("mics.bridge.pactlLine", { label })}
-            className="block select-all overflow-x-auto rounded-card-sm bg-ink px-5 py-4 font-mono text-2xl whitespace-nowrap text-cream"
+            className="block select-all overflow-x-auto rounded-card-sm bg-ink-fill px-5 py-4 font-mono text-2xl whitespace-nowrap text-white"
           >
             {pactlLine(card.cardName)}
           </code>
@@ -518,7 +518,7 @@ function NewBridges({
         {requests.map(({ requestId, hostName, code }) => (
           <li
             key={requestId}
-            className="flex items-center gap-8 rounded-card bg-white px-8 py-5"
+            className="flex items-center gap-8 rounded-card bg-surface px-8 py-5"
           >
             <span className="min-w-0 flex-1 truncate text-3xl font-semibold">
               {t("mics.newBridge", { host: hostName, code })}
@@ -554,7 +554,7 @@ function NotFoundRow({
   const name = localMicName(localMic.source, localMic.name);
   return (
     <li
-      className="flex flex-col gap-4 rounded-card bg-white px-8 py-5"
+      className="flex flex-col gap-4 rounded-card bg-surface px-8 py-5"
       data-local-mic={localMic.localMicId}
     >
       <div className="flex items-center gap-8">
@@ -568,7 +568,7 @@ function NotFoundRow({
           onClick={() => {
             setFinding(!finding);
           }}
-          className="inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-8 text-2xl font-bold shadow-ledge-sm"
+          className="inline-flex min-h-14 shrink-0 cursor-pointer items-center justify-center rounded-full bg-surface px-8 text-2xl font-bold shadow-ledge-sm"
         >
           {t("mics.findIt")}
         </button>

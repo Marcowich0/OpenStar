@@ -125,7 +125,7 @@ function ProfileLayer({
           type="button"
           data-stage-default=""
           onClick={onClose}
-          className="inline-flex h-16 cursor-pointer items-center gap-3 rounded-full bg-white px-7 text-3xl font-semibold shadow-ledge-sm"
+          className="inline-flex h-16 cursor-pointer items-center gap-3 rounded-full bg-surface px-7 text-3xl font-semibold shadow-ledge-sm"
         >
           <Icon name="close" className="size-8" />
           {t("profilePage.back")}
@@ -178,7 +178,7 @@ function MemberCard({
     <li
       data-colour={member.colour}
       aria-label={name}
-      className="flex h-[192px] min-w-0 flex-col items-center gap-1 rounded-card-sm border-t-[6px] bg-white p-3 text-center shadow-ledge-sm *:shrink-0"
+      className="flex h-[192px] min-w-0 flex-col items-center gap-1 rounded-card-sm border-t-[6px] bg-surface p-3 text-center shadow-ledge-sm *:shrink-0"
       style={{ borderTopColor: tokenVar(member.colour) }}
     >
       {identity.kind === "profile" ? (

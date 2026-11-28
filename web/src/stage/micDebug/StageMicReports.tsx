@@ -162,7 +162,7 @@ function Mirror({
     <aside
       aria-label={t("micDebug.title")}
       data-testid="stage-mic-debug"
-      className="fixed bottom-4 left-4 z-toast max-w-[50vw] rounded-card bg-ink/90 p-4 font-mono text-lg text-white"
+      className="fixed bottom-4 left-4 z-toast max-w-[50vw] rounded-card bg-ink-fill/90 p-4 font-mono text-lg text-white"
     >
       <h2 className="mb-2 font-sans text-xl font-bold">
         {t("micDebug.title")}

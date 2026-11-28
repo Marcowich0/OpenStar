@@ -6,9 +6,9 @@
 
 import type { SongControlsState } from "./songControls";
 
-/** The digit's outline: ink, drawn under the white fill. */
+/** The digit's outline: ink, dark in every theme, drawn under the white fill. */
 const OUTLINE = {
-  WebkitTextStroke: "24px var(--color-ink)",
+  WebkitTextStroke: "24px var(--color-on-bright)",
   paintOrder: "stroke fill",
 } as const;
 

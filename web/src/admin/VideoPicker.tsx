@@ -100,7 +100,7 @@ function PickerBody({
         ) : null}
       </header>
       {found.isError ? (
-        <p role="alert" className="rounded-card-sm bg-white p-3">
+        <p role="alert" className="rounded-card-sm bg-surface p-3">
           {failureText(found.error)}
         </p>
       ) : !found.data ? (
@@ -110,7 +110,7 @@ function PickerBody({
       ) : (
         <>
           {found.data.searchFailure ? (
-            <p role="status" className="rounded-card-sm bg-white p-3">
+            <p role="status" className="rounded-card-sm bg-surface p-3">
               {t("admin.downloads.picker.searchFailed")}
             </p>
           ) : null}
@@ -134,7 +134,7 @@ function PickerBody({
           )}
           <LibraryReadOnlyNotice />
           {refusal !== null ? (
-            <p role="alert" className="rounded-card-sm bg-white p-3">
+            <p role="alert" className="rounded-card-sm bg-surface p-3">
               {refusal}
             </p>
           ) : null}
@@ -179,7 +179,7 @@ function CandidateOption({ candidate }: { candidate: VideoCandidate }) {
         className={[
           "flex min-w-0 cursor-pointer items-center gap-3 rounded-card-sm p-2 outline-none",
           "data-focus-visible:outline-6 data-focus-visible:outline-yellow",
-          "data-selected:bg-white data-selected:shadow-ledge-sm",
+          "data-selected:bg-surface data-selected:shadow-ledge-sm",
         ].join(" ")}
       >
         <span className="aspect-video w-24 shrink-0 overflow-hidden rounded-card-sm bg-ledge">

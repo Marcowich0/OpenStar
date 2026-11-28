@@ -249,7 +249,7 @@ export function LookForm(props: LookFormProps) {
           {...(kind === "profile"
             ? {}
             : { placeholder: t("joinForm.namePlaceholder") })}
-          className="min-h-16 rounded-card-sm bg-white px-5 text-2xl font-semibold shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+          className="min-h-16 rounded-card-sm bg-surface px-5 text-2xl font-semibold shadow-ledge-sm outline-none focus-visible:outline-6 focus-visible:outline-yellow"
         />
       </TextField>
       {check.kind === "profile" && editing ? (

@@ -15,10 +15,10 @@ describe("Button", () => {
   });
 
   it.each([
-    ["white", "bg-white", "shadow-ledge"],
+    ["white", "bg-surface", "shadow-ledge"],
     ["green", "bg-green", "shadow-ledge-green"],
     ["red", "bg-red", "shadow-ledge-red"],
-    ["ink", "bg-ink", "shadow-ledge-ink"],
+    ["ink", "bg-ink-fill", "shadow-ledge-ink"],
   ] as const)(
     "in %s has its fill and its own darker ledge",
     (fill, fillClass, ledgeClass) => {

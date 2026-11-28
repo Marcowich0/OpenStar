@@ -15,7 +15,7 @@ export function TimingEditorLink({ song }: { song: SongSummary }) {
       to="/admin/songs/$song/timing"
       params={{ song: song.id }}
       aria-label={t("admin.songs.timingOf", { title: song.title })}
-      className="inline-flex min-h-12 items-center rounded-full bg-ink px-5 text-xl font-semibold text-white shadow-ledge-ink outline-none focus-visible:outline-6 focus-visible:outline-yellow"
+      className="inline-flex min-h-12 items-center rounded-full bg-ink-fill px-5 text-xl font-semibold text-white shadow-ledge-ink outline-none focus-visible:outline-6 focus-visible:outline-yellow"
     >
       {t("admin.songs.timing")}
     </Link>

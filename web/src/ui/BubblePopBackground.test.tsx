@@ -13,11 +13,11 @@ describe("BubblePopBackground", () => {
     expect(screen.getByText("Hello")).toBeInTheDocument();
   });
 
-  it("paints a radial gradient from white through cream to cream-2", () => {
+  it("paints a radial gradient from the surface colour through cream to cream-2", () => {
     const { container } = render(<BubblePopBackground />);
     const backdrop = container.querySelector("[data-bubble-pop-backdrop]");
     expect(backdrop?.className).toMatch(
-      /bg-\[radial-gradient\([^\]]*var\(--color-white\)[^\]]*var\(--color-cream\)[^\]]*var\(--color-cream-2\)/,
+      /bg-\[radial-gradient\([^\]]*var\(--color-surface\)[^\]]*var\(--color-cream\)[^\]]*var\(--color-cream-2\)/,
     );
   });
 

@@ -15,7 +15,9 @@ import {
 import { confettiBurst, ParticlePool } from "./effects";
 import { laneLayout } from "./laneLayout";
 import { LineRatings } from "./lineRating";
+import { THEMES } from "../../theme/themes";
 import type { SingBackground } from "./background";
+import { DEFAULT_SING_LOOK, singLayout, type SingLook } from "./singLook";
 
 // One Beat lasts 0.5 s (beatsPerMinute is the real rate, #BPM × 4); Beat 0
 // falls at 1 s. Beat b starts at Song time 1 + b / 2.
@@ -115,6 +117,7 @@ describe("frame", () => {
         notesX: 320,
         radius: 40,
         colour: "cherry",
+        fill: { colour: "--color-surface", alpha: 0.66, blur: 16 },
         lost: null,
         separator: {
           x: 318,
@@ -220,12 +223,14 @@ describe("frame", () => {
   });
 
   it("gives each kind its fill and outline: Normal, golden, Rap dashed, Freestyle hollow", () => {
+    // A filled pill's outline is a mark on a bright fill (on-bright: ink in
+    // Bubble Pop, still dark in Night); a hollow one sits on the lane, in ink.
     const list = frame(solo, 3, oneLane);
     const normal = pillFor(list, 4);
     expect(normal).toMatchObject({
       kind: "normal",
       fill: { type: "solid", colour: "--color-white" },
-      outline: "--color-ink",
+      outline: "--color-on-bright",
       dash: [],
     });
     expect(pillFor(list, 8)).toMatchObject({
@@ -235,14 +240,14 @@ describe("frame", () => {
         top: "--color-golden-top",
         bottom: "--color-golden-bottom",
       },
-      outline: "--color-ink",
+      outline: "--color-on-bright",
       dash: [],
     });
     const rap = pillFor(list, 12);
     expect(rap).toMatchObject({
       kind: "rap",
       fill: { type: "solid", colour: "--color-white" },
-      outline: "--color-ink",
+      outline: "--color-on-bright",
     });
     expect(rap.dash).toEqual([2 * rap.outlineWidth, 2 * rap.outlineWidth]);
     expect(pillFor(list, 14)).toMatchObject({
@@ -287,7 +292,7 @@ describe("frame", () => {
     const after = pillFor(frame(solo, 3.95, oneLane), 4);
     expect(after.passed).toBe(true);
     expect(after.fill).toEqual({ type: "solid", colour: "--color-passed" });
-    expect(after.outline).toBe("--color-ink");
+    expect(after.outline).toBe("--color-on-bright");
 
     // A golden Note greys too; a Freestyle Note stays hollow with a grey outline.
     expect(pillFor(frame(solo, 7.5, oneLane), 8).fill).toEqual({
@@ -464,9 +469,11 @@ describe("frame", () => {
       rotation: 0,
       alpha: 1,
     };
-    const at3 = frame({ ...solo, effects }, 3, oneLane);
+    const at3 = frame({ ...solo, particles: effects }, 3, oneLane);
     expect(at3.at(-1)).toEqual(particle);
-    expect(frame({ ...solo, effects }, 9, oneLane).at(-1)).toEqual(particle);
+    expect(frame({ ...solo, particles: effects }, 9, oneLane).at(-1)).toEqual(
+      particle,
+    );
     expect(at3.filter((e) => e.type === "particle")).toHaveLength(1);
     expect(frame(solo, 3, oneLane).some((e) => e.type === "particle")).toBe(
       false,
@@ -488,7 +495,7 @@ describe("frame", () => {
     const colours: unknown[] = [];
     for (const t of [3, 3.95, 9]) {
       for (const entry of frame(
-        { ...duet, effects, ratings, background: BLOBS },
+        { ...duet, particles: effects, ratings, background: BLOBS },
         t,
         laneLayout(2),
       )) {
@@ -526,6 +533,9 @@ describe("frame", () => {
           case "lineRating":
             colours.push(entry.colour);
             break;
+          case "lyricBar":
+            colours.push(entry.fill.colour);
+            break;
           case "titleCard":
             colours.push(entry.fill, entry.ledge, entry.cover.tile);
             colours.push(entry.cover.rim, entry.title.colour);
@@ -554,6 +564,228 @@ describe("frame", () => {
         true,
       );
     }
+  });
+});
+
+describe("the lyric bar and the lane frosting (Stage options)", () => {
+  const look = (change: Partial<SingLook>): SingLook => ({
+    lyricSize: "m",
+    showNextLine: true,
+    laneFrostingPercent: 66,
+    ...change,
+  });
+  const players = (count: number) =>
+    Array.from({ length: count }, () => ({
+      colour: "cherry" as const,
+      voice: 0,
+    }));
+  function drawn(s: SingState) {
+    const list = frame(s, 3, singLayout(s));
+    const bar = list.find((e) => e.type === "lyricBar");
+    if (!bar) throw new Error("no lyric bar");
+    const lanes = list.filter((e) => e.type === "lane");
+    return { bar, lanes };
+  }
+
+  it("sizes the lyric bar by Lyric size, xl 1.5 × m, growing upward from 34 px above the bottom", () => {
+    // #55's m: a 78 px Line and a 36 px next Line, line height 1.1, and
+    // 10 + 16 px of padding.
+    const sizes = [
+      ["s", 62.4, 28.8, 126.32],
+      ["m", 78, 36, 151.4],
+      ["l", 97.5, 45, 182.75],
+      ["xl", 117, 54, 214.1],
+    ] as const;
+    for (const [lyricSize, line, next, height] of sizes) {
+      const { bar } = drawn({ ...solo, look: look({ lyricSize }) });
+      expect(bar.lineSize, lyricSize).toBeCloseTo(line);
+      expect(bar.nextSize, lyricSize).toBeCloseTo(next);
+      expect(bar.height, lyricSize).toBeCloseTo(height);
+      expect(bar.bottom, lyricSize).toBe(1046);
+      expect(bar.top, lyricSize).toBeCloseTo(1046 - height);
+    }
+  });
+
+  it("draws the lyric bar at m with the next Line when the state has no look", () => {
+    expect(drawn(solo).bar).toMatchObject({ lineSize: 78, nextSize: 36 });
+  });
+
+  it("leaves the next Line out when Show next Line is off, and the bar is shorter", () => {
+    const { bar } = drawn({ ...solo, look: look({ showNextLine: false }) });
+    expect(bar.nextSize).toBeNull();
+    expect(bar.height).toBeCloseTo(111.8);
+  });
+
+  it("shows no next Line in a duet, whose two current Lines are 60 px at m", () => {
+    const duet = state(
+      [
+        { colour: "cherry", voice: 0 },
+        { colour: "grape", voice: 1 },
+      ],
+      [notes, notes],
+    );
+    const { bar } = drawn(duet);
+    expect(bar).toMatchObject({ lineSize: 60, lines: 2, nextSize: null });
+    expect(bar.height).toBeCloseTo(158);
+  });
+
+  it("fills the lane panels with white at the Lane frosting's alpha", () => {
+    for (const [laneFrostingPercent, alpha] of [
+      [40, 0.4],
+      [66, 0.66],
+      [90, 0.9],
+    ] as const) {
+      const { lanes } = drawn({
+        ...state(players(2)),
+        look: look({ laneFrostingPercent }),
+      });
+      for (const lane of lanes) {
+        expect(lane.fill).toEqual({
+          colour: "--color-surface",
+          alpha,
+          blur: 16,
+        });
+      }
+    }
+  });
+
+  it("keeps the lanes where they are at m and s, whatever the Players", () => {
+    for (const lyricSize of ["s", "m"] as const) {
+      for (const count of [1, 2, 4, 8]) {
+        const s = { ...state(players(count)), look: look({ lyricSize }) };
+        expect(singLayout(s)).toEqual(laneLayout(count));
+      }
+    }
+  });
+
+  it("at 4 Players and xl, moves the lanes up above the lyric bar, keeping their heights and gaps", () => {
+    const s = { ...state(players(4)), look: look({ lyricSize: "xl" }) };
+    const { bar, lanes } = drawn(s);
+    expect(lanes).toHaveLength(4);
+    const m = laneLayout(4);
+    const top = lanes[0]?.y ?? 0;
+    lanes.forEach((lane, i) => {
+      expect(lane.y + lane.height, `lane ${String(i)}`).toBeLessThanOrEqual(
+        bar.top,
+      );
+      expect(lane.height).toBe(m[i]?.height);
+      expect(lane.y - top).toBe((m[i]?.y ?? 0) - (m[0]?.y ?? 0));
+    });
+    // Moved up, but still clear of the progress bar along the top.
+    expect(top).toBeLessThan(m[0]?.y ?? 0);
+    expect(top).toBeGreaterThan(40);
+  });
+
+  it("keeps every lane clear of the lyric bar at every size, Player count and duet", () => {
+    for (const lyricSize of ["s", "m", "l", "xl"] as const) {
+      for (const showNextLine of [true, false]) {
+        for (const count of [1, 2, 3, 4, 5, 8]) {
+          for (const voices of [[notes], [notes, notes]]) {
+            const s = {
+              ...state(players(count), voices),
+              look: look({ lyricSize, showNextLine }),
+            };
+            const { bar, lanes } = drawn(s);
+            for (const lane of lanes) {
+              expect(lane.y + lane.height).toBeLessThanOrEqual(bar.top);
+            }
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("the theme's sing screen", () => {
+  const bubblePop = THEMES.bubblePop.sing;
+  const highContrast = THEMES.highContrast.sing;
+  const twoPlayers = state([
+    { colour: "cherry", voice: 0 },
+    { colour: "sky", voice: 0 },
+  ]);
+  const at66 = { ...twoPlayers, look: { ...DEFAULT_SING_LOOK } };
+
+  function lanesOf(list: readonly DrawEntry[]) {
+    return list.filter((e) => e.type === "lane");
+  }
+
+  it("frosts the lanes in Bubble Pop: the surface at the Lane frosting option, 16 px of blur", () => {
+    for (const lane of lanesOf(frame(at66, 3, singLayout(at66), bubblePop))) {
+      expect(lane.fill).toEqual({
+        colour: "--color-surface",
+        alpha: 0.66,
+        blur: 16,
+      });
+    }
+  });
+
+  it("draws Bubble Pop when no theme is given", () => {
+    expect(frame(at66, 3, singLayout(at66))).toEqual(
+      frame(at66, 3, singLayout(at66), bubblePop),
+    );
+  });
+
+  it("makes the lanes solid in High contrast, whatever the Lane frosting option, with no blur", () => {
+    for (const laneFrostingPercent of [40, 66, 90]) {
+      const s = {
+        ...twoPlayers,
+        look: { ...DEFAULT_SING_LOOK, laneFrostingPercent },
+      };
+      for (const lane of lanesOf(frame(s, 3, singLayout(s), highContrast))) {
+        expect(lane.fill).toEqual({
+          colour: "--color-surface",
+          alpha: 1,
+          blur: 0,
+        });
+      }
+    }
+  });
+
+  it("makes the lyric bar solid with no blur in High contrast; frosted at 86 % with 14 px of blur in Bubble Pop", () => {
+    const bar = (theme: typeof bubblePop) =>
+      frame(solo, 3, singLayout(solo), theme).find(
+        (e) => e.type === "lyricBar",
+      );
+    expect(bar(bubblePop)?.fill).toEqual({
+      colour: "--color-surface",
+      alpha: 0.86,
+      blur: 14,
+    });
+    expect(bar(highContrast)?.fill).toEqual({
+      colour: "--color-surface",
+      alpha: 1,
+      blur: 0,
+    });
+  });
+
+  it("draws every ink edge 1.5 × as thick in High contrast: pill outlines and Rap dashes", () => {
+    const pillsIn = (theme: typeof bubblePop) =>
+      pills(frame(solo, 3, oneLane, theme));
+    const plain = pillsIn(bubblePop);
+    const thick = pillsIn(highContrast);
+    expect(thick).toHaveLength(plain.length);
+    thick.forEach((pill, i) => {
+      const width = plain[i]?.outlineWidth ?? NaN;
+      expect(pill.outlineWidth).toBeCloseTo(width * 1.5);
+      if (pill.kind === "rap" || pill.kind === "goldenRap") {
+        expect(pill.dash).toEqual([3 * width, 3 * width]);
+      }
+    });
+  });
+
+  it("draws the grid, the separator and the playhead darker in High contrast", () => {
+    const faint = (theme: typeof bubblePop) => {
+      const list = frame(solo, 3, oneLane, theme);
+      const grid = list.find((e) => e.type === "grid");
+      const lane = list.find((e) => e.type === "lane");
+      const playhead = list.find((e) => e.type === "playhead");
+      return [grid?.alpha, lane?.separator.alpha, playhead?.alpha];
+    };
+    expect(faint(bubblePop)).toEqual([0.07, 0.12, 0.3]);
+    const [grid, separator, playhead] = faint(highContrast);
+    expect(grid).toBeGreaterThanOrEqual(0.15);
+    expect(separator).toBeGreaterThanOrEqual(0.3);
+    expect(playhead).toBeGreaterThanOrEqual(0.6);
   });
 });
 

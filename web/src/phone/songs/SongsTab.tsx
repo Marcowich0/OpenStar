@@ -46,7 +46,7 @@ export function SongsTab({ store }: { store: LiveStore }) {
         aria-label={t("songs.search")}
         value={search}
         onChange={setSearch}
-        className="flex h-13 items-center gap-2.5 rounded-full bg-white px-4.5 ring-2 ring-ledge"
+        className="flex h-13 items-center gap-2.5 rounded-full bg-surface px-4.5 ring-2 ring-ledge"
       >
         <Icon name="search" className="size-5.5 shrink-0 text-ink-2" />
         <Input
@@ -67,7 +67,7 @@ export function SongsTab({ store }: { store: LiveStore }) {
           onClick={() => {
             setFilters({});
           }}
-          className={`${CHIP} ${noFilter(filters) ? "bg-ink text-white" : "bg-white text-ink"}`}
+          className={`${CHIP} ${noFilter(filters) ? "bg-ink-fill text-white" : "bg-surface text-ink"}`}
         >
           {t("songs.all")}
         </button>
@@ -81,7 +81,7 @@ export function SongsTab({ store }: { store: LiveStore }) {
               onClick={() => {
                 setFilters((current) => toggleChip(current, chip));
               }}
-              className={`${CHIP} ${on ? "bg-ink text-white" : "bg-white text-ink"}`}
+              className={`${CHIP} ${on ? "bg-ink-fill text-white" : "bg-surface text-ink"}`}
             >
               {chipLabel(chip)}
             </button>

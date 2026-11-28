@@ -1,6 +1,7 @@
 // The Remote's Stage tab (v1 spec #49, "Stage tab"): what the Stage is doing,
-// in one card per state (`stageCard`), and the OpenStar volume under it in
-// every state. The waiting Line-up's card: "Up next: who sings?" with the
+// in one card per state (`stageCard`), and Options (the Stage options, as a
+// sheet: `StageOptionsSheet.tsx`) and the OpenStar volume under it in every
+// state. The waiting Line-up's card: "Up next: who sings?" with the
 // Song's cover and title, one row per seat, "Add a singer", the server's
 // warnings, and a big Start. The playing Song's card (`PlayingCard`), the
 // results' card (`ResultsCard`) with this Phone's own Player's result and
@@ -43,6 +44,7 @@ import { VolumeControl } from "../onStage/VolumeControl";
 import { stageCard } from "../remoteFrame";
 import { editLineUp, startSong } from "./lineUpCommands";
 import { SeatSheet, Tag, type SeatSheetField } from "./SeatSheet";
+import { StageOptionsButton } from "./StageOptionsSheet";
 import { myResult } from "./myResult";
 import { micName } from "./seatMics";
 import { useLineUp } from "./useLineUp";
@@ -207,7 +209,7 @@ export function StageTab({
       {lineUp && (
         <section
           ref={lineUpRef}
-          className="flex flex-col gap-2 rounded-card bg-ink p-4.5 text-white shadow-ledge"
+          className="flex flex-col gap-2 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge"
         >
           <div className="mb-2 flex items-center gap-3">
             <Cover
@@ -288,7 +290,7 @@ export function StageTab({
                       onClick={() => {
                         store.send({ type: "openCalibrationFor", mic });
                       }}
-                      className="min-h-11 shrink-0 cursor-pointer rounded-full bg-white px-4 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+                      className="min-h-11 shrink-0 cursor-pointer rounded-full bg-surface px-4 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
                     >
                       {t("stage.overlay.calibrateMics")}
                     </button>
@@ -351,6 +353,7 @@ export function StageTab({
       )}
       {setup && <CalibrateMicsButton store={store} />}
       {setup && <AvSyncStartButton store={store} />}
+      <StageOptionsButton store={store} />
       <VolumeControl store={store} />
       <SeatSheet
         store={store}
@@ -385,7 +388,7 @@ function FixButton({
       type="button"
       data-line-up-fix={blocks ? "blocks" : "other"}
       onClick={onPress}
-      className="min-h-11 shrink-0 cursor-pointer rounded-full bg-white px-4 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+      className="min-h-11 shrink-0 cursor-pointer rounded-full bg-surface px-4 font-semibold text-ink shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
     >
       {label}
     </button>

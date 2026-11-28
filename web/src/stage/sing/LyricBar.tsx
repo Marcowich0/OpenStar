@@ -9,10 +9,20 @@
 
 import { memo, useSyncExternalStore, type CSSProperties } from "react";
 
+import { THEMES } from "../../theme/themes";
 import { tokenVar } from "../../theme/tokens";
+import { useShownTheme } from "../../theme/useShownTheme";
 import type { Note } from "../../generated/Note";
 import type { NoteKind } from "../../generated/NoteKind";
 import type { DrawList, LyricColour, LyricEntry, SingVoice } from "./frame";
+import {
+  DEFAULT_SING_LOOK,
+  LYRIC_BAR,
+  lyricBarBox,
+  surfaceFillStyle,
+  type LyricBarBox,
+  type SingLook,
+} from "./singLook";
 
 /** Between the render loop and the lyric text. */
 export interface LyricDriver {
@@ -113,30 +123,43 @@ export function createLyricDriver(): LyricDriver {
   };
 }
 
-/** The bar (#55), in the 1920 × 1080 reference frame. */
-const BAR_STYLE: CSSProperties = {
-  position: "absolute",
-  left: "50%",
-  bottom: "34px",
-  translate: "-50% 0",
-  background: "color-mix(in srgb, var(--color-white) 86%, transparent)",
-  backdropFilter: "blur(14px)",
-  WebkitBackdropFilter: "blur(14px)",
-  borderRadius: "52px",
-  padding: "10px 60px 16px",
-  boxShadow: "var(--shadow-ledge-lyric)",
-  lineHeight: 1.1,
-  textAlign: "center",
-};
+/**
+ * The bar (#55), in the 1920 × 1080 reference frame, from `LYRIC_BAR`: it
+ * grows upward from its fixed bottom as its text grows. Its fill is the
+ * box's, so the theme's: frosted in Bubble Pop, solid in High contrast.
+ */
+function barStyle({ fill }: LyricBarBox): CSSProperties {
+  return {
+    position: "absolute",
+    left: "50%",
+    bottom: `${String(LYRIC_BAR.bottomGap)}px`,
+    translate: "-50% 0",
+    ...surfaceFillStyle(fill, "srgb"),
+    borderRadius: `${String(LYRIC_BAR.radius)}px`,
+    padding: `${String(LYRIC_BAR.paddingTop)}px ${String(LYRIC_BAR.paddingInline)}px ${String(LYRIC_BAR.paddingBottom)}px`,
+    boxShadow: "var(--shadow-ledge-lyric)",
+    lineHeight: LYRIC_BAR.lineHeight,
+    textAlign: "center",
+  };
+}
 
-const CURRENT_STYLE: CSSProperties = { fontSize: "78px", fontWeight: 700 };
-const DUET_STYLE: CSSProperties = { fontSize: "60px", fontWeight: 700 };
-/** The next Line's text; the pause menu legend (#258) shows it too. */
+/** The next Line's text at the default size; the pause menu legend (#258) shows it too. */
 export const NEXT_LINE_STYLE: CSSProperties = {
-  fontSize: "36px",
+  fontSize: `${String(LYRIC_BAR.nextSize)}px`,
   fontWeight: 600,
   color: "var(--color-mute)",
 };
+
+/** The current Line(s) and next Line's text styles for a bar's box. */
+function textStyles(box: LyricBarBox): {
+  line: CSSProperties;
+  next: CSSProperties;
+} {
+  return {
+    line: { fontSize: `${String(box.lineSize)}px`, fontWeight: 700 },
+    next: { ...NEXT_LINE_STYLE, fontSize: `${String(box.nextSize ?? 0)}px` },
+  };
+}
 
 const GOLDEN: ReadonlySet<NoteKind> = new Set(["golden", "goldenRap"]);
 const ITALIC: ReadonlySet<NoteKind> = new Set([
@@ -193,9 +216,15 @@ export const LYRIC_NOTE_CLASS =
   "inline-block transition-[translate] duration-200 data-singing:-translate-y-[6px]";
 
 /** The next Line: plain text in mute, Rap and Freestyle Notes in italics. */
-function NextLine({ notes }: { notes: readonly Note[] }) {
+function NextLine({
+  notes,
+  style,
+}: {
+  notes: readonly Note[];
+  style: CSSProperties;
+}) {
   return (
-    <div data-lyric-next className="animate-line-in" style={NEXT_LINE_STYLE}>
+    <div data-lyric-next className="animate-line-in" style={style}>
       {notes.map((note, i) => (
         <span key={i} style={ITALIC.has(note.kind) ? ITALIC_STYLE : undefined}>
           {note.text}
@@ -208,21 +237,25 @@ function NextLine({ notes }: { notes: readonly Note[] }) {
 export const LyricBar = memo(function LyricBar({
   voices,
   driver,
+  look = DEFAULT_SING_LOOK,
 }: {
   voices: readonly SingVoice[];
   driver: LyricDriver;
+  /** The Lyric size and Show next Line options; `frame()` reads the same box. */
+  look?: SingLook | undefined;
 }) {
   const lines = useSyncExternalStore(driver.subscribe, driver.lines);
-  const duet = voices.length > 1;
+  const box = lyricBarBox(look, voices.length, THEMES[useShownTheme()].sing);
+  const styles = textStyles(box);
   const shown = voices.some((voice, v) => voice.lines[lines[v] ?? -1]);
-  const single = voices[0];
-  const next = duet ? undefined : single?.lines[(lines[0] ?? -1) + 1];
+  const next =
+    box.nextSize === null ? undefined : voices[0]?.lines[(lines[0] ?? -1) + 1];
   return (
     <div
       data-lyric-bar
       hidden={!shown}
       className="whitespace-pre text-ink"
-      style={BAR_STYLE}
+      style={barStyle(box)}
     >
       {voices.map((voice, v) => {
         const index = lines[v] ?? -1;
@@ -235,7 +268,7 @@ export const LyricBar = memo(function LyricBar({
             }}
             data-lyric-line
             className="animate-line-in"
-            style={duet ? DUET_STYLE : CURRENT_STYLE}
+            style={styles.line}
           >
             {line?.notes.map((note, i) => (
               <span
@@ -250,7 +283,13 @@ export const LyricBar = memo(function LyricBar({
           </div>
         );
       })}
-      {next && <NextLine key={(lines[0] ?? -1) + 1} notes={next.notes} />}
+      {next && (
+        <NextLine
+          key={(lines[0] ?? -1) + 1}
+          notes={next.notes}
+          style={styles.next}
+        />
+      )}
     </div>
   );
 });

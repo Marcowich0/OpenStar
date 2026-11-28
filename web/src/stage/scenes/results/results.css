@@ -22,11 +22,11 @@
   );
 }
 
-/* The place number: white with a 4 px ink outline (the stroke is painted
-   under the fill, so half of it shows). */
+/* The place number: white with a 4 px ink outline, dark in every theme (the
+   stroke is painted under the fill, so half of it shows). */
 .results-place {
   color: var(--color-white);
-  -webkit-text-stroke: 8px var(--color-ink);
+  -webkit-text-stroke: 8px var(--color-on-bright);
   paint-order: stroke fill;
 }
 

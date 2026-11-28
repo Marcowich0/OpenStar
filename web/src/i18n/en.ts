@@ -207,6 +207,8 @@ export const en = {
   "stageTab.pickMic": "Pick a mic",
   "stageTab.pickVoice": "Pick a voice",
   "stageTab.start": "Start",
+  "stageTab.options": "Options",
+  "stageTab.optionsBack": "Back",
   "stageTab.results": "Results on the Stage",
   "stageTab.yourScore": "Your Score: {total, number}",
   "stageTab.newHighScore": "New high score!",
@@ -436,8 +438,11 @@ export const en = {
   // Setup › Options: the Stage options, each with its explanation and Reset.
   "options.hint": "Every change is saved at once and kept for every Party.",
   "options.group.players": "Players",
+  "options.group.look": "Look",
   "options.group.singScreen": "Sing screen",
-  "options.group.playback": "Sound and pauses",
+  "options.group.sound": "Sound",
+  "options.advanced": "Advanced",
+  "options.advanced.changed": "(changed)",
   "options.on": "On",
   "options.off": "Off",
   "options.reset": "Reset",
@@ -449,6 +454,12 @@ export const en = {
   "options.startingDifficulty": "Starting Difficulty",
   "options.startingDifficulty.help":
     "Where a Guest starts, and a new Profile. A Profile that has sung keeps its last Difficulty.",
+  "options.theme": "Theme",
+  "options.theme.help":
+    "How every screen looks. Night is for a dark room. Every Phone follows the Stage.",
+  "options.theme.bubblePop": "Bubble Pop",
+  "options.theme.bubblePopNight": "Bubble Pop Night",
+  "options.theme.highContrast": "High contrast",
   "options.resumeCountdown": "Countdown after a pause",
   "options.resumeCountdown.help":
     "How long the Stage counts down before the Song plays on. At 0 it plays on at once.",
@@ -464,14 +475,39 @@ export const en = {
     "Show Perfect!, Great!, Good or OK when a Line ends. The Line bonus counts either way.",
   "options.effects": "Effects",
   "options.effects.help":
-    "Confetti on a Perfect! Line and sparkles while a golden Note is hit.",
+    "Full: confetti on a Perfect! Line, sparkles on golden Notes, and a bouncing ball and Line rating. Calm: only the sparkles. Off: none of them, no Perfect! or golden Note sounds, a still background, and fades in place of the Stage's motion.",
+  "options.effects.off": "Off",
+  "options.effects.calm": "Calm",
+  "options.effects.full": "Full",
   "options.songVideo": "Song video",
   "options.songVideo.help":
     "Show the Song's video behind the lanes. Off shows its background or cover instead.",
+  "options.openStarVolume": "OpenStar volume",
+  "options.openStarVolume.help":
+    "How loud the Stage plays everything: Songs, previews and sounds. The same as Volume on a Phone's Stage tab, kept for each Stage output.",
+  "options.openStarVolume.unknown": "–",
+  "options.uiSounds": "UI sounds",
+  "options.uiSounds.help":
+    "How loud the Stage's menu and game sounds play. Off plays none.",
+  "options.uiSounds.value": "{percent, number} %",
   "options.previewVolume": "Preview volume",
   "options.previewVolume.help":
     "How loud the song browser plays a preview, compared with the Song itself.",
   "options.previewVolume.value": "{percent, number} %",
+  "options.lyricSize": "Lyric size",
+  "options.lyricSize.help":
+    "How large the lyrics are. Larger lyrics move the lanes up rather than cover them.",
+  "options.lyricSize.s": "S",
+  "options.lyricSize.m": "M",
+  "options.lyricSize.l": "L",
+  "options.lyricSize.xl": "XL",
+  "options.showNextLine": "Next Line",
+  "options.showNextLine.help":
+    "Show the next Line small under the one being sung. A duet shows both Voices' Lines instead.",
+  "options.laneFrosting": "Lane frosting",
+  "options.laneFrosting.help":
+    "How white the lanes are. Less frosting shows more of the video behind them.",
+  "options.laneFrosting.value": "{percent, number} %",
   // Check A/V sync (#163), on the Stage and on a Remote's Stage tab.
   "avSync.later": "+{ms, number} ms",
   "avSync.earlier": "−{ms, number} ms",
@@ -1135,6 +1171,8 @@ export const en = {
   "partyEvent.songAborted":
     "The Stage dropped, so {song} stopped. Its Line-up waits to start again",
   "partyEvent.autoFitAccepted": "The Auto-fit of {song} was accepted",
+  "partyEvent.stageOptionChanged": "{option} changed",
+  "partyEvent.stageOptionsChanged": "The Options changed",
   // Line-up warnings: the screen resolves the member's name.
   "lineUpWarning.noMic": "{name} has no mic",
   "lineUpWarning.notCalibrated": "Not calibrated",
@@ -1198,6 +1236,11 @@ export const en = {
   "toast.soundOutputChanged": "Sound output changed: calibrate mics",
   "toast.autoFitAccepted": "{actor} accepted the Auto-fit of {song}",
   "toast.youAutoFitAccepted": "You accepted the Auto-fit of {song}",
+  // A Stage option changed from a Remote: one by its name, more as "the Options".
+  "toast.stageOptionChanged": "{actor} changed {option}",
+  "toast.stageOptionsChanged": "{actor} changed the Options",
+  "toast.youStageOptionChanged": "You changed {option}",
+  "toast.youStageOptionsChanged": "You changed the Options",
 
   // The Timing editor's edit list: one entry per edit, with the values
   // before and after it (GAP in ms, BPM as in the file, video gap in s).

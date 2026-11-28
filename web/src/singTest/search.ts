@@ -3,6 +3,10 @@
 // is a Vite entry of its own, built only for `just e2e` and
 // `just update-screenshots`, never into the binary.
 
+import type { LyricSize } from "../generated/LyricSize";
+import type { Theme } from "../generated/Theme";
+import { DEFAULT_THEME, isTheme } from "../theme/themes";
+
 /**
  * The synthetic sing screens: 1, 4 and 8 Players, a duet, and 2 Players of a
  * Song with no video, over the blobs (#263).
@@ -20,22 +24,43 @@ export interface SingTestSearch {
   case: SingTestCase;
   /** The frozen Song time to draw, seconds. */
   t: number;
+  /** The Lyric size option. */
+  lyricSize: LyricSize;
+  /** The theme the page shows. */
+  theme: Theme;
 }
 
-const DEFAULT: SingTestSearch = { case: "one", t: 6 };
+const DEFAULT: SingTestSearch = {
+  case: "one",
+  t: 6,
+  lyricSize: "m",
+  theme: DEFAULT_THEME,
+};
+const LYRIC_SIZES: readonly LyricSize[] = ["s", "m", "l", "xl"];
+
+function isLyricSize(value: unknown): value is LyricSize {
+  return (LYRIC_SIZES as readonly unknown[]).includes(value);
+}
 
 function isCase(value: unknown): value is SingTestCase {
   return (SING_TEST_CASES as readonly unknown[]).includes(value);
 }
 
-/** `?case=<one|four|eight|duet|noVideo>&t=<seconds>`; anything else takes the default. */
+/**
+ * `?case=<one|four|eight|duet|noVideo>&t=<seconds>&lyricSize=<s|m|l|xl>&theme=<a
+ * theme>`; anything else takes the default.
+ */
 export function parseSingTestSearch(search: string): SingTestSearch {
   const params = new URLSearchParams(search);
   const kase = params.get("case");
   const t = params.get("t");
+  const lyricSize = params.get("lyricSize");
+  const theme = params.get("theme");
   const seconds = t === null || t.trim() === "" ? NaN : Number(t);
   return {
     case: isCase(kase) ? kase : DEFAULT.case,
     t: Number.isFinite(seconds) ? seconds : DEFAULT.t,
+    lyricSize: isLyricSize(lyricSize) ? lyricSize : DEFAULT.lyricSize,
+    theme: isTheme(theme) ? theme : DEFAULT.theme,
   };
 }

@@ -5,8 +5,10 @@ import { expect, STAGE_VIEWPORT, test } from "../fixtures";
 
 // The painter screenshots (#203). The canvas painter is checked only by these:
 // the sing screen painted from `frame()` on fixed synthetic state at a frozen
-// Song time, for 1, 4 and 8 Players, a duet, and 2 Players of a Song with no
-// video, over the blobs (#263), and the title card (#264) at 1 s.
+// Song time, for 1, 4 and 8 Players, a duet, 2 Players of a Song with no
+// video, over the blobs (#263), the title card (#264) at 1 s, 4 Players at
+// Lyric size XL (the lanes moved up above the larger lyric bar), and 4
+// Players in Bubble Pop Night and in High contrast (#267).
 //
 // The page (`web/sing-test.html`) is a test build of its own, which `just e2e`
 // writes to e2e/generated/screenshot-page/ (`vite build --mode screenshots`).
@@ -31,22 +33,40 @@ const CONTENT_TYPES: Record<string, string> = {
 const SONG_TIME = 6;
 
 const CASES = [
-  { name: "one", label: "1 Player", t: SONG_TIME, shot: "one" },
-  { name: "four", label: "4 Players", t: SONG_TIME, shot: "four" },
-  { name: "eight", label: "8 Players", t: SONG_TIME, shot: "eight" },
-  { name: "duet", label: "a duet", t: SONG_TIME, shot: "duet" },
+  { query: "case=one", label: "1 Player", t: SONG_TIME, shot: "one" },
+  { query: "case=four", label: "4 Players", t: SONG_TIME, shot: "four" },
+  { query: "case=eight", label: "8 Players", t: SONG_TIME, shot: "eight" },
+  { query: "case=duet", label: "a duet", t: SONG_TIME, shot: "duet" },
   // The title card and pause hint show from 0 to 4 s.
   {
-    name: "one",
+    query: "case=one",
     label: "1 Player with the title card at 1 s",
     t: 1,
     shot: "title-card",
   },
   {
-    name: "noVideo",
+    query: "case=noVideo",
     label: "no video, 2 Players",
     t: SONG_TIME,
     shot: "noVideo",
+  },
+  {
+    query: "case=four&lyricSize=xl",
+    label: "4 Players at Lyric size XL",
+    t: SONG_TIME,
+    shot: "four-xl",
+  },
+  {
+    query: "case=four&theme=bubblePopNight",
+    label: "4 Players in Bubble Pop Night",
+    t: SONG_TIME,
+    shot: "four-night",
+  },
+  {
+    query: "case=four&theme=highContrast",
+    label: "4 Players in High contrast",
+    t: SONG_TIME,
+    shot: "four-high-contrast",
   },
 ] as const;
 
@@ -58,7 +78,7 @@ function pageFile(url: string): string | null {
   return file.startsWith(PAGE_DIR + "/") ? file : null;
 }
 
-for (const { name, label, t, shot } of CASES) {
+for (const { query, label, t, shot } of CASES) {
   test(`the painter draws the sing screen for ${label}`, async ({
     browser,
   }) => {
@@ -83,7 +103,7 @@ for (const { name, label, t, shot } of CASES) {
     });
     const page = await context.newPage();
 
-    await page.goto(`/sing-test.html?case=${name}&t=${String(t)}`);
+    await page.goto(`/sing-test.html?${query}&t=${String(t)}`);
     await expect(page.locator("[data-sing-screen][data-painted]")).toHaveCount(
       1,
     );

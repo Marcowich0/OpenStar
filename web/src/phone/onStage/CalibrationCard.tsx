@@ -68,7 +68,7 @@ export function CalibrationCard({
   return (
     <section
       data-testid="calibration-card"
-      className="flex flex-col gap-3 rounded-card bg-ink p-4.5 text-white shadow-ledge"
+      className="flex flex-col gap-3 rounded-card bg-ink-fill p-4.5 text-white shadow-ledge"
     >
       <h2 className="text-2xl font-bold">{t("stage.overlay.calibrateMics")}</h2>
       {run.phase === "choosing" && (

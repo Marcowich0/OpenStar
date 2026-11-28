@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { STAGE_OPTIONS, effectsOff } from "./stageOptions";
 
-describe("effectsOff, the one reader of Effects (the seam ticket 268 rewires)", () => {
-  it("is off only when the Stage options turn Effects off", () => {
+describe("effectsOff, the Stage's reader of Effects off (tickets 260 and 268)", () => {
+  it("is off only when the Stage options set Effects to Off, not Calm", () => {
     expect(effectsOff(STAGE_OPTIONS.defaults)).toBe(false);
-    expect(effectsOff({ ...STAGE_OPTIONS.defaults, effects: false })).toBe(
-      true,
-    );
+    const at = (effects: "off" | "calm" | "full") =>
+      effectsOff({ ...STAGE_OPTIONS.defaults, effects });
+    expect(at("full")).toBe(false);
+    expect(at("calm")).toBe(false);
+    expect(at("off")).toBe(true);
   });
 });

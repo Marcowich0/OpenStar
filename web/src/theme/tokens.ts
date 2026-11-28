@@ -1,7 +1,8 @@
 // The design tokens as TypeScript sees them: the palette keys, the token names,
-// and the one reader that resolves either to its current value. The values
-// themselves live only in `tokens.css` (Tailwind `@theme`), which puts every
-// token on the document as a CSS custom property. The DOM uses them through
+// and the one reader that resolves either to its current value. The default
+// values live in `tokens.css` (Tailwind `@theme`), which puts every token on
+// the document as a CSS custom property; the themes (`themes.ts`) change them
+// there. The DOM uses them through
 // `tokenVar` (a `var(--…)` reference); the canvas through `readToken`, which
 // reads the property at call time, so changing a property changes what the
 // canvas draws with no rebuild.
@@ -59,6 +60,9 @@ export const PARTY_COLOUR_TOKENS = {
 
 /** The interface tokens (everything in the theme that is not a Party colour). */
 export const INTERFACE_TOKENS = [
+  "--color-surface",
+  "--color-ink-fill",
+  "--color-on-bright",
   "--color-white",
   "--color-cream",
   "--color-cream-2",

@@ -2,7 +2,7 @@ import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { fakeLibraryServer, renderLive, settle } from "../admin/adminTestKit";
-import { OptionsScreen } from "./OptionsScreen";
+import { OptionsPanel } from "./OptionsScreen";
 import {
   createStageOptionsHolder,
   defaultStageOptions,
@@ -40,12 +40,12 @@ function optionsServer(stored: StageOptions = defaultStageOptions()) {
 async function setup(stored?: StageOptions) {
   const server = optionsServer(stored);
   const holder = createStageOptionsHolder();
-  const live = await renderLive(
+  const live = await renderLive((store) => (
     <>
       <StageOptionsLoader holder={holder} />
-      <OptionsScreen />
-    </>,
-  );
+      <OptionsPanel store={store} />
+    </>
+  ));
   return { ...server, holder, live };
 }
 
@@ -56,20 +56,46 @@ const row = (id: string) => {
 };
 const resetOf = (id: string) =>
   row(id).getByRole("button", { name: /^Reset .* to its default$/ });
+const openAdvanced = (group: string) => {
+  fireEvent.click(
+    within(screen.getByTestId(`options-${group}`)).getByRole("button", {
+      name: /^Advanced/,
+    }),
+  );
+};
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 describe("Setup › Options", () => {
-  it("shows every option in its group with an explanation, at today's defaults", async () => {
+  it("shows every option in its group with an explanation, at the defaults", async () => {
     await setup();
+    openAdvanced("sound");
+    openAdvanced("look");
+    openAdvanced("singScreen");
     for (const [group, ids] of [
       ["options-players", ["startingDifficulty"]],
-      ["options-singScreen", ["lineRatings", "effects", "songVideo"]],
+      ["options-look", ["theme", "laneFrostingPercent"]],
       [
-        "options-playback",
-        ["resumeCountdownSeconds", "skipIntros", "previewVolumePercent"],
+        "options-singScreen",
+        [
+          "lyricSize",
+          "lineRatings",
+          "effects",
+          "songVideo",
+          "skipIntros",
+          "showNextLine",
+        ],
+      ],
+      [
+        "options-sound",
+        [
+          "openStarVolume",
+          "uiSoundsPercent",
+          "previewVolumePercent",
+          "resumeCountdownSeconds",
+        ],
       ],
     ] as const) {
       const box = screen.getByTestId(group);
@@ -85,10 +111,21 @@ describe("Setup › Options", () => {
         .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(
-      row("effects").getByRole("switch").getAttribute("aria-checked"),
+      row("effects")
+        .getByRole("button", { name: "Full" })
+        .getAttribute("aria-pressed"),
     ).toBe("true");
     expect(row("resumeCountdownSeconds").getByText("3 seconds")).toBeTruthy();
     expect(row("previewVolumePercent").getByText("100 %")).toBeTruthy();
+    expect(
+      row("lyricSize")
+        .getByRole("button", { name: "M" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+    expect(
+      row("showNextLine").getByRole("switch").getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(row("laneFrostingPercent").getByText("66 %")).toBeTruthy();
     expect(
       row("lineRatings").getByText(/The Line bonus counts either way/),
     ).toBeTruthy();
@@ -96,12 +133,14 @@ describe("Setup › Options", () => {
 
   it("saves each change at once as the whole set, and Reset puts the default back", async () => {
     const s = await setup();
-    fireEvent.click(row("effects").getByRole("switch"));
+    fireEvent.click(row("effects").getByRole("button", { name: "Calm" }));
     await settle();
-    expect(s.puts).toEqual([{ ...defaultStageOptions(), effects: false }]);
+    expect(s.puts).toEqual([{ ...defaultStageOptions(), effects: "calm" }]);
     expect(
-      row("effects").getByRole("switch").getAttribute("aria-checked"),
-    ).toBe("false");
+      row("effects")
+        .getByRole("button", { name: "Calm" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(resetOf("effects").getAttribute("aria-disabled")).toBeNull();
 
     fireEvent.click(
@@ -110,7 +149,7 @@ describe("Setup › Options", () => {
     await settle();
     expect(s.puts.at(-1)).toEqual({
       ...defaultStageOptions(),
-      effects: false,
+      effects: "calm",
       startingDifficulty: "hard",
     });
 
@@ -131,8 +170,9 @@ describe("Setup › Options", () => {
   it("steps a number within its range", async () => {
     const s = await setup({
       ...defaultStageOptions(),
-      resumeCountdownSeconds: STAGE_OPTIONS.resumeCountdownMaxSeconds,
+      resumeCountdownSeconds: STAGE_OPTIONS.resumeCountdown.max,
     });
+    openAdvanced("sound");
     const countdown = row("resumeCountdownSeconds");
     fireEvent.click(countdown.getByRole("button", { name: /up$/ }));
     await settle();
@@ -149,6 +189,87 @@ describe("Setup › Options", () => {
     );
     await settle();
     expect(s.puts.at(-1)?.previewVolumePercent).toBe(90);
+  });
+
+  it("picks a Lyric size and switches the next Line off, under Sing screen › Advanced", async () => {
+    const s = await setup();
+    const sizes = row("lyricSize").getAllByRole("button", { pressed: false });
+    expect(sizes.map((b) => b.textContent)).toEqual(["S", "L", "XL"]);
+    fireEvent.click(row("lyricSize").getByRole("button", { name: "XL" }));
+    await settle();
+    expect(s.puts.at(-1)).toEqual({
+      ...defaultStageOptions(),
+      lyricSize: "xl",
+    });
+    expect(document.querySelector('[data-option="showNextLine"]')).toBeNull();
+    openAdvanced("singScreen");
+    fireEvent.click(row("showNextLine").getByRole("switch"));
+    await settle();
+    expect(s.puts.at(-1)).toEqual({
+      ...defaultStageOptions(),
+      lyricSize: "xl",
+      showNextLine: false,
+    });
+  });
+
+  it("steps the Lane frosting from its default onto the 10s, within 40 to 90 %", async () => {
+    const s = await setup();
+    openAdvanced("look");
+    const frosting = row("laneFrostingPercent");
+    fireEvent.click(frosting.getByRole("button", { name: /up$/ }));
+    await settle();
+    expect(s.puts.at(-1)?.laneFrostingPercent).toBe(70);
+    fireEvent.click(resetOf("laneFrostingPercent"));
+    await settle();
+    fireEvent.click(frosting.getByRole("button", { name: /down$/ }));
+    await settle();
+    expect(s.puts.at(-1)?.laneFrostingPercent).toBe(60);
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(frosting.getByRole("button", { name: /down$/ }));
+      await settle();
+    }
+    expect(s.puts.at(-1)?.laneFrostingPercent).toBe(40);
+    expect(frosting.getByText("40 %")).toBeTruthy();
+    expect(
+      frosting
+        .getByRole("button", { name: /down$/ })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
+  });
+
+  it("binds the OpenStar volume to the server's value: a step or Reset asks the server, and its answer shows", async () => {
+    const s = await setup();
+    expect(row("openStarVolume").getByText("–")).toBeTruthy();
+    await s.live.receive({ type: "volume", volume: 85, stepped: false });
+    expect(row("openStarVolume").getByText("85")).toBeTruthy();
+    fireEvent.click(
+      row("openStarVolume").getByRole("button", { name: /down$/ }),
+    );
+    fireEvent.click(resetOf("openStarVolume"));
+    expect(s.live.sent().slice(-2)).toEqual([
+      { type: "stepVolume", step: "down" },
+      { type: "setVolume", volume: 80 },
+    ]);
+    // It is not a Stage option: nothing is PUT, and the row waits for the
+    // server.
+    await settle();
+    expect(s.puts).toEqual([]);
+    expect(row("openStarVolume").getByText("85")).toBeTruthy();
+    await s.live.receive({ type: "volume", volume: 80, stepped: true });
+    expect(resetOf("openStarVolume").getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+  });
+
+  it("puts a UI sounds change in the Stage's holder, which the sounds read", async () => {
+    const s = await setup();
+    fireEvent.click(
+      row("uiSoundsPercent").getByRole("button", { name: /up$/ }),
+    );
+    await settle();
+    expect(s.puts.at(-1)?.uiSoundsPercent).toBe(70);
+    await s.live.receive({ type: "changed", topics: ["stageOptions"] });
+    expect(s.holder.current().uiSoundsPercent).toBe(70);
   });
 
   it("keeps the Stage's holder filled, and refetches on a change notice", async () => {

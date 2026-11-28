@@ -27,7 +27,10 @@ const TILE_ONLY: SongMedia = {
 };
 
 export function SingTestScreen({ search }: { search: SingTestSearch }) {
-  const state = useMemo(() => syntheticSing(search.case), [search.case]);
+  const state = useMemo(
+    () => syntheticSing(search.case, search.lyricSize),
+    [search.case, search.lyricSize],
+  );
   // A frozen clock: every frame draws the same Song time.
   const clock = useMemo(() => ({ songTime: () => search.t }), [search.t]);
   return (
@@ -37,10 +40,16 @@ export function SingTestScreen({ search }: { search: SingTestSearch }) {
       avOffset={NO_OFFSET}
       frameTime={FROZEN}
       backdrop={
-        <SingBackdrop
-          media={TILE_ONLY}
-          {...(state.background ? { background: state.background.kind } : {})}
-        />
+        // Its own compositing layer, so the tile rasterises the same way
+        // whatever else on the page is composited: without one, a theme with
+        // no backdrop blur (High contrast) re-rasterises the tile's mark when
+        // the screenshot cancels the mic-lost dots' animation.
+        <div className="absolute inset-0 will-change-transform">
+          <SingBackdrop
+            media={TILE_ONLY}
+            {...(state.background ? { background: state.background.kind } : {})}
+          />
+        </div>
       }
     />
   );

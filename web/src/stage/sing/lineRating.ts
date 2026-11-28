@@ -15,10 +15,12 @@
 
 import { SCORING } from "../../scoring/constants";
 import type { LineRatingKey, LineResult } from "../../scoring/scorer";
+import { DEFAULT_EFFECTS, EFFECTS } from "../../stageOptions/effects";
 import type { PaletteKey } from "../../theme/tokens";
 import { confettiBurst, MAX_FRAME_DELTA } from "./effects";
 import type { DrawList, SingLane, SingState } from "./frame";
-import { laneLayout, MAX_LANES, type LaneLayout } from "./laneLayout";
+import { MAX_LANES, type LaneLayout } from "./laneLayout";
+import { singLayout } from "./singLook";
 
 /** One showing Line rating, as the DOM writer places it. */
 export interface LineRatingEntry {
@@ -58,12 +60,19 @@ function easeOut(x: number): number {
   return 1 - (1 - x) * (1 - x);
 }
 
-/** The pop's look `age` seconds after the Line ended; `null` outside it. */
+/**
+ * The pop's look `age` seconds after the Line ended; `null` outside it.
+ * Without `motion` (Effects calm or off) it neither grows nor rises: it
+ * shows at full size and only fades out.
+ */
 export function lineRatingPop(
   age: number,
+  motion = true,
 ): { scale: number; alpha: number; rise: number } | null {
   if (age < 0 || age > LINE_RATING_SECONDS) return null;
   const p = age / LINE_RATING_SECONDS;
+  const fade = p > FADE_SHARE ? (p - FADE_SHARE) / (1 - FADE_SHARE) : 0;
+  if (!motion) return { scale: 1, alpha: 1 - fade, rise: 0 };
   let scale = 1;
   if (p < GROW_SHARE) {
     scale = GROW_FROM + (GROW_TO - GROW_FROM) * easeOut(p / GROW_SHARE);
@@ -71,7 +80,6 @@ export function lineRatingPop(
     const x = (p - GROW_SHARE) / (SETTLE_SHARE - GROW_SHARE);
     scale = GROW_TO - (GROW_TO - 1) * easeOut(x);
   }
-  const fade = p > FADE_SHARE ? (p - FADE_SHARE) / (1 - FADE_SHARE) : 0;
   return { scale, alpha: 1 - fade, rise: RISE * fade };
 }
 
@@ -105,14 +113,22 @@ export class LineRatings {
     this.words.fill(null);
   }
 
-  /** Appends a `lineRating` entry per showing pop. */
-  draw(list: DrawList, lanes: readonly SingLane[], layout: LaneLayout): void {
+  /**
+   * Appends a `lineRating` entry per showing pop; without `motion` (Effects
+   * calm or off) a pop only fades.
+   */
+  draw(
+    list: DrawList,
+    lanes: readonly SingLane[],
+    layout: LaneLayout,
+    motion = true,
+  ): void {
     for (let lane = 0; lane < MAX_LANES; lane++) {
       const word = this.words[lane] ?? null;
       const rect = layout[lane];
       const player = lanes[lane];
       if (word === null || !rect || !player) continue;
-      const pop = lineRatingPop(this.ages[lane] ?? 0);
+      const pop = lineRatingPop(this.ages[lane] ?? 0, motion);
       if (!pop) continue;
       list.push({
         type: "lineRating",
@@ -132,7 +148,8 @@ export class LineRatings {
 
 /**
  * Lane `lane`'s Line ended with `result` (from the scorer's feed): pops its
- * word, if it has one, and bursts confetti from the lane header on Perfect!.
+ * word, if it has one, and bursts confetti from the lane header on Perfect!
+ * when Effects is full.
  */
 export function lineEnded(
   state: SingState,
@@ -140,12 +157,17 @@ export function lineEnded(
   result: Pick<LineResult, "rating" | "word">,
 ): void {
   if (result.word !== null) state.ratings?.show(lane, result.word);
-  if (result.rating < SCORING.lineRatingScale || !state.effects) return;
+  if (
+    result.rating < SCORING.lineRatingScale ||
+    !state.particles ||
+    !EFFECTS.confetti(state.effectsMode ?? DEFAULT_EFFECTS)
+  )
+    return;
   const player = state.lanes[lane];
-  const rect = laneLayout(state.lanes.length)[lane];
+  const rect = singLayout(state)[lane];
   if (!player || !rect) return;
   confettiBurst(
-    state.effects,
+    state.particles,
     (rect.x + rect.notesX) / 2,
     rect.y + rect.height / 2,
     player.colour,

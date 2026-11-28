@@ -4,13 +4,15 @@
 //! survives a restart, and the starting Difficulty is where a joining Guest
 //! and a new Profile start.
 
+use openstar::db::DATABASE_FILE;
 use openstar_protocol::profile::{Avatar, AvatarKey, Difficulty, NewProfile, PaletteKey, Profile};
-use openstar_protocol::stage_options::StageOptions;
+use openstar_protocol::stage_options::{Effects, LyricSize, StageOptions, Theme};
 use openstar_protocol::{
     ChangeTopic, ClientMessage, Identity, JoinAs, NewGuest, PhoneId, ServerMessage, UserMessage,
 };
 use openstar_test_harness::{TestApp, WsClient};
 use reqwest::StatusCode;
+use rusqlite::Connection;
 
 /// PUTs `body` with no Unlock and no Stage cookie, as any browser would.
 async fn put(app: &TestApp, body: &serde_json::Value) -> reqwest::Response {
@@ -31,10 +33,15 @@ fn changed_options() -> StageOptions {
         starting_difficulty: Difficulty::Easy,
         resume_countdown_seconds: 0,
         line_ratings: false,
-        effects: false,
+        effects: Effects::Calm,
         song_video: false,
         preview_volume_percent: 40,
         skip_intros: true,
+        lyric_size: LyricSize::Xl,
+        show_next_line: false,
+        lane_frosting_percent: 40,
+        theme: Theme::BubblePopNight,
+        ui_sounds_percent: 0,
     }
 }
 
@@ -63,15 +70,55 @@ async fn anyone_sets_them_and_they_survive_a_restart() {
 #[tokio::test]
 async fn a_field_left_out_is_stored_as_its_default() {
     let app = TestApp::start().await;
-    let response = put(&app, &serde_json::json!({ "effects": false })).await;
+    let response = put(&app, &serde_json::json!({ "effects": "off" })).await;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
         read(&app).await,
         StageOptions {
-            effects: false,
+            effects: Effects::Off,
             ..StageOptions::default()
         }
     );
+}
+
+#[tokio::test]
+async fn a_set_kept_when_effects_was_a_switch_reads_on_as_full_and_keeps_the_rest() {
+    let mut app = TestApp::start().await;
+    put(&app, &serde_json::to_value(changed_options()).unwrap()).await;
+    for (stored, effects) in [(true, Effects::Full), (false, Effects::Off)] {
+        let v1 = serde_json::json!({
+            "startingDifficulty": "easy",
+            "resumeCountdownSeconds": 0,
+            "lineRatings": false,
+            "effects": stored,
+            "songVideo": false,
+            "previewVolumePercent": 40,
+            "skipIntros": true,
+        });
+        Connection::open(app.appdata_dir().join(DATABASE_FILE))
+            .unwrap()
+            .execute(
+                "UPDATE stage_options SET options = ?1 WHERE id = 1",
+                [v1.to_string()],
+            )
+            .unwrap();
+        app.restart().await;
+        // Options that did not exist yet read as their defaults.
+        let defaults = StageOptions::default();
+        assert_eq!(
+            read(&app).await,
+            StageOptions {
+                effects,
+                lyric_size: defaults.lyric_size,
+                show_next_line: defaults.show_next_line,
+                lane_frosting_percent: defaults.lane_frosting_percent,
+                // Kept before themes existed: the default theme.
+                theme: Theme::BubblePop,
+                ui_sounds_percent: defaults.ui_sounds_percent,
+                ..changed_options()
+            }
+        );
+    }
 }
 
 #[tokio::test]
@@ -81,6 +128,11 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
         serde_json::json!({ "resumeCountdownSeconds": 6 }),
         serde_json::json!({ "previewVolumePercent": 110 }),
         serde_json::json!({ "previewVolumePercent": 45 }),
+        serde_json::json!({ "laneFrostingPercent": 35 }),
+        serde_json::json!({ "laneFrostingPercent": 65 }),
+        serde_json::json!({ "laneFrostingPercent": 95 }),
+        serde_json::json!({ "uiSoundsPercent": 55 }),
+        serde_json::json!({ "uiSoundsPercent": 110 }),
     ] {
         let response = put(&app, &refused).await;
         assert_eq!(
@@ -94,6 +146,127 @@ async fn values_out_of_range_are_refused_and_nothing_changes() {
         );
     }
     assert_eq!(read(&app).await, StageOptions::default());
+}
+
+#[tokio::test]
+async fn values_that_do_not_read_are_refused_like_values_out_of_range() {
+    let app = TestApp::start().await;
+    for refused in [
+        serde_json::json!({ "effects": "loud" }),
+        serde_json::json!({ "effects": 1 }),
+        serde_json::json!({ "lyricSize": "xxl" }),
+        serde_json::json!({ "theme": "pink" }),
+        serde_json::json!({ "startingDifficulty": "impossible" }),
+        serde_json::json!({ "showNextLine": "yes" }),
+        serde_json::json!({ "skipIntros": 1 }),
+        serde_json::json!({ "laneFrostingPercent": 300 }),
+        serde_json::json!({ "uiSoundsPercent": -10 }),
+        serde_json::json!({ "previewVolumePercent": 1000 }),
+        serde_json::json!({ "resumeCountdownSeconds": 2.5 }),
+        serde_json::json!(["not", "an", "object"]),
+    ] {
+        let response = put(&app, &refused).await;
+        assert_eq!(
+            response.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{refused}"
+        );
+        assert_eq!(
+            response.json::<UserMessage>().await.unwrap(),
+            UserMessage::InvalidMessage,
+            "{refused}"
+        );
+    }
+    assert_eq!(read(&app).await, StageOptions::default());
+}
+
+#[tokio::test]
+async fn each_option_is_kept_on_its_own() {
+    let app = TestApp::start().await;
+    let defaults = StageOptions::default();
+    for (body, expected) in [
+        (
+            serde_json::json!({ "lyricSize": "s" }),
+            StageOptions {
+                lyric_size: LyricSize::S,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "lyricSize": "xl" }),
+            StageOptions {
+                lyric_size: LyricSize::Xl,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "showNextLine": false }),
+            StageOptions {
+                show_next_line: false,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "laneFrostingPercent": 90 }),
+            StageOptions {
+                lane_frosting_percent: 90,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "theme": "highContrast" }),
+            StageOptions {
+                theme: Theme::HighContrast,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "uiSoundsPercent": 100 }),
+            StageOptions {
+                ui_sounds_percent: 100,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "effects": "calm" }),
+            StageOptions {
+                effects: Effects::Calm,
+                ..defaults.clone()
+            },
+        ),
+        (
+            serde_json::json!({ "skipIntros": true }),
+            StageOptions {
+                skip_intros: true,
+                ..defaults.clone()
+            },
+        ),
+    ] {
+        let response = put(&app, &body).await;
+        assert_eq!(response.status(), StatusCode::OK, "{body}");
+        assert_eq!(read(&app).await, expected, "{body}");
+    }
+}
+
+#[tokio::test]
+async fn a_v1_set_reads_with_the_new_options_at_their_defaults() {
+    let app = TestApp::start().await;
+    let v1 = serde_json::json!({
+        "startingDifficulty": "easy",
+        "resumeCountdownSeconds": 3,
+        "lineRatings": true,
+        "effects": true,
+        "songVideo": true,
+        "previewVolumePercent": 100,
+    });
+    assert_eq!(put(&app, &v1).await.status(), StatusCode::OK);
+    assert_eq!(
+        read(&app).await,
+        StageOptions {
+            starting_difficulty: Difficulty::Easy,
+            ..StageOptions::default()
+        }
+    );
 }
 
 #[tokio::test]

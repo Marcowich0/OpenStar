@@ -58,7 +58,7 @@ export function Songs({
           aria-label={t("admin.songs.search")}
           value={search}
           onChange={setSearch}
-          className="flex h-13 items-center gap-2.5 rounded-full bg-white px-4.5 ring-2 ring-ledge"
+          className="flex h-13 items-center gap-2.5 rounded-full bg-surface px-4.5 ring-2 ring-ledge"
         >
           <Icon name="search" className="size-5.5 shrink-0 text-ink-2" />
           <Input

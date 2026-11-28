@@ -25,15 +25,16 @@ import type { PitchBuffer } from "../../../pitch/pitchBuffer";
 import type { PitchMic } from "../../../pitch/pitchRouter";
 import { pitchBufferCapacity } from "../../../pitch/pitchCapacity";
 import {
-  effectsOff,
   stageOptions,
   type StageOptions,
 } from "../../../stageOptions/stageOptions";
+import { EFFECTS } from "../../../stageOptions/effects";
 import type { PaletteKey } from "../../../theme/tokens";
 import { prefersReducedMotion } from "../../../theme/motion";
 import { singBackground } from "../../sing/background";
 import { EFFECTS_CAPACITY, ParticlePool } from "../../sing/effects";
 import { LineRatings } from "../../sing/lineRating";
+import type { SingLook } from "../../sing/singLook";
 import {
   singVoices,
   type LanePlayer,
@@ -80,10 +81,15 @@ export interface SingSetupInput {
   /** The OpenStar volume the Mic thresholds are fixed at. */
   volume?: number;
   /**
-   * Whether the sing screen shows effects (confetti, sparkles), Line rating
-   * words and the Song video. By default the Stage options as they are now.
+   * How much the sing screen celebrates (Effects: confetti, sparkles,
+   * motion), whether it shows Line rating words and the Song video, and its
+   * look (Lyric size, Show next Line, Lane frosting). By default the Stage
+   * options as they are now.
    */
-  display?: Pick<StageOptions, "effects" | "lineRatings" | "songVideo">;
+  display?: Pick<
+    StageOptions,
+    "effects" | "lineRatings" | "songVideo" | keyof SingLook
+  >;
   /**
    * The system asks for reduced motion, which keeps the background still.
    * By default `prefersReducedMotion()` now.
@@ -214,9 +220,16 @@ export function singSetup(input: SingSetupInput): SingSetup {
       song: singSong,
       pauseHint,
       background,
-      ...(effectsOff(display)
-        ? {}
-        : { effects: new ParticlePool(EFFECTS_CAPACITY) }),
+      look: {
+        lyricSize: display.lyricSize,
+        showNextLine: display.showNextLine,
+        laneFrostingPercent: display.laneFrostingPercent,
+      },
+      effectsMode: display.effects,
+      // Calm still sparkles, so only Off goes without particles.
+      ...(EFFECTS.sparkles(display.effects)
+        ? { particles: new ParticlePool(EFFECTS_CAPACITY) }
+        : {}),
       ...(display.lineRatings ? { ratings: new LineRatings() } : {}),
       lanes: players.map((player, index): SingLane => {
         const readings = buffers[index];

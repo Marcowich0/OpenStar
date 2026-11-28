@@ -162,7 +162,7 @@ export function createSyntheticLanes(
       ? { lengthSeconds: base.lengthSeconds }
       : {}),
     ...(base.background ? { background: base.background } : {}),
-    effects: new ParticlePool(EFFECTS_CAPACITY),
+    particles: new ParticlePool(EFFECTS_CAPACITY),
     ratings: new LineRatings(),
   };
 

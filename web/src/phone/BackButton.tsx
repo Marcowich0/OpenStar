@@ -10,7 +10,7 @@ export function BackButton({ onPress }: { onPress: () => void }) {
   return (
     <Button
       onPress={onPress}
-      className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-white px-5 text-xl font-semibold text-ink shadow-ledge-sm outline-none transition-transform duration-200 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
+      className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-surface px-5 text-xl font-semibold text-ink shadow-ledge-sm outline-none transition-transform duration-200 data-focus-visible:outline-6 data-focus-visible:outline-yellow data-pressed:scale-95"
     >
       {t("join.back")}
     </Button>

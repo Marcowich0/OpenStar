@@ -229,7 +229,7 @@ export function topBand(
         weight: 700,
         colour: "--color-white",
       },
-      outline: "--color-ink",
+      outline: "--color-ink-fill",
       outlineWidth: 6,
     });
   }
@@ -247,7 +247,7 @@ export function topBand(
     height: CARD.height,
     maxWidth: CARD.maxWidth,
     paddingRight: CARD.paddingRight,
-    fill: "--color-white",
+    fill: "--color-surface",
     alpha: 0.94,
     ledge: "--color-lane-ledge",
     ledgeDepth: CARD.ledgeDepth,
@@ -258,7 +258,7 @@ export function topBand(
       radius: 18,
       url: song.cover,
       tile: song.tileColour,
-      rim: "--color-white",
+      rim: "--color-surface",
       rimWidth: COVER_RIM,
       letter:
         song.letter === null
@@ -272,7 +272,7 @@ export function topBand(
               size: Math.round(0.4 * COVER_IMAGE),
               weight: 700,
               colour: "--color-white",
-              shadow: "--color-ink",
+              shadow: "--color-ink-fill",
               shadowAlpha: 0.25,
               shadowDy: Math.round(0.025 * COVER_IMAGE),
             },
@@ -303,7 +303,7 @@ export function topBand(
     y,
     height: HINT.height,
     padding: HINT.padding,
-    fill: "--color-ink",
+    fill: "--color-ink-fill",
     text: {
       text: t(
         state.pauseHint === "gamepad"

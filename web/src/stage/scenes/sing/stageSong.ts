@@ -387,7 +387,7 @@ export function createStageSong(options: StageSongOptions): StageSong {
     return {
       reset() {
         s.sing?.ratings?.clear();
-        s.sing?.effects?.clear();
+        s.sing?.particles?.clear();
       },
     };
   }

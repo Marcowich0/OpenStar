@@ -48,7 +48,7 @@ export interface NumberPadProps {
 }
 
 const KEY_CLASSES =
-  "flex h-16 items-center justify-center rounded-full bg-white text-3xl font-semibold text-ink shadow-ledge-sm outline-none cursor-pointer select-none transition-transform duration-150 active:translate-y-1 focus-visible:outline-6 focus-visible:outline-yellow";
+  "flex h-16 items-center justify-center rounded-full bg-surface text-3xl font-semibold text-ink shadow-ledge-sm outline-none cursor-pointer select-none transition-transform duration-150 active:translate-y-1 focus-visible:outline-6 focus-visible:outline-yellow";
 
 /** The 3 × 4 grid, row by row: 1–9, a blank, 0 and delete. */
 const GRID = [
@@ -168,7 +168,7 @@ export function NumberPad({
             key={index}
             data-testid="code-box"
             data-next={index === pad.digits.length || undefined}
-            className="flex h-20 w-16 items-center justify-center rounded-card-sm bg-white text-5xl font-bold text-ink shadow-ledge-sm data-next:outline-4 data-next:outline-blue"
+            className="flex h-20 w-16 items-center justify-center rounded-card-sm bg-surface text-5xl font-bold text-ink shadow-ledge-sm data-next:outline-4 data-next:outline-blue"
           >
             {pad.digits[index] ?? ""}
           </span>
@@ -181,7 +181,7 @@ export function NumberPad({
         key={refusals}
         role="img"
         aria-label={t("numberPad.pinEntered", { count: pad.digits.length })}
-        className="flex min-h-20 items-center justify-center gap-3 rounded-full bg-white px-6 shadow-ledge-sm data-shaking:animate-shake"
+        className="flex min-h-20 items-center justify-center gap-3 rounded-full bg-surface px-6 shadow-ledge-sm data-shaking:animate-shake"
         {...shake}
       >
         {pad.digits.length === 0 ? (

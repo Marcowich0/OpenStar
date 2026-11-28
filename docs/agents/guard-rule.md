@@ -64,8 +64,8 @@ A Phone's Fit to the singing starts with `POST /api/songs/{id}/auto-fit`, classi
 - every Queue, Line-up and playback action, including Restart, Skip and End (press and hold) and Skip intro (a plain tap);
 - Calibrate mics and "Calibrate this mic now";
 - Check A/V sync, and reading and setting a browser's own A/V offset at its output (`GET /api/av-offset`, `PUT /api/av-offset`);
-- setting the OpenStar volume, from the Stage or a Remote;
-- reading and setting the Stage options in Setup › Options (`GET /api/stage-options`, `PUT /api/stage-options`): they change how the Stage plays and looks, never a Library file, and delete no kept data;
+- setting the OpenStar volume, from the Stage or a Remote, a step (`stepVolume`) or a value (`setVolume`, Options › Sound's Reset);
+- reading and setting the Stage options in Setup › Options (`GET /api/stage-options`, `PUT /api/stage-options`), and from a Phone's Stage tab (the WebSocket's `setStageOptions`): they change how the Stage plays and looks, never a Library file, and delete no kept data;
 - hiding the join card;
 - on the Mics screen: switching Local mics on and off, renaming a Local mic, Find it, and setting a Mic threshold;
 - a Phone's Mic threshold set by hand, from that Phone's own meter or from its Line-up seat on the Stage;

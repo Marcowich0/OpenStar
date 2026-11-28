@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import type { Effects } from "../../../generated/Effects";
+
 import { PitchBuffer } from "../../../pitch/pitchBuffer";
 import {
   MIC_THRESHOLD,
   type StoredMicSettings,
 } from "../../../mics/micSettings";
 import { stageMicSettings } from "../../../mics/stageMicSettings";
+import { STAGE_OPTIONS } from "../../../stageOptions/stageOptions";
 import { createFirstSongMemory } from "./pauseHint";
 import { singSetup } from "./singSetup";
 import {
@@ -55,7 +58,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       "easy",
     ]);
     expect(state.lengthSeconds).toBe(30);
-    expect(state.effects).toBeDefined();
+    expect(state.particles).toBeDefined();
   });
 
   it("chooses the background at Start: blobs without a video or a background image, moving", () => {
@@ -85,7 +88,7 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
         detail,
         party,
         profiles: PROFILES,
-        display: { effects: true, lineRatings: true, songVideo },
+        display: { ...STAGE_OPTIONS.defaults, songVideo },
         reducedMotion: false,
       }).state([new PitchBuffer(8)]).background?.kind;
     expect(background(true)).toBe("video");
@@ -94,17 +97,18 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
 
   it("keeps the blobs still with Effects off or reduced motion", () => {
     const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
-    const still = (effects: boolean, reducedMotion: boolean) =>
+    const still = (effects: Effects, reducedMotion: boolean) =>
       singSetup({
         detail: testDetail(),
         party,
         profiles: PROFILES,
-        display: { effects, lineRatings: true, songVideo: true },
+        display: { ...STAGE_OPTIONS.defaults, effects },
         reducedMotion,
       }).state([new PitchBuffer(8)]).background?.still;
-    expect(still(true, false)).toBe(false);
-    expect(still(false, false)).toBe(true);
-    expect(still(true, true)).toBe(true);
+    expect(still("full", false)).toBe(false);
+    expect(still("calm", false)).toBe(false);
+    expect(still("off", false)).toBe(true);
+    expect(still("full", true)).toBe(true);
   });
 
   it("leaves out the effects and the Line rating words the Stage options switch off", () => {
@@ -115,17 +119,65 @@ describe("the sing screen's state, built from the Line-up fixed at Start", () =>
       profiles: PROFILES,
     });
     const state = shown.state([new PitchBuffer(8)]);
-    expect(state.effects).toBeDefined();
+    expect(state.particles).toBeDefined();
     expect(state.ratings).toBeDefined();
     const hidden = singSetup({
       detail: testDetail(),
       party,
       profiles: PROFILES,
-      display: { effects: false, lineRatings: false, songVideo: true },
+      display: {
+        ...STAGE_OPTIONS.defaults,
+        effects: "off",
+        lineRatings: false,
+      },
     });
     const bare = hidden.state([new PitchBuffer(8)]);
-    expect(bare.effects).toBeUndefined();
+    expect(bare.particles).toBeUndefined();
     expect(bare.ratings).toBeUndefined();
+  });
+
+  it("gives the sing screen the Lyric size, Show next Line and Lane frosting options of Start", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    const plain = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+    });
+    expect(plain.state([new PitchBuffer(8)]).look).toEqual({
+      lyricSize: "m",
+      showNextLine: true,
+      laneFrostingPercent: 66,
+    });
+    const set = singSetup({
+      detail: testDetail(),
+      party,
+      profiles: PROFILES,
+      display: {
+        ...STAGE_OPTIONS.defaults,
+        lyricSize: "xl",
+        showNextLine: false,
+        laneFrostingPercent: 40,
+      },
+    });
+    expect(set.state([new PitchBuffer(8)]).look).toEqual({
+      lyricSize: "xl",
+      showNextLine: false,
+      laneFrostingPercent: 40,
+    });
+  });
+
+  it("keeps a particle pool for sparkles with Effects calm or full, and carries the Effects into the state", () => {
+    const party = testParty({ lineUp: testLineUp([MIA_SEAT], false) });
+    for (const effects of ["off", "calm", "full"] as const) {
+      const state = singSetup({
+        detail: testDetail(),
+        party,
+        profiles: PROFILES,
+        display: { ...STAGE_OPTIONS.defaults, effects, lineRatings: true },
+      }).state([new PitchBuffer(8)]);
+      expect(state.effectsMode, effects).toBe(effects);
+      expect(state.particles !== undefined, effects).toBe(effects !== "off");
+    }
   });
 
   it("puts each Player's own buffer in their lane's trace, with the Mic threshold fixed at Start", () => {

@@ -131,7 +131,7 @@ export function StageSongSearch({
         {search.open ? (
           <label
             // The Stage's focus ring, on the pill rather than the bare input.
-            className={`flex h-[72px] items-center gap-4 rounded-full bg-white px-8 shadow-ledge-sm ring-4 ring-ledge focus-within:ring-6 focus-within:ring-yellow focus-within:outline-4 focus-within:outline-offset-6 focus-within:outline-ink ${boxClassName}`}
+            className={`flex h-[72px] items-center gap-4 rounded-full bg-surface px-8 shadow-ledge-sm ring-4 ring-ledge focus-within:ring-6 focus-within:ring-yellow focus-within:outline-4 focus-within:outline-offset-6 focus-within:outline-ink ${boxClassName}`}
           >
             <Icon name="search" className="size-9 shrink-0 text-ink-2" />
             <input
@@ -154,7 +154,7 @@ export function StageSongSearch({
             type="button"
             aria-keyshortcuts="/"
             onClick={openBox}
-            className={`${SEARCH_ROW_CONTROL} bg-white text-ink`}
+            className={`${SEARCH_ROW_CONTROL} bg-surface text-ink`}
           >
             <Icon name="search" className="size-9" />
             {t("stage.browser.search")}
@@ -217,7 +217,7 @@ function FilterButton({
           inline: "nearest",
         });
       }}
-      className={`${CHIP} ${on ? "bg-ink text-white" : "bg-white text-ink"}`}
+      className={`${CHIP} ${on ? "bg-ink-fill text-white" : "bg-surface text-ink"}`}
     >
       {children}
     </button>

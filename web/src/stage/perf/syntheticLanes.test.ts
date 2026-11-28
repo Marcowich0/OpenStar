@@ -153,7 +153,7 @@ describe("synthetic lanes", () => {
       at(ms);
       // The render loop ages pops and particles by real time.
       synthetic.state.ratings?.advance(0.1);
-      synthetic.state.effects?.advance(0.1);
+      synthetic.state.particles?.advance(0.1);
       const list = frame(synthetic.state, ms / 1000, laneLayout(8));
       for (const entry of list) seen.add(entry.type);
     }

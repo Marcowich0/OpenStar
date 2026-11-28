@@ -253,7 +253,7 @@ function SeatBody({
                 if (!option.current)
                   send({ kind: "setMic", seat: index, mic: option.mic });
               }}
-              className={`flex min-h-14 w-full items-center gap-3 rounded-[20px] bg-white px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow disabled:cursor-not-allowed ${option.inUse || option.unavailable ? "opacity-45" : "cursor-pointer"} ${option.current ? "ring-3 ring-ink" : ""}`}
+              className={`flex min-h-14 w-full items-center gap-3 rounded-[20px] bg-surface px-3.5 py-2.5 text-left text-lg font-semibold shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow disabled:cursor-not-allowed ${option.inUse || option.unavailable ? "opacity-45" : "cursor-pointer"} ${option.current ? "ring-3 ring-ink" : ""}`}
             >
               <span className="grow truncate">{option.name}</span>
               {option.inUse && <Tag>{t("stageTab.inUse")}</Tag>}
@@ -314,7 +314,7 @@ function SeatBody({
         onClick={() => {
           send({ kind: "removeSeat", seat: index }, onClose);
         }}
-        className="min-h-14 w-full cursor-pointer rounded-full bg-white text-lg font-semibold text-red shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
+        className="min-h-14 w-full cursor-pointer rounded-full bg-surface text-lg font-semibold text-red shadow-ledge-sm outline-none focus-visible:outline-4 focus-visible:outline-yellow"
       >
         {t("stageTab.takeOff", { name })}
       </button>
@@ -359,7 +359,7 @@ function Segment({
       onClick={() => {
         if (!on) onPress();
       }}
-      className={`min-h-11 flex-1 cursor-pointer rounded-full font-semibold outline-none focus-visible:outline-4 focus-visible:outline-yellow ${on ? "bg-white shadow-ledge-sm" : ""}`}
+      className={`min-h-11 flex-1 cursor-pointer rounded-full font-semibold outline-none focus-visible:outline-4 focus-visible:outline-yellow ${on ? "bg-surface shadow-ledge-sm" : ""}`}
     >
       {children}
     </button>

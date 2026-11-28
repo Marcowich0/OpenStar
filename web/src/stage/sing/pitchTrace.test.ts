@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { THEMES } from "../../theme/themes";
 import type { Difficulty } from "../../generated/Difficulty";
 import * as scorer from "../../scoring/scorer";
 import { readingHits } from "../../scoring/scorer";
@@ -367,6 +368,18 @@ describe("hit colouring", () => {
     ]);
   });
 
+  it("draws the ink edge 1.5 × as thick in High contrast: 7.5 px beyond the hit stroke instead of 5", () => {
+    const [line] = lines(
+      frame(
+        state(trace(buffer(sung(3, 3.2, 60)))),
+        3.2,
+        oneLane,
+        THEMES.highContrast.sing,
+      ),
+    );
+    expect(line?.hit).toMatchObject({ width: 12, edgeWidth: 19.5 });
+  });
+
   it("styles hits in the Party colour over an ink edge and misses thin ink", () => {
     const [line] = lines(
       frame(state(trace(buffer(sung(3, 3.2, 60)))), 3.2, oneLane),
@@ -449,6 +462,18 @@ describe("the head ball", () => {
     const xs = Array.from({ length: 200 }, (_, i) => squash(3 + i * 0.0025).x);
     expect(Math.max(...xs)).toBeGreaterThan(1.139);
     expect(Math.min(...xs)).toBeLessThan(1.001);
+  });
+
+  it("holds round with Effects calm or off: no screen motion", () => {
+    for (const effectsMode of ["calm", "off"] as const) {
+      const s = { ...state(trace(buffer(sung(3, 3.5, 60)))), effectsMode };
+      for (const t of [3.3, 3.35, 3.4, 3.45, 3.5]) {
+        const ball = frame(s, t, oneLane).find((e) => e.type === "headBall");
+        expect(ball, `${effectsMode} at ${String(t)}`).toMatchObject({
+          squash: { x: 1, y: 1 },
+        });
+      }
+    }
   });
 
   it("is marked golden only while it hits a golden Note", () => {
